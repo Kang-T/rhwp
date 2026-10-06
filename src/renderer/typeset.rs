@@ -6959,6 +6959,7 @@ mod tests {
                 row_cursor_is_nested: false,
                 end_row_height_override: None,
                 start_row_height_override: None,
+                straddle_row_relief: Vec::new(),
             }]),
             page_with_items(vec![PageItem::PartialTable {
                 para_index: 7,
@@ -6973,6 +6974,7 @@ mod tests {
                 row_cursor_is_nested: false,
                 end_row_height_override: None,
                 start_row_height_override: None,
+                straddle_row_relief: Vec::new(),
             }]),
         ];
 

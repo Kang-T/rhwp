@@ -10234,6 +10234,7 @@ impl LayoutEngine {
                     false,
                     None,
                     None,
+                    &[],
                     &overlay_ctx,
                     col_area.y,
                 );
@@ -11389,6 +11390,7 @@ impl LayoutEngine {
                 row_cursor_is_nested,
                 end_row_height_override,
                 start_row_height_override,
+                straddle_row_relief,
             } => {
                 y_offset = self.layout_partial_table_item(
                     tree,
@@ -11406,6 +11408,7 @@ impl LayoutEngine {
                     *row_cursor_is_nested,
                     *end_row_height_override,
                     *start_row_height_override,
+                    straddle_row_relief,
                     &ctx,
                     y_offset,
                 );
@@ -14542,6 +14545,7 @@ impl LayoutEngine {
         row_cursor_is_nested: bool,
         end_row_height_override: Option<f64>,
         start_row_height_override: Option<f64>,
+        straddle_row_relief: &[(usize, f64)],
         ctx: &ColumnItemCtx,
         mut y_offset: f64,
     ) -> f64 {
@@ -14762,6 +14766,7 @@ impl LayoutEngine {
             row_cursor_is_nested,
             end_row_height_override,
             start_row_height_override,
+            straddle_row_relief,
             pt_margin_left,
             pt_margin_right,
             pt_mt,
