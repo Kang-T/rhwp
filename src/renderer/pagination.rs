@@ -751,6 +751,8 @@ pub enum PageItem {
     },
     /// 미주 영역 시작 구분선
     EndnoteSeparator {
+        /// 확정된 미주 시작 흐름 원점(px, 단 본문 상단 기준). None은 기존 저장 경로.
+        flow_origin: Option<f64>,
         /// 구분선 길이 (HWP 단위). 한컴 전폭 sentinel(14692344)이 i16을 넘으므로 i32.
         separator_length: i32,
         /// 구분선 위 여백 (HWP 단위)
@@ -969,6 +971,7 @@ impl PageItem {
                 control_index: *control_index,
             },
             PageItem::EndnoteSeparator {
+                flow_origin,
                 separator_length,
                 margin_above,
                 margin_below,
@@ -976,6 +979,7 @@ impl PageItem {
                 line_width,
                 color,
             } => PageItem::EndnoteSeparator {
+                flow_origin: *flow_origin,
                 separator_length: *separator_length,
                 margin_above: *margin_above,
                 margin_below: *margin_below,
@@ -1042,7 +1046,26 @@ impl PageItem {
                     control_index: c2,
                 },
             ) => *a == adj(*b) && c1 == c2,
-            (PageItem::EndnoteSeparator { .. }, PageItem::EndnoteSeparator { .. }) => true,
+            (
+                PageItem::EndnoteSeparator {
+                    flow_origin: a,
+                    separator_length: al,
+                    margin_above: aa,
+                    margin_below: ab,
+                    line_type: at,
+                    line_width: aw,
+                    color: ac,
+                },
+                PageItem::EndnoteSeparator {
+                    flow_origin: b,
+                    separator_length: bl,
+                    margin_above: ba,
+                    margin_below: bb,
+                    line_type: bt,
+                    line_width: bw,
+                    color: bc,
+                },
+            ) => a == b && al == bl && aa == ba && ab == bb && at == bt && aw == bw && ac == bc,
             _ => false,
         }
     }

@@ -11678,6 +11678,7 @@ impl LayoutEngine {
                 }
             }
             PageItem::EndnoteSeparator {
+                flow_origin,
                 separator_length,
                 margin_above,
                 margin_below,
@@ -11685,6 +11686,9 @@ impl LayoutEngine {
                 line_width,
                 color,
             } => {
+                if let Some(origin) = flow_origin {
+                    y_offset = ctx.col_area.y + origin;
+                }
                 y_offset = self.layout_endnote_separator_item(
                     tree,
                     col_node,

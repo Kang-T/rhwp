@@ -1353,7 +1353,7 @@ export class CanvasKitLayerRenderer {
           type: 'textRun',
           bbox: op.bbox,
           text: op.text,
-          baseline: op.fontSize ?? 7,
+          baseline: op.baseline ?? op.fontSize ?? 7,
           style: { fontFamily: op.fontFamily, fontSize: op.fontSize, color: op.color },
         });
         return;
@@ -3989,7 +3989,7 @@ export class CanvasKitLayerRenderer {
     const scale = (pattern.tileSize ?? 7.68) / 8;
     const shader = image.makeShaderOptions(
       this.canvasKit.TileMode.Repeat, this.canvasKit.TileMode.Repeat,
-      this.canvasKit.FilterMode.Nearest, this.canvasKit.MipmapMode.None,
+      this.canvasKit.FilterMode.Linear, this.canvasKit.MipmapMode.None,
       [scale, 0, -scale / 2, 0, scale, -scale / 2, 0, 0, 1],
     );
     const paint = this.makeFillPaint('#ffffff', opacity);

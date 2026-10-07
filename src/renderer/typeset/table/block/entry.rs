@@ -2077,6 +2077,14 @@ impl TypesetEngine {
             && complete_caption_fits
             && resolved_host_placement.map_or(legacy_whole_fits, |p| {
                 p.occupied_bottom <= whole_frame_budget
+                    // None split 개체의 본체는 종이 안에 들어가면 body 아래 여백을
+                    // 사용할 수 있다. 뒤 바깥 여백은 후속 흐름에 예약하지만 본체를
+                    // 다음 쪽으로 밀 이유가 아니다(독립 Print의 작은 용지 대조).
+                    || (p.flow == crate::renderer::float_placement::ParagraphFloatFlow::EmptyHost
+                        && matches!(table.page_break, crate::model::table::TablePageBreak::None)
+                        && ft.table_footnotes.is_empty()
+                        && st.current_footnote_height <= 0.0
+                        && p.table_top + ft.effective_height <= available + below_body_slack)
             })
         {
             if let Some(placement) = resolved_host_placement {

@@ -1623,7 +1623,7 @@ fn note_marker_text_from_control(ctrl: Option<&Control>, fallback_number: u16) -
     }
 }
 
-fn is_leading_endnote_marker_rendered_as_prefix(
+fn is_leading_note_marker_rendered_as_prefix(
     para: Option<&Paragraph>,
     control_index: usize,
     line_idx: usize,
@@ -1636,7 +1636,7 @@ fn is_leading_endnote_marker_rendered_as_prefix(
         && marker_pos == line_char_start
         && matches!(
             para.and_then(|p| p.controls.get(control_index)),
-            Some(Control::Endnote(_))
+            Some(Control::Endnote(_) | Control::Footnote(_))
         )
 }
 
@@ -3806,7 +3806,7 @@ impl LayoutEngine {
                                 fn_num,
                             );
                             let base_ts = resolved_to_text_style(styles, current_cs_id, 0);
-                            let sup_font_size = (base_ts.font_size * 0.55).max(7.0);
+                            let sup_font_size = FootnoteMarkerNode::font_size(base_ts.font_size);
                             let sup_ts = TextStyle {
                                 font_size: sup_font_size,
                                 font_family: base_ts.font_family.clone(),
@@ -3826,6 +3826,10 @@ impl LayoutEngine {
                                     number: fn_num,
                                     text: fn_text,
                                     base_font_size: base_ts.font_size,
+                                    baseline: FootnoteMarkerNode::reference_baseline(
+                                        base_ts.font_size,
+                                        run_bbox_h,
+                                    ),
                                     font_family: base_ts.font_family.clone(),
                                     color: base_ts.color,
                                     section_index,
@@ -5396,9 +5400,10 @@ impl LayoutEngine {
             }
         }
 
-        // [Issue #926] Endnote 인라인 마커 — 첫 줄 앞에 일반 텍스트로 emit
-        // 한컴에서 미주 마커는 위첨자가 아닌 본문 크기 텍스트로 표시
+        // 첫 줄의 참조 번호도 보통 줄 안 번호와 같은 글꼴·baseline 결과를 쓴다.
+        // 빈 문단도 유효한 참조 개체를 가지므로 runs의 존재에 의존하지 않는다.
         let mut endnote_marker_x_advance = 0.0f64;
+        let mut leading_note_markers = Vec::new();
         if start_line == 0 {
             if let Some(p) = para {
                 let ctrl_positions = p.control_text_positions();
@@ -5408,11 +5413,16 @@ impl LayoutEngine {
                     .map(|line| line.char_start)
                     .unwrap_or(0);
                 for (ctrl_idx, ctrl) in p.controls.iter().enumerate() {
-                    if let Control::Endnote(en) = ctrl {
+                    if matches!(ctrl, Control::Endnote(_) | Control::Footnote(_)) {
+                        let number = match ctrl {
+                            Control::Endnote(note) => note.number,
+                            Control::Footnote(note) => note.number,
+                            _ => unreachable!(),
+                        };
                         let Some(marker_pos) = ctrl_positions.get(ctrl_idx).copied() else {
                             continue;
                         };
-                        if !is_leading_endnote_marker_rendered_as_prefix(
+                        if !is_leading_note_marker_rendered_as_prefix(
                             para,
                             ctrl_idx,
                             0,
@@ -5422,67 +5432,19 @@ impl LayoutEngine {
                         ) {
                             continue;
                         }
-                        let marker_text =
-                            format!("{} ", note_marker_text_from_control(Some(ctrl), en.number));
+                        let marker_text = note_marker_text_from_control(Some(ctrl), number);
                         let first_cs_id = p
                             .char_shapes
                             .first()
                             .map(|cs| cs.char_shape_id as usize)
                             .unwrap_or(0);
                         let ts = resolved_to_text_style(styles, first_cs_id as u32, 0);
-                        let marker_w = estimate_text_width(&marker_text, &ts);
-                        let marker_y = y
-                            + spacing_before
-                            + hwpunit_to_px(
-                                composed
-                                    .lines
-                                    .first()
-                                    .map(|l| l.baseline_distance)
-                                    .unwrap_or(0),
-                                self.dpi,
-                            );
-                        let marker_x = col_area.x + margin_left + indent;
-                        let marker_id = tree.next_id();
-                        let marker_node = RenderNode::new(
-                            marker_id,
-                            RenderNodeType::TextRun(TextRunNode {
-                                text: marker_text,
-                                style: ts,
-                                char_shape_id: Some(first_cs_id as u32),
-                                para_shape_id: Some(composed.para_style_id),
-                                section_index: Some(section_index),
-                                para_index: Some(para_index),
-                                char_start: Some(0),
-                                cell_context: None,
-                                is_para_end: false,
-                                is_line_break_end: false,
-                                rotation: 0.0,
-                                is_vertical: false,
-                                char_overlap: None,
-                                border_fill_id: 0,
-                                baseline: hwpunit_to_px(
-                                    composed
-                                        .lines
-                                        .first()
-                                        .map(|l| l.baseline_distance)
-                                        .unwrap_or(0),
-                                    self.dpi,
-                                ),
-                                field_marker: FieldMarkerType::None,
-                                layout_positions: None,
-                                display_text: None,
-                            }),
-                            BoundingBox::new(
-                                marker_x,
-                                y + spacing_before,
-                                marker_w,
-                                hwpunit_to_px(
-                                    composed.lines.first().map(|l| l.line_height).unwrap_or(0),
-                                    self.dpi,
-                                ),
-                            ),
-                        );
-                        col_node.children.push(marker_node);
+                        let marker_style = TextStyle {
+                            font_size: FootnoteMarkerNode::font_size(ts.font_size),
+                            ..ts.clone()
+                        };
+                        let marker_w = estimate_text_width(&marker_text, &marker_style);
+                        leading_note_markers.push((number, marker_text, ts, ctrl_idx, marker_w));
                         endnote_marker_x_advance += marker_w;
                     }
                 }
@@ -5733,6 +5695,11 @@ impl LayoutEngine {
                 .filter(|run| crate::renderer::composed_run_reserves_font_height(run))
                 .map(|r| r.line_box_font_size(styles))
                 .fold(0.0f64, f64::max);
+            if let Some(paragraph) = para {
+                max_fs = max_fs.max(crate::renderer::composed_line_reference_font_size(
+                    comp_line, paragraph, styles,
+                ));
+            }
             if let Some((_, _, font_size)) = empty_no_lineseg_metrics {
                 max_fs = font_size;
             }
@@ -7043,6 +7010,33 @@ impl LayoutEngine {
                 }
             }
 
+            // 참조 번호의 baseline과 원점도 본문이 실제 소비한 최종 줄 상자를 쓴다.
+            if line_idx == 0 && start_line == 0 {
+                let mut marker_x = x - endnote_marker_x_advance;
+                for (number, text, style, control_index, width) in &leading_note_markers {
+                    let id = tree.next_id();
+                    line_node.children.push(RenderNode::new(
+                        id,
+                        RenderNodeType::FootnoteMarker(FootnoteMarkerNode {
+                            number: *number,
+                            text: text.clone(),
+                            base_font_size: style.font_size,
+                            baseline: FootnoteMarkerNode::reference_baseline(
+                                style.font_size,
+                                baseline,
+                            ),
+                            font_family: style.font_family.clone(),
+                            color: style.color,
+                            section_index,
+                            para_index,
+                            control_index: *control_index,
+                        }),
+                        BoundingBox::new(marker_x, text_y, *width, line_height),
+                    ));
+                    marker_x += width;
+                }
+            }
+
             // char_offset→x 매핑 (필드 마커 위치 계산용)
             let mut char_x_map: Vec<(usize, f64)> = Vec::new();
             char_x_map.push((comp_line.char_start, x));
@@ -7594,14 +7588,11 @@ impl LayoutEngine {
             // 그 외곽선과 같은 상자를 소비해야 한다. 외곽선 없는 채움만 마지막 줄 상자에서
             // 끝나며, 다음 문단을 위한 후행 간격을 칠하지 않는다.
             // 셀 문단은 기존 점유 계약을 유지하고, 음수 간격도 줄 상자를 감싼다.
-            let outline_includes_line_spacing = styles
-                .border_styles
-                .get((para_border_fill_id as usize).saturating_sub(1))
-                .is_some_and(|style| {
-                    style.borders.iter().any(|border| {
-                        !matches!(border.line_type, crate::model::style::BorderLineType::None)
-                    })
-                });
+            let outline_includes_line_spacing =
+                crate::renderer::paragraph_outline_reserves_line_spacing(
+                    para_border_fill_id,
+                    styles,
+                );
             let border_bottom =
                 last_line_border_bottom
                     .or(last_line_box_bottom)
@@ -8261,7 +8252,7 @@ impl LayoutEngine {
             let (full_width, layout_positions) =
                 if has_tabs && run.text.contains('\t') && run_idx + 1 == comp_line.runs.len() {
                     resolve_intra_run_right_tab(
-                        &run.text,
+                        effective_text_for_metrics(run),
                         full_width,
                         layout_positions,
                         &text_style,
@@ -8484,7 +8475,7 @@ impl LayoutEngine {
                         .iter()
                         .enumerate()
                         .filter_map(|(fni, &(fpos, fnum, ctrl_idx))| {
-                            if is_leading_endnote_marker_rendered_as_prefix(
+                            if is_leading_note_marker_rendered_as_prefix(
                                 para,
                                 ctrl_idx,
                                 line_idx,
@@ -8492,7 +8483,7 @@ impl LayoutEngine {
                                 fpos,
                                 comp_line.char_start,
                             ) {
-                                // 미주는 첫 줄 앞에 본문 크기 번호를 별도 TextRun으로 이미 그린다.
+                                // 선두 주석 번호는 첫 줄의 최종 기준선에서 FootnoteMarker로 이미 그린다.
                                 // 같은 위치의 위첨자 마커를 다시 만들면 `문26)`처럼 제목이 중복된다.
                                 fn_marker_inserted[fni] = true;
                                 return None;
@@ -8600,7 +8591,7 @@ impl LayoutEngine {
                                 fnum,
                             );
                             let base_ts = &text_style;
-                            let sup_size = (base_ts.font_size * 0.55).max(7.0);
+                            let sup_size = FootnoteMarkerNode::font_size(base_ts.font_size);
                             let sup_ts = TextStyle {
                                 font_size: sup_size,
                                 font_family: base_ts.font_family.clone(),
@@ -8615,6 +8606,10 @@ impl LayoutEngine {
                                     number: fnum,
                                     text: fn_text,
                                     base_font_size: base_ts.font_size,
+                                    baseline: FootnoteMarkerNode::reference_baseline(
+                                        base_ts.font_size,
+                                        baseline,
+                                    ),
                                     font_family: base_ts.font_family.clone(),
                                     color: base_ts.color,
                                     section_index,
@@ -9825,6 +9820,7 @@ impl LayoutEngine {
             // 기존 children 중 이 마커 위치 이후의 노드를 오른쪽으로 shift
             for child in line_node.children.iter_mut() {
                 if child.bbox.x >= shift_x {
+                    child.print_bbox.get_or_insert(child.bbox);
                     child.bbox.x += mw;
                 }
             }
@@ -10102,7 +10098,7 @@ impl LayoutEngine {
                 // 위첨자를 그리지 않으므로(문26 "공" x=78=선두 마커 끝), 측정에서도
                 // est_x 에 위첨자 폭을 더하면 이중 계상 → 거짓 오버플로우.
                 // start_line==0 의 미주(= endnote_marker_x_advance 처리 대상)는 제외.
-                let is_leading_endnote_marker = is_leading_endnote_marker_rendered_as_prefix(
+                let is_leading_endnote_marker = is_leading_note_marker_rendered_as_prefix(
                     para,
                     ctrl_idx,
                     line_idx,
@@ -10120,7 +10116,7 @@ impl LayoutEngine {
                         para.and_then(|p| p.controls.get(ctrl_idx)),
                         fnum,
                     );
-                    let sup_size = (ts.font_size * 0.55).max(7.0);
+                    let sup_size = FootnoteMarkerNode::font_size(ts.font_size);
                     let sup_ts = TextStyle {
                         font_size: sup_size,
                         font_family: ts.font_family.clone(),

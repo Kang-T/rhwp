@@ -1218,6 +1218,8 @@ pub(crate) fn composed_line_max_font_size(
         })
         .fold(0.0f64, f64::max);
 
+    let reference_max = composed_line_reference_font_size(line, para, styles);
+    let run_max = run_max.max(reference_max);
     if run_max > 0.0 {
         return run_max;
     }
@@ -1238,6 +1240,69 @@ pub(crate) fn composed_line_max_font_size(
         .and_then(|shape_id| styles.char_styles.get(shape_id as usize))
         .map(|style| style.font_size)
         .unwrap_or(0.0)
+}
+
+/// 참조 번호의 명목 글자 크기도 소유 줄의 상자에 참여한다. 표시 글리프가
+/// 3/4 크기여도 그 제어 슬롯의 저장 글자모양을 본문 문자 모양으로 대체하지 않는다.
+pub(crate) fn composed_line_reference_font_size(
+    line: &composer::ComposedLine,
+    para: &crate::model::paragraph::Paragraph,
+    styles: &style_resolver::ResolvedStyleSet,
+) -> f64 {
+    let end = line.char_start
+        + line
+            .runs
+            .iter()
+            .map(|run| run.text.chars().count())
+            .sum::<usize>();
+    let paragraph_end = para.text.chars().count();
+    let positions = para.control_text_positions();
+    let raw_positions = para.control_utf16_positions();
+    para.controls
+        .iter()
+        .enumerate()
+        .filter_map(|(index, control)| {
+            if !matches!(
+                control,
+                crate::model::control::Control::Footnote(_)
+                    | crate::model::control::Control::Endnote(_)
+            ) {
+                return None;
+            }
+            let position = *positions.get(index)?;
+            if position < line.char_start
+                || (position >= end && !(position == end && end == paragraph_end))
+            {
+                return None;
+            }
+            let raw = raw_positions.get(index)?;
+            let shape = para
+                .char_shapes
+                .iter()
+                .rev()
+                .find(|shape| shape.start_pos <= *raw)?;
+            styles
+                .char_styles
+                .get(shape.char_shape_id as usize)
+                .map(|style| style.font_size)
+        })
+        .fold(0.0_f64, f64::max)
+}
+
+/// 외곽선과 같은 채움 상자는 후행 줄간격을 감싼다. 측정·마지막 흐름 경계와
+/// 실제 paragraph border painter가 같은 점유 조건을 소비한다.
+pub(crate) fn paragraph_outline_reserves_line_spacing(
+    border_fill_id: u16,
+    styles: &style_resolver::ResolvedStyleSet,
+) -> bool {
+    border_fill_id
+        .checked_sub(1)
+        .and_then(|index| styles.border_styles.get(usize::from(index)))
+        .is_some_and(|style| {
+            style.borders.iter().any(|border| {
+                !matches!(border.line_type, crate::model::style::BorderLineType::None)
+            })
+        })
 }
 
 /// 공백도 글꼴 줄 상자를 가지지만 개체 대체 문자와 제어 문자에는 가시 글꼴이 없다.

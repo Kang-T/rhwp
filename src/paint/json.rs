@@ -856,11 +856,12 @@ impl PaintOp {
                 write_bbox(buf, *bbox);
                 let _ = write!(
                     buf,
-                    ",\"text\":{},\"fontFamily\":{},\"fontSize\":{:.3},\"color\":{}",
+                    ",\"text\":{},\"fontFamily\":{},\"fontSize\":{:.3},\"color\":{},\"baseline\":{:.3}",
                     json_escape(&marker.text),
                     json_escape(&marker.font_family),
-                    (marker.base_font_size * 0.55).max(7.0),
+                    crate::renderer::render_tree::FootnoteMarkerNode::font_size(marker.base_font_size),
                     json_escape(&color_ref_to_css(marker.color)),
+                    marker.baseline,
                 );
                 buf.push('}');
             }
