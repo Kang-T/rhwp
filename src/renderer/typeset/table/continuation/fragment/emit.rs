@@ -847,15 +847,26 @@ impl TypesetEngine {
                 // 마지막 fragment: spacing_after만 포함 (Paginator engine.rs:1051 동일)
                 // host line advance/positive offset은 원 anchor 조각의 계약이며,
                 // continuation 끝에서 다시 더하면 다음 본문을 이중으로 민다(#2439).
-                st.advance_flow_by(
-                    host_before_overhead
-                        + vert_offset_overhead
-                        + partial_height
-                        + bottom_caption_extra
-                        + terminal_outer_bottom_overhead
-                        + host_spacing_after_only
-                        + terminal_host_spacing,
-                );
+                let occupied = host_before_overhead
+                    + vert_offset_overhead
+                    + partial_height
+                    + bottom_caption_extra
+                    + terminal_outer_bottom_overhead;
+                let terminal_spacing = is_continuation
+                    .then(|| input.source.paragraphs_all.get(para_idx + 1))
+                    .flatten()
+                    .and_then(|next| {
+                        layout_engine.native_text_frame_terminal_successor_gap(
+                            input.source.paragraph,
+                            next,
+                            table,
+                            &st.inline_flow_column(),
+                            st.inline_flow_column().y + st.current_height + occupied,
+                            styles,
+                        )
+                    })
+                    .unwrap_or(host_spacing_after_only + terminal_host_spacing);
+                st.advance_flow_by(occupied + terminal_spacing);
             }
             commit_fragment(
                 st,
@@ -1049,7 +1060,21 @@ impl TypesetEngine {
                 + fragment_outer_bottom_overhead,
         );
         if terminal_cut_consumed {
-            st.advance_flow_by(host_spacing_after_only + terminal_host_spacing);
+            let terminal_spacing = is_continuation
+                .then(|| input.source.paragraphs_all.get(para_idx + 1))
+                .flatten()
+                .and_then(|next| {
+                    layout_engine.native_text_frame_terminal_successor_gap(
+                        input.source.paragraph,
+                        next,
+                        table,
+                        &st.inline_flow_column(),
+                        st.inline_flow_column().y + st.current_height,
+                        styles,
+                    )
+                })
+                .unwrap_or(host_spacing_after_only + terminal_host_spacing);
+            st.advance_flow_by(terminal_spacing);
             commit_fragment(st, caption_extra + partial_height, true);
             continuation.finish(row_count, true);
             return TableContinuationIteration::Complete;

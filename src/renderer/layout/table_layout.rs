@@ -2477,6 +2477,70 @@ impl LayoutEngine {
         (top >= column.y && bottom <= column.y + column.height + 0.5).then_some(top)
     }
 
+    /// A successor in the terminal stored frame owns the distance from its box.
+    /// Host paragraph spacing belongs to the original anchor and must not be
+    /// appended again over that successor's independently stored line box.
+    pub(crate) fn native_text_frame_terminal_successor_gap(
+        &self,
+        host: &Paragraph,
+        next: &Paragraph,
+        table: &crate::model::table::Table,
+        column: &LayoutRect,
+        fragment_bottom: f64,
+        styles: &ResolvedStyleSet,
+    ) -> Option<f64> {
+        if !fragment_bottom.is_finite()
+            || !self.native_stored_table_has_text_frame_boundaries(table, styles)
+            || para_has_visible_text(host)
+            || !matches!(host.controls.as_slice(), [Control::Table(_)])
+            || !matches!(table.common.text_wrap, TextWrap::TopAndBottom)
+            || !matches!(table.common.vert_rel_to, VertRelTo::Para)
+            || table.common.vertical_offset != 0
+            || host.stored_text_partition_is_dirty()
+            || host.cell_format_vpos_dirty
+            || next.stored_text_partition_is_dirty()
+            || next.cell_format_vpos_dirty
+            || !next.controls.is_empty()
+            || !matches!(
+                next.column_type,
+                crate::model::paragraph::ColumnBreakType::None
+            )
+        {
+            return None;
+        }
+        let [host_line] = host.line_segs.as_slice() else {
+            return None;
+        };
+        let next_line = next.line_segs.first()?;
+        let synthetic = crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY;
+        if host_line.tag & synthetic != 0
+            || next_line.tag & synthetic != 0
+            || next_line.vertical_pos <= 0
+            || next_line.vertical_pos >= host_line.vertical_pos
+        {
+            return None;
+        }
+        let next_before = styles
+            .para_styles
+            .get(next.para_shape_id as usize)?
+            .spacing_before;
+        if styles
+            .para_styles
+            .get(host.para_shape_id as usize)?
+            .spacing_after
+            <= 0.0
+        {
+            return None;
+        }
+        // Recover discrete source units after pixel arithmetic, so floating
+        // roundoff at a closed box does not create a new paragraph gap.
+        let occupied_hu = ((fragment_bottom - column.y + next_before) / hwpunit_to_px(1, self.dpi))
+            .round() as i32;
+        let gap_hu = next_line.vertical_pos.checked_sub(occupied_hu)?;
+        (gap_hu >= 0 && fragment_bottom <= column.y + column.height)
+            .then(|| hwpunit_to_px(gap_hu, self.dpi))
+    }
+
     /// 셀 안 비-TAC 자리차지 개체가 표 흐름에 요구하는 세로 범위.
     ///
     /// 한컴의 `쪽 영역 안으로 제한`은 세로 기준이 문단일 때 개체를 쪽 영역 안에

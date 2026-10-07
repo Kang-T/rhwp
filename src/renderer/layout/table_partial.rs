@@ -2337,6 +2337,7 @@ impl LayoutEngine {
                     &self.single_line_overflow_cache,
                 );
 
+                let mut table_host_has_stored_origin = false;
                 if preserve_linear_single_cell_vpos {
                     let target_seg = para
                         .line_segs
@@ -2399,6 +2400,7 @@ impl LayoutEngine {
                         let post_table_host_line = has_table_ctrl
                             && nested_tables_px > 0.0
                             && target_top - current_top >= nested_tables_px - 24.0;
+                        table_host_has_stored_origin = has_table_ctrl && !post_table_host_line;
                         if target_top > current_top && !post_table_host_line {
                             para_y += target_top - current_top;
                         }
@@ -2531,6 +2533,23 @@ impl LayoutEngine {
                         .skip(start_line)
                         .take(end_line.saturating_sub(start_line))
                         .all(|line| line.runs.iter().all(|run| run.text.trim().is_empty()));
+                if table_host_line_only_fragment
+                    && start_line == 0
+                    && !table_host_has_stored_origin
+                    && para.controls.iter().all(|control| {
+                        matches!(control, Control::Table(child) if child.common.treat_as_char)
+                    })
+                {
+                    // This path skips layout_composed_paragraph. Consume the same
+                    // paragraph-before band as cell measurement, once before the
+                    // first object line. A saved line origin already includes it.
+                    para_y += crate::renderer::cell_paragraph_spacing_before(
+                        para,
+                        cp_idx,
+                        styles.para_styles.get(para.para_shape_id as usize)
+                            .map_or(0.0, |style| style.spacing_before),
+                    );
+                }
                 let para_y_before_lines = para_y;
                 // 표 컨트롤이 없는 문단: 텍스트 먼저, 컨트롤 나중 (기존 동작)
                 // 표 컨트롤이 있는 문단: 문단 앞 간격 적용 → 표 먼저 배치 → 텍스트(엔터 등) 나중

@@ -14916,6 +14916,44 @@ impl LayoutEngine {
                 .get(control_index)
                 .map(|c| matches!(c, Control::Table(t) if t.common.treat_as_char))
                 .unwrap_or(false);
+            let source_terminal_gap = if is_continuation && !is_tac {
+                para.controls
+                    .get(control_index)
+                    .and_then(|control| match control {
+                        Control::Table(table)
+                            if end_row >= table.row_count as usize
+                                && (end_cut.is_empty()
+                                    || (!is_block_split
+                                        && !start_cut_is_block
+                                        && !row_cursor_is_nested
+                                        && end_row_height_override.is_none()
+                                        && self.row_cut_units_exhausted(
+                                            table,
+                                            (table.row_count as usize).checked_sub(1)?,
+                                            end_cut,
+                                            styles,
+                                        ))) =>
+                        {
+                            let next = paragraphs.get(para_index + 1)?;
+                            let outer_bottom = if repeat_fragment_outer_margin {
+                                hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi)
+                            } else {
+                                0.0
+                            };
+                            self.native_text_frame_terminal_successor_gap(
+                                para,
+                                next,
+                                table,
+                                col_area,
+                                y_offset + outer_bottom,
+                                styles,
+                            )
+                        }
+                        _ => None,
+                    })
+            } else {
+                None
+            };
             if let Some(para_style) = styles.para_styles.get(para_style_id) {
                 if is_tac {
                     if para_style.spacing_after > 0.0 {
@@ -14931,7 +14969,9 @@ impl LayoutEngine {
                         y_offset += outer_margin_bottom_px;
                     }
                 } else {
-                    if para_style.spacing_after > 0.0 {
+                    if let Some(gap) = source_terminal_gap {
+                        y_offset += gap;
+                    } else if para_style.spacing_after > 0.0 {
                         y_offset += para_style.spacing_after;
                     }
                 }
@@ -14949,7 +14989,7 @@ impl LayoutEngine {
             // empty host Enter owns only the following flow advance. Typeset records
             // the same value on the terminal continuation; consume it here after
             // `last_item_content_bottom` so it cannot enlarge the table border.
-            if is_continuation && end_cut.is_empty() {
+            if is_continuation && end_cut.is_empty() && source_terminal_gap.is_none() {
                 if let Some(Control::Table(table)) = para.controls.get(control_index) {
                     if end_row >= table.row_count as usize {
                         y_offset += table_layout::native_terminal_child_host_line_spacing(
