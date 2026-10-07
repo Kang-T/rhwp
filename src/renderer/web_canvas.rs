@@ -1553,21 +1553,21 @@ impl WebCanvasRenderer {
         tile_ctx.set_line_width(1.0);
 
         match info.pattern_type {
-            0 => {
+            1 => {
                 // 가로줄 (- - - -)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(0.0, 3.0);
                 tile_ctx.line_to(s, 3.0);
                 tile_ctx.stroke();
             }
-            1 => {
+            2 => {
                 // 세로줄 (|||||)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(3.0, 0.0);
                 tile_ctx.line_to(3.0, s);
                 tile_ctx.stroke();
             }
-            2 => {
+            4 => {
                 // 대각선 (/////)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(s, 0.0);
@@ -1581,7 +1581,7 @@ impl WebCanvasRenderer {
                 tile_ctx.line_to(s, s);
                 tile_ctx.stroke();
             }
-            4 => {
+            5 => {
                 // 십자 (+++++)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(3.0, 0.0);
@@ -1592,7 +1592,7 @@ impl WebCanvasRenderer {
                 tile_ctx.line_to(s, 3.0);
                 tile_ctx.stroke();
             }
-            5 => {
+            6 => {
                 // 격자 (xxxxx)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(0.0, 0.0);

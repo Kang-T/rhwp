@@ -1378,25 +1378,26 @@ impl SvgRenderer {
         let fg = color_to_svg(info.pattern_color);
         let sz = 6; // 패턴 타일 크기 (px)
 
-        // HWP 패턴 종류 (0-based, 표 31 참조): 0=가로줄, 1=세로줄, 2=역대각선, 3=대각선, 4=십자, 5=격자
+        // PatternFillInfo와 HWPX hatchStyle은 같은 1~6 번호를 사용한다.
+        // 3=BACK_SLASH, 4=SLASH의 방향도 serializer와 일치시킨다.
         let lines = match info.pattern_type {
-            0 => // 가로줄 (- - - -)
+            1 => // 가로줄 (- - - -)
                 format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
                          <line x1=\"0\" y1=\"3\" x2=\"{sz}\" y2=\"3\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            1 => // 세로줄 (|||||)
+            2 => // 세로줄 (|||||)
                 format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
                          <line x1=\"3\" y1=\"0\" x2=\"3\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            2 => // 대각선 (/////)
+            4 => // 대각선 (/////)
                 format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
                          <line x1=\"{sz}\" y1=\"0\" x2=\"0\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
             3 => // 역대각선 (\\\\\)
                 format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
                          <line x1=\"0\" y1=\"0\" x2=\"{sz}\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            4 => // 십자 (+++++)
+            5 => // 십자 (+++++)
                 format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
                          <line x1=\"3\" y1=\"0\" x2=\"3\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>\
                          <line x1=\"0\" y1=\"3\" x2=\"{sz}\" y2=\"3\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            5 => // 격자 (xxxxx)
+            6 => // 격자 (xxxxx)
                 format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
                          <line x1=\"0\" y1=\"0\" x2=\"{sz}\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>\
                          <line x1=\"{sz}\" y1=\"0\" x2=\"0\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
