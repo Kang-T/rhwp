@@ -11090,7 +11090,14 @@ impl LayoutEngine {
                         _ => false,
                     });
 
-                    if has_inline_tables && !has_other_inline_ctrls {
+                    // 같은 UTF-16 위치로 접힌 표 전용 줄과 뒤 글줄은 composer의 줄 소속을
+                    // 그대로 소비한다. 별도 inline painter는 문단 전체를 재분할하면서
+                    // 앞 글줄의 양쪽 맞춤과 표 전용 줄의 높이를 놓친다.
+                    let has_composed_tac_rows = composed.get(*para_index).is_some_and(|comp| {
+                        crate::renderer::composer::composed_tac_line_assignment(para, comp)
+                            .is_some()
+                    });
+                    if has_inline_tables && !has_other_inline_ctrls && !has_composed_tac_rows {
                         // 인라인 표 문단도 번호 카운터 전진 필요
                         self.apply_paragraph_numbering(
                             composed.get(*para_index),

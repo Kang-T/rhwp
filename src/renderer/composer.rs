@@ -1869,12 +1869,15 @@ pub(crate) fn is_lang_neutral(ch: char) -> bool {
 
 /// 문단 내 인라인 컨트롤(표/도형)의 위치를 식별한다.
 /// [#6706] 줄 끝 개체와 다음 줄 첫 글자는 같은 가시 위치로 투영될 수 있다.
-/// 원본 줄 구성이 유지되고 그 충돌이 실제 존재할 때 원 기록으로 개체 소유 줄을 복원한다.
-/// 재조판된 줄이나 경계 충돌이 없는 인라인 개체들은 기존 문자 범위 배정을 그대로 쓴다.
-pub(crate) fn stored_tac_line_assignment(
+/// 조합 결과가 현재 문단의 줄 경계·메트릭을 그대로 소비하고 충돌이 존재할 때
+/// UTF-16 제어 슬롯으로 개체 소유 줄을 복원한다. 저장 줄과 편집 재조판 줄은
+/// 각각의 출처 안에서만 적용하며 둘을 섞은 사다리는 수용하지 않는다.
+/// 이 조회는 저장 캐시의 수용 조건을 변경하거나 옛 줄을 재조판에 적용하지 않는다.
+pub(crate) fn composed_tac_line_assignment(
     para: &Paragraph,
     comp: &ComposedParagraph,
 ) -> Option<Vec<(usize, usize)>> {
+    let computed_rows = para.line_segs.first()?.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0;
     if super::equation_tac_flow::uses_equation_only_flow(para, comp)
         || para.char_offsets.is_empty()
         || comp.lines.len() != para.line_segs.len()
@@ -1885,7 +1888,7 @@ pub(crate) fn stored_tac_line_assignment(
             .zip(&para.line_segs)
             .enumerate()
             .any(|(i, (line, seg))| {
-                seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                (seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0) != computed_rows
                     || line.line_height != stored_line_box_height(seg)
                     || line.segment_width != seg.segment_width
                     || line.char_start

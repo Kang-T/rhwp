@@ -2533,7 +2533,10 @@ fn compute_line_extra_spacing(
                     0.0,
                 )
             } else {
-                let raw = slack / total_char_count as f64;
+                // 공백 없는 양쪽 맞춤도 남는 폭은 글자 사이 N-1곳에 배분한다.
+                // 끝 글자의 뒤 전진에 한 몫을 남기면 실제 잉크 오른쪽이 줄 안쪽으로
+                // 밀린다. 배분 정렬과 같은 글자 경계를 사용한다.
+                let raw = slack / (total_char_count - 1) as f64;
                 let avg_char_w = total_text_width / total_char_count as f64;
                 let min_sp = -avg_char_w * 0.5;
                 (0.0, raw.max(min_sp), 0.0)
@@ -5628,7 +5631,7 @@ impl LayoutEngine {
         let mut last_line_box_bottom: Option<f64> = None;
         let mut last_line_border_bottom: Option<f64> = None;
         let stored_tac_assignment =
-            para.and_then(|p| crate::renderer::composer::stored_tac_line_assignment(p, composed));
+            para.and_then(|p| crate::renderer::composer::composed_tac_line_assignment(p, composed));
         for line_idx in start_line..end {
             let source_line_tacs;
             let tac_offsets_px = if let Some(assign) = stored_tac_assignment.as_ref() {

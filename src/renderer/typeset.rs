@@ -1421,7 +1421,7 @@ fn tac_control_indices_for_line(
         return Vec::new();
     }
 
-    if let Some(assign) = crate::renderer::composer::stored_tac_line_assignment(para, comp) {
+    if let Some(assign) = crate::renderer::composer::composed_tac_line_assignment(para, comp) {
         return assign
             .into_iter()
             .filter_map(|(ci, owner)| (owner == line_idx).then_some(ci))
