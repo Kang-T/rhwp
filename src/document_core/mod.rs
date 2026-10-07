@@ -25,6 +25,7 @@ pub use commands::paragraph_block::{
 pub use commands::{TableColumnWidths, TableCreationOptions};
 pub mod converters;
 pub(crate) mod html_table_import;
+mod html_table_width;
 /// 한글 클립보드 문서모델(hwpjson) → HWPX 변환
 pub mod hwpjson;
 pub mod hyperlink;

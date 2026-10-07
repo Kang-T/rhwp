@@ -1520,7 +1520,7 @@ impl WebCanvasRenderer {
             None => return false,
         };
 
-        // 오프스크린 캔버스 생성 (6×6 타일)
+        // 오프스크린 캔버스 생성 (100dpi의 8×8 타일)
         let tile_canvas = match document.create_element("canvas") {
             Ok(el) => match el.dyn_into::<HtmlCanvasElement>() {
                 Ok(c) => c,
@@ -1528,7 +1528,7 @@ impl WebCanvasRenderer {
             },
             Err(_) => return false,
         };
-        let sz: u32 = 6;
+        let sz: u32 = 8;
         tile_canvas.set_width(sz);
         tile_canvas.set_height(sz);
 
@@ -1556,25 +1556,29 @@ impl WebCanvasRenderer {
             1 => {
                 // 가로줄 (- - - -)
                 tile_ctx.begin_path();
-                tile_ctx.move_to(0.0, 3.0);
-                tile_ctx.line_to(s, 3.0);
+                tile_ctx.move_to(0.0, 0.0);
+                tile_ctx.line_to(s, 0.0);
+                tile_ctx.move_to(0.0, s);
+                tile_ctx.line_to(s, s);
                 tile_ctx.stroke();
             }
             2 => {
                 // 세로줄 (|||||)
                 tile_ctx.begin_path();
-                tile_ctx.move_to(3.0, 0.0);
-                tile_ctx.line_to(3.0, s);
+                tile_ctx.move_to(0.0, 0.0);
+                tile_ctx.line_to(0.0, s);
+                tile_ctx.move_to(s, 0.0);
+                tile_ctx.line_to(s, s);
                 tile_ctx.stroke();
             }
-            4 => {
+            3 => {
                 // 대각선 (/////)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(s, 0.0);
                 tile_ctx.line_to(0.0, s);
                 tile_ctx.stroke();
             }
-            3 => {
+            4 => {
                 // 역대각선 (\\\\\)
                 tile_ctx.begin_path();
                 tile_ctx.move_to(0.0, 0.0);
@@ -1584,12 +1588,16 @@ impl WebCanvasRenderer {
             5 => {
                 // 십자 (+++++)
                 tile_ctx.begin_path();
-                tile_ctx.move_to(3.0, 0.0);
-                tile_ctx.line_to(3.0, s);
+                tile_ctx.move_to(0.0, 0.0);
+                tile_ctx.line_to(0.0, s);
+                tile_ctx.move_to(s, 0.0);
+                tile_ctx.line_to(s, s);
                 tile_ctx.stroke();
                 tile_ctx.begin_path();
-                tile_ctx.move_to(0.0, 3.0);
-                tile_ctx.line_to(s, 3.0);
+                tile_ctx.move_to(0.0, 0.0);
+                tile_ctx.line_to(s, 0.0);
+                tile_ctx.move_to(0.0, s);
+                tile_ctx.line_to(s, s);
                 tile_ctx.stroke();
             }
             6 => {
@@ -1614,6 +1622,27 @@ impl WebCanvasRenderer {
             .create_pattern_with_html_canvas_element(&tile_canvas, "repeat")
         {
             Ok(Some(pattern)) => {
+                // 현재 web-sys의 SVGMatrix 시그니처 대신 표준 DOMMatrix2DInit을
+                // 전달해 소수 DPI에서도 물리 반복 주기를 보존한다.
+                let matrix = js_sys::Object::new();
+                let scale = info.tile_size / s;
+                for (key, value) in [("a", scale), ("d", scale)] {
+                    if js_sys::Reflect::set(
+                        &matrix,
+                        &JsValue::from_str(key),
+                        &JsValue::from_f64(value),
+                    )
+                    .is_err()
+                    {
+                        return false;
+                    }
+                }
+                let transform = js_sys::Reflect::get(&pattern, &JsValue::from_str("setTransform"))
+                    .ok()
+                    .and_then(|method| method.dyn_into::<js_sys::Function>().ok());
+                if transform.is_none_or(|method| method.call1(&pattern, &matrix).is_err()) {
+                    return false;
+                }
                 self.ctx.set_fill_style_canvas_pattern(&pattern);
                 true
             }

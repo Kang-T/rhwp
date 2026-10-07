@@ -602,7 +602,7 @@ pub fn resolve_styles_with_variant(
 ) -> ResolvedStyleSet {
     let char_styles = resolve_char_styles(doc_info, dpi);
     let para_styles = resolve_para_styles_with_variant(doc_info, dpi, is_hwp3_variant);
-    let border_styles = resolve_border_styles(doc_info);
+    let border_styles = resolve_border_styles(doc_info, dpi);
     let numberings = doc_info.numberings.clone();
     let bullets = doc_info.bullets.clone();
 
@@ -1334,16 +1334,16 @@ fn resolve_single_para_style(
 }
 
 /// BorderFill → ResolvedBorderStyle 목록
-fn resolve_border_styles(doc_info: &DocInfo) -> Vec<ResolvedBorderStyle> {
+fn resolve_border_styles(doc_info: &DocInfo, dpi: f64) -> Vec<ResolvedBorderStyle> {
     doc_info
         .border_fills
         .iter()
-        .map(resolve_single_border_style)
+        .map(|bf| resolve_single_border_style(bf, dpi))
         .collect()
 }
 
 /// 개별 BorderFill 해소
-fn resolve_single_border_style(bf: &BorderFill) -> ResolvedBorderStyle {
+fn resolve_single_border_style(bf: &BorderFill, dpi: f64) -> ResolvedBorderStyle {
     let fill_color = match bf.fill.fill_type {
         FillType::Solid => bf.fill.solid.as_ref().and_then(|s| {
             // pattern_type > 0: 패턴 채우기 → 단색 fill 아님 (background_color는 패턴 배경)
@@ -1363,6 +1363,7 @@ fn resolve_single_border_style(bf: &BorderFill) -> ResolvedBorderStyle {
             if s.pattern_type > 0 {
                 Some(PatternFillInfo {
                     pattern_type: s.pattern_type,
+                    tile_size: hwpunit_to_px(576, dpi),
                     pattern_color: s.pattern_color,
                     background_color: s.background_color,
                 })

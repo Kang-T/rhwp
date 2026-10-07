@@ -1217,6 +1217,7 @@ export interface LayerShadowStyle {
 }
 
 export interface LayerPatternFill {
+  tileSize?: number;
   patternType?: number;
   patternColor?: string;
   backgroundColor?: string;

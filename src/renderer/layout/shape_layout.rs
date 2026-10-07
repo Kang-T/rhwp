@@ -1238,7 +1238,7 @@ impl LayoutEngine {
 
         match child {
             ShapeObject::Polygon(poly) => {
-                let (style, gradient) = drawing_to_shape_style(&poly.drawing);
+                let (style, gradient) = drawing_to_shape_style(&poly.drawing, self.dpi);
                 let mut commands = Vec::new();
                 let mut min_x = f64::MAX;
                 let mut min_y = f64::MAX;
@@ -1274,7 +1274,7 @@ impl LayoutEngine {
                 parent.children.push(node);
             }
             ShapeObject::Line(line) => {
-                let (style, gradient) = drawing_to_shape_style(&line.drawing);
+                let (style, gradient) = drawing_to_shape_style(&line.drawing, self.dpi);
                 let (x1, y1) = transform_pt(line.start.x as f64, line.start.y as f64);
                 let (x2, y2) = transform_pt(line.end.x as f64, line.end.y as f64);
                 let min_x = x1.min(x2);
@@ -1289,7 +1289,7 @@ impl LayoutEngine {
                 parent.children.push(node);
             }
             ShapeObject::Curve(curve) => {
-                let (style, gradient) = drawing_to_shape_style(&curve.drawing);
+                let (style, gradient) = drawing_to_shape_style(&curve.drawing, self.dpi);
                 let mut commands = Vec::new();
                 let mut min_x = f64::MAX;
                 let mut min_y = f64::MAX;
@@ -1334,7 +1334,7 @@ impl LayoutEngine {
                 let ow = sa.original_width as f64;
                 let oh = sa.original_height as f64;
                 let corners = [(0.0, 0.0), (ow, 0.0), (ow, oh), (0.0, oh)];
-                let (style, gradient) = drawing_to_shape_style(&rect.drawing);
+                let (style, gradient) = drawing_to_shape_style(&rect.drawing, self.dpi);
                 let mut commands = Vec::new();
                 let mut min_x = f64::MAX;
                 let mut min_y = f64::MAX;
@@ -1597,7 +1597,7 @@ impl LayoutEngine {
 
         match shape {
             ShapeObject::Rectangle(rect) => {
-                let (mut style, gradient) = drawing_to_shape_style(&rect.drawing);
+                let (mut style, gradient) = drawing_to_shape_style(&rect.drawing, self.dpi);
                 // 기존 글상자 보정만 적용한다. 일반 사각형의 선은 원본 스타일을 따른다.
                 if should_suppress_group_textbox_construction_stroke(&rect.drawing) {
                     style.stroke_color = None;
@@ -1931,7 +1931,7 @@ impl LayoutEngine {
                 }
             }
             ShapeObject::Ellipse(ellipse) => {
-                let (style, gradient) = drawing_to_shape_style(&ellipse.drawing);
+                let (style, gradient) = drawing_to_shape_style(&ellipse.drawing, self.dpi);
                 let node_id = tree.next_id();
                 let mut ell_node = EllipseNode::new(style, gradient);
                 ell_node.section_index = Some(section_index);
@@ -1979,7 +1979,7 @@ impl LayoutEngine {
                 parent.children.push(node);
             }
             ShapeObject::Arc(arc) => {
-                let (style, gradient) = drawing_to_shape_style(&arc.drawing);
+                let (style, gradient) = drawing_to_shape_style(&arc.drawing, self.dpi);
                 // 호(Arc) 좌표 계산: center, axis1, axis2를 렌더 좌표로 변환
                 let sa = &arc.drawing.shape_attr;
                 let sx = if sa.original_width > 0 {
@@ -2081,7 +2081,7 @@ impl LayoutEngine {
                 parent.children.push(node);
             }
             ShapeObject::Polygon(poly) => {
-                let (style, gradient) = drawing_to_shape_style(&poly.drawing);
+                let (style, gradient) = drawing_to_shape_style(&poly.drawing, self.dpi);
                 // 꼭짓점 좌표를 PathCommand로 변환 (원본→렌더 스케일링 적용)
                 let sa = &poly.drawing.shape_attr;
                 let sx = if sa.original_width > 0 {
@@ -2166,7 +2166,7 @@ impl LayoutEngine {
                 parent.children.push(node);
             }
             ShapeObject::Curve(curve) => {
-                let (style, gradient) = drawing_to_shape_style(&curve.drawing);
+                let (style, gradient) = drawing_to_shape_style(&curve.drawing, self.dpi);
                 let sa = &curve.drawing.shape_attr;
                 let sx = if sa.original_width > 0 {
                     render_w / hwpunit_to_px(sa.original_width as i32, self.dpi)

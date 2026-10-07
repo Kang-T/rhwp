@@ -2743,10 +2743,11 @@ fn write_shape_style(buf: &mut String, style: &ShapeStyle) {
 fn write_pattern_fill(buf: &mut String, pattern: &PatternFillInfo) {
     let _ = write!(
         buf,
-        "{{\"patternType\":{},\"patternColor\":{},\"backgroundColor\":{}}}",
+        "{{\"patternType\":{},\"patternColor\":{},\"backgroundColor\":{},\"tileSize\":{:.4}}}",
         pattern.pattern_type,
         json_escape(&color_ref_to_css(pattern.pattern_color)),
         json_escape(&color_ref_to_css(pattern.background_color)),
+        pattern.tile_size,
     );
 }
 

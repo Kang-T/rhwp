@@ -2672,6 +2672,7 @@ mod tests {
             ShapeStyle {
                 pattern: Some(PatternFillInfo {
                     pattern_type: 1,
+                    tile_size: 7.68,
                     pattern_color: 0x000000ff,
                     background_color: 0x0000ff00,
                 }),

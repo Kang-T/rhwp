@@ -1376,38 +1376,24 @@ impl SvgRenderer {
         let id = format!("pat{}", self.clip_counter);
         let bg = color_to_svg(info.background_color);
         let fg = color_to_svg(info.pattern_color);
-        let sz = 6; // 패턴 타일 크기 (px)
-
-        // PatternFillInfo와 HWPX hatchStyle은 같은 1~6 번호를 사용한다.
-        // 3=BACK_SLASH, 4=SLASH의 방향도 serializer와 일치시킨다.
+        let sz = info.tile_size;
+        let stroke = sz / 8.0;
+        // 독립 Print의 1~6 hatch: 쪽 원점에 고정한 8-dot/100dpi 무늬.
+        let horizontal = format!("<path d=\"M0 0H{sz}M0 {sz}H{sz}\"/>");
+        let vertical = format!("<path d=\"M0 0V{sz}M{sz} 0V{sz}\"/>");
+        let slash = format!("<path d=\"M{sz} 0L0 {sz}\"/>");
+        let backslash = format!("<path d=\"M0 0L{sz} {sz}\"/>");
         let lines = match info.pattern_type {
-            1 => // 가로줄 (- - - -)
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
-                         <line x1=\"0\" y1=\"3\" x2=\"{sz}\" y2=\"3\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            2 => // 세로줄 (|||||)
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
-                         <line x1=\"3\" y1=\"0\" x2=\"3\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            4 => // 대각선 (/////)
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
-                         <line x1=\"{sz}\" y1=\"0\" x2=\"0\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            3 => // 역대각선 (\\\\\)
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
-                         <line x1=\"0\" y1=\"0\" x2=\"{sz}\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            5 => // 십자 (+++++)
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
-                         <line x1=\"3\" y1=\"0\" x2=\"3\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>\
-                         <line x1=\"0\" y1=\"3\" x2=\"{sz}\" y2=\"3\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            6 => // 격자 (xxxxx)
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>\
-                         <line x1=\"0\" y1=\"0\" x2=\"{sz}\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>\
-                         <line x1=\"{sz}\" y1=\"0\" x2=\"0\" y2=\"{sz}\" stroke=\"{fg}\" stroke-width=\"1\"/>"),
-            _ => // 알 수 없는 패턴: 단색
-                format!("<rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/>"),
+            1 => horizontal,
+            2 => vertical,
+            3 => slash,
+            4 => backslash,
+            5 => format!("{horizontal}{vertical}"),
+            6 => format!("{slash}{backslash}"),
+            _ => String::new(),
         };
-
         let def = format!(
-            "<pattern id=\"{}\" patternUnits=\"userSpaceOnUse\" width=\"{}\" height=\"{}\">{}</pattern>\n",
-            id, sz, sz, lines
+            "<pattern id=\"{id}\" patternUnits=\"userSpaceOnUse\" width=\"{sz}\" height=\"{sz}\"><rect width=\"{sz}\" height=\"{sz}\" fill=\"{bg}\"/><g fill=\"none\" stroke=\"{fg}\" stroke-width=\"{stroke}\">{lines}</g></pattern>\n"
         );
         self.defs.push(def);
         id

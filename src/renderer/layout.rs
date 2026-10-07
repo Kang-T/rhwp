@@ -9985,7 +9985,11 @@ impl LayoutEngine {
                             col_area.y + placement.paragraph_end(new_y - col_area.y, spacing_after);
                     }
                     if owner == item_para
-                        && placement.flow == super::float_placement::ParagraphFloatFlow::NextLine
+                        && matches!(
+                            placement.flow,
+                            super::float_placement::ParagraphFloatFlow::NextLine
+                                | super::float_placement::ParagraphFloatFlow::EmptyHost
+                        )
                     {
                         new_y =
                             col_area.y + placement.paragraph_end(new_y - col_area.y, spacing_after);
@@ -12952,13 +12956,18 @@ impl LayoutEngine {
                 // empty floats: Square sibling lanes and stored HWPX layout
                 // have separate coordinate contracts.
                 let empty_reflow_flow_end =
-                    crate::renderer::float_placement::reflow_empty_table_host(para, t)
-                        .then(|| {
-                            ctx.paragraph_float_placements
-                                .get(&(para_index, control_index))
-                                .map(|placement| col_area.y + placement.occupied_bottom)
-                        })
-                        .flatten();
+                    crate::renderer::float_placement::empty_table_host_uses_shared_formatted_box(
+                        para,
+                        t,
+                        ctx.paragraph_float_placements
+                            .get(&(para_index, control_index)),
+                    )
+                    .then(|| {
+                        ctx.paragraph_float_placements
+                            .get(&(para_index, control_index))
+                            .map(|placement| col_area.y + placement.occupied_bottom)
+                    })
+                    .flatten();
                 let empty_rowbreak_flow_end = if let Some(end) = empty_reflow_flow_end {
                     // The resolved box has already consumed its outer top.
                     // Its accepted bottom also owns the host's after-space.

@@ -631,6 +631,8 @@ impl Default for TextStyle {
 pub struct PatternFillInfo {
     /// 패턴 종류 (1=가로줄, 2=세로줄, 3=역대각선, 4=대각선, 5=십자, 6=격자)
     pub pattern_type: i32,
+    /// 한컴 인쇄 무늬의 576HU 반복 주기를 현재 출력 DPI로 변환한 값.
+    pub tile_size: f64,
     /// 무늬색
     pub pattern_color: ColorRef,
     /// 배경색

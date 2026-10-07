@@ -3958,49 +3958,47 @@ export class CanvasKitLayerRenderer {
   }
 
   private drawPatternFill(
-    canvas: SkCanvas,
-    bounds: LayerBounds,
+    _canvas: SkCanvas,
+    _bounds: LayerBounds,
     pattern: NonNullable<LayerShapeStyle['pattern']>,
     opacity: number,
     draw: (paint: SkPaint) => void,
   ): void {
-    const background = this.makeFillPaint(pattern.backgroundColor ?? '#ffffff', opacity);
-    draw(background);
-    background.delete?.();
-    const patternType = Number.isInteger(pattern.patternType) ? Number(pattern.patternType) : 0;
-    const fg = this.makeStrokePaint(pattern.patternColor ?? '#000000', 1, opacity);
-    const tile = 6;
-    const x0 = bounds.x;
-    const y0 = bounds.y;
-    const x1 = bounds.x + (bounds.width ?? 0);
-    const y1 = bounds.y + (bounds.height ?? 0);
-    const kind = patternType === 0 ? 1 : patternType;
-    try {
-      if (kind === 1 || kind === 5) {
-        for (let y = y0 + tile / 2; y <= y1; y += tile) {
-          canvas.drawLine(x0, y, x1, y, fg);
-        }
+    const kind = pattern.patternType ?? 0;
+    const bg = parseCssColor(pattern.backgroundColor ?? '#ffffff');
+    const fg = parseCssColor(pattern.patternColor ?? '#000000');
+    const bytes = new Uint8Array(8 * 8 * 4);
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        const horizontal = y === 0;
+        const vertical = x === 0;
+        const slash = (x + y) % 8 === 0;
+        const backslash = x === y;
+        const ink = kind === 1 ? horizontal : kind === 2 ? vertical
+          : kind === 3 ? slash : kind === 4 ? backslash
+          : kind === 5 ? horizontal || vertical : kind === 6 ? slash || backslash : false;
+        const color = ink ? fg : bg;
+        bytes.set([color.r, color.g, color.b, Math.round(color.a * 255)], (y * 8 + x) * 4);
       }
-      if (kind === 2 || kind === 5) {
-        for (let x = x0 + tile / 2; x <= x1; x += tile) {
-          canvas.drawLine(x, y0, x, y1, fg);
-        }
-      }
-      if (kind === 3 || kind === 6) {
-        for (let offset = - (y1 - y0); offset <= (x1 - x0); offset += tile) {
-          canvas.drawLine(x0 + offset, y0, x0 + offset + (y1 - y0), y1, fg);
-        }
-      }
-      if (kind === 4 || kind === 6) {
-        for (let offset = 0; offset <= (x1 - x0) + (y1 - y0); offset += tile) {
-          canvas.drawLine(x0 + offset, y0, x0 + offset - (y1 - y0), y1, fg);
-        }
-      }
-    } finally {
-      fg.delete?.();
     }
-    if (kind < 1 || kind > 6) {
-      return;
+    const image = this.canvasKit.MakeImage({
+      width: 8, height: 8, colorType: this.canvasKit.ColorType.RGBA_8888,
+      alphaType: this.canvasKit.AlphaType.Unpremul, colorSpace: this.canvasKit.ColorSpace.SRGB,
+    }, bytes, 8 * 4);
+    if (!image) return;
+    const scale = (pattern.tileSize ?? 7.68) / 8;
+    const shader = image.makeShaderOptions(
+      this.canvasKit.TileMode.Repeat, this.canvasKit.TileMode.Repeat,
+      this.canvasKit.FilterMode.Nearest, this.canvasKit.MipmapMode.None,
+      [scale, 0, -scale / 2, 0, scale, -scale / 2, 0, 0, 1],
+    );
+    const paint = this.makeFillPaint('#ffffff', opacity);
+    try {
+      paint.setShader(shader);
+      // 무늬도 원래 도형 경로를 채워 괘선·타원·path의 소유 영역을 보존한다.
+      draw(paint);
+    } finally {
+      paint.delete(); shader.delete(); image.delete();
     }
   }
 

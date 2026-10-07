@@ -2513,6 +2513,9 @@ pub enum ParagraphFloatFlow {
     /// The host advances independently; leaving the strip closes the accepted
     /// outer box. An exclusion without that strip retains its prior flow owner.
     StoredSquareWrap,
+    /// A control-only anchor consumes the formatted object box, including its
+    /// after-space. It has no separate host text line to emit on a budget miss.
+    EmptyHost,
     /// The trailing object cannot fit in the host line's remaining inline space.
     NextLine,
     /// The saved successor line starts at the picture's occupied bottom. Its
@@ -3723,6 +3726,7 @@ impl ParagraphFloatPlacement {
     pub fn paragraph_end(self, text_flow_end: f64, spacing_after: f64) -> f64 {
         match self.flow {
             ParagraphFloatFlow::Exclusion | ParagraphFloatFlow::StoredSquareWrap => text_flow_end,
+            ParagraphFloatFlow::EmptyHost => self.occupied_bottom,
             ParagraphFloatFlow::NextLine => {
                 // A certified successor at the accepted frame bottom already
                 // closes this paragraph. Adding the host's trailing space
@@ -5465,7 +5469,8 @@ pub(crate) fn empty_table_host_uses_shared_formatted_box(
     table: &Table,
     placement: Option<&ParagraphFloatPlacement>,
 ) -> bool {
-    empty_table_host_uses_formatted_box(para, table)
+    placement.is_some_and(|plan| plan.flow == ParagraphFloatFlow::EmptyHost)
+        || empty_table_host_uses_formatted_box(para, table)
         || (saved_whole_empty_table_anchor(para, table)
             && placement.is_some_and(|plan| {
                 plan.flow == ParagraphFloatFlow::Exclusion && plan.stored_host_origin.is_some()

@@ -598,7 +598,11 @@ impl TypesetState {
     ) {
         for (&(owner, _), placement) in &self.data.paragraph_float_placements {
             if owner == para_idx
-                && placement.flow == crate::renderer::float_placement::ParagraphFloatFlow::NextLine
+                && matches!(
+                    placement.flow,
+                    crate::renderer::float_placement::ParagraphFloatFlow::NextLine
+                        | crate::renderer::float_placement::ParagraphFloatFlow::EmptyHost
+                )
             {
                 self.data.current_height =
                     placement.paragraph_end(self.data.current_height, spacing_after);

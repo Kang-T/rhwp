@@ -1890,7 +1890,7 @@ impl TypesetEngine {
                     + ft.host_spacing.before
                     + hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), self.dpi);
                 crate::renderer::float_placement::ParagraphFloatPlacement {
-                    flow: crate::renderer::float_placement::ParagraphFloatFlow::Exclusion,
+                    flow: crate::renderer::float_placement::ParagraphFloatFlow::EmptyHost,
                     anchor_y: st.current_height,
                     stored_host_origin: None,
                     stored_successor_line_origin: None,
@@ -1902,7 +1902,6 @@ impl TypesetEngine {
                         + fmt.spacing_after,
                 }
             })
-            .filter(|placement| placement.occupied_bottom <= available)
         });
         let unconstrained_host_placement = unconstrained_host_placement.or_else(|| {
             crate::renderer::float_placement::ParagraphFloatPlacement::from_empty_reflow_host(

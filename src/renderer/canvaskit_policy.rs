@@ -2436,6 +2436,7 @@ mod tests {
         let rect_style = ShapeStyle {
             pattern: Some(crate::renderer::PatternFillInfo {
                 pattern_type: 4,
+                tile_size: 7.68,
                 pattern_color: 0x0000_00ff,
                 background_color: 0x00ff_ffff,
             }),

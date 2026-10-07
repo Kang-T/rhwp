@@ -247,7 +247,7 @@ impl DocumentCore {
         let outer_margin: i16 = 283; // 바깥 여백 ~1mm
         let table_width = container_width
             .saturating_sub(2 * outer_margin as u32)
-            .max(7200);
+            .max(1);
         let default_col_width = table_width / col_count as u32;
         let default_row_height: u32 = 1000;
 
@@ -288,6 +288,35 @@ impl DocumentCore {
                 *h = default_row_height;
             }
         }
+
+        // HTML <table> CSS에서 표 패딩 파싱
+        let table_style =
+            parse_inline_style(&table_html[..table_html.find('>').unwrap_or(table_html.len()) + 1])
+                .to_lowercase();
+        let table_padding_pt = parse_css_padding_pt(&table_style);
+        // 기본값: L:510 R:510 T:141 B:141 (정상 HWP 파일 패턴)
+        let table_padding = crate::model::Padding {
+            left: if table_padding_pt[0] > 0.01 {
+                (table_padding_pt[0] * 100.0).round() as i16
+            } else {
+                510
+            },
+            right: if table_padding_pt[1] > 0.01 {
+                (table_padding_pt[1] * 100.0).round() as i16
+            } else {
+                510
+            },
+            top: if table_padding_pt[2] > 0.01 {
+                (table_padding_pt[2] * 100.0).round() as i16
+            } else {
+                141
+            },
+            bottom: if table_padding_pt[3] > 0.01 {
+                (table_padding_pt[3] * 100.0).round() as i16
+            } else {
+                141
+            },
+        };
 
         // --- 4. BorderFill 생성 및 Cell 구조체 조립 ---
         let mut cells: Vec<Cell> = Vec::new();
@@ -359,8 +388,9 @@ impl DocumentCore {
                 vec![Paragraph::new_empty()]
             } else {
                 // 셀 안 표는 이 셀 안쪽 폭에 맞춘다.
-                let inner_width = cell_width
-                    .saturating_sub(padding.left.max(0) as u32 + padding.right.max(0) as u32);
+                let inner_width = cell_width.saturating_sub(
+                    table_padding.left.max(0) as u32 + table_padding.right.max(0) as u32,
+                );
                 let parsed = self.parse_html_to_paragraphs(&pc.content_html, inner_width);
                 if parsed.is_empty()
                     || parsed
@@ -434,7 +464,9 @@ impl DocumentCore {
                 let baseline = (font_size as f64 * 0.85) as i32;
                 let spacing = (font_size as f64 * 0.6) as i32;
                 // seg_width: 셀 폭에서 좌우 패딩을 뺀 텍스트 영역 폭
-                let seg_w = (cell_width as i32) - (padding.left as i32) - (padding.right as i32);
+                let seg_w = (cell_width as i32)
+                    - (table_padding.left as i32)
+                    - (table_padding.right as i32);
                 // tag(flags): bit 17(first segment) + bit 18(last segment).
                 let line_tag: u32 = crate::model::paragraph::LineSeg::TAG_SINGLE_SEGMENT_LINE;
 
@@ -507,6 +539,16 @@ impl DocumentCore {
             });
         }
 
+        // 한 셀의 선호 폭보다 자식 표/줄 나눔 토큰이 넓으면 부모 열이 그 점유를
+        // 예약한다. 1인치 바닥값으로 자식을 부풀리거나 paint에서 잘라내지 않는다.
+        super::html_table_width::reserve_content_widths(
+            &mut cells,
+            &mut col_widths,
+            &table_padding,
+            &self.resolve_render_styles(),
+            self.dpi,
+        );
+
         // 행 우선 순서로 정렬
         cells.sort_by(|a, b| a.row.cmp(&b.row).then(a.col.cmp(&b.col)));
 
@@ -572,35 +614,6 @@ impl DocumentCore {
             0u16
         };
 
-        // HTML <table> CSS에서 표 패딩 파싱
-        let table_style =
-            parse_inline_style(&table_html[..table_html.find('>').unwrap_or(table_html.len()) + 1])
-                .to_lowercase();
-        let table_padding_pt = parse_css_padding_pt(&table_style);
-        // 기본값: L:510 R:510 T:141 B:141 (정상 HWP 파일 패턴)
-        let table_padding = crate::model::Padding {
-            left: if table_padding_pt[0] > 0.01 {
-                (table_padding_pt[0] * 100.0).round() as i16
-            } else {
-                510
-            },
-            right: if table_padding_pt[1] > 0.01 {
-                (table_padding_pt[1] * 100.0).round() as i16
-            } else {
-                510
-            },
-            top: if table_padding_pt[2] > 0.01 {
-                (table_padding_pt[2] * 100.0).round() as i16
-            } else {
-                141
-            },
-            bottom: if table_padding_pt[3] > 0.01 {
-                (table_padding_pt[3] * 100.0).round() as i16
-            } else {
-                141
-            },
-        };
-
         // raw_table_record_attr: 정상 파일 패턴 기반 (DIFF-5 수정)
         // bit 1: 셀 분리 금지 (항상 설정), bit 2: repeat_header
         // bit 26: 추가 레이아웃 속성
@@ -648,6 +661,14 @@ impl DocumentCore {
             raw_table_record_extra: vec![0u8; 2], // 표준 추가 2바이트
         };
         table.rebuild_grid();
+        // 재조판의 공통 행 측정을 저장 크기로 확정한다. 중첩 표의 직접 paint와
+        // 상위 표 측정이 같은 행 상자를 소비하도록 HWP/HWPX 크기도 함께 갱신한다.
+        super::html_table_width::reserve_content_heights(
+            &mut table,
+            &self.resolve_render_styles(),
+            self.dpi,
+        );
+        let total_height = table.common.height;
 
         // --- 6. Table Control을 포함하는 Paragraph 생성 ---
         // 제어문자는 text에 포함하지 않음 (serialize_para_text가 controls에서 생성)
