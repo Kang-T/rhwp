@@ -248,3 +248,50 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - HTML cell-flow-v4 build exit 0(4분 54초), binary SHA `debbb9809350d5e83838aae737d696ab216cddf34db5b0a8c90cf7b47d59a9f5`, paste/caret 진단 5/5 PASS. 셀 문단 vpos/inline host LineSeg를 새 점유로 발행했으나 새 input `a100f93c3c2d...` / Print SHA `67b32e51f3907802a54be129a67b218a80c456e4dd6317df1eb19a0481b5ed63`의 Native는 12.24209%였다. 앞 글자 누락과 표 위치 결함이 남아 **보정 완료가 아니다**. 원 input `87a311ae9d91...`도 보존한다.
 - TAC host-frame-v5 build exit 0(4분 25초), binary SHA `deba366df3e1b51116b581fe5a76647c5100fc6bd70b75791a7a22509cd12ad9`, 진단 101/101 PASS. NO_LS 본문 TAC frame에서 별도 머리말/꼬리말을 폭·높이 소비자로 오인하던 거부 조건을 제거하고 표 바깥 여백/실측 높이를 공용 줄 메트릭에 반영했다. 동일 0079 input은 8.88818→74.63732%로 개선했으나 표 뒤 글자가 같은 줄로 붙어 여전히 실패다.
 - 추가 원인: 새 inline table factory가 `common.treat_as_char=true`인데 `table.attr`에 TABLE-record 값 `0x04000006`을 넣고 `common.flow_with_text`/CTRL_HEADER 흐름 flag를 누락했다. live/native, HWP 저장, 순수 HWPX 재열기의 flow 판정이 갈린다. 현재 실제 inline 생성 경로의 CommonObjAttr/CTRL_HEADER/cache를 같은 flags로 발행하도록 보정 중이다. 기존 TABLE record attr와 기존 저장 자료의 수용 조건은 바꾸지 않는다.
+
+
+### 진행 중 보정 9: 표 생성·셀 편집의 실제 줄 소속과 독립 개체 슬롯
+
+- inline table factory의 CommonObjAttr/CTRL_HEADER 흐름 flag를 일치시켰다. 삽입 전 host end를 고정하고 `reflow_paragraph → recalculate_section_vpos`로 뒤 문단 좌표를 갱신한다. TABLE record 속성은 별도의 기존 계약을 유지한다.
+- HTML cell paste는 flat/deep 경로 모두 셀 문단 reflow/vpos 갱신 뒤 공통 HeightMeasurer의 `reserve_content_heights → host reflow → section vpos`를 소비한다. 저장 줄의 TAC 소속은 실제 raw control slot과 줄 경계를 사용하며 높이 매칭을 소속 증거로 삼지 않는다.
+- Native v7 binary SHA `3fd77aaa4c49e1de094bf1e9182865da02e055cb05d42099c0e4a5afc0f74504`, build exit 0(4분 21초), 진단 101/101 PASS. paste API 재생성 input `433acb46d996...`의 독립 Print PDF SHA `4c6b83ee91a1b39989cee3a973f82fa2046ce70b1792be09ab41185cbf083be4`, job `04af4d5c-1ed7-444a-bf5c-932e3087390f`, PrintMethod=0. Native 98.41537%, 앞 글자/표/뒤 문단 순서 회복. `paste-html-inline-equation-cell-v7-zoom.png`에서 수식 글꼴·연산자 간격 차이가 남아 있으므로 완료 판정은 보류한다.
+- NO_LS 혼합 표 host는 표 폭을 뒤 글자에 합치던 방식 대신 원시 control slot을 별도의 U+FFFC 프레임 토큰으로 투영한다. 원본 IR은 변경하지 않는다. 개체 폭/높이와 원시 경계는 공통 occupied-size 측정 → Frame → LineSeg → TAC 배치가 소비한다. 표 끝과 뒤 글자는 다른 물리 줄을 소유할 수 있다.
+- Native v9 binary SHA `5717c2c2cd1efb9eb276d5c9b37e0a7e4a8510709fefd9d14c32714feaeb08df`, build exit 0(4분 30초), 진단 101/101 PASS. 기존 Print 입력 24개 중 23개가 90% 이상(최저 99.35414%). `0079-896269c1daf6` 및 API 재생성 `0079-f05117fd896e` 모두 100%. 원본 review PNG에서 앞 글줄 → 표 → 끝 글자/그림 순서와 외곽선을 직접 확인했다.
+- 기존 `0148-9dee19f77e58`은 옛 factory가 만든 잘못된 한 줄 cache를 유지해 7.72191%다. 수정 API로 재생성한 `0148-f00e5cab1285`는 실제 두 줄을 저장하고 독립 Print와 Native v10에서 100%. Print job `81e31328-57c9-4252-aa62-5bcf5fd7841f`, PDF SHA `a90f5a82274104102221544a08530f5dfdcb59fb57aae2f61e4bcf454c1b09f6`. 새 산출물 통과를 옛 저장본 렌더 개선으로 보고하지 않는다.
+- 추가 Native v7 확인: auto-number trailing placeholder 네 입력 최저 97.09229~97.61647%. leading definition 일곱 입력 중 `0378-39da46633749` 86.31922%는 남아 있고 나머지는 98.24937~100%. fresh WASM 및 최종 확대 판독은 미실행이다.
+
+### 진행 중 보정 10: 본문 각주 소유와 실제 예약 상자
+
+- 상위 문단에 표가 있다는 이유로 형제 본문 각주까지 등록하지 않던 `!has_table` 분기를 제거했다. `FootnoteSource::Body`와 table-cell fragment queue의 `TableCell` source는 별개이며 셀 각주를 중복 등록하지 않는다. bodyless 판정은 새 각주의 원인이 아니었고 그대로 유지했다.
+- Native v8 SHA `1d7c1acb84dce29bf445816e4f1ea9e62abb92b8f3915ef3575b8b4e74cbeb7e`, build exit 0(4분 37초), 진단 101/101 PASS. HWP3 변환 입력의 누락 각주는 표시됐으나 2→3쪽 과분할이 발생했다. 이 결과를 통과로 세지 않는다.
+- 단일 단의 등록된 본문 각주도 `LayoutEngine::estimate_footnote_area_height_with_metrics → reserve_painted_footnote_area`를 사용한다. 실제 구분선/위아래 여백을 포함한 상자에는 추정용 40px safety margin을 중복 차감하지 않는다. 진입 fit와 분할 루프가 같은 `available_height`를 소비한다. 다단 경로는 이번 공통 측정 적용 밖이며 검증을 승격하지 않는다.
+- Native v10 SHA `f0bb932e113837181649f85ccf3c91515b823129b61e4d77ffd081bc8e01f6e1`, build exit 0(4분 34초), 진단 101/101 PASS. 혼재 주석 여섯 독립 입력은 99.71126~100%를 유지했다. HWP3 입력은 다시 2쪽이나 p1 78.05031%, p2 41.35911%: 삽입 전 저장 쪽 끝의 빈 문단을 감추는 cache/guide 경로가 남아 있다. 143E chart 입력은 88.42212%다.
+- 각주 삽입으로 가용 높이가 달라진 뒤 문단의 이전 프레임 cache를 API에서 무효화하는 v12 보정을 검증 중이다. 문단 내용과 글자모양은 보존한다. 재생성 입력의 독립 Print/Native를 먼저 확인하며 옛 입력의 실패 증거는 보존한다.
+
+### 진행 중 보정 11: 오른쪽 탭의 동적 필드 상자
+
+- 8/10/20pt filename/page field, 일반 `L\tR`, field 뒤 `X` 대조군의 독립 Print를 생성했다. 필드 블록은 반각 종단 슬롯을 정렬 폭에 포함하지만 일반 문자 블록은 그렇지 않았다. 고정 px 이동 대신 source control/range와 해당 char shape의 글자 크기로 폭을 구한다.
+- `right_tab_fields::tail_space/apply_block_width → right_tab_block_width/estimate_line_runs → emit_line_runs → compute_char_positions`로 측정·배치가 같은 정렬 폭을 소비한다. 현재 독립 증거는 한 개 동적 필드가 있는 RIGHT tab 블록이며 여러 필드/개체 혼재 블록은 새 지원으로 주장하지 않는다.
+- Native v11 SHA `beda69a9db570d50dc1bbfc2bed219c8868f71d6dc59d50a14d8581a2273da9c`, build exit 0(4분 22초), 진단 101/101 PASS. 초기 컴파일에서 별도 float-host 관측형을 LineSeg로 잘못 취급한 추가 조회는 제거 후 다시 빌드했다. 현재 filename 20개, 크기 대조 6개, plain 3개, suffix 2개를 비교 중이며 최종 결과·확대 판독·fresh WASM은 아직 남아 있다.
+
+현재 code head 뒤 보정은 모두 로컬 진행 중이다. fresh WASM은 여전히 `f58718f70`이므로 위 Native 결과를 최종 WASM 검증으로 사용하지 않는다. 새 정식 렌더링 회귀/fixture/golden은 추가하지 않았다. 남은 90% 미만, 수식 확대 결함, 최종 lint/full nextest/Studio/통합 CI가 해소되기 전에는 통합 PR 생성·승인·merge를 하지 않는다.
+
+- Native v11 최종 filename 20개는 모두 90% 이상(최저 90.22403%). 다만 추가 크기 대조의 PAGE 20pt는 89.91884%로 실패했다. 이 경우 종단 AutoNumber의 표시 placeholder는 raw control의 가시 위치와 달랐다. `resolve_auto_number_placeholder_positions`를 표시 치환과 정렬 폭 조회가 공유하도록 v13에서 보정했다.
+- Native v13 SHA `f23f2a6ff0d7923d8571b879b97759b0fcc3f9e1d625bd050a3d45429b346074`, build exit 0(4분 25초), 진단 101/101 PASS. 동일 Print의 8/10/20pt 파일명·쪽번호 여섯 입력은 99.7331~100%. 20pt review PNG에서 번호·underline 끝의 큰 위치 차이가 사라졌다. 최종 확대/전체 head/fresh WASM은 남아 있다.
+- Native v12 cache 무효화 입력 HWP3 `0ca435b9dae9...`의 독립 Print job `cae7a3cd-ddde-4685-8cbd-2244c6c0715e`, PDF SHA `71451896fb854b306d2c948aa4b0c9d30488d7763d5ad6b7f6c3f6f681d36716`. p2는 92.06827%로 빈 줄 소속이 개선됐지만 p1은 51.1407%로 악화했다. 첫 control-only host의 참조 누락·표 앞 폭·뒤 줄간격이 남아 있어 이 cache 변경을 완료로 판정하지 않는다. v12 binary SHA `c6be6b2de1d6cedff2dd1bb1eea7bef4763b4e2523998d5d56800422cb13dfd2`, build exit 0(4분 36초), 진단 101/101 PASS.
+- control-only 문단에서 개체마다 없는 가시 문자 위치를 늘리던 fallback을 가시 경계 0으로 투영하는 v14를 검증 중이다. 원시 UTF-16 control 순서는 보존한다.
+- 143E OLE의 길이 prefix와 `Contents` 원문을 ignored 경로에 보존했다. 기존 bounded VtChart 6 reader는 객체 그래프를 끝까지 읽었지만 column type 1을 거절했다. 독립 source metadata에는 axis 0..2000/4 divisions와 계열 fill `#73b1d1/#cd6565/#ebc452`가 있었다. 일반 fallback의 1702 축·다른 팔레트와 구별되며 아직 제품 코드에 적용하지 않았다.
+
+- v14 Native SHA `6044ab9a9e21e681e789aff274c97c71792d479f0526ed6d0d4f9d67ea45ad43`, build exit 0, 진단 101/101 PASS. 그러나 빈 문단의 모든 `control_text_positions`를 0으로 만들면 주석 삽입 명령이 같은 경계의 표 뒤에 주석을 넣는 부작용이 확인됐다. 새 입력 `9aa1284b66ce...`와 Print job `a0d3724a-208e-4686-950c-bda67f6aed5d`를 보존하고 해당 전역 변경은 되돌렸다. 기존 v12 입력 비교는 여전히 p1 51.1407%로 실패했다.
+- v15는 TAC 표와 같은 저장 줄을 소유하는 비-TAC Square 도형 때문에 후행 간격을 버리는 paint 분기를 보정한다. 원시 control 슬롯의 실제 줄 소속을 확인하며, 선행 그림·표·TAC 도형의 별도 점유 경로는 유지한다. 측정은 `tac_reconcile::measure`의 소유 줄 간격을 이미 소비하고 있었다.
+
+- v15 Native의 최종 실행 파일 SHA는 `98616861774255774e93b6cbbe497e7bc98f5e6f2e16e87b692ad72f93d9648b`다(build exit 0, 4분 46초). 빌드 완료 전 이전 실행 파일을 복사한 오류를 확인해 다시 고정했고, Cargo 종료 뒤 진단을 다시 실행해 101/101 PASS를 확인했다. 같은 v12 입력/Print p1은 51.1407%→77.15709%로 개선됐으나 실패다. `hwp3-host-trace-v15.log`의 Table 뒤 흐름은 162.6px였다. 원시 저장 각주/표 줄의 간격 절반만 소비되고, 뒤 문단의 이전 vpos를 무효화했으므로 나머지 간격을 복원할 소비자가 없었다.
+- v16은 `tac_host_trailing_spacing_at_boundary`를 `tac_reconcile::measure`, `stored_tac::prepare`, 실제 `layout_table_item`이 함께 호출하게 한다. 다음 문단의 저장 줄이 없거나 무효인 재조판 경계에서는 마지막 원본 TAC 줄의 양의 간격 전량을 소비한다. 원래 저장 줄/현재 RowBreak 줄의 기존 절반 간격 계약과 음수 Fixed 경로는 유지한다. `note_reference::leading`은 일반 문단과 빈 표 호스트의 번호·스타일·전진폭을 공유하고, 표 호스트는 같은 원시 소유 줄에서 표보다 앞선 참조만 그린다. 코드/시각 검증 진행 중이다.
+- v13 최종 머리말·꼬리말 파일명 문맥 20개 전체 TSV가 완료됐다. 모두 100%, 누락 없음(`native-hf_filename_context-scores-field-slot-metrics-v13/summary.json`). 추가 8/10/20pt 여섯 Print 대조는 99.7331~100%이며 `hf-tab-20pt-v13-zoom.png`에서 번호·파일명·밑줄 끝을 확대 확인했다. SVG 재조판 잔차와 fresh WASM 확인은 최종 head에서 별도 수행한다.
+
+- v16 Native SHA `84552c6c155c5faa5deb1d4f71eafb0a13cd1f5d47ec90c4d2f13b9dd879ad71`, build exit 0(4분 21초), 기존 진단 101/101 PASS. 기존 `#6812/#6879/#6167/#6179/#7160/#5708` 검사 원문을 ignored driver에서 실행한 32/32도 PASS(기대값 변경 없음). v12 HWP3 입력/같은 독립 Print 두 쪽의 full review gate가 Native에서 통과했다. 원래 v10 입력과 fresh WASM, 참조·간격 확대 확인은 별도다.
+- 추가 확인: v15에서 최신 각주 API를 거친 143E 차트 입력 `8394cca6978e...`는 81.87141%로 실패, 옛 입력의 88.42212%와 혼동하지 않는다. 선두 정의+HTML 표+종이 기준 개체 입력 `39da46633749...`도 86.31922%로 남았다. HTML 표 factory의 raw 속성 `0x082A2311`에는 flowWithText·Table numbering·Para 기준 등이 있지만 수동 생성 common은 이 값들과 달랐다. v17은 `parse_common_obj_attr(&raw_ctrl_data)`로 양쪽을 같은 source에서 해소한다. 새 편집 입력과 독립 Print를 다시 생성해 검증한다.
+
+- v16/v17의 같은 HWP3 v12 입력 p1 95.51084%, p2 92.07237%. `hwp3-note-reference-v16-zoom.png`에서 선두 참조 번호·표 안 글자·첫 본문과 하단 번호/구분선을 확인했다. 표 소속과 선두 참조 누락은 해소됐고 글꼴 raster·기존 footer 폭 잔차는 남아 있다. FE/E/F 여섯 대조군은 v16 최저 99.71126%로 유지됐다. 반면 이전 API가 남긴 원래 입력 `6b4f6a375029...`는 v16 p1 82.00126%, p2 41.35911%로 실패한다. 새 입력 통과를 옛 입력의 해결로 보고하지 않는다.
+- v17 Native SHA `10719d1c5fba335efd534fcb0582782f3aa6f972967dbec592fa7c12c1e8a8ca`, build exit 0(4분 21초), 진단 101/101 PASS. 수정 source 21개와 base `301840aec6df20cc1dac4cf2a9e20ccccabebf3a`의 hash manifest를 ignored `source-code-v17/`에 고정했다(기존 diff patch에 빠지는 새 모듈 원문 포함). 선두 정의+HTML 표+종이 기준 개체의 새 입력 `4a66fd38f7f6...`, Print job `2a5bdcdd-06c5-4fbb-b5ea-9c0656e3c4aa`, PDF SHA `6bbce4b616b7afb7daad3c5e23e302ca65afbd0d14664923bf64cc959121903d`를 보존했다. full Native review와 fresh WASM 검증은 진행 중이다.
+- 차트 metadata 추가 진단에서 저장 VtFont 14byte payload의 크기(f32 8/9/10pt), legend 배치/section rect를 확인했다. `metadata_probe.log`와 `chart-metadata-v15-zoom.png`는 ignored 진단이며 product parser/renderer 확장은 아직 적용하지 않았다.

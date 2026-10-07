@@ -17,6 +17,8 @@ use crate::renderer::style_resolver::{detect_lang_category, ResolvedParaStyle, R
 use crate::renderer::{hwpunit_to_px, px_to_hwpunit};
 use std::ops::Range;
 
+mod inline_frame_input;
+
 struct PreparedParagraphKerning {
     context: std::sync::Arc<crate::renderer::kerning::KerningMeasurementContext>,
     scalar_styles: Vec<crate::renderer::kerning::KerningParagraphScalarStyle>,
@@ -429,6 +431,26 @@ fn tokenize_paragraph_with_regenerated_space_metric(
         }
 
         // 공백 (줄 바꿈 지점) — NonBreakingSpace(\u{00A0})는 제외
+        // 개체 슬롯은 뒤 글자와 별개의 분할 불가 토큰이다. 글꼴 글리프의
+        // 폭은 없으며 공통 측정 결과가 제공한 물리 폭만 소비한다.
+        if ch == '\u{FFFC}' && inline_width_px_at(inline_controls, i) > 0.0 {
+            let width = inline_width_px_at(inline_controls, i);
+            let style_id = find_active_char_shape(
+                char_shapes,
+                char_offsets.get(i).copied().unwrap_or(i as u32),
+            );
+            tokens.push(BreakToken::Text {
+                start_idx: i,
+                end_idx: i + 1,
+                base_width: width,
+                width,
+                max_font_size: token_line_font_size(styles, style_id),
+                base_char_widths: vec![width],
+                char_widths: vec![width],
+            });
+            i += 1;
+            continue;
+        }
         if ch == ' ' {
             let utf16_pos = if i < char_offsets.len() {
                 char_offsets[i]
@@ -469,7 +491,7 @@ fn tokenize_paragraph_with_regenerated_space_metric(
 
                 while i < text_len {
                     let c = text_chars[i];
-                    if c == ' ' || c == '\n' || c == '\t' {
+                    if c == ' ' || c == '\n' || c == '\t' || c == '\u{FFFC}' {
                         break;
                     }
                     // 한글이 아니고 라틴이면 다른 토큰으로 분리
@@ -964,6 +986,7 @@ fn prepare_paragraph_projection(
         );
 
         let scalar_width = match character {
+            '\u{FFFC}' if inline_width_px_at(inline_controls, index) > 0.0 => 0.0,
             '\t' | '\n' | '\r' => 0.0,
             ' ' => space_metric.space_advance(&text_style),
             _ => estimate_text_width_unrounded(&character.to_string(), &text_style),
@@ -2712,7 +2735,11 @@ fn inline_control_occupied_size_hwp(
 /// 일반 경로는 표를 `control 배치 경로`에 두려고 제외하지만(#3211), 저장 줄이 없는 host 는
 /// 이 채움이 줄 경계의 유일한 소유자다. 표 폭을 안 실으면 줄에 남은 폭보다 넓은 표가
 /// 줄바꿈 없이 앞 글자 뒤에 붙는다(`distribution_doc.hwpx` 3쪽 — 표가 본문 오른쪽 밖으로 나간다).
-fn flow_inline_controls_with_tac_tables(para: &Paragraph) -> Vec<FlowInlineControl> {
+fn flow_inline_controls_with_tac_tables(
+    para: &Paragraph,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) -> Vec<FlowInlineControl> {
     let text_len = para.text.chars().count();
     let mut controls = flow_inline_controls(para);
     for (control, char_position) in para.controls.iter().zip(para.control_text_positions()) {
@@ -2722,7 +2749,8 @@ fn flow_inline_controls_with_tac_tables(para: &Paragraph) -> Vec<FlowInlineContr
         if !table.common.treat_as_char || char_position >= text_len {
             continue;
         }
-        let Some((width_hwp, height_hwp)) = inline_control_size_hwp(control) else {
+        let Some((width_hwp, height_hwp)) = inline_control_occupied_size_hwp(control, styles, dpi)
+        else {
             continue;
         };
         controls.push(FlowInlineControl {
@@ -2912,6 +2940,9 @@ pub(super) fn supports_tac_table_band_frame_controls(para: &Paragraph) -> bool {
             Control::Table(table) if table.common.treat_as_char => tac_tables += 1,
             Control::Picture(picture) if picture.common.treat_as_char => {}
             Control::Equation(equation) if equation.common.treat_as_char => {}
+            // 머리말/꼬리말은 본문 바깥의 별도 프레임이다. 본문 줄의 너비·높이를
+            // 소비하지 않으므로 NO_LS 인라인 표의 줄 구성에서 사양할 이유가 없다.
+            Control::Header(_) | Control::Footer(_) => {}
             other if control_is_width_neutral_marker(other) => {}
             _ => return false,
         }
@@ -3216,6 +3247,10 @@ fn layout_paragraph_in_frame_impl(
         return None;
     }
 
+    let projected = (para.line_segs.is_empty() && supports_tac_table_band_frame_controls(para))
+        .then(|| inline_frame_input::project(para, styles, dpi))
+        .flatten();
+    let para = projected.as_ref().map_or(para, |(input, _)| input);
     let text_chars = para.text.chars().collect::<Vec<_>>();
     // 문단 끝의 빈 run도 마지막 물리 줄의 글자 상자를 소유한다. 가시 글자와
     // 별개인 종단 CharShapeRef를 보존해야 줄 높이·간격·베이스라인을 프레임의
@@ -3255,13 +3290,14 @@ fn layout_paragraph_in_frame_impl(
     // Keep Equation width and height ownership with the current scalar
     // `FlowInlineControl` path. A non-TAC Picture deliberately contributes no
     // inline token: it is represented by the caller's exclusion instead.
-    let inline_controls =
-        if para.line_segs.is_empty() && supports_tac_table_band_frame_controls(para) {
-            // [#7160] 저장 줄이 없는 TAC 표 host 는 표 폭까지 줄 경계 판정에 넣는다.
-            flow_inline_controls_with_tac_tables(para)
-        } else {
-            flow_inline_controls(para)
-        };
+    let inline_controls = if let Some((_, controls)) = projected.as_ref() {
+        controls.clone()
+    } else if para.line_segs.is_empty() && supports_tac_table_band_frame_controls(para) {
+        // [#7160] 저장 줄이 없는 TAC 표 host 는 표 폭까지 줄 경계 판정에 넣는다.
+        flow_inline_controls_with_tac_tables(para, styles, dpi)
+    } else {
+        flow_inline_controls(para)
+    };
     // [#3128] 프레임이 들여쓰기 추적을 잃던 자리. 종전에는 여기서 `false` 를 박아
     // 두어, 저장 `LINE_SEG` 가 없는 들여쓴 셀 문단도 글꼴 고유 공백 폭으로 쟀다.
     // 실측: `76076_regulatory_analysis.hwp` 에서 이 술어를 만족하는 문단이 74 개고,
@@ -3328,8 +3364,13 @@ fn layout_paragraph_in_frame_impl(
             &inline_controls,
         )
     });
-    let letter_spacing_px =
+    let mut letter_spacing_px =
         resolved_letter_spacing_px(&text_chars, &para.char_offsets, &para.char_shapes, styles);
+    if projected.is_some() {
+        for control in &inline_controls {
+            letter_spacing_px[control.char_position] = 0.0;
+        }
+    }
     let fallback_font_size = if para.text.is_empty() {
         para.char_shapes
             .first()
@@ -3736,21 +3777,7 @@ pub(crate) fn resolve_stored_line_segs_in_frame(
     // `para.char_shapes`, which is the char-shape re-splitting #2632 needed —
     // a mixed-char-shape paragraph must measure the way it renders.
     if para.line_segs.is_empty() {
-        let mut fill_input = para.clone();
-        fill_input.line_segs.clear();
-        // [#7160] 문단 **끝**에 앵커된 글자처럼 취급 표는 글자 슬롯이 없어 폭 판정에서
-        // 빠진다. 자리 문자를 하나 붙여 그 표가 줄에 들어가는지 묻게 한다 — 안 들어가면
-        // 채움이 다음 줄로 넘긴다(한/글 정본 `distribution_doc-2024.pdf` 3쪽과 같은 자리).
-        let text_len = fill_input.text.chars().count();
-        if supports_tac_table_band_frame_controls(&fill_input)
-            && fill_input
-                .control_text_positions()
-                .iter()
-                .any(|position| *position >= text_len)
-        {
-            fill_input.text.push('\u{FFFC}');
-        }
-        return layout_paragraph_in_frame(&fill_input, frame, styles, dpi)
+        return layout_paragraph_in_frame(para, frame, styles, dpi)
             .map(|_| StoredRowResolution::Reflowed);
     }
 

@@ -634,23 +634,9 @@ impl DocumentCore {
             page_break: TablePageBreak::None,
             repeat_header: has_header_row,
             caption: None,
-            // raw attr(0x082A2311)엔 '글자처럼 취급·문단 기준'이 들어 있지만 렌더러·HWPX
-            // 내보내기는 파싱된 `common` 을 읽는다. Default(treat_as_char=false, PAPER 기준 0,0)로 두면
-            // 붙여넣은 표가 전부 종이 좌상단에 겹쳐 놓인다(실측). 편집기 표 삽입(object_ops/table.rs)과 동일값.
-            common: crate::model::shape::CommonObjAttr {
-                treat_as_char: true,
-                text_wrap: crate::model::shape::TextWrap::TopAndBottom,
-                vert_rel_to: crate::model::shape::VertRelTo::Page,
-                horz_rel_to: crate::model::shape::HorzRelTo::Para,
-                vert_align: crate::model::shape::VertAlign::Top,
-                horz_align: crate::model::shape::HorzAlign::Left,
-                width: total_width,
-                height: total_height,
-                // [#7231] IR 과 raw 가 같은 값을 갖는다 — HWPX 저장기는 이 필드를,
-                // HWP5 쪽은 `raw_ctrl_data` 를 읽는다.
-                instance_id,
-                ..Default::default()
-            },
+            // 하나의 바이너리 속성을 같은 parser로 해소한다. HWP5 raw에는
+            // flowWithText가 있는데 HWPX common에는 없는 상태를 만들지 않는다.
+            common: crate::parser::control::parse_common_obj_attr(&raw_ctrl_data),
             outer_margin_left: outer_margin,
             outer_margin_right: outer_margin,
             outer_margin_top: outer_margin,

@@ -181,7 +181,10 @@ impl TypesetEngine {
                 source,
                 full_content_height,
             );
-        } else if !has_table {
+        } else {
+            // 이 호출의 source는 최상위 본문 control이다. 같은 문단의 표는
+            // 형제 각주의 소유를 바꾸지 않는다. 셀 안 각주는 별도의
+            // TableCell source/fragment queue에서 등록하므로 중복되지 않는다.
             let fn_height = block_content_height
                 .unwrap_or_else(|| estimate_footnote_note_height(fn_ctrl, self.dpi));
             let move_to_next_reset_page = native_hwp5_final_marker_footnote_uses_next_reset_page(

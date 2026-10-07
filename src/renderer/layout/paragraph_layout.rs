@@ -28,6 +28,8 @@ use super::{CellContext, LayoutEngine, ParagraphVerticalSpacing};
 use crate::model::bin_data::BinDataContent;
 use crate::model::control::Control;
 use crate::model::paragraph::{LineSeg, MarkerHead, NumberingMarker, Paragraph};
+
+mod right_tab_fields;
 use crate::model::shape::{
     Caption, CaptionDirection, CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap,
     VertRelTo,
@@ -1605,7 +1607,10 @@ fn format_note_marker_text(
     format!("{}{}{}", prefix, number, suffix)
 }
 
-fn note_marker_text_from_control(ctrl: Option<&Control>, fallback_number: u16) -> String {
+pub(super) fn note_marker_text_from_control(
+    ctrl: Option<&Control>,
+    fallback_number: u16,
+) -> String {
     match ctrl {
         Some(Control::Footnote(footnote)) => format_note_marker_text(
             fallback_number,
@@ -2011,6 +2016,8 @@ pub(crate) fn right_tab_block_width(
     tab_stops: &[TabStop],
     auto_tab_right: bool,
     available_width: f64,
+    para: Option<&Paragraph>,
+    line_start: usize,
 ) -> f64 {
     let mut w = 0.0;
     for r in runs.iter().skip(start) {
@@ -2039,7 +2046,20 @@ pub(crate) fn right_tab_block_width(
         // 영향 없음 — 0 그대로.
         w += estimate_text_width(effective_text_for_metrics(r), &ts);
     }
-    w
+    let start_pos = line_start
+        + runs
+            .iter()
+            .take(start)
+            .map(|run| run.text.chars().count())
+            .sum::<usize>();
+    let end_pos = start_pos
+        + runs
+            .iter()
+            .skip(start)
+            .take_while(|run| !run.text.contains('\t'))
+            .map(|run| run.text.chars().count())
+            .sum::<usize>();
+    w + right_tab_fields::tail_space(para, start_pos..end_pos, styles)
 }
 
 /// [Issue #6179] 오른쪽 탭 뒤에 오는 **자리차지(TAC) 개체**까지 포함한 정렬 블록 폭.
@@ -5403,53 +5423,22 @@ impl LayoutEngine {
         // 첫 줄의 참조 번호도 보통 줄 안 번호와 같은 글꼴·baseline 결과를 쓴다.
         // 빈 문단도 유효한 참조 개체를 가지므로 runs의 존재에 의존하지 않는다.
         let mut endnote_marker_x_advance = 0.0f64;
-        let mut leading_note_markers = Vec::new();
-        if start_line == 0 {
-            if let Some(p) = para {
-                let ctrl_positions = p.control_text_positions();
-                let first_line_char_start = composed
-                    .lines
-                    .first()
-                    .map(|line| line.char_start)
-                    .unwrap_or(0);
-                for (ctrl_idx, ctrl) in p.controls.iter().enumerate() {
-                    if matches!(ctrl, Control::Endnote(_) | Control::Footnote(_)) {
-                        let number = match ctrl {
-                            Control::Endnote(note) => note.number,
-                            Control::Footnote(note) => note.number,
-                            _ => unreachable!(),
-                        };
-                        let Some(marker_pos) = ctrl_positions.get(ctrl_idx).copied() else {
-                            continue;
-                        };
-                        if !is_leading_note_marker_rendered_as_prefix(
-                            para,
-                            ctrl_idx,
-                            0,
-                            start_line,
-                            marker_pos,
-                            first_line_char_start,
-                        ) {
-                            continue;
-                        }
-                        let marker_text = note_marker_text_from_control(Some(ctrl), number);
-                        let first_cs_id = p
-                            .char_shapes
-                            .first()
-                            .map(|cs| cs.char_shape_id as usize)
-                            .unwrap_or(0);
-                        let ts = resolved_to_text_style(styles, first_cs_id as u32, 0);
-                        let marker_style = TextStyle {
-                            font_size: FootnoteMarkerNode::font_size(ts.font_size),
-                            ..ts.clone()
-                        };
-                        let marker_w = estimate_text_width(&marker_text, &marker_style);
-                        leading_note_markers.push((number, marker_text, ts, ctrl_idx, marker_w));
-                        endnote_marker_x_advance += marker_w;
-                    }
-                }
-            }
-        }
+        let leading_note_markers = if start_line == 0 {
+            para.map(|p| {
+                super::note_reference::leading(
+                    p,
+                    styles,
+                    composed.lines.first().map_or(0, |line| line.char_start),
+                )
+            })
+            .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        endnote_marker_x_advance += leading_note_markers
+            .iter()
+            .map(|reference| reference.4)
+            .sum::<f64>();
 
         let endnote_line_vpos_base: Option<(i32, f64)> = {
             if cell_ctx.is_none() && self.is_endnote_paragraph(para_index) && end > start_line + 1 {
@@ -8000,6 +7989,8 @@ impl LayoutEngine {
                         &tab_stops,
                         auto_tab_right,
                         available_width,
+                        if tab_type == 1 { para } else { None },
+                        comp_line.char_start,
                     );
                     match tab_type {
                         1 => {
@@ -8124,10 +8115,13 @@ impl LayoutEngine {
                         &tab_stops,
                         auto_tab_right,
                         available_width,
+                        None,
+                        comp_line.char_start,
                     );
                     text_style.right_tab_block_width_override = Some(post_tab_w + subsequent_w);
                 }
             }
+            right_tab_fields::apply_block_width(&mut text_style, comp_line, run_idx, para, styles);
             let run_border_fill_id = styles
                 .char_styles
                 .get(run.char_style_id as usize)
@@ -9940,6 +9934,8 @@ impl LayoutEngine {
                         &tab_stops,
                         auto_tab_right,
                         available_width,
+                        if tab_type == 1 { para } else { None },
+                        comp_line.char_start,
                     );
                     match tab_type {
                         1 => {
@@ -10044,10 +10040,13 @@ impl LayoutEngine {
                         &tab_stops,
                         auto_tab_right,
                         available_width,
+                        None,
+                        comp_line.char_start,
                     );
                     ts.right_tab_block_width_override = Some(post_tab_w + subsequent_w);
                 }
             }
+            right_tab_fields::apply_block_width(&mut ts, comp_line, run_idx_est, para, styles);
             if !remaining_est.is_empty() {
                 est_x += estimate_text_width_exact(&remaining_est, &ts);
             }

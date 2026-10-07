@@ -412,8 +412,9 @@ pub(super) fn prepare(
             ) {
                 hwpunit_to_px(seg.line_spacing, dpi)
             } else {
-                crate::renderer::composer::tac_host_trailing_spacing(
+                crate::renderer::composer::tac_host_trailing_spacing_at_boundary(
                     para,
+                    next_para,
                     control_index,
                     seg,
                     page.profile.hwpx_stored_layout(),

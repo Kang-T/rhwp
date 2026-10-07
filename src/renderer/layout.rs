@@ -3735,6 +3735,7 @@ pub struct LayoutEngine {
 mod anchor_box_flow;
 mod border_rendering;
 mod fixed_textbox_flow;
+mod note_reference;
 mod paragraph_layout;
 mod picture_footnote;
 mod shape_layout;
@@ -5480,6 +5481,13 @@ impl LayoutEngine {
 
     fn auto_number_placeholder_positions(
         &self,
+        para: &Paragraph,
+        an_type: crate::model::control::AutoNumberType,
+    ) -> Vec<usize> {
+        Self::resolve_auto_number_placeholder_positions(para, an_type)
+    }
+
+    pub(crate) fn resolve_auto_number_placeholder_positions(
         para: &Paragraph,
         an_type: crate::model::control::AutoNumberType,
     ) -> Vec<usize> {
@@ -11945,6 +11953,19 @@ impl LayoutEngine {
             // 렌더하고 좌표를 등록한 경우, PageItem 표 경로에서는 본문 흐름
             // advance만 보존하고 같은 컨트롤을 다시 그리지 않는다.
             let tac_already_rendered_inline = is_tac && inline_pos.is_some();
+            let table_note_references = if is_tac
+                && inline_pos.is_none()
+                && flow_placement.is_none()
+                && para.text.is_empty()
+            {
+                note_reference::before_table(para, styles, control_index)
+            } else {
+                Vec::new()
+            };
+            let note_advance: f64 = table_note_references
+                .iter()
+                .map(|reference| reference.4)
+                .sum();
             let tbl_inline_x = if let Some((ix, _)) = inline_pos {
                 Some(ix)
             } else if !is_tac
@@ -12051,6 +12072,7 @@ impl LayoutEngine {
                         })
                         .unwrap_or(0.0)
                 };
+                let leading = leading + note_advance;
                 // [#6737] leading 을 실었을 때 표가 단 오른쪽을 **한 글자 이상** 넘으면
                 // 그 leading 은 실제가 아니다 — 한컴은 그런 표를 다음 줄 좌단에 둔다.
                 //
@@ -12089,7 +12111,7 @@ impl LayoutEngine {
                 // 이중 가산이 된다 (복학원서 접수증 오라클 실측: 한컴 ※ 81.7 vs
                 // rhwp leading 포함 86.9 — leading 축 자체의 잔차가 미해결이므로
                 // 그 케이스는 종전 위치를 유지한다).
-                let (om_l, om_r) = if leading > 0.0 && !computed_own_line {
+                let (om_l, om_r) = if leading > note_advance && !computed_own_line {
                     (0.0, 0.0)
                 } else {
                     (
@@ -12835,6 +12857,28 @@ impl LayoutEngine {
                 } else {
                     table_y_start
                 };
+                if !table_note_references.is_empty() {
+                    if let Some(seg) = control_line_seg_index(para, control_index)
+                        .and_then(|index| para.line_segs.get(index))
+                    {
+                        note_reference::append(
+                            tree,
+                            col_node,
+                            &table_note_references,
+                            (
+                                tbl_inline_x.unwrap_or(col_area.x + effective_margin)
+                                    - hwpunit_to_px(t.outer_margin_left as i32, self.dpi)
+                                    - note_advance,
+                                table_y_start - hwpunit_to_px(t.outer_margin_top as i32, self.dpi),
+                            ),
+                            (
+                                hwpunit_to_px(seg.line_height, self.dpi),
+                                hwpunit_to_px(seg.baseline_distance, self.dpi),
+                            ),
+                            (page_content.section_index, para_index),
+                        );
+                    }
+                }
                 let table_visual_end = if tac_already_rendered_inline {
                     table_y_start + table_visual_height
                 } else {
@@ -14488,9 +14532,34 @@ impl LayoutEngine {
                                     self.dpi,
                                 )
                             });
+                // 같은 저장 줄에 앵커된 비-TAC 어울림 도형은 별도 글줄을
+                // 소비하지 않는다. 그림·다른 표·TAC 도형은 기존 별도 점유
+                // 경로를 유지한다. 가시 여부 대신 원시 슬롯의 줄 소속을 본다.
+                let shared_row_float_before_tac = control_line_seg_index(para, control_index)
+                    .is_some_and(|owner| {
+                        para.controls[..control_index.min(para.controls.len())]
+                            .iter()
+                            .enumerate()
+                            .all(|(index, control)| match control {
+                                Control::Shape(shape) => {
+                                    !shape.common().treat_as_char
+                                        && matches!(
+                                            shape.common().text_wrap,
+                                            crate::model::shape::TextWrap::Square
+                                        )
+                                        && control_line_seg_index(para, index) == Some(owner)
+                                }
+                                Control::Table(_) | Control::Picture(_) | Control::Equation(_) => {
+                                    false
+                                }
+                                _ => true,
+                            })
+                    });
                 let projected_seg = if (self.profile.get().hwp5_stored_pagination_layout()
                     || (self.profile.get().hwpx_stored_layout() && all_segs_stored))
-                    && (only_invisible_before_tac || continuous_stored_table_line)
+                    && (only_invisible_before_tac
+                        || continuous_stored_table_line
+                        || shared_row_float_before_tac)
                 {
                     let table_h = para.controls.get(control_index).and_then(|c| match c {
                         Control::Table(t) if t.common.height < 0x8000_0000 => {
@@ -14543,8 +14612,9 @@ impl LayoutEngine {
                         ) {
                             hwpunit_to_px(seg.line_spacing, self.dpi)
                         } else {
-                            crate::renderer::composer::tac_host_trailing_spacing(
+                            crate::renderer::composer::tac_host_trailing_spacing_at_boundary(
                                 para,
+                                paragraphs.get(para_index + 1),
                                 control_index,
                                 seg,
                                 self.profile.get().hwpx_stored_layout(),

@@ -39,6 +39,36 @@ impl BodyFootnoteMeasure<'_> {
     }
 }
 
+impl crate::renderer::typeset::TypesetEngine {
+    /// 단일 단의 본문 각주도 표 큐와 동일한 실제 FootnoteArea를 예약한다.
+    /// 이미 구분선·여백을 포함한 상자에 추정용 안전 여백을 다시 더하지 않는다.
+    pub(in crate::renderer::typeset) fn reserve_current_body_note_area(
+        &self,
+        st: &mut crate::renderer::typeset::TypesetState,
+        paragraphs: &[crate::model::paragraph::Paragraph],
+        styles: &crate::renderer::style_resolver::ResolvedStyleSet,
+    ) {
+        if st.col_count != 1 {
+            return;
+        }
+        let Some(page) = st.pages.last().filter(|page| !page.footnotes.is_empty()) else {
+            return;
+        };
+        let layout = crate::renderer::layout::LayoutEngine::new(self.dpi);
+        layout.set_layout_profile(st.profile);
+        layout.set_render_normalization_overlay(self.render_normalization.clone());
+        let height = layout.estimate_footnote_area_height_with_metrics(
+            &page.footnotes,
+            paragraphs,
+            styles,
+            st.layout.body_area.width,
+            st.footnote_separator_overhead,
+            st.footnote_between_notes_margin,
+        );
+        st.reserve_painted_footnote_area(height);
+    }
+}
+
 /// 각주의 실제 렌더 높이. 일반 paginator의 빠른 저장 LineSeg 추정과 달리
 /// `layout_footnote_area`와 같은 composed line/line-spacing 규칙을 쓴다. 긴 URL은
 /// renderer에서 두 줄 이상으로 재래핑되므로, 저장 LineSeg 한 줄만 예약하면 본문과

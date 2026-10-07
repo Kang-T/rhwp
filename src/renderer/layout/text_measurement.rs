@@ -384,6 +384,7 @@ fn compute_char_positions_walk(
                 x = inline_tab_x(i, x, ext, &chars, &cluster_len, &char_width);
                 tab_char_idx += 1;
             } else if has_custom_tabs {
+                let has_more_tabs_after = chars[i + 1..].contains(&'\t');
                 let abs_x = style.line_x_offset + x;
                 let (tab_pos, tab_type, fill_type) = find_next_tab_stop(
                     abs_x,
@@ -406,8 +407,13 @@ fn compute_char_positions_walk(
                             }
                             s
                         };
-                        let seg_w =
-                            measure_segment_from(&chars, &cluster_len, seg_start, &char_width);
+                        let seg_w = if !has_more_tabs_after {
+                            style.right_tab_block_width_override.unwrap_or_else(|| {
+                                measure_segment_from(&chars, &cluster_len, seg_start, &char_width)
+                            })
+                        } else {
+                            measure_segment_from(&chars, &cluster_len, seg_start, &char_width)
+                        };
                         x = (rel_tab - seg_w).max(x);
                     }
                     2 => {
@@ -544,6 +550,7 @@ impl EmbeddedTextMeasurer {
                     }
                     tab_char_idx += 1;
                 } else if has_custom_tabs {
+                    let has_more_tabs_after = chars[i + 1..].contains(&'\t');
                     let abs_x = style.line_x_offset + total;
                     let (tab_pos, tab_type, _) = find_next_tab_stop(
                         abs_x,
@@ -557,8 +564,13 @@ impl EmbeddedTextMeasurer {
                     match tab_type {
                         1 => {
                             // 오른쪽
-                            let seg_w =
-                                measure_segment_from(&chars, &cluster_len, i + 1, &char_width);
+                            let seg_w = if !has_more_tabs_after {
+                                style.right_tab_block_width_override.unwrap_or_else(|| {
+                                    measure_segment_from(&chars, &cluster_len, i + 1, &char_width)
+                                })
+                            } else {
+                                measure_segment_from(&chars, &cluster_len, i + 1, &char_width)
+                            };
                             total = (rel_tab - seg_w).max(total);
                         }
                         2 => {

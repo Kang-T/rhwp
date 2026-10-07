@@ -3,6 +3,7 @@
 use super::super::helpers::*;
 use super::clipboard::text_to_split_logical_offset;
 
+mod cell_flow;
 mod inline_content;
 use crate::document_core::DocumentCore;
 use crate::error::HwpError;
@@ -451,6 +452,15 @@ impl DocumentCore {
         for i in cell_para_idx..=last_para_idx {
             self.reflow_cell_paragraph(section_idx, parent_para_idx, control_idx, cell_idx, i);
         }
+        self.recalculate_cell_paragraph_vpos_native(
+            section_idx,
+            parent_para_idx,
+            control_idx,
+            cell_idx,
+            cell_para_idx,
+            None,
+        );
+        self.reflow_html_cell_host(section_idx, parent_para_idx, control_idx);
         self.mark_cell_control_dirty(section_idx, parent_para_idx, control_idx);
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -496,6 +506,17 @@ impl DocumentCore {
         };
 
         let outer_ctrl = path[0].0;
+        for i in cell_para_idx..=last_para_idx {
+            self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, path, i);
+        }
+        self.recalculate_cell_paragraph_vpos_by_path(
+            section_idx,
+            parent_para_idx,
+            path,
+            cell_para_idx,
+            None,
+        );
+        self.reflow_html_cell_host(section_idx, parent_para_idx, outer_ctrl);
         self.mark_cell_control_dirty(section_idx, parent_para_idx, outer_ctrl);
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);

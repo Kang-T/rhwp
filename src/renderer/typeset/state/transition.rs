@@ -162,7 +162,9 @@ impl TypesetState {
     /// 사용 가능한 본문 높이 (각주, 존 오프셋 차감)
     pub(in crate::renderer::typeset) fn available_height(&self) -> f64 {
         let base = self.base_available_height();
-        let fn_margin = if self.data.current_footnote_height > 0.0 {
+        let fn_margin = if self.data.current_footnote_height > 0.0
+            && !self.data.current_footnote_body_bottom_reserved
+        {
             self.data.footnote_safety_margin
         } else {
             0.0

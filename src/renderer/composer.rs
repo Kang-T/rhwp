@@ -665,6 +665,40 @@ pub(crate) fn tac_host_trailing_spacing(
     }
 }
 
+/// 다음 문단을 현재 프레임에서 재조판하면 저장 vpos가 간격의 나머지를
+/// 복원하지 않는다. 마지막 저장 TAC 줄은 후행 간격 전량을 흐름에 남긴다.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn tac_host_trailing_spacing_at_boundary(
+    para: &Paragraph,
+    next_para: Option<&Paragraph>,
+    control_index: usize,
+    seg: &LineSeg,
+    hwpx_stored_layout: bool,
+    native_stored_layout: bool,
+    dpi: f64,
+) -> f64 {
+    if native_stored_layout
+        && !para.stored_text_partition_is_dirty()
+        && seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+        && para
+            .line_segs
+            .last()
+            .is_some_and(|last| std::ptr::eq(last, seg))
+        && next_para.is_some_and(crate::renderer::para_has_no_stored_line_segs)
+    {
+        crate::renderer::hwpunit_to_px(seg.line_spacing.max(0), dpi)
+    } else {
+        tac_host_trailing_spacing(
+            para,
+            control_index,
+            seg,
+            hwpx_stored_layout,
+            native_stored_layout,
+            dpi,
+        )
+    }
+}
+
 /// 실제 표 소유 줄의 저장 끝에 앞 문단 뒤 간격과 다음 문단 앞 간격을 더한 값이
 /// 다음 저장 줄의 시작과 맞닿으면
 /// 배치 원점에는 후행 간격 전량을 적용한다. 분할 예산의 표 점유는 별도로 센다.
@@ -1899,14 +1933,11 @@ pub(crate) fn composed_tac_line_assignment(
     {
         return None;
     }
-    let raw = para.control_utf16_positions();
     let assignments: Vec<(usize, usize)> = comp
         .tac_controls
         .iter()
         .map(|(_, _, ci)| {
-            let start = *raw.get(*ci)?;
-            let owner =
-                (0..para.line_segs.len()).rfind(|&i| para.line_seg_text_start(i) <= start)?;
+            let owner = control_slot_line_index(para, *ci)?;
             Some((*ci, owner))
         })
         .collect::<Option<_>>()?;
@@ -1920,6 +1951,13 @@ pub(crate) fn composed_tac_line_assignment(
                     .is_some_and(|next| *pos >= next.char_start)
             });
     collapsed_boundary.then_some(assignments)
+}
+
+/// 보이는 다음 글자와 확장 제어 슬롯이 같은 논리 위치여도 원시 줄 소속은 다를 수 있다.
+/// 저장/현재 재조판 사다리의 UTF-16 경계로 조회하며 높이의 우연한 일치는 사용하지 않는다.
+pub(crate) fn control_slot_line_index(para: &Paragraph, control_index: usize) -> Option<usize> {
+    let start = *para.control_utf16_positions().get(control_index)?;
+    (0..para.line_segs.len()).rfind(|&line| para.line_seg_text_start(line) <= start)
 }
 
 fn identify_inline_controls(para: &Paragraph) -> Vec<InlineControl> {
