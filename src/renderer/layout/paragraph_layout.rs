@@ -7587,17 +7587,17 @@ impl LayoutEngine {
             // [#5711] 줄간격이 음수인 문단은 전진값 `y` 가 마지막 줄 상자 아래보다 위에
             // 있다. 그 값을 테두리 아래 변으로 쓰면 테두리가 글자를 가로지른다. 다음 문단
             // 시작 y 는 종전대로 두어 문단 간 간격 계약은 바꾸지 않는다.
-            // 채움 배경의 마지막 줄간격은 다음 흐름을 위한 공간이므로 칠하지 않는다.
-            // 채움 없는 문단 외곽선은 빈 줄과 뒤 문장의 후행 간격까지 둘러싼다.
+            // 문단 외곽선은 빈 줄과 뒤 문장의 후행 간격까지 둘러싼다. 같은 정의의 채움도
+            // 그 외곽선과 같은 상자를 소비해야 한다. 외곽선 없는 채움만 마지막 줄 상자에서
+            // 끝나며, 다음 문단을 위한 후행 간격을 칠하지 않는다.
             // 셀 문단은 기존 점유 계약을 유지하고, 음수 간격도 줄 상자를 감싼다.
             let outline_includes_line_spacing = styles
                 .border_styles
                 .get((para_border_fill_id as usize).saturating_sub(1))
                 .is_some_and(|style| {
-                    style.fill_color.is_none()
-                        && style.borders.iter().any(|border| {
-                            !matches!(border.line_type, crate::model::style::BorderLineType::None)
-                        })
+                    style.borders.iter().any(|border| {
+                        !matches!(border.line_type, crate::model::style::BorderLineType::None)
+                    })
                 });
             let border_bottom =
                 last_line_border_bottom
@@ -7615,6 +7615,8 @@ impl LayoutEngine {
                 // border_spacing[2]/[3] (top/bottom) 을 inset 으로 전달 — 병합 그룹의 첫/마지막 range 에서만 적용됨.
                 let top_inset = para_style.map(|s| s.border_spacing[2]).unwrap_or(0.0);
                 let bottom_inset = para_style.map(|s| s.border_spacing[3]).unwrap_or(0.0);
+                let left_inset = para_style.map(|s| s.border_spacing[0]).unwrap_or(0.0);
+                let right_inset = para_style.map(|s| s.border_spacing[1]).unwrap_or(0.0);
                 // 컬럼/페이지 wrap 시 inner edge 미렌더링용 partial 플래그
                 let is_partial_start = start_line > 0;
                 let is_partial_end = end < composed.lines.len();
@@ -7635,9 +7637,9 @@ impl LayoutEngine {
                 };
                 self.para_border_ranges.borrow_mut().push((
                     para_border_fill_id,
-                    box_x,
+                    box_x - left_inset,
                     bg_y_start,
-                    box_w,
+                    box_w + left_inset + right_inset,
                     border_bottom,
                     top_inset,
                     bottom_inset,
