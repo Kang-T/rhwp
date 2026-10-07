@@ -2228,7 +2228,133 @@ fn stored_zero_restart_is_confirmed(
     })
 }
 
+/// Plain text paragraphs that advance the same original cell coordinate frame.
+/// Paragraph-local zero origins alone do not establish this contract.
+fn stored_text_paragraphs_share_vpos_frame(cell: &crate::model::table::Cell) -> bool {
+    cell.paragraphs.windows(2).any(|pair| {
+        let previous = &pair[0];
+        let next = &pair[1];
+        if !previous.controls.is_empty()
+            || !next.controls.is_empty()
+            || previous.text.trim().is_empty()
+            || next.text.trim().is_empty()
+            || previous.stored_text_partition_is_dirty()
+            || next.stored_text_partition_is_dirty()
+            || previous.cell_format_vpos_dirty
+            || next.cell_format_vpos_dirty
+        {
+            return false;
+        }
+        previous
+            .line_segs
+            .last()
+            .zip(next.line_segs.first())
+            .is_some_and(|(before, after)| {
+                let stored = |line: &crate::model::paragraph::LineSeg| {
+                    line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                };
+                stored(before)
+                    && stored(after)
+                    && before.vertical_pos >= 0
+                    && before.line_height > 0
+                    && after.vertical_pos > 0
+                    && i64::from(after.vertical_pos)
+                        == i64::from(before.vertical_pos)
+                            + i64::from(before.line_height)
+                            + i64::from(before.line_spacing.max(0))
+            })
+    })
+}
+
+/// A rewind between unchanged plain-text paragraphs in an original cell stream.
+fn stored_plain_text_paragraph_frame_reset(
+    previous: &crate::model::paragraph::Paragraph,
+    next: &crate::model::paragraph::Paragraph,
+) -> bool {
+    previous.controls.is_empty()
+        && next.controls.is_empty()
+        && !previous.text.trim().is_empty()
+        && !next.text.trim().is_empty()
+        && !previous.stored_text_partition_is_dirty()
+        && !next.stored_text_partition_is_dirty()
+        && !previous.cell_format_vpos_dirty
+        && !next.cell_format_vpos_dirty
+        && previous
+            .line_segs
+            .last()
+            .zip(next.line_segs.first())
+            .is_some_and(|(before, after)| {
+                let stored = |line: &crate::model::paragraph::LineSeg| {
+                    line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                };
+                stored(before)
+                    && stored(after)
+                    && before.vertical_pos > 0
+                    && after.vertical_pos == 0
+            })
+}
+
 impl LayoutEngine {
+    /// A stored object box smaller than its complete original row boxes describes
+    /// a fragment. Share this source-space fact with both unit production and scan.
+    pub(crate) fn stored_row_boxes_exceed_object_frame(table: &crate::model::table::Table) -> bool {
+        let mut row_heights = vec![None; usize::from(table.row_count)];
+        for cell in &table.cells {
+            if cell.row_span == 1 && cell.height > 0 && cell.height < 0x8000_0000 {
+                if let Some(row_height) = row_heights.get_mut(usize::from(cell.row)) {
+                    *row_height = Some(row_height.unwrap_or(0).max(i64::from(cell.height)));
+                }
+            }
+        }
+        row_heights
+            .into_iter()
+            .try_fold(0_i64, |height, row| {
+                row.map(|row_height| height + row_height)
+            })
+            .is_some_and(|height| {
+                table.common.height > 0
+                    && height
+                        + i64::from(table.cell_spacing)
+                            * i64::from(table.row_count.saturating_sub(1))
+                        > i64::from(table.common.height)
+            })
+    }
+
+    pub(crate) fn native_stored_table_has_fragment_frames(
+        &self,
+        table: &crate::model::table::Table,
+    ) -> bool {
+        self.profile.get().hwp5_stored_pagination_layout()
+            && !self.profile.get().session_edited()
+            && !table.common.treat_as_char
+            && matches!(
+                table.page_break,
+                crate::model::table::TablePageBreak::RowBreak
+            )
+            && !self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+            && Self::stored_row_boxes_exceed_object_frame(table)
+    }
+
+    pub(crate) fn native_stored_row_has_text_frame_boundary(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+    ) -> bool {
+        self.native_stored_table_has_fragment_frames(table)
+            && table.cells.iter().any(|cell| {
+                usize::from(cell.row) == row
+                    && cell.row_span == 1
+                    && stored_text_paragraphs_share_vpos_frame(cell)
+                    && cell
+                        .paragraphs
+                        .windows(2)
+                        .any(|pair| stored_plain_text_paragraph_frame_reset(&pair[0], &pair[1]))
+            })
+    }
+
     /// 셀 안 비-TAC 자리차지 개체가 표 흐름에 요구하는 세로 범위.
     ///
     /// 한컴의 `쪽 영역 안으로 제한`은 세로 기준이 문단일 때 개체를 쪽 영역 안에
@@ -11635,6 +11761,9 @@ impl LayoutEngine {
         ) && !table.common.treat_as_char;
         let direct_hwpx_stored_frame_cell =
             self.direct_hwpx_cell_has_declared_stored_frame(cell, table);
+        let native_text_frame_cell = cell.row_span == 1
+            && self.native_stored_table_has_fragment_frames(table)
+            && stored_text_paragraphs_share_vpos_frame(cell);
         let is_stored_frame_rewind = |prev: &crate::model::paragraph::LineSeg,
                                       cur: &crate::model::paragraph::LineSeg|
          -> bool {
@@ -12371,7 +12500,14 @@ impl LayoutEngine {
             } else {
                 false
             };
+            let source_text_frame_reset = native_text_frame_cell
+                && pi > 0
+                && cell
+                    .paragraphs
+                    .get(pi - 1)
+                    .is_some_and(|previous| stored_plain_text_paragraph_frame_reset(previous, p));
             let stored_frame_break_before_para = declared_two_line_frame
+                || source_text_frame_reset
                 || if pi > 0 && cell_has_local_vpos_origin {
                     let prev_para = &cell.paragraphs[pi - 1];
                     match (prev_para.line_segs.last(), p.line_segs.first()) {
@@ -15901,7 +16037,7 @@ impl LayoutEngine {
             let mut end = start;
             let mut height = 0.0f64;
             while end < units.len()
-                && !units[end].stored_frame_break_before
+                && (end == start || !units[end].stored_frame_break_before)
                 && (height <= 0.5 || height + units[end].height <= frame_height + 0.5)
             {
                 height += units[end].height;
@@ -17417,8 +17553,12 @@ impl LayoutEngine {
                     crate::model::table::TablePageBreak::RowBreak
                 )
                 && !table.common.treat_as_char;
+        let native_table_fragment_frames = self.native_stored_table_has_fragment_frames(table);
         for (i, cell) in row_cells.iter().enumerate() {
             let units = self.cell_units(cell, table, styles);
+            let native_text_frame_cell = native_table_fragment_frames
+                && cell.row_span == 1
+                && stored_text_paragraphs_share_vpos_frame(cell);
             let source_row_height = self.stored_full_width_row_source_height(table, row, styles);
             let start = start_cut.get(i).copied().unwrap_or(0).min(units.len());
             let mut j = start;
@@ -17521,7 +17661,15 @@ impl LayoutEngine {
                             self.stored_row_reset_closes_declared_frame(cell, table, previous)
                         });
                 let strict_saved_frame_break = u.stored_frame_break_before
-                    && (declared_saved_frame_break
+                    && ((native_text_frame_cell
+                        && u.vis_start == 0
+                        && u.para_idx.checked_sub(1).is_some_and(|previous_idx| {
+                            stored_plain_text_paragraph_frame_reset(
+                                &cell.paragraphs[previous_idx],
+                                &cell.paragraphs[u.para_idx],
+                            )
+                        }))
+                        || declared_saved_frame_break
                         || (j == 1
                             && start == 0
                             && self.native_saved_two_line_row_frame(table, row, styles))

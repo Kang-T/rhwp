@@ -846,28 +846,8 @@ impl TypesetEngine {
             // object frame as well: that frame then describes a fragment, not
             // the entire table. Keep the complete unit at its saved boundary
             // without weakening the actual fragment-height budget below.
-            let stored_row_boxes_exceed_object_frame = (0..table.row_count)
-                .try_fold(0_i64, |height, row| {
-                    table
-                        .cells
-                        .iter()
-                        .filter(|cell| {
-                            cell.row == row
-                                && cell.row_span == 1
-                                && cell.height > 0
-                                && cell.height < 0x8000_0000
-                        })
-                        .map(|cell| i64::from(cell.height))
-                        .max()
-                        .map(|row_height| height + row_height)
-                })
-                .is_some_and(|height| {
-                    table.common.height > 0
-                        && height
-                            + i64::from(table.cell_spacing)
-                                * i64::from(table.row_count.saturating_sub(1))
-                            > i64::from(table.common.height)
-                });
+            let stored_row_boxes_exceed_object_frame =
+                crate::renderer::layout::LayoutEngine::stored_row_boxes_exceed_object_frame(table);
             let stored_plain_reset_boundary_keep = st.profile.hwp5_stored_pagination_layout()
                 && !st.profile.session_edited()
                 && !self.render_normalization.table_text_reflowed(table)
