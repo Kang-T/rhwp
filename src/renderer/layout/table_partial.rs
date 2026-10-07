@@ -1447,8 +1447,10 @@ impl LayoutEngine {
                                 );
                                 // 종료 컷 목록이 비어 있지 않아도 모든 내용 유닛을 이미 소유하고 선언된 물리 행만 이어질 수 있다.
                                 // 이 프레임에서는 남은 내용 전체를 정렬한다. 실제 내용 컷이 있으면 위쪽 원점을 유지해야 한다.
+                                // 저장 행 잔여 프레임도 완전한 남은 내용의 정렬 공간을 소유한다.
                                 end >= units.len()
-                                    && (self.row_uses_reflow_physical_frame(table, cell_row)
+                                    && (self.stored_row_frame_owns_complete_tail(table)
+                                        || self.row_uses_reflow_physical_frame(table, cell_row)
                                         || (self.profile.get().hwp5_stored_pagination_layout()
                                             && !self.profile.get().session_edited()
                                             && self.cell_unit_opens_stored_page_frame(
@@ -2112,9 +2114,9 @@ impl LayoutEngine {
                     })
                     .unwrap_or(total_content_height)
             } else if center_saved_spanning_cell == Some(cell_idx)
-                || (cut_frame_owns_alignment
-                    && self.row_uses_reflow_physical_frame(table, cell_row))
+                || cut_frame_owns_alignment
             {
+                // 그림 띠를 포함한 컷 유닛 높이를 예약과 정렬에서 함께 소비한다.
                 let units = self.cell_units(cell, table, styles);
                 cut_units
                     .map(|(start, end)| {
@@ -2771,6 +2773,10 @@ impl LayoutEngine {
 
                 // 인라인 이미지가 있는 문단: compose 전 위치를 저장
                 let para_y_before_compose = para_y;
+                // 이 조각에서 문단이 시작하면 그 첫 줄 상단이 문단 기준 개체의 원점이다.
+                // 저장 줄 사다리·문단 앞 간격으로 생긴 틈은 compose 안에서 더해지므로
+                // compose 전 커서(`para_y_before_compose`)와 다를 수 있다.
+                let mut para_first_line_top: Option<f64> = None;
 
                 // 인라인(treat_as_char) 컨트롤의 총 폭을 미리 계산
                 let total_inline_width: f64 = para
@@ -2943,6 +2949,7 @@ impl LayoutEngine {
                             > 0.0;
                     let picture_closing_line = self
                         .stored_partitioned_picture_closing_line(cell, table, styles, cut_units);
+                    let lines_before = cell_node.children.len();
                     para_y = self.layout_composed_paragraph_in_frame(
                         tree,
                         &mut cell_node,
@@ -2973,6 +2980,17 @@ impl LayoutEngine {
                                 - hwpunit_to_px(para.line_segs[0].vertical_pos, self.dpi)
                         }),
                     );
+                    if start_line == 0 && end_line > start_line {
+                        para_first_line_top = cell_node.children[lines_before..]
+                            .iter()
+                            .find(|node| {
+                                matches!(
+                                    node.node_type,
+                                    crate::renderer::render_tree::RenderNodeType::TextLine(_)
+                                )
+                            })
+                            .map(|node| node.bbox.y);
+                    }
                     if collapse_stored_wrap_spacers && start_line == 0 && end_line > start_line {
                         if let Some(step) = stored_square_picture_empty_anchor_advance(
                             cell, cp_idx, styles, self.dpi,
@@ -3415,9 +3433,39 @@ impl LayoutEngine {
                                                 })
                                                 .unwrap_or(para_y_before_compose)
                                         }
+                                    } else if let Some(top) = para_first_line_top.filter(|_| {
+                                        // 원본 HWP5 조각 소유 Square 흐름은 아래에서 오프셋 없이
+                                        // 흐름 커서를 쓰는 별도 계약이라 그대로 둔다.
+                                        !fragment_owned_square_flow
+                                            && matches!(
+                                                pic.common.vert_rel_to,
+                                                crate::model::shape::VertRelTo::Para
+                                            )
+                                    }) {
+                                        // 문단 기준 개체의 원점은 그 문단의 위(첫 줄 상단)다.
+                                        // 문단 줄을 모두 구성한 뒤의 `para_y` 는 문단 끝이라
+                                        // 그림을 줄 높이만큼 끌어내렸다 — 한/글 2024 PDF
+                                        // 36308670 2쪽 빈 문단 1100HU=14.67px.
+                                        top
                                     } else {
                                         para_y
                                     };
+                                    // 칸 문단 기준 어울림 개체의 음수 오프셋은 측정 프레임 위
+                                    // 공간을 만들지 않는다 — 일반 표 경로와 같은 계약
+                                    // (`cell_wrap_vertical_offset_hu`).
+                                    let flow_offset =
+                                        crate::renderer::float_placement::cell_wrap_vertical_offset_hu(
+                                            &pic.common,
+                                        );
+                                    let square_flow_common = (flow_offset
+                                        != crate::renderer::float_placement::signed_hwpunit(
+                                            pic.common.vertical_offset,
+                                        ))
+                                    .then(|| {
+                                        let mut c = pic.common.clone();
+                                        c.vertical_offset = flow_offset as u32;
+                                        c
+                                    });
                                     let pic_w = hwpunit_to_px(pic.common.width as i32, self.dpi);
                                     let pic_h = hwpunit_to_px(pic.common.height as i32, self.dpi);
                                     let unrestricted_take_place_cell_float =
@@ -3448,7 +3496,7 @@ impl LayoutEngine {
                                         ..inner_area
                                     };
                                     let (pic_x, pic_y) = self.compute_object_position(
-                                        &pic.common,
+                                        square_flow_common.as_ref().unwrap_or(&pic.common),
                                         pic_w,
                                         pic_h,
                                         &cell_area,

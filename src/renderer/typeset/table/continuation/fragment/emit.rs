@@ -1616,8 +1616,11 @@ impl TypesetEngine {
                 })();
                 base_remaining.or_else(|| {
                 // 저장된 첫 프레임은 다음 프레임의 유닛을 소비하지 않고 빈 공간을 소유한다.
-                // 원본 행의 최소 높이는 이어받기 커서를 통해 스캔과 실제 그리기에 공유한다.
-                if !first_fragment_blank_band || !st.profile.hwp5_stored_pagination_layout() {
+                // 원본 HWP5/HWPX 행의 최소 높이를 이어받기 커서로 스캔과 실제 배치에 공유한다.
+                if !first_fragment_blank_band
+                    || !(st.profile.hwp5_stored_pagination_layout()
+                        || st.profile.hwpx_stored_layout())
+                {
                     return None;
                 }
                 let row = end_row.checked_sub(1)?;
@@ -1661,7 +1664,24 @@ impl TypesetEngine {
                 let remaining = minimum - end_row_height_override?;
                 let content =
                     layout_engine.row_cut_content_height(table, row, &next_cut, &[], styles);
-                (remaining > content + 0.5).then_some(remaining)
+                // The carried remainder is consumed as one start-row frame on the
+                // next column (scan does not cut a stored carried band again). A
+                // remainder taller than that column is not a single frame: the
+                // content cut keeps owning the continuation (113424 p3: declared
+                // remainder 1271.7px > body 956.2px, Hancom 2024 PDF continues
+                // the row by content over p3/p4).
+                let repeated_header: f64 = if table.repeat_header {
+                    table
+                        .leading_header_rows()
+                        .iter()
+                        .map(|&r| mt.row_heights.get(r).copied().unwrap_or(0.0) + mt.cell_spacing)
+                        .sum()
+                } else {
+                    0.0
+                };
+                (remaining > content + 0.5
+                    && remaining + repeated_header <= st.available_height() + 0.5)
+                    .then_some(remaining)
                 })
             })
             .or_else(|| end_row_height_override
