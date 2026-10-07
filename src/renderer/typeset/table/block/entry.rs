@@ -1937,7 +1937,13 @@ impl TypesetEngine {
                         stored_successor_line_origin: None,
                         table_left: None,
                         table_top,
-                        occupied_bottom: table_top + ft.effective_height + ft.host_spacing.after,
+                        // 이 사다리는 표 공간을 담지 않은 빈 개체 앵커다. 다음 문단에
+                        // 글자가 있다는 이유로 저장 앵커의 lh+ls를 표 아래에 다시 붙이지
+                        // 않는다. 다음 문단(빈 줄 포함)은 자기 줄 상자를 따로 소비한다.
+                        occupied_bottom: table_top
+                            + ft.effective_height
+                            + hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi)
+                            + fmt.spacing_after,
                     }
                 })
                 .filter(|placement| placement.occupied_bottom <= available)
