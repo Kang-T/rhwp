@@ -2230,7 +2230,11 @@ fn stored_zero_restart_is_confirmed(
 
 /// Plain text paragraphs that advance the same original cell coordinate frame.
 /// Paragraph-local zero origins alone do not establish this contract.
-fn stored_text_paragraphs_share_vpos_frame(cell: &crate::model::table::Cell) -> bool {
+fn stored_text_paragraphs_share_vpos_frame(
+    cell: &crate::model::table::Cell,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) -> bool {
     cell.paragraphs.windows(2).any(|pair| {
         let previous = &pair[0];
         let next = &pair[1];
@@ -2258,10 +2262,21 @@ fn stored_text_paragraphs_share_vpos_frame(cell: &crate::model::table::Cell) -> 
                     && before.vertical_pos >= 0
                     && before.line_height > 0
                     && after.vertical_pos > 0
-                    && i64::from(after.vertical_pos)
-                        == i64::from(before.vertical_pos)
-                            + i64::from(before.line_height)
-                            + i64::from(before.line_spacing.max(0))
+                    && styles
+                        .para_styles
+                        .get(previous.para_shape_id as usize)
+                        .zip(styles.para_styles.get(next.para_shape_id as usize))
+                        .is_some_and(|(previous_style, next_style)| {
+                            let paragraph_gap = crate::renderer::px_to_hwpunit(
+                                previous_style.spacing_after + next_style.spacing_before,
+                                dpi,
+                            );
+                            i64::from(after.vertical_pos)
+                                == i64::from(before.vertical_pos)
+                                    + i64::from(before.line_height)
+                                    + i64::from(before.line_spacing.max(0))
+                                    + i64::from(paragraph_gap)
+                        })
             })
     })
 }
@@ -2270,6 +2285,8 @@ fn stored_text_paragraphs_share_vpos_frame(cell: &crate::model::table::Cell) -> 
 fn stored_plain_text_paragraph_frame_reset(
     previous: &crate::model::paragraph::Paragraph,
     next: &crate::model::paragraph::Paragraph,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
 ) -> bool {
     previous.controls.is_empty()
         && next.controls.is_empty()
@@ -2290,7 +2307,15 @@ fn stored_plain_text_paragraph_frame_reset(
                 stored(before)
                     && stored(after)
                     && before.vertical_pos > 0
-                    && after.vertical_pos == 0
+                    && after.vertical_pos >= 0
+                    && after.vertical_pos < before.vertical_pos
+                    && styles
+                        .para_styles
+                        .get(next.para_shape_id as usize)
+                        .is_some_and(|style| {
+                            after.vertical_pos
+                                == crate::renderer::px_to_hwpunit(style.spacing_before, dpi)
+                        })
             })
 }
 
@@ -2342,31 +2367,35 @@ impl LayoutEngine {
         &self,
         table: &crate::model::table::Table,
         row: usize,
+        styles: &ResolvedStyleSet,
     ) -> bool {
         self.native_stored_table_has_fragment_frames(table)
             && table.cells.iter().any(|cell| {
                 usize::from(cell.row) == row
                     && cell.row_span == 1
-                    && stored_text_paragraphs_share_vpos_frame(cell)
-                    && cell
-                        .paragraphs
-                        .windows(2)
-                        .any(|pair| stored_plain_text_paragraph_frame_reset(&pair[0], &pair[1]))
+                    && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi)
+                    && cell.paragraphs.windows(2).any(|pair| {
+                        stored_plain_text_paragraph_frame_reset(
+                            &pair[0], &pair[1], styles, self.dpi,
+                        )
+                    })
             })
     }
 
     pub(crate) fn native_stored_table_has_text_frame_boundaries(
         &self,
         table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
     ) -> bool {
         self.native_stored_table_has_fragment_frames(table)
             && table.cells.iter().any(|cell| {
                 cell.row_span == 1
-                    && stored_text_paragraphs_share_vpos_frame(cell)
-                    && cell
-                        .paragraphs
-                        .windows(2)
-                        .any(|pair| stored_plain_text_paragraph_frame_reset(&pair[0], &pair[1]))
+                    && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi)
+                    && cell.paragraphs.windows(2).any(|pair| {
+                        stored_plain_text_paragraph_frame_reset(
+                            &pair[0], &pair[1], styles, self.dpi,
+                        )
+                    })
             })
     }
 
@@ -2393,9 +2422,8 @@ impl LayoutEngine {
             })
     }
 
-    /// The original empty host's line and object origins coincide when its
-    /// paragraph-before spacing is zero. Use that source origin for both the
-    /// first-fragment budget and paint, rather than a recomputed flow cursor.
+    /// The original empty host's stored line includes its paragraph-before band.
+    /// Recover the object origin once for both the first-fragment budget and paint.
     pub(crate) fn native_text_frame_first_fragment_saved_top(
         &self,
         host: &Paragraph,
@@ -2404,7 +2432,7 @@ impl LayoutEngine {
         column: &LayoutRect,
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
-        if !self.native_stored_table_has_text_frame_boundaries(table)
+        if !self.native_stored_table_has_text_frame_boundaries(table, styles)
             || para_has_visible_text(host)
             || !matches!(host.controls.as_slice(), [Control::Table(_)])
             || host.stored_text_partition_is_dirty()
@@ -2412,11 +2440,6 @@ impl LayoutEngine {
             || !matches!(table.common.text_wrap, TextWrap::TopAndBottom)
             || !matches!(table.common.vert_rel_to, VertRelTo::Para)
             || table.common.vertical_offset != 0
-            || styles
-                .para_styles
-                .get(host.para_shape_id as usize)?
-                .spacing_before
-                != 0.0
         {
             return None;
         }
@@ -2445,7 +2468,11 @@ impl LayoutEngine {
         {
             return None;
         }
-        let top = column.y + hwpunit_to_px(line.vertical_pos, self.dpi);
+        let top = column.y + hwpunit_to_px(line.vertical_pos, self.dpi)
+            - styles
+                .para_styles
+                .get(host.para_shape_id as usize)?
+                .spacing_before;
         let bottom = top + hwpunit_to_px(table.common.height as i32, self.dpi);
         (top >= column.y && bottom <= column.y + column.height + 0.5).then_some(top)
     }
@@ -4709,7 +4736,8 @@ impl LayoutEngine {
             for _ in 0..max_iter {
                 let mut progress = false;
                 for &(r, span, total_h) in &constraints {
-                    let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                    let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                        + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                     let unknown_rows: Vec<usize> =
                         (r..r + span).filter(|&i| row_heights[i] == 0.0).collect();
                     if unknown_rows.len() == 1 {
@@ -4723,7 +4751,8 @@ impl LayoutEngine {
                 }
             }
             for &(r, span, total_h) in &constraints {
-                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                 let unknown_rows: Vec<usize> =
                     (r..r + span).filter(|&i| row_heights[i] == 0.0).collect();
                 if !unknown_rows.is_empty() {
@@ -4742,7 +4771,8 @@ impl LayoutEngine {
             // 중첩 문서가 한글보다 쪽당 +15% 조밀해졌다(연결맵 −35쪽의 지배
             // 성분). 콘텐츠 기반 확장(2-b)과 별개의 선언 기반 규칙이다.
             for &(r, span, total_h) in &constraints {
-                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                 if total_h > known_sum + 0.5 {
                     row_heights[r + span - 1] += total_h - known_sum;
                 }
@@ -4817,7 +4847,8 @@ impl LayoutEngine {
                     0.0
                 };
                 let required_height = line_req.max(object_req);
-                let combined: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                let combined: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                 if required_height > combined {
                     let deficit = required_height - combined;
                     row_heights[r + span - 1] += deficit;
@@ -11870,7 +11901,7 @@ impl LayoutEngine {
             self.direct_hwpx_cell_has_declared_stored_frame(cell, table);
         let native_text_frame_cell = cell.row_span == 1
             && self.native_stored_table_has_fragment_frames(table)
-            && stored_text_paragraphs_share_vpos_frame(cell);
+            && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi);
         let is_stored_frame_rewind = |prev: &crate::model::paragraph::LineSeg,
                                       cur: &crate::model::paragraph::LineSeg|
          -> bool {
@@ -12609,10 +12640,9 @@ impl LayoutEngine {
             };
             let source_text_frame_reset = native_text_frame_cell
                 && pi > 0
-                && cell
-                    .paragraphs
-                    .get(pi - 1)
-                    .is_some_and(|previous| stored_plain_text_paragraph_frame_reset(previous, p));
+                && cell.paragraphs.get(pi - 1).is_some_and(|previous| {
+                    stored_plain_text_paragraph_frame_reset(previous, p, styles, self.dpi)
+                });
             let stored_frame_break_before_para = declared_two_line_frame
                 || source_text_frame_reset
                 || if pi > 0 && cell_has_local_vpos_origin {
@@ -16713,7 +16743,7 @@ impl LayoutEngine {
             return None;
         }
         let height = self.stored_full_width_row_source_height(table, row, styles)?;
-        (height > body_height || self.native_stored_row_has_text_frame_boundary(table, row))
+        (height > body_height || self.native_stored_row_has_text_frame_boundary(table, row, styles))
             .then_some(height)
     }
 
@@ -16749,10 +16779,12 @@ impl LayoutEngine {
             .collect();
         owners.sort_by_key(|cell| cell.col);
         let cell = *owners.first()?;
-        // Multiple cells do not compete for a minimum when the unchanged source
-        // declares the same row box for every owner and an explicit physical cut.
+        // Multiple aligned owners can share the original single-owner frame
+        // contract when they declare the same box and explicit source cut.
+        // A Top-aligned source height alone does not authenticate that minimum
+        // across fragments; keep the existing alignment-frame precondition.
         if owners.len() > 1 {
-            if !self.native_stored_row_has_text_frame_boundary(table, row)
+            if !self.native_stored_row_has_text_frame_boundary(table, row, styles)
                 || cell.height == 0
                 || cell.height >= 0x8000_0000
             {
@@ -16765,6 +16797,10 @@ impl LayoutEngine {
                     || owner.col != next_col
                     || owner.col_span == 0
                     || owner.height != cell.height
+                    || matches!(
+                        owner.vertical_align,
+                        crate::model::table::VerticalAlign::Top
+                    )
                     || owner.dirty_flag
                     || owner.paragraphs.iter().any(|para| {
                         para.stored_text_partition_is_dirty() || para.cell_format_vpos_dirty
@@ -17698,7 +17734,7 @@ impl LayoutEngine {
             let units = self.cell_units(cell, table, styles);
             let native_text_frame_cell = native_table_fragment_frames
                 && cell.row_span == 1
-                && stored_text_paragraphs_share_vpos_frame(cell);
+                && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi);
             let source_row_height = self.stored_full_width_row_source_height(table, row, styles);
             let start = start_cut.get(i).copied().unwrap_or(0).min(units.len());
             let mut j = start;
@@ -17807,6 +17843,8 @@ impl LayoutEngine {
                             stored_plain_text_paragraph_frame_reset(
                                 &cell.paragraphs[previous_idx],
                                 &cell.paragraphs[u.para_idx],
+                                styles,
+                                self.dpi,
                             )
                         }))
                         || declared_saved_frame_break

@@ -725,6 +725,19 @@ impl TypesetEngine {
                 let whole_row_rounding_fits = row_start_cut.is_empty()
                     && consumed + cs_before + row_total <= avail_for_rows + 0.5
                     && res.consumed_height + padding <= avail_for_rows - consumed - cs_before;
+                // This stored row has no continuing source frame: the existing
+                // band path discards its blank tail and paints the accepted box.
+                // Test alignment inside that same box, not the larger declaration.
+                // Source-owned cuts and ordinary carried bands keep their original
+                // alignment frame and continuation-space contract.
+                let discards_stored_blank_band = storage_records_page_cuts
+                    && !rowbreak_row_has_internal_saved_vpos_reset(table, r)
+                    && !layout_engine.native_stored_row_has_text_frame_boundary(table, r, styles);
+                let accepted_band_height = if discards_stored_blank_band {
+                    row_total.min((avail_for_rows - consumed - cs_before).max(0.0))
+                } else {
+                    row_total
+                };
                 // 단일 유닛 행 — 분할 불가, 페이지 시작이면 강제, 아니면 다음으로.
                 if r == cursor_row {
                     consumed += cs_before + row_total;
@@ -750,7 +763,7 @@ impl TypesetEngine {
                             table,
                             r,
                             res.consumed_height + padding,
-                            row_total,
+                            accepted_band_height,
                             styles,
                         ),
                         avail_for_rows - consumed - cs_before,
@@ -774,9 +787,7 @@ impl TypesetEngine {
                     // 다음 행이 내려가 쪽마다 어긋남이 쌓인다(2025 행정업무운영 편람 부록 103×2
                     // 행 30: 내용 334.5 · 선언 379.8, 한/글 정본 333쪽은 행 31 이 표 머리 바로
                     // 아래(괘선 154.9)에서 시작한다).
-                    if storage_records_page_cuts
-                        && !rowbreak_row_has_internal_saved_vpos_reset(table, r)
-                    {
+                    if discards_stored_blank_band {
                         let rest = (avail_for_rows - consumed - cs_before).max(res.consumed_height);
                         consumed += cs_before + rest;
                         end_row_height_override = Some(rest);
@@ -1224,7 +1235,8 @@ impl TypesetEngine {
             && split_end_limit > 0.0
             && end_row == cursor_row + 1
             && (layout_engine.row_uses_reflow_physical_frame(table, cursor_row)
-                || layout_engine.native_stored_row_has_text_frame_boundary(table, cursor_row))
+                || layout_engine
+                    .native_stored_row_has_text_frame_boundary(table, cursor_row, styles))
         {
             // The carried minimum belongs to the entire remainder. A new content
             // cut owns only the accepted footprint, shared by reservation and paint.

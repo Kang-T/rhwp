@@ -1242,7 +1242,14 @@ impl TypesetEngine {
                         crate::model::table::TablePageBreak::RowBreak
                     )
                     && !para_has_visible_text(para)
-                    && rowbreak_table_has_internal_saved_vpos_reset(table);
+                    && (rowbreak_table_has_internal_saved_vpos_reset(table) || {
+                        let engine = crate::renderer::layout::LayoutEngine::new(self.dpi);
+                        engine.set_layout_profile(st.profile);
+                        engine.set_render_normalization_overlay(std::sync::Arc::clone(
+                            &self.render_normalization,
+                        ));
+                        engine.native_stored_table_has_text_frame_boundaries(table, styles)
+                    });
             if !st.current_items.is_empty()
                 && !ft.strict_following_plain_text_fit
                 && declared_overflows_current

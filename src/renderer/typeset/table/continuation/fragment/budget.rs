@@ -447,7 +447,7 @@ impl TypesetEngine {
         // their row boxes, so paint need not discard a source-owned tail later.
         let page_avail = if prepared
             .layout_engine
-            .native_stored_table_has_text_frame_boundaries(table)
+            .native_stored_table_has_text_frame_boundaries(table, input.source.styles)
         {
             let bottom = crate::renderer::float_placement::single_cell_page_fragment_bottom(
                 table,

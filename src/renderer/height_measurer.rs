@@ -3907,7 +3907,8 @@ impl HeightMeasurer {
             for _ in 0..max_iter {
                 let mut progress = false;
                 for &(r, span, total_h) in &constraints {
-                    let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                    let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                        + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                     let unknown_rows: Vec<usize> =
                         (r..r + span).filter(|&i| row_heights[i] == 0.0).collect();
                     if unknown_rows.len() == 1 {
@@ -3921,7 +3922,8 @@ impl HeightMeasurer {
                 }
             }
             for &(r, span, total_h) in &constraints {
-                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                 let unknown_rows: Vec<usize> =
                     (r..r + span).filter(|&i| row_heights[i] == 0.0).collect();
                 if !unknown_rows.is_empty() {
@@ -3939,7 +3941,8 @@ impl HeightMeasurer {
             // 회계(mt.row_heights)에도 반영되어야 rowspan 중첩 문서의 쪽당
             // +15% 조밀(연결맵 −35쪽 지배 성분)이 정합한다.
             for &(r, span, total_h) in &constraints {
-                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                 if total_h > known_sum + 0.5 {
                     row_heights[r + span - 1] += total_h - known_sum;
                 }
@@ -4303,7 +4306,8 @@ impl HeightMeasurer {
                         relaxed_pad_mirror,
                     )
                     .unwrap_or(required_height);
-                let combined: f64 = (r..r + span).map(|i| row_heights[i]).sum();
+                let combined: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
+                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                 if required_height > combined {
                     let deficit = required_height - combined;
                     row_heights[r + span - 1] += deficit;

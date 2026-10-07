@@ -97,7 +97,7 @@ impl SourceFrameQuery<'_> {
         // boxes extending beyond the declared object frame; local zeros alone
         // do not establish a source-owned cut.
         let native_text_source_frame = layout_engine
-            .native_stored_row_has_text_frame_boundary(table, r)
+            .native_stored_row_has_text_frame_boundary(table, r, styles)
             && !rowspan_touched.get(r).copied().unwrap_or(true);
         let stored_source_frame = ((native_text_source_frame
             || (profile.hwpx_stored_layout()

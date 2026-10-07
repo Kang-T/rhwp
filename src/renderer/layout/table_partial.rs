@@ -5540,9 +5540,9 @@ impl LayoutEngine {
         );
         let page_cap_fold = (table_y + partial_table_height - page_cap).max(0.0);
         let owns_declared_row_frame = end_row_height_override.is_some()
-            && end_row
-                .checked_sub(1)
-                .is_some_and(|row| self.native_stored_row_has_text_frame_boundary(table, row));
+            && end_row.checked_sub(1).is_some_and(|row| {
+                self.native_stored_row_has_text_frame_boundary(table, row, styles)
+            });
         let fold_last_row = render_rows.last().copied().filter(|&fold_row| {
             (end_row < table.row_count as usize
                 || end_cut.iter().any(|&unit| unit > 0)
