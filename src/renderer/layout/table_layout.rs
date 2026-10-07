@@ -271,11 +271,12 @@ use super::super::{hwpunit_to_px, ShapeStyle};
 use super::border_rendering::{
     apply_cellzone_border_fill, apply_table_outer_border_fill, build_row_col_x,
     collect_cell_borders, create_border_line_nodes, mark_cell_span_interior_covered,
-    render_cell_diagonal, render_edge_borders, render_transparent_borders,
+    render_cell_diagonal, render_edge_borders, render_spaced_cell_borders,
+    render_transparent_borders,
 };
 use super::text_measurement::{estimate_text_width, resolved_to_text_style};
 use super::utils::find_bin_data_bytes;
-use super::{CellContext, CellPathEntry, LayoutEngine};
+use super::{para_has_visible_text, CellContext, CellPathEntry, LayoutEngine};
 
 // 표 수평 정렬: model::shape 타입 사용
 use crate::model::shape::{
@@ -2057,10 +2058,9 @@ pub(crate) fn calc_nested_split_rows(
     }
 
     // row_y 누적 배열 (layout_table과 동일 방식)
-    let mut row_y = vec![0.0f64; row_count + 1];
+    let mut row_y = vec![cell_spacing; row_count + 1];
     for i in 0..row_count {
-        row_y[i + 1] =
-            row_y[i] + row_heights[i] + if i + 1 < row_count { cell_spacing } else { 0.0 };
+        row_y[i + 1] = row_y[i] + row_heights[i] + cell_spacing;
     }
 
     // offset에 해당하는 시작 행 찾기
@@ -2353,6 +2353,101 @@ impl LayoutEngine {
                         .windows(2)
                         .any(|pair| stored_plain_text_paragraph_frame_reset(&pair[0], &pair[1]))
             })
+    }
+
+    pub(crate) fn native_stored_table_has_text_frame_boundaries(
+        &self,
+        table: &crate::model::table::Table,
+    ) -> bool {
+        self.native_stored_table_has_fragment_frames(table)
+            && table.cells.iter().any(|cell| {
+                cell.row_span == 1
+                    && stored_text_paragraphs_share_vpos_frame(cell)
+                    && cell
+                        .paragraphs
+                        .windows(2)
+                        .any(|pair| stored_plain_text_paragraph_frame_reset(&pair[0], &pair[1]))
+            })
+    }
+
+    pub(crate) fn row_cut_units_exhausted(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        start_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        // Block cuts use spanning-owner indices, not ordinary row-unit indices.
+        if table.cells.iter().any(|cell| {
+            cell.row_span > 1
+                && usize::from(cell.row) <= row
+                && row < usize::from(cell.row) + usize::from(cell.row_span)
+        }) {
+            return false;
+        }
+        let owners = Self::row_cut_cell_order(table, row);
+        !owners.is_empty()
+            && owners.iter().enumerate().all(|(index, owner)| {
+                start_cut.get(index).copied().unwrap_or(0)
+                    >= self.cell_units(&table.cells[*owner], table, styles).len()
+            })
+    }
+
+    /// The original empty host's line and object origins coincide when its
+    /// paragraph-before spacing is zero. Use that source origin for both the
+    /// first-fragment budget and paint, rather than a recomputed flow cursor.
+    pub(crate) fn native_text_frame_first_fragment_saved_top(
+        &self,
+        host: &Paragraph,
+        previous: Option<&Paragraph>,
+        table: &crate::model::table::Table,
+        column: &LayoutRect,
+        styles: &ResolvedStyleSet,
+    ) -> Option<f64> {
+        if !self.native_stored_table_has_text_frame_boundaries(table)
+            || para_has_visible_text(host)
+            || !matches!(host.controls.as_slice(), [Control::Table(_)])
+            || host.stored_text_partition_is_dirty()
+            || host.cell_format_vpos_dirty
+            || !matches!(table.common.text_wrap, TextWrap::TopAndBottom)
+            || !matches!(table.common.vert_rel_to, VertRelTo::Para)
+            || table.common.vertical_offset != 0
+            || styles
+                .para_styles
+                .get(host.para_shape_id as usize)?
+                .spacing_before
+                != 0.0
+        {
+            return None;
+        }
+        let [line] = host.line_segs.as_slice() else {
+            return None;
+        };
+        let previous = previous?;
+        let is_synthetic = |seg: &crate::model::paragraph::LineSeg| {
+            seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        };
+        if !previous.controls.is_empty()
+            || !para_has_visible_text(previous)
+            || previous.stored_text_partition_is_dirty()
+            || previous.cell_format_vpos_dirty
+            || previous.line_segs.iter().any(is_synthetic)
+            || is_synthetic(line)
+        {
+            return None;
+        }
+        let previous_line = previous.line_segs.last()?;
+        if line.vertical_pos <= 0
+            || line.vertical_pos
+                < previous_line
+                    .vertical_pos
+                    .saturating_add(previous_line.line_height)
+        {
+            return None;
+        }
+        let top = column.y + hwpunit_to_px(line.vertical_pos, self.dpi);
+        let bottom = top + hwpunit_to_px(table.common.height as i32, self.dpi);
+        (top >= column.y && bottom <= column.y + column.height + 0.5).then_some(top)
     }
 
     /// 셀 안 비-TAC 자리차지 개체가 표 흐름에 요구하는 세로 범위.
@@ -3217,15 +3312,13 @@ impl LayoutEngine {
         }
 
         // ── 2. 누적 위치 계산 ──
-        let mut col_x = vec![0.0f64; col_count + 1];
+        let mut col_x = vec![cell_spacing; col_count + 1];
         for i in 0..col_count {
-            col_x[i + 1] =
-                col_x[i] + col_widths[i] + if i + 1 < col_count { cell_spacing } else { 0.0 };
+            col_x[i + 1] = col_x[i] + col_widths[i] + cell_spacing;
         }
-        let mut row_y = vec![0.0f64; row_count + 1];
+        let mut row_y = vec![cell_spacing; row_count + 1];
         for i in 0..row_count {
-            row_y[i + 1] =
-                row_y[i] + row_heights[i] + if i + 1 < row_count { cell_spacing } else { 0.0 };
+            row_y[i + 1] = row_y[i] + row_heights[i] + cell_spacing;
         }
 
         // 부모 셀 조각이 전달한 viewport보다 큰 손자 표는, source-unit split이 따로
@@ -3327,7 +3420,6 @@ impl LayoutEngine {
         let declared_table_width = if table.common.width > 0 {
             hwpunit_to_px(table.common.width as i32, self.dpi)
                 * self.render_table_width_scale(table)
-                + cell_spacing * col_count.saturating_sub(1) as f64
         } else {
             0.0
         };
@@ -3738,7 +3830,17 @@ impl LayoutEngine {
         }
 
         // ── 6. 테두리 렌더링 ──
-        if independent_col_row_y.is_none() {
+        if table.cell_spacing > 0 {
+            let borders = render_spaced_cell_borders(
+                tree,
+                table,
+                styles,
+                &table_node.children,
+                None,
+                self.show_transparent_borders.get(),
+            );
+            table_node.children.extend(borders);
+        } else if independent_col_row_y.is_none() {
             let body_top_clip = (depth == 0
                 && self.is_body_flow_col_area(col_area)
                 && (table_y - col_area.y).abs() <= 0.5)
@@ -3958,7 +4060,9 @@ impl LayoutEngine {
                 let c = cell.col as usize;
                 let span = cell.col_span as usize;
                 if span > 1 && c + span <= col_count {
-                    let total_w = hwpunit_to_px(cell.width as i32, self.dpi) * width_scale;
+                    let total_w = hwpunit_to_px(cell.width as i32, self.dpi) * width_scale
+                        - hwpunit_to_px(i32::from(table.cell_spacing), self.dpi)
+                            * span.saturating_sub(1) as f64;
                     if let Some(existing) = constraints.iter_mut().find(|x| x.0 == c && x.1 == span)
                     {
                         if total_w > existing.2 {
@@ -4023,7 +4127,9 @@ impl LayoutEngine {
             }
         }
         let target_width = if table.common.width > 0 {
-            hwpunit_to_px(table.common.width as i32, self.dpi) * width_scale
+            (hwpunit_to_px(table.common.width as i32, self.dpi) * width_scale
+                - hwpunit_to_px(i32::from(table.cell_spacing), self.dpi) * (col_count + 1) as f64)
+                .max(0.0)
         } else {
             0.0
         };
@@ -4802,9 +4908,8 @@ impl LayoutEngine {
             // same gaps a second time, making every multi-row stored table
             // taller by `(row_count - 1) * cell_spacing` at paint time.
             let cell_spacing = hwpunit_to_px(table.cell_spacing as i32, self.dpi);
-            let target_row_sum = (target_height
-                - cell_spacing * row_heights.len().saturating_sub(1) as f64)
-                .max(0.0);
+            let target_row_sum =
+                (target_height - cell_spacing * (row_heights.len() + 1) as f64).max(0.0);
             let current: f64 = row_heights.iter().sum();
             let residual = target_row_sum - current;
             if residual > 0.5 {
@@ -8681,14 +8786,16 @@ impl LayoutEngine {
             };
             let end_col = (c + cell.col_span as usize).min(col_count);
             let end_row = (r + cell.row_span as usize).min(row_count);
-            let cell_w = row_col_x[r][end_col] - row_col_x[r][c];
+            let cell_spacing = hwpunit_to_px(i32::from(table.cell_spacing), self.dpi);
+            let cell_w = row_col_x[r][end_col] - row_col_x[r][c] - cell_spacing;
             let raw_cell_h = cell_col_y
                 .and_then(|cy| {
                     let start = cy.get(r).copied()?;
                     let end = cy.get(end_row).copied()?;
                     Some(end - start)
                 })
-                .unwrap_or_else(|| row_y[end_row] - row_y[r]);
+                .unwrap_or_else(|| row_y[end_row] - row_y[r])
+                - cell_spacing;
             let cell_h = if row_filter.is_some() {
                 // 클램프된 y에 맞게 높이도 조정
                 (raw_cell_h - (cell_y - raw_cell_y)).max(0.0)
@@ -9491,7 +9598,7 @@ impl LayoutEngine {
             // (b) 셀 테두리를 수집한다. 열별 높이가 다른 표는 row_y 격자로
             // 테두리를 그릴 수 없으므로 셀 bbox 기준 라인을 별도로 생성한다.
             if let Some(bs) = border_style {
-                if independent_col_row_y.is_some() {
+                if independent_col_row_y.is_some() && table.cell_spacing == 0 {
                     independent_border_nodes.extend(render_cell_box_borders(
                         tree, bs, cell_x, cell_y, cell_w, cell_h,
                     ));
@@ -9579,7 +9686,7 @@ impl LayoutEngine {
         let row_count = table.row_count as usize;
         let row_heights = self.resolve_row_heights(table, col_count, row_count, None, styles, true);
         let cell_spacing = hwpunit_to_px(table.cell_spacing as i32, self.dpi);
-        row_heights.iter().sum::<f64>() + cell_spacing * (row_count.saturating_sub(1) as f64)
+        row_heights.iter().sum::<f64>() + cell_spacing * (row_count + 1) as f64
     }
 
     fn nested_table_is_overlay(&self, table: &crate::model::table::Table) -> bool {
@@ -16606,7 +16713,8 @@ impl LayoutEngine {
             return None;
         }
         let height = self.stored_full_width_row_source_height(table, row, styles)?;
-        (height > body_height).then_some(height)
+        (height > body_height || self.native_stored_row_has_text_frame_boundary(table, row))
+            .then_some(height)
     }
 
     /// Source-owned minimum space, independent of a consumer's page budget.
@@ -16632,12 +16740,44 @@ impl LayoutEngine {
         {
             return None;
         }
-        let mut owners = table.cells.iter().filter(|cell| {
-            cell.row as usize <= row && row < cell.row as usize + cell.row_span as usize
-        });
-        let cell = owners.next()?;
-        if owners.next().is_some()
-            || cell.row as usize != row
+        let mut owners: Vec<_> = table
+            .cells
+            .iter()
+            .filter(|cell| {
+                cell.row as usize <= row && row < cell.row as usize + cell.row_span as usize
+            })
+            .collect();
+        owners.sort_by_key(|cell| cell.col);
+        let cell = *owners.first()?;
+        // Multiple cells do not compete for a minimum when the unchanged source
+        // declares the same row box for every owner and an explicit physical cut.
+        if owners.len() > 1 {
+            if !self.native_stored_row_has_text_frame_boundary(table, row)
+                || cell.height == 0
+                || cell.height >= 0x8000_0000
+            {
+                return None;
+            }
+            let mut next_col = 0;
+            for owner in &owners {
+                if usize::from(owner.row) != row
+                    || owner.row_span != 1
+                    || owner.col != next_col
+                    || owner.col_span == 0
+                    || owner.height != cell.height
+                    || owner.dirty_flag
+                    || owner.paragraphs.iter().any(|para| {
+                        para.stored_text_partition_is_dirty() || para.cell_format_vpos_dirty
+                    })
+                {
+                    return None;
+                }
+                next_col = next_col.checked_add(owner.col_span)?;
+            }
+            return (next_col == table.col_count)
+                .then(|| hwpunit_to_px(cell.height as i32, self.dpi));
+        }
+        if cell.row as usize != row
             || cell.row_span != 1
             || cell.col != 0
             || cell.col_span != table.col_count

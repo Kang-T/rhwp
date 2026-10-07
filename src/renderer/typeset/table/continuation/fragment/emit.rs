@@ -76,11 +76,7 @@ impl TypesetEngine {
         // physical space. Carry actual accepted boxes rather than estimating
         // them from preceding content cuts.
         let stored_row_frame = end_row.checked_sub(1).and_then(|row| {
-            if split_end_limit <= 0.0
-                || split_end_cut.is_empty()
-                || split_block_start.is_some()
-                || end_row_height_override.is_some()
-            {
+            if split_end_limit <= 0.0 || split_end_cut.is_empty() || split_block_start.is_some() {
                 return None;
             }
             // Frame ownership uses the same unreserved source body height as
@@ -96,21 +92,34 @@ impl TypesetEngine {
                 .stored_row_box_sum
                 .filter(|(owner, _)| *owner == row)
                 .map_or(0.0, |(_, height)| height);
-            let before_row = (consumed - split_end_limit).max(0.0);
+            let row_start = if row == cursor_row {
+                start_cut.as_slice()
+            } else {
+                &[]
+            };
+            let current_content =
+                layout_engine.row_cut_content_height(table, row, row_start, &split_end_cut, styles);
+            let remaining_content =
+                layout_engine.row_cut_content_height(table, row, &split_end_cut, &[], styles);
+            let accepted_scan_height = end_row_height_override.unwrap_or(current_content);
+            let before_row = (consumed - accepted_scan_height).max(0.0);
             let available = (avail_for_rows - before_row).max(0.0);
-            let height = (declared - used)
-                .max(0.0)
-                .min(available)
-                .max(split_end_limit);
-            Some((row, used, height))
+            let height = end_row_height_override.unwrap_or_else(|| {
+                (declared - used - remaining_content)
+                    .max(0.0)
+                    .min(available)
+                    .max(current_content)
+            });
+            Some((row, used, height, accepted_scan_height))
         });
         // 행 컷이 소비한 내용과 header의 요구 높이. 저장 상자의 빈 밴드는
         // 아래에서 별도로 물리 점유에 포함하며 컷 유닛을 더 소비하지 않는다.
-        let mut partial_height: f64 = consumed + header_overhead;
-        if let Some((_, _, height)) = stored_row_frame {
-            if height > split_end_limit + 0.5 {
+        let mut partial_height: f64 =
+            consumed + header_overhead + hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi);
+        if let Some((_, _, height, current_content)) = stored_row_frame {
+            if height > current_content + 0.5 {
                 end_row_height_override = Some(height);
-                partial_height += height - split_end_limit;
+                partial_height += height - current_content;
             }
         }
         // 원본 셀의 저장 쪽 0에서 재개하는 새 단은 실제 좌표축을 가진다.
@@ -1026,7 +1035,9 @@ impl TypesetEngine {
         if let Some(box_height) = single_cell_box_height {
             continuation.single_cell_box_sum_px += box_height;
         }
-        if let Some((row, used, height)) = stored_row_frame {
+        let accepted_stored_row_frame = stored_row_frame
+            .map(|(row, used, height, _)| (row, used, end_row_height_override.unwrap_or(height)));
+        if let Some((row, used, height)) = accepted_stored_row_frame {
             continuation.stored_row_box_sum = Some((row, used + height));
         }
         // [#2238] 중간 fragment 가시높이 부기 — used_height(flush 시 current_height)
@@ -1115,6 +1126,14 @@ impl TypesetEngine {
             });
         let next_start_row_height_override = empty_opening_next_height
             .or(complete_block_next_height)
+            .or_else(|| {
+                let (row, used, height) = accepted_stored_row_frame?;
+                let full = layout_engine.stored_full_width_row_declared_height(
+                    table, row, styles, st.layout.body_area.height,
+                )?;
+                let remaining = (full - used - height).max(0.0);
+                (remaining > 0.5).then_some(remaining)
+            })
             .or(saved_closing_frame.filter(|_| first_fragment_blank_band))
             .or_else(|| {
                 let row = end_row.checked_sub(1)?;

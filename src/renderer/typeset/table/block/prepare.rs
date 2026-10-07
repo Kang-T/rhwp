@@ -1080,6 +1080,28 @@ impl TypesetEngine {
                 }
             }
         }
+        let legacy_source_top =
+            crate::renderer::layout::native_hwp5_internal_reset_rowbreak_first_fragment_saved_top(
+                self.profile.get().hwp5_stored_pagination_layout(),
+                para,
+                para_idx.checked_sub(1).and_then(|i| paragraphs_all.get(i)),
+                paragraphs_all.get(para_idx + 1),
+                table,
+                &st.inline_flow_column(),
+                self.dpi,
+            );
+        let source_text_frame_top = legacy_source_top
+            .is_none()
+            .then(|| {
+                layout_engine.native_text_frame_first_fragment_saved_top(
+                    para,
+                    para_idx.checked_sub(1).and_then(|i| paragraphs_all.get(i)),
+                    table,
+                    &st.inline_flow_column(),
+                    styles,
+                )
+            })
+            .flatten();
         let prepared = BlockTableContinuationPreparedState {
             first_anchor_offset_consumed,
             host_placement: fragment_host_placement,
@@ -1091,6 +1113,8 @@ impl TypesetEngine {
             base_available,
             table_available,
             layout_engine,
+            source_text_first_frame_height: source_text_frame_top
+                .map(|_| hwpunit_to_px(table.common.height as i32, self.dpi)),
             rowspan_touched,
             cut_row_heights: cut_row_h,
             whole_row_fit_heights: whole_row_fit_h,
@@ -1123,76 +1147,71 @@ impl TypesetEngine {
             source_next_positive_rewind: next_rewinds_after_table && !next_starts_new_page,
             first_fragment_saved_offset: {
                 let column = st.inline_flow_column();
-                crate::renderer::layout::native_hwp5_internal_reset_rowbreak_first_fragment_saved_top(
-                    self.profile.get().hwp5_stored_pagination_layout(),
-                    para,
-                    para_idx.checked_sub(1).and_then(|i| paragraphs_all.get(i)),
-                    paragraphs_all.get(para_idx + 1),
-                    table,
-                    &column,
-                    self.dpi,
-                )
-                .map(|top| top - column.y)
-                .or_else(|| {
-                    // HWPX의 한 줄 캡션 다음에 오는 빈 호스트의 Square RowBreak 표는
-                    // 저장 LineSeg 사다리에서 표의 첫 원점이 확정된다. 앞 문단을
-                    // 재측정한 흐름이 한 줄 이상 길어져도 분할 스캐너는 paint와
-                    // 같은 저장 원점에서 남은 쪽 높이를 계산해야 한다.
-                    let prev = para_idx.checked_sub(1).and_then(|i| paragraphs_all.get(i))?;
-                    if !st.profile.hwpx_stored_layout()
-                        || st.profile.session_edited()
-                        || !prev.controls.is_empty()
-                        || !para_has_visible_text(prev)
-                        || para_has_visible_text(para)
-                        || para.controls.len() != 1
-                        || table.common.treat_as_char
-                        || !matches!(
-                            table.common.text_wrap,
-                            crate::model::shape::TextWrap::Square
-                        )
-                        || !matches!(
-                            table.common.vert_rel_to,
-                            crate::model::shape::VertRelTo::Para
-                        )
-                        || table.common.vertical_offset != 0
-                        || !matches!(
-                            table.page_break,
-                            crate::model::table::TablePageBreak::RowBreak
-                        )
-                        || table.row_count <= 1
-                    {
-                        return None;
-                    }
-                    let mut previous_lines = prev
-                        .line_segs
-                        .iter()
-                        .filter(|seg| !is_synthetic_line_seg(seg));
-                    let previous = previous_lines.next()?;
-                    if previous_lines.next().is_some() {
-                        return None;
-                    }
-                    let mut host_lines = para
-                        .line_segs
-                        .iter()
-                        .filter(|seg| !is_synthetic_line_seg(seg));
-                    let host = host_lines.next()?;
-                    if host_lines.next().is_some()
-                        || previous
-                            .vertical_pos
-                            .saturating_add(previous.line_height)
-                            .saturating_add(previous.line_spacing)
-                            != host.vertical_pos
-                    {
-                        return None;
-                    }
-                    let (saved_top, _) = line_seg_visible_bounds_px(
-                        host,
-                        st.vpos_page_base.unwrap_or(0),
-                        self.dpi,
-                    )?;
-                    (saved_top <= st.current_height && saved_top < table_available)
-                        .then_some(saved_top)
-                })
+                legacy_source_top
+                    .or(source_text_frame_top)
+                    .map(|top| top - column.y)
+                    .or_else(|| {
+                        // HWPX의 한 줄 캡션 다음에 오는 빈 호스트의 Square RowBreak 표는
+                        // 저장 LineSeg 사다리에서 표의 첫 원점이 확정된다. 앞 문단을
+                        // 재측정한 흐름이 한 줄 이상 길어져도 분할 스캐너는 paint와
+                        // 같은 저장 원점에서 남은 쪽 높이를 계산해야 한다.
+                        let prev = para_idx
+                            .checked_sub(1)
+                            .and_then(|i| paragraphs_all.get(i))?;
+                        if !st.profile.hwpx_stored_layout()
+                            || st.profile.session_edited()
+                            || !prev.controls.is_empty()
+                            || !para_has_visible_text(prev)
+                            || para_has_visible_text(para)
+                            || para.controls.len() != 1
+                            || table.common.treat_as_char
+                            || !matches!(
+                                table.common.text_wrap,
+                                crate::model::shape::TextWrap::Square
+                            )
+                            || !matches!(
+                                table.common.vert_rel_to,
+                                crate::model::shape::VertRelTo::Para
+                            )
+                            || table.common.vertical_offset != 0
+                            || !matches!(
+                                table.page_break,
+                                crate::model::table::TablePageBreak::RowBreak
+                            )
+                            || table.row_count <= 1
+                        {
+                            return None;
+                        }
+                        let mut previous_lines = prev
+                            .line_segs
+                            .iter()
+                            .filter(|seg| !is_synthetic_line_seg(seg));
+                        let previous = previous_lines.next()?;
+                        if previous_lines.next().is_some() {
+                            return None;
+                        }
+                        let mut host_lines = para
+                            .line_segs
+                            .iter()
+                            .filter(|seg| !is_synthetic_line_seg(seg));
+                        let host = host_lines.next()?;
+                        if host_lines.next().is_some()
+                            || previous
+                                .vertical_pos
+                                .saturating_add(previous.line_height)
+                                .saturating_add(previous.line_spacing)
+                                != host.vertical_pos
+                        {
+                            return None;
+                        }
+                        let (saved_top, _) = line_seg_visible_bounds_px(
+                            host,
+                            st.vpos_page_base.unwrap_or(0),
+                            self.dpi,
+                        )?;
+                        (saved_top <= st.current_height && saved_top < table_available)
+                            .then_some(saved_top)
+                    })
             },
             next_para_stored_top: paragraphs_all.get(para_idx + 1).and_then(|next| {
                 let seg = next

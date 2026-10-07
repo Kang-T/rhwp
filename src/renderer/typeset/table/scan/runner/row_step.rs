@@ -1223,7 +1223,8 @@ impl TypesetEngine {
         if start_row_height_override.is_some()
             && split_end_limit > 0.0
             && end_row == cursor_row + 1
-            && layout_engine.row_uses_reflow_physical_frame(table, cursor_row)
+            && (layout_engine.row_uses_reflow_physical_frame(table, cursor_row)
+                || layout_engine.native_stored_row_has_text_frame_boundary(table, cursor_row))
         {
             // The carried minimum belongs to the entire remainder. A new content
             // cut owns only the accepted footprint, shared by reservation and paint.

@@ -4325,7 +4325,9 @@ impl HeightMeasurer {
         // TAC 표: common.height(표 속성 높이)를 상한으로 사용
         // 한컴은 TAC 표의 높이를 속성값으로 유지 (셀 콘텐츠 넘침은 클리핑)
         // 비-TAC 표: 셀 콘텐츠 기반 확장 유지 (행 분할 필요)
-        let common_h = hwpunit_to_px(table.common.height as i32, self.dpi);
+        let common_h = (hwpunit_to_px(table.common.height as i32, self.dpi)
+            - hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi))
+        .max(0.0);
         // [Task #672] TAC 표 비례 축소 임계값 강화 — 작은 차이 (≤2%) 는 면제.
         //
         // 본질: 셀 콘텐츠 측정값과 common.height 의 미세한 불일치 (측정 오차
@@ -4616,6 +4618,7 @@ impl HeightMeasurer {
 
         // 총 높이 = 표 높이 + 캡션 높이 + 캡션-표 간격
         let total_height = table_height
+            + hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi)
             + caption_height
             + if caption_height > 0.0 {
                 caption_spacing

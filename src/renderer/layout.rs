@@ -14746,6 +14746,15 @@ impl LayoutEngine {
                             col_area,
                             self.dpi,
                         )
+                        .or_else(|| {
+                            self.native_text_frame_first_fragment_saved_top(
+                                para,
+                                para_index.checked_sub(1).and_then(|i| paragraphs.get(i)),
+                                t,
+                                col_area,
+                                styles,
+                            )
+                        })
                     {
                         stored_top
                     } else if !t.common.treat_as_char

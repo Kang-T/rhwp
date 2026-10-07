@@ -442,6 +442,29 @@ impl TypesetEngine {
         } else {
             page_avail
         };
+        // Original text-frame rows own blank space as well as units. Reserve
+        // the same physical column bottom used by partial paint before choosing
+        // their row boxes, so paint need not discard a source-owned tail later.
+        let page_avail = if prepared
+            .layout_engine
+            .native_stored_table_has_text_frame_boundaries(table)
+        {
+            let bottom = crate::renderer::float_placement::single_cell_page_fragment_bottom(
+                table,
+                st.inline_flow_column().height,
+                self.dpi,
+            );
+            page_avail.min(
+                (bottom
+                    - st.current_height
+                    - caption_extra
+                    - host_before_overhead
+                    - vert_offset_overhead)
+                    .max(0.0),
+            )
+        } else {
+            page_avail
+        };
         let captioned_current_placement = self.query_captioned_column_rowbreak_placement(
             st,
             para,
@@ -1035,7 +1058,24 @@ impl TypesetEngine {
             // 인데 한글은 한 쪽(p2)에 통째 배치. 전체가 들어갈 때만 적용하므로
             // 분할 경계 산정에는 영향 없음.
             const WHOLE_TABLE_FIT_TOLERANCE_PX: f64 = 2.0;
-            let base = (page_avail - header_overhead).max(0.0);
+            let base = (page_avail
+                - header_overhead
+                - hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi))
+            .max(0.0);
+            let base = if !is_continuation && cursor_row == 0 && start_cut.is_empty() {
+                prepared
+                    .source_text_first_frame_height
+                    .map_or(base, |height| {
+                        base.min(
+                            (height
+                                - header_overhead
+                                - hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi))
+                            .max(0.0),
+                        )
+                    })
+            } else {
+                base
+            };
             if !is_continuation
                 && cursor_row == 0
                 && start_cut.is_empty()

@@ -559,6 +559,12 @@ impl Cell {
 }
 
 impl Table {
+    /// The empty bands before the first and after the last cell are part of
+    /// a separated table's physical box, in addition to its internal gaps.
+    pub(crate) fn outer_cell_spacing_hu(&self) -> i32 {
+        i32::from(self.cell_spacing) * 2
+    }
+
     #[cfg(test)]
     pub(crate) fn reset_paragraph_frame_owner_widths_calls_for_test() {
         PARAGRAPH_FRAME_OWNER_WIDTHS_CALLS.with(|calls| calls.set(0));

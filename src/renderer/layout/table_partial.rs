@@ -15,7 +15,7 @@ use super::super::style_resolver::ResolvedStyleSet;
 use super::super::{hwpunit_to_px, px_to_hwpunit};
 use super::border_rendering::{
     build_row_col_x, collect_cell_borders, mark_cell_span_interior_covered, render_cell_diagonal,
-    render_edge_borders, render_transparent_borders,
+    render_edge_borders, render_spaced_cell_borders, render_transparent_borders,
 };
 use super::table_layout::{
     border_style_has_diagonal, calc_nested_split_rows, effective_margin_left_line,
@@ -1166,7 +1166,7 @@ impl LayoutEngine {
 
             // 병합 셀 크기
             let end_col = (cell_col + cell.col_span as usize).min(col_count);
-            let cell_w = rcx[end_col] - rcx[cell_col];
+            let cell_w = rcx[end_col] - rcx[cell_col] - cell_spacing;
 
             // 행 높이: 병합 셀의 경우 렌더링 범위 내의 행만 합산
             let mut cell_h = 0.0;
@@ -5321,10 +5321,9 @@ impl LayoutEngine {
         }
 
         // ── 3. 누적 위치 계산 ──
-        let mut col_x = vec![0.0f64; col_count + 1];
+        let mut col_x = vec![cell_spacing; col_count + 1];
         for i in 0..col_count {
-            col_x[i + 1] =
-                col_x[i] + col_widths[i] + if i + 1 < col_count { cell_spacing } else { 0.0 };
+            col_x[i + 1] = col_x[i] + col_widths[i] + cell_spacing;
         }
 
         // 행별 열 위치 계산 (셀별 독립 너비 지원)
@@ -5383,15 +5382,10 @@ impl LayoutEngine {
 
         // 렌더링 영역의 행별 y 위치 계산 (0부터 시작)
         let mut render_row_y: Vec<f64> = Vec::new(); // 각 render_rows 항목의 시작 y
-        let mut y_accum = 0.0;
-        for (i, &r) in render_rows.iter().enumerate() {
+        let mut y_accum = cell_spacing;
+        for &r in &render_rows {
             render_row_y.push(y_accum);
-            y_accum += row_heights[r]
-                + if i + 1 < render_rows.len() {
-                    cell_spacing
-                } else {
-                    0.0
-                };
+            y_accum += row_heights[r] + cell_spacing;
         }
         let partial_table_height = y_accum;
 
@@ -5545,12 +5539,17 @@ impl LayoutEngine {
             self.dpi,
         );
         let page_cap_fold = (table_y + partial_table_height - page_cap).max(0.0);
+        let owns_declared_row_frame = end_row_height_override.is_some()
+            && end_row
+                .checked_sub(1)
+                .is_some_and(|row| self.native_stored_row_has_text_frame_boundary(table, row));
         let fold_last_row = render_rows.last().copied().filter(|&fold_row| {
             (end_row < table.row_count as usize
                 || end_cut.iter().any(|&unit| unit > 0)
                 || page_cap_fold > 0.5)
                 && enclosing_cell_ctx.is_none()
                 && !align_saved_opening_frame
+                && !owns_declared_row_frame
                 && budget_row_height_0.is_none()
                 && probe.is_none_or(|p| {
                     table.cells.iter().enumerate().all(|(idx, cell)| {
@@ -5777,28 +5776,48 @@ impl LayoutEngine {
             && self.is_body_flow_col_area(col_area)
             && (table_y - col_area.y).abs() <= 0.5)
             .then_some(col_area.y);
-        table_node.children.extend(render_edge_borders(
-            tree,
-            &h_edges,
-            &v_edges,
-            &fragment_row_col_x,
-            &grid_row_y,
-            table_x,
-            table_y,
-            body_top_clip,
-        ));
-        if self.show_transparent_borders.get() {
-            table_node.children.extend(render_transparent_borders(
+        if table.cell_spacing > 0 {
+            let open_top_row = (is_continuation
+                && !start_cut.is_empty()
+                && header_rows.is_empty()
+                && matches!(
+                    table.common.text_wrap,
+                    crate::model::shape::TextWrap::Square
+                ))
+            .then_some(start_row as u16);
+            let borders = render_spaced_cell_borders(
+                tree,
+                table,
+                styles,
+                &table_node.children,
+                open_top_row,
+                self.show_transparent_borders.get(),
+            );
+            table_node.children.extend(borders);
+        } else {
+            table_node.children.extend(render_edge_borders(
                 tree,
                 &h_edges,
                 &v_edges,
-                &h_span_covered,
-                &v_span_covered,
                 &fragment_row_col_x,
                 &grid_row_y,
                 table_x,
                 table_y,
+                body_top_clip,
             ));
+            if self.show_transparent_borders.get() {
+                table_node.children.extend(render_transparent_borders(
+                    tree,
+                    &h_edges,
+                    &v_edges,
+                    &h_span_covered,
+                    &v_span_covered,
+                    &fragment_row_col_x,
+                    &grid_row_y,
+                    table_x,
+                    table_y,
+                ));
+            }
         }
 
         // Partial-table cells receive their nested table edge nodes only

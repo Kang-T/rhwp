@@ -38,6 +38,28 @@ last_verified: 2026-10-08
 
 ## 공통 통합 검증과 증거 보존
 
+### 메인터너 보정 조사 — 원본 셀 좌표의 쪽 프레임
+
+시스템에 등록한 원래 KoPub 6개 face와 원본 입력을 사용해 152~156쪽을 추가 조사했다. 두 독립 한컴 PDF의 156쪽은 `나. 문장을 병기하는 경우…`로 시작하고, 원본 section 4 / paragraph 47의 표 오른쪽 셀에도 해당 문단 앞에 양수 `vpos → 0`이 있다. 그 전후 다른 문단은 직전 저장 줄 높이·간격만큼 같은 셀 좌표를 전진한다. 각 문단이 독립적으로 0부터 시작하는 입력과 이 연속 좌표 원본을 구별했다. 원시 행 상자들의 전체 합은 저장 object의 첫 조각 높이보다 크다.
+
+수정 전 ordinary-row scanner는 선언 행 높이가 예산에 들어가면 `CellUnit` 컷을 생략했고, 컷 경로에서도 셀 좌표가 본문 높이의 절반보다 작으면 실제 쪽 되감김을 relaxed reset으로 흡수했다. 원본 줄의 쪽 소속을 유지한다는 계약에 따라, 변경되지 않은 plain-text 셀의 저장 프레임 경계를 unit 생산·ordinary-row 수용 판단·컷의 같은 결과로 전달하는 보정 후보를 작성했다. 표 ID·쪽 번호·임의 픽셀값으로 분기하지 않는다. 편집·reflow·합성 줄·문단별 로컬 0·걸침 칸은 이 새 저장 원본 증거의 대용으로 사용하지 않는다.
+
+저장 프레임 보정은 로컬 commit `e70954bb8`에 분리했다. Native Clippy와 진단 빌드를 통과했고 383쪽을 유지하며 155쪽 끝 컷이 `[3,8]`에서 `[3,4]`로, 156쪽 시작 컷도 `[3,4]`로 바뀌었다. 이는 목표 문단의 쪽 소속에 대한 중간 관측이다. 첫 후보의 152~156쪽 실제 비교·overlay·review를 산출해 직접 판독했으나 최저 45.29312%로 시각 gate는 여전히 미충족이다. 표 외곽·뒤 본문·빈 물리 띠·누락/중복의 확인과 대조군, 최종 source의 Native/fresh WASM 전쪽 및 필수 회귀·lint는 아직 완료 판정하지 않는다. 아래 PASS 표는 명시된 수정 전 source의 기록이며 보정 후보에 승계하지 않는다. 새 rendering 회귀는 전체 적용 범위의 시각 선행 gate를 통과한 뒤에만 추가한다.
+
+추가로 간격 있는 셀의 geometry를 추적했다. 이 원본은 `cell_spacing=255HU`이고, 실제 셀 너비 `6454 + 32942HU`와 표 선언 너비 `40161HU`의 차이는 내부 한 띠·외부 두 띠의 합 `3 × 255HU`다. 독립 PDF 155쪽의 좌·우 셀 괘선도 간격을 두고 각각 그려지지만 Native는 폭 잔여를 마지막 열에 넣고 다음 셀 시작까지의 간격을 앞 셀 폭에 포함했으며 인접 괘선을 합쳤다. PDF path의 실제 변환 행렬과 SVG를 96dpi 좌표로 대조한 원본 수치는 ignored `candidate-native-boundary/pdf-p155-lines-96.json`에 보존했다. 기존 기술 문서의 “외곽 간격 없음” 설명은 이 저장본·정상 PDF와 충돌하므로 구현 증명으로 사용하지 않는다.
+
+간격 보정 후보에서는 원본 셀 상자의 폭·높이와 빈 간격 띠를 분리한다. `Table::outer_cell_spacing_hu` 결과를 `HeightMeasurer`의 전체 높이 → fragment budget의 가용 높이 → fragment emit의 실제 예약에 전달하고, 같은 원본 행·컷 높이로 normal/nested/partial의 셀 원점과 상자를 구성한다. 간격 있는 괘선은 최종 셀 bbox를 소비하고, 간격 0의 기존 공유 엣지 경로와 구별한다. 이 후보의 실제 출력·대조군·필수 검증은 진행 중이며, 전체 외곽 fallback·cellzone·반복 헤더·걸침 칸·nested cut 이후 덮어쓰기까지 확인하기 전에는 충족으로 바꾸지 않는다.
+
+추가 후보는 모두 미채택 상태로 보존한다. 후보 3은 384쪽·156쪽 63.97231%, 후보 4는 383쪽이지만 155쪽의 오른쪽 내용이 다음 행에 겹쳤다. 후보 5는 Native Clippy·진단 빌드 PASS 후 155·156쪽의 직접 판독에서 그 겹침은 없어졌으나 각각 74.07245%·69.69247%로 gate FAIL이고, 전체 쪽수는 380으로 줄었다. 383쪽이었던 후보 4도 구역별로는 이전 source와 달랐다. 각 후보의 정확한 dirty source patch·파일별 SHA-256·실행 binary SHA-256·전쪽 page items·최종 exit·compare/overlay/review는 ignored `candidate-*-runtime-provenance.json`, `candidate-*-source.patch`, `candidate-*-all-page-items.json`, `candidate-native-reviews/`에 구별 보존한다.
+
+후보 5의 호출 경로 대조에서 두 원인을 확인했다. 첫 표의 source host `vpos=30321HU`와 본문 원점·바깥 위 여백·셀 간격은 독립 PDF의 첫 셀 위치를 설명하지만, 이전 flow cursor는 표를 약 32px 위에 놓았다. 저장 원점 조회를 block 준비·첫 조각 예산·partial paint에서 공유하도록 보정했다. 또 `scan/runner.rs`의 빠른 경로는 `start_row_height_override`가 있다는 이유로 내용 검사 없이 행 전체를 소비했다. 실제로 구역 11의 큰 행이 6개 조각에서 2개로 줄었으며 남은 내용과 잔여 물리 높이를 혼동한 경로였다. 후보 6은 유닛의 실제 소진 여부를 확인한 뒤에만 그 빠른 경로를 사용하고, 예약한 최종 행 높이를 이월에 반영하며, 입증된 첫 object frame 안에서 스캔하도록 수정 중이다. 아직 출력·회귀 통과를 주장하지 않는다.
+
+후보 6의 Native Clippy·진단 빌드는 PASS이고 큰 행의 6개 조각이 복원됐다. 155·156쪽 compare/overlay/review를 직접 판독했으며 일치율은 81.63049%·77.80430%로 개선됐지만 전체 384쪽·gate FAIL이다. 그리기의 `single_cell_page_fragment_bottom`은 이름과 달리 일반 다행 표의 하단 접기에도 사용되는데, source-owned row frame의 예산은 같은 경계를 예약하지 않았다. 따라서 실제 수용한 높이와 배치 뒤 접힌 높이가 달라 이월 물리 공간도 어긋났다. 독립 PDF 152~156·316~318쪽 괘선의 실제 CTM 좌표는 `independent-pdf-cell-edges-selected-pages-96.json`에 보존했다. 후보 7은 해당 저장 원본 경로에서 paint의 기존 쪽 경계를 먼저 예산에 반영하며, 행 컷과 rowspan block 컷의 인덱스 공간도 구별한다. 아직 Native/fresh WASM 전쪽 gate·필수 회귀의 충족으로 보고하지 않는다.
+
+후보 7은 Native Clippy·진단 빌드 PASS 후 155쪽 97.81975%·156쪽 90.35099%로 **선택한 두 쪽의 Native gate만 PASS**다. 같은 두 review PNG를 직접 열어 표 외곽·행 사이 간격·이월 문단과 표 뒤 본문을 대조했다. 글자 색·일부 AA와 머리말 모양은 남아 있다. 전체 쪽수는 386이며 기준 PDF 383과 다르다. 구역 7은 원 누적 source보다 1쪽, 구역 11·12는 각각 추가로 1쪽 늘었으므로 전체 쪽수·전쪽 gate의 미충족은 유지한다. 이 중간 원점·공간 보정은 로컬 checkpoint로만 보존하고, 추가 쪽의 원인·대조군·fresh WASM 및 최종 필수 검증을 계속한다. source/push/PR 생성·merge 승인으로 승격하지 않는다.
+
+### 수정 전 누적 source의 공통 검증
+
 9개 원 PR을 #7591 → #7611 → #7617 → #7618 → #7619 → #7622 → #7624 → #7628 → #7629 순서로 기능 commit 63개 누적 cherry-pick(-x)했다. 원 저자와 출처를 보존했으며 contributor branch는 rewrite/push하지 않았다. 사용자 지시의 conflict·CI 보정 범위에서 `ba34731730dfa116eaa1b151ee95f4e71b094315` 충돌을 처리했다. #7591의 공통 endnote scratch helper를 보존하고 #7611의 `straddle_row_relief`를 실제 remap 경로에 clone했다. 당시 보정 SHA는 `4e3a97bdbee90c13740adb1ca09b805266887a21`이며 최신 base 재정렬 mapping은 ignored `cherry-pick-state.json` 및 `base-alignment-verification.json`에 있다.
 
 검증 source는 `90e2c6fd2c614ba0ea7667355c4ed2f3617f6563`, 당시 base는 `b3c3047db575d146dff9d39098e6de98c4630b3e`다. 검증 도중 #7651의 CI·문서만 변경된 devel `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`로 정렬했다. 최종 code head `ae786f75b2cee72bd5576f6473bd51d9a8216f7c`와 source/Cargo/lock/toolchain·시각 실행 도구·입력/기준 PDF tree가 동일함을 Git object로 검사하여 고비용 Rust/WASM/시각 검증을 재사용했다. 새로운 base로 manifest·unit-tier 정책 비교를 다시 통과했다. 원 PR의 CI와 통합 후보의 로컬 검증은 별개이며 원 PR CI 성공으로 새 후보 CI를 합성하지 않는다.
