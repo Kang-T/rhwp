@@ -13,6 +13,8 @@ pub(in crate::renderer::typeset) struct StateView {
     /// 수용한 일반 전체/분할 본문의 (문단, 끝 줄)별 단 상대 점유 하단.
     pub(in crate::renderer::typeset) paragraph_fragment_content_bottoms:
         std::collections::HashMap<(usize, usize), f64>,
+    /// 축소된 본문 프레임에서 실제 빈 줄을 이어받은 저장 쪽 경계.
+    pub(in crate::renderer::typeset) saved_empty_run: Option<super::empty_run::SavedEmptyRun>,
     /// 현재 단에서 소비된 높이 (px)
     pub(in crate::renderer::typeset) current_height: f64,
     /// 현재 단 시작 시점의 논리 높이 (px)

@@ -18,6 +18,7 @@ impl TypesetState {
             data: StateView {
                 pages: Vec::new(),
                 current_items: Vec::new(),
+                saved_empty_run: None,
                 paragraph_fragment_content_bottoms: Default::default(),
                 current_height: 0.0,
                 current_start_height: 0.0,

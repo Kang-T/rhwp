@@ -22,6 +22,7 @@ impl TypesetEngine {
         measured_tables: &[MeasuredTable],
         boundary: &super::entry::ParagraphBoundary<'_>,
     ) {
+        let reset_consumed_by_empty_prefix = st.consume_saved_empty_run_reset(para_idx, paragraphs);
         let para_style = boundary.para_style;
         let overlay_columndef_separator_break = boundary.overlay_columndef_separator_break;
         // Task #321: 문단간 vpos-reset 기반 강제 분할
@@ -351,6 +352,7 @@ impl TypesetEngine {
                 // accepted stored origin above. Explicit zero/shape/column
                 // boundaries retain their separate ownership contracts.
                 let trigger = trigger
+                    && !reset_consumed_by_empty_prefix
                     && !stored_boundary_invalidated_by_reflow
                     && !omit_pushed_empty_page
                     && !hangul2024_refit
