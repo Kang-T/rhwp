@@ -968,7 +968,7 @@ impl TypesetEngine {
                         .filter(|(_, shown)| **shown)
                         .map(|(idx, _)| idx)
                         .collect();
-                    !visible_indices.is_empty()
+                    (!visible_indices.is_empty()
                         && visible_indices.iter().all(|idx| {
                             let cut = res.end_cut.get(*idx).copied().unwrap_or(0);
                             cut > 0
@@ -981,7 +981,13 @@ impl TypesetEngine {
                             rewinds
                                 .get(*idx)
                                 .is_some_and(|(_, confirmed)| confirmed.contains(&cut))
-                        })
+                        }))
+                        || layout_engine.row_cut_ends_at_shared_zero_origin_frame(
+                            table,
+                            r,
+                            &res.end_cut,
+                            styles,
+                        )
                 };
             // A capacity-selected cut separates complete original line units
             // at a local restart. Do not reject that fitting line merely for

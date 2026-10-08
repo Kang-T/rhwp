@@ -593,3 +593,9 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 사용자 지시 “현재 untract 된 pdf 는 뭐임? 필요없으면 제거, 필요하면 커밋”에 따라 `pdf/semanticist21-20261008/`의210개 PDF(10,134,567바이트)를 확인했다. 원본 기준, 편집·합성 대조 및 진단·반증 대조이며 기존 추적 PDF/이번 폴더 내부의 바이트 동일 중복은0이다. 현재 검토의 독립 출력 증거로 보존한다.
 - `references.tsv`에 입력 경로·입력 SHA256, PDF SHA1/SHA256·크기·쪽수, Creator/Producer, engine·job ID·상태·print_method 및 로컬 작업 기록을 연결했다.210개 입력 해시는 현재 파일과 모두 일치하고210개 변환 상태는 succeeded다. 출력 계약은 작업의 status.result.pdf_print_method에서 읽었으며210개 모두 method0을 확인했다. 원본 문서의 info.printMethod와 변환 결과 계약을 구분한다. 변환 서비스 주소/비밀 환경 값은 포함하지 않는다. 상세 검사 원장은 ignored `output/pr-review/semanticist21-20261008/pdf-reference-audit-v51.json`에 보존한다.
 - 이 커밋은 기준 PDF 보존이며 새 formal 회귀 fixture/golden 추가나 시각 gate 통과 판정이 아니다. 편집·합성 입력은 현재 ignored 증거 경로에 보존되어 있으며 최종 제출 증적의 입력 재현성 정리가 아직 남아 있다. 진행 중 v51 source는 별도로 검증한다.
+
+
+- v51 retry Native는 binary SHA4225ced5c10f1a2c3293668767dac27f224885b2d22c551d0fee11201e99cde7/source-code-v51-retry로 고정했다. 원본52쪽을 유지하며 HWP p3/p4/p19/p20=99.69210/99.72851/99.35269/96.98379%다. 실제 review_019/020.png를 대화에 표시했다. IDDV/KS M ISO2507-1은 p19에, ISO3633/KS M ISO2507-2는 p20에 보존되지만 p20의 ISO 병합 셀은 원본 Center보다 위에 있다. 높은 점수로 완료 판정하지 않는다.
+- 다음 원인 경로: advance_row_cut의 일반 행 컷은 row_span1 소유자만 기록 → start_cut_covers_cell은 같은 시작행의 rowspan도 소관으로 판정 → cell_cut_window가 unrelated 단일행 슬롯을 rowspan의 su로 읽음 → is_in_split_row 때문에 공통 straddle cut/완료 프레임 Center 경로가 차단된다. 일반 행 공간과 블록 공간을 명시적으로 전달하고, rowspan은 앞 조각이 실제 소비한 물리 밴드로 공통 유닛 창을 계산하게 한다. reservation의 straddle_continuation_demand와 paint의 rowbreak_straddle_cut_units/resumes_inside_own_start_row에 같은 시작 컷 공간을 전달한다. 블록 소유자의 컷 슬롯은 유지한다. 새로운 px assertion/fixture는 추가하지 않는다.
+
+- v51 retry 기존 경계 회귀50/50 PASS(exit0, 전체327.230초/실행7.447초,1677skip)다. Native 선택8쪽은 두 원본 모두 exit0/312.569초이며 HWPX p3/p4/p19/p20=99.68701/99.67973/99.46133/97.15814%다. freshWASM/전수 및 가운데 정렬 차이는 후속 보정에서 다시 검증하며 완료를 선언하지 않는다.

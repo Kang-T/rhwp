@@ -4,9 +4,74 @@ use crate::model::paragraph::LineSeg;
 use crate::model::shape::TextWrap;
 use crate::model::table::{Cell, Table, TablePageBreak};
 
-use super::{CellUnit, LayoutEngine};
+use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    pub(crate) fn row_cut_ends_at_shared_zero_origin_frame(
+        &self,
+        table: &Table,
+        row: usize,
+        end_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        let mut cells: Vec<_> = table
+            .cells
+            .iter()
+            .filter(|cell| cell.row as usize == row && cell.row_span == 1)
+            .collect();
+        cells.sort_by_key(|cell| cell.col);
+        if cells.len() != end_cut.len() {
+            return false;
+        }
+        let mut boundary_owner = false;
+        for (cell, &end) in cells.iter().zip(end_cut) {
+            let units = self.cell_units(cell, table, styles);
+            if end >= units.len() {
+                // A completed sibling has no next-frame owner to restart.
+                continue;
+            }
+            if end != 1
+                || !self.cut_starts_saved_zero_origin_text_frame(table, cell, &units, end)
+                || !self.row_shared_zero_origin_frame_peer(table, cell)
+            {
+                return false;
+            }
+            boundary_owner = true;
+        }
+        boundary_owner
+    }
+
+    pub(super) fn row_shared_zero_origin_frame_peer(&self, table: &Table, cell: &Cell) -> bool {
+        table.cells.iter().any(|peer| {
+            if peer.row != cell.row
+                || peer.col == cell.col
+                || peer.row_span <= 1
+                || peer.dirty_flag
+                || peer.paragraphs.iter().any(|para| {
+                    para.stored_text_partition_is_dirty()
+                        || para.cell_format_vpos_dirty
+                        || !para.controls.is_empty()
+                })
+            {
+                return false;
+            }
+            let mut lines = peer.paragraphs.iter().flat_map(|para| &para.line_segs);
+            let (Some(first), Some(second), Some(after)) =
+                (lines.next(), lines.next(), lines.next())
+            else {
+                return false;
+            };
+            [first, second, after].iter().all(|line| {
+                line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                    && line.line_height > 0
+                    && line.line_spacing >= 0
+            }) && first.vertical_pos == 0
+                && second.vertical_pos == 0
+                && i64::from(after.vertical_pos)
+                    == i64::from(second.line_height) + i64::from(second.line_spacing)
+        })
+    }
+
     pub(crate) fn row_has_saved_zero_origin_text_frame(&self, table: &Table, row: usize) -> bool {
         table
             .cells
@@ -47,14 +112,14 @@ impl LayoutEngine {
             || next.vertical_pos != 0
             || previous.line_height <= 0
             || next.line_height <= 0
-            || previous.line_spacing <= 0
+            || previous.line_spacing < 0
             || previous.text_start >= next.text_start
         {
             return false;
         }
-        // A paragraph change may reset a writer-local cursor. Only an adjacent
-        // pair in the same genuine source text paragraph is an opening-frame
-        // witness; the declared row must also cross the stored object frame.
+        // A paragraph change can reset a writer-local cursor. Require adjacent
+        // source lines in this paragraph, then a physical frame or an independent
+        // spanning owner whose next source ladder confirms the same row boundary.
         if !cell.paragraphs.iter().any(|para| {
             !para.stored_text_partition_is_dirty()
                 && !para.cell_format_vpos_dirty
@@ -65,6 +130,14 @@ impl LayoutEngine {
                     .windows(2)
                     .any(|lines| std::ptr::eq(&lines[0], previous) && std::ptr::eq(&lines[1], next))
         }) {
+            return false;
+        }
+        if self.row_shared_zero_origin_frame_peer(table, cell) {
+            return true;
+        }
+        // The original opening-frame witness owns positive trailing spacing.
+        // A zero-spacing pair alone does not identify a physical page boundary.
+        if previous.line_spacing == 0 {
             return false;
         }
         let rows = table.get_raw_row_heights();
