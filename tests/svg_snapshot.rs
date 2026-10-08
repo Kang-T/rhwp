@@ -341,11 +341,8 @@ fn issue_157_page_1() {
 // #7445: 최신 upstream 74f9b71b1의 KTX 목차가 Native/fresh WASM 모두
 // 49.63836%다. 실패한 이 snapshot만 이관하며 원문·golden·다른 검사는 보존한다.
 
-/// Issue #147: aift.hwp 4페이지 — MEMO 컨트롤이 바탕쪽으로 오분류되어 렌더링되는 버그
-#[test]
-fn issue_147_aift_page3() {
-    check_snapshot("samples/aift.hwp", 3, "issue-147/aift-page3");
-}
+// #147의 주석/목차 소유 계약은 tests/cases/issue_147_memo_page_ownership.rs에서
+// 검사한다. 탭 리더 끝 좌표의 변경을 MEMO 오분류 회귀로 취급하지 않는다.
 
 /// Determinism probe: render the same page twice in one process and assert
 /// byte-for-byte equality. If this ever fails, the snapshot tests above
