@@ -105,6 +105,7 @@ struct FragmentBudget {
     fragment_placement: Option<crate::renderer::float_placement::ParagraphFloatPlacement>,
     scan_row_count: usize,
     saved_first_fragment_source_frame: Option<(f64, f64)>,
+    stored_partial_frame_height: Option<f64>,
     source_first_fragment_row_end: Option<usize>,
     /// Complete source frame: the last row's physical remainder, shared by scan and paint.
     source_complete_frame_last_row: Option<(usize, f64)>,

@@ -64,6 +64,8 @@ impl TypesetEngine {
             source_first_fragment_row_end,
             ..
         } = *budget;
+        let stored_complete_extent =
+            self.stored_partial_fragment_complete_extent(input, budget, &scan);
         let BlockTableRowScan {
             source_frame_band,
             consumed,
@@ -145,6 +147,24 @@ impl TypesetEngine {
         // 아래에서 별도로 물리 점유에 포함하며 컷 유닛을 더 소비하지 않는다.
         let mut partial_height: f64 =
             consumed + header_overhead + hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi);
+        if let Some((height, last_height)) = stored_complete_extent {
+            partial_height = height;
+            end_row_height_override = Some(last_height);
+            if fragment_placement.is_none() {
+                let top =
+                    st.current_height + caption_extra + host_before_overhead + vert_offset_overhead;
+                fragment_placement =
+                    Some(crate::renderer::float_placement::ParagraphFloatPlacement {
+                        flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+                        anchor_y: st.current_height,
+                        stored_host_origin: None,
+                        stored_successor_line_origin: None,
+                        table_left: None,
+                        table_top: top,
+                        occupied_bottom: top,
+                    });
+            }
+        }
         if let Some((_, _, height, current_content)) = stored_row_frame {
             if height > current_content + 0.5 {
                 end_row_height_override = Some(height);

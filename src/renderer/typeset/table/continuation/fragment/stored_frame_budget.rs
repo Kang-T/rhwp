@@ -1,8 +1,8 @@
 //! A genuine first fragment owns its declared physical space, not the next row.
 
-use crate::renderer::typeset::{TypesetEngine, TypesetState};
+use crate::renderer::typeset::{BlockTableRowScan, TypesetEngine, TypesetState};
 
-use super::FragmentInput;
+use super::{FragmentBudget, FragmentInput};
 
 pub(super) struct StoredPartialFragment {
     pub(super) height: f64,
@@ -10,6 +10,36 @@ pub(super) struct StoredPartialFragment {
 }
 
 impl TypesetEngine {
+    pub(super) fn stored_partial_fragment_complete_extent(
+        &self,
+        input: FragmentInput<'_>,
+        budget: &FragmentBudget,
+        scan: &BlockTableRowScan,
+    ) -> Option<(f64, f64)> {
+        let height = budget.stored_partial_frame_height?;
+        if input.start.is_continuation
+            || input.start.cursor_row != 0
+            || !input.start.start_cut.is_empty()
+            || scan.end_row == 0
+            || scan.end_row >= input.prepared.row_count
+            || scan.split_block_start.is_some()
+            || !scan.split_end_cut.is_empty()
+            || scan.split_end_limit > 0.0
+            || height <= scan.consumed + budget.header_overhead + 0.5
+        {
+            return None;
+        }
+        // Content ownership is already final. The authenticated object box
+        // also owns its unused band; preserve the selected row minimum rather
+        // than inferring another row or shortening an accepted line advance.
+        let selected_last = scan
+            .end_row_height_override
+            .unwrap_or(*input.prepared.whole_row_fit_heights.get(scan.end_row - 1)?);
+        let before_last = scan.consumed - selected_last;
+        let last_height = height - budget.header_overhead - before_last;
+        (before_last >= 0.0 && last_height >= selected_last).then_some((height, last_height))
+    }
+
     pub(super) fn stored_partial_fragment_height(
         &self,
         st: &TypesetState,

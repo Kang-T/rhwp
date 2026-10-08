@@ -12,7 +12,7 @@ last_verified: 2026-10-09
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 현재 통합 base: `5168e3256ad58eda425d84fdd4d67e9b47bb74b1` (진행39의fetch/rebase 확인; 원격최신상태는제출직전재조회). 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
+- 현재 통합 base: `6f66932a73ee6fd05a74a83bdc438c9499a89a12` (진행42의fetch/rebase 확인; 원격최신상태는제출직전재조회). 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
 - 이전 메인터너 검증 체크포인트: `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae`; 후속v61후보의소스·빌드·검증과새base재동기화는진행42에기록한다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
@@ -820,3 +820,27 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - retry1 기존73개의동일command warm-cache 재실행은최종exit100/126.460초/실행20.661초로71PASS/기존2FAIL/2767skip이다(nextest-stored-header-physical-page-cap-v61-retry1-rerun1-exit.json 및log). #6761두negative계약도유지됐고새FAIL없다. 남은#6981종료소유/#7226쪽수는원본전체Native/freshWASM90%선행조건미완료로검사·기대값·baseline을변경하지않았다. Native47–52전체선택review의최종값을완결한뒤같은소스해시의로컬체크포인트와최신upstream rebase를고정한다.
 
 - retry1 Native47–52두형식review는최종exit0/498.070초이다. HWP99.81596/99.98427/100/99.84815/95.67443/100%, HWPX99.79842/100/99.97037/99.85027/96.23354/99.99428%다. 두형식선택12쪽누락0/각전체52쪽이며새HWPX51 canonical review도직접표시했다. 90%통과와남은하단괘선·첫source빈밴드/뒤흐름차이를별도로기록한다. 현후보의freshWASM/전수TSV·최종lint/full nextest와다른초기PR미달은아직미완료다. 현단계2개Rust파일/통합기록을체크포인트커밋하며generated Studio JS/출력로그/진단산출물은포함하지않는다.
+
+- 체크포인트89b1d00c8b202b267b27c43b5e84c9e8474cb4c8을6f66932a7위로rebase한head는b0678b4631a8627b32cc3f12464b824f8c7d0106다. pre/post85커밋·42개cherry-pick원출처가같은순서로유지됐다. src/crates/Cargo/build/tests/scripts의pre/post전체Gitdiff는0이며range-diff의삭제/추가2쌍은이미upstream에병합된#7612두기여패치가빈커밋으로보존된결과다(rebase-v61-range-diff.txt 및rebase-v61-20261009.json). Studio JS는원래SHA7462392b9b4dadb36c0b60cc0afa9de3fc6e41a861b150010ea51f0a7974737a로복원됐고stash4dce188fad06e67ecddf11de5c86ec8992725a9c도보존했다. 새base의manifest/unit-tier정책검사를준비하며51쪽직접차이/#6761원본40쪽과나머지미달보정을이어간다. 새head최종gate/원격통합은아직완료하지않았다.
+
+
+### 진행43 — 인증된 첫 물리 프레임과 마지막 후속 흐름의 소비 연결
+
+- 새base6f66932a7의prepare/manifest --check 및unit-tier --check는PASS(1458sources/6264attrs/48targets,4113units/297modules)다. 현재head b0678b463에서추가소비보정을시작한다.
+- 독립원본pi62 Common66663HU=888.84px/hostLS7396HU와Print192.427..1080.260px프레임이근거다. 기존stored_partial_fragment_height가그첫상자를이미인증하고행예산888.84를반환하지만scan의내용완전소비prefix0..40은878.7733px다. 별도saved_multirow_opening_frame_height는intra-row endCut만수용해여기서는없고,emit이내용컷없는첫상자의10.0667px빈밴드를버린다. 또한원본반복머리행continuation의종료outerbottom은typeset이예약하지만확정placement없으면paint후속y에빠진다. 이전headerbody의원장이선택한실제행높이/후속물리흐름과다르게소비되는문제다.
+- 기존producer의인증결과를FragmentBudget에명시적으로전달한다. refit완료후완전한행prefix이며내용minimum을늘리는unusedband만동일마지막행override/누적예약/수용원장/paint로보낸다. 내용컷을추가소비하거나현재원점을clamp하지않는다. 일반intra-row reset/중첩block컷의기존경로는유지한다. 첫개체프레임의확정tableTop과원본반복머리행continuation의tableTop/occupiedBottom은같은budget결과에서계산해기존ParagraphFloatPlacement로두소비지점에전달한다. 이미있는placement를재해석하거나배치뒤고정px로맞추지않는다.
+- 현재별도후보이며기존73개의정상/negative계약·Main52쪽/47–52컷과두형식Native를먼저검증한다. 앞95%점수로남은괘선차이를면제하지않고새formal시험/fixture/baseline을추가·변경하지않는다.
+
+- #6761원본40의직접vector대조에서Print 표상단136.010416px/Native132.28px,원본outer.top283HU=3.773333px를확인했다(issue6761-independent-row-origin-v62.json). table높이는Native599.7px/Print598.229168px로비슷하며전체frame원점차이가먼저다. 기존column_rowbreak_fragment_opens_outer_top의Para분기는object_only_saved_table_anchor와prior-rowspan없음을필요로하고,shared intra_paragraph_rowbreak_reopens_outer_top은host.textempty만허용한다. 실제원본은이전쪽에서소비한표제host가있고양쪽ordinaryowner의유효intra-para새프레임컷으로재개한다. 단지빈host가아니라는이유로개체의새세로프레임여백을잃는다. 기존의원본host-line유효성producer와현재선택된sourcecut을연결할후속보정을검토하며수동LS사다리반례/일반걸침rowspan에는새프레임을추측하지않는다. 현재v62Cargo가끝나기전Rust소스는수정하지않는다.
+
+- v62 Native build exit0/257.102초/binary26c10fe2242f9e5e2eba288681e709a0c0e79da014f611a49397d82a23f9a182이며소스5개해시불변이다. 두원본52쪽/#1133각3/#6935=3/#6803=5쪽을먼저확인했고나머지빠른원본검사와두형식51쪽Native review를진행중이다. v62pin은후속원본호스트조건보정과구분해보존한다.
+- #6761후속후보는현재선택된유효intra-para새프레임컷에원본호스트유효성을연결한다. host가빈단독Table일때의기존계약과,stored_head_host_lines_are_valid가인증한표제줄/한개의Table·notes만있는원본을같은세로프레임으로처리한다. 원본제어슬롯/줄기하가없거나선행글줄이개체와겹치는host는넓히지않는다. 실제source cut을가진ordinaryowner가새쪽에서재개한다는근거없이prior-rowspan전체에여백을추가하지않는다. 같은intra_paragraph_rowbreak_reopens_outer_top의결과를budget와paint가소비하고,그뒤resolved_table_top/확정placement의덮어쓰기도대조한다. 원본39–40의새Native/정확한Dotum공급및73개의사다리반례부터재검증한다.
+
+- v62 빠른 원본8개은Main각52/HWP1133=3/HWPX1133=3/#6935=3/#6803=5/#6024=105/교육과정415쪽으로모두유지됐다(pages-original-countercheck-v62.json). 두형식51쪽Native review는exit0/83.911초로HWP99.91930/HWPX99.88665%다. 새HWP51 canonical review를직접표시해‘아.기타’제목과다음표원점/하단·마지막행중앙정렬이복구된것을대조했다. Native RenderTree의후속blank/title원점은127.3/148.6px,다음표는192.7px/높이889.1px이며독립Print의축척과같은영역에서읽었다. 아직현소스freshWASM및73개최종/전쪽TSV승인근거는없다. v62의전체52쪽Native TSV와v63의원본host확장후보빌드를진행한다.
+
+
+- v63 Native build는 exit0/267.567초, binary `afb026b65e78d933658c8292a253978dfcd4dd2fa5ae8b23ed2e02fecc2b742e`이며 8개 source hash 불변이다(`native-build-stored-title-host-source-frame-v63.json`). 정확한 Dotum 공급에서 #6761 원본39–40 새 Native sweep은 exit0/55.172초, 92.43318/96.48485%다. 40쪽은 글꼴만 바로잡은 이전72.36214%에서 개선됐고, tabletop136.1px/독립Print136.010416px 및 뒤 본문을 canonical `native-issue6761-stored-title-host-source-frame-v63/issue6761-original/review/review_040.png`로 직접 표시·대조했다. 39쪽도 직접 표시했으나 첫 조각의 하단 괘선 차이가 남아 점수로 완료를 면제하지 않는다. 현source fresh WASM은 미실행이다.
+- v63 기존73개 집중 nextest는 최종 exit100/385.524초/실행22.496초로71PASS/기존2FAIL/2767skip이다(`nextest-stored-title-host-source-frame-v63-exit.json`, 대응log). 실패는 #6981 `completed_terminal_cut_does_not_allocate_an_empty_page`와 #7226 `the_fix_does_not_add_a_page`이며 새 실패는 없다. #6761의 수동 사다리 negative 두 계약은 유지됐다. 원본전체 Native/fresh WASM90% 선행 검증 전 검사·기대값·baseline을 변경하지 않았다. fmt check도 통과했다.
+- 같은v63 pin의 빠른 원본9개는 Main HWP/HWPX52쪽, #1133 HWP/HWPX3쪽, #6935=3/#6803=5/#6024=105/교육과정415/#6761=103쪽이다(`pages-original-countercheck-v63.json`). #6024의 Print103과 actual105는 미해결이며 기존검사105PASS를 fidelity 승인으로 사용하지 않는다. Main47–52 두형식과 #1133 전쪽 새Native 경계검사는 진행중이다. 이전v62의Main 전쪽 TSV도 별도pin으로 진행하며 현v63 결과로 바꾸어 쓰지 않는다.
+- 최신GitHub read-only snapshot은 non-draft23/draft6이며 v61 대비 새PR/닫힘/head·draft변경 모두0이다(`github-open-pr-snapshot-v63.json`, `-delta.json`). 최초18개 적용이력/현재열린17개와 유보6개 후속검토 순서를 유지한다. 이 스레드의 원격 push/PR/merge/close는 미수행이다.
+- #6761 39쪽 직접 판독 후 `native-issue6761-p39-drift-v63.log`에서 첫 상자 `source_frame=185.28`, 예산185.3, 실제내용174.7, row3종료컷과 40쪽 `start_cut=[1,1]`를 확인했다. 원본Common13896HU=185.28px의 빈 하단 밴드가 보존되지 않는다. 기존 `saved_multirow_opening_frame_height`의 원본 내용컷·선언상자 인증과 `first_fragment_blank_band`의 object-only/빈host 선택을 대조한다. visible-title host에도 새 in-paragraph stored frame 컷과 실제 원본host line 인증이 있으면 같은 빈 밴드 소유를 적용하고, 마지막행 override→수용원장→예약→paint가 함께 소비하도록 후속 보정한다. 유닛 소유는 바꾸지 않으며, 원본39–40와 기존negative/정상 경계를 다시 검증한다. 현재8개 source의 체크포인트 후 다음 단계에서 구현한다.

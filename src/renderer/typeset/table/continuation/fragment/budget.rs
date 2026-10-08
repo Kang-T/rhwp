@@ -1491,18 +1491,19 @@ impl TypesetEngine {
         if accepted_source_frame_limit.is_some() {
             source_first_fragment_overflow_allowance = 0.0;
         }
-        let (
-            avail_for_rows,
-            source_first_fragment_row_end,
-            source_first_fragment_overflow_allowance,
-            source_complete_frame_last_row,
-        ) = if let Some(frame) = self.stored_partial_fragment_height(
+        let stored_partial_frame = self.stored_partial_fragment_height(
             st,
             input,
             saved_first_fragment_source_frame,
             source_frame_declared_height_is_credible,
             avail_for_rows,
-        ) {
+        );
+        let (
+            avail_for_rows,
+            source_first_fragment_row_end,
+            source_first_fragment_overflow_allowance,
+            source_complete_frame_last_row,
+        ) = if let Some(frame) = &stored_partial_frame {
             // This slot is a physical source fragment. The unit walker
             // determines ownership inside it; a nearest row boundary and
             // body-tail allowance cannot authorize another source row.
@@ -1545,9 +1546,11 @@ impl TypesetEngine {
             fragment_outer_bottom_overhead,
             vert_offset_overhead,
             page_avail,
-            fragment_placement,
+            fragment_placement: fragment_placement
+                .or_else(|| self.stored_header_fragment_placement(st, input, host_before_overhead)),
             scan_row_count,
             saved_first_fragment_source_frame,
+            stored_partial_frame_height: stored_partial_frame.map(|frame| frame.height),
             source_first_fragment_row_end,
             source_complete_frame_last_row,
             source_first_fragment_overflow_allowance,

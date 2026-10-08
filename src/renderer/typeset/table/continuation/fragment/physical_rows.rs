@@ -9,6 +9,27 @@ use super::super::TableContinuationCursor;
 use super::FragmentInput;
 
 impl TypesetEngine {
+    pub(super) fn stored_header_fragment_placement(
+        &self,
+        st: &TypesetState,
+        input: FragmentInput<'_>,
+        outer_top: f64,
+    ) -> Option<crate::renderer::float_placement::ParagraphFloatPlacement> {
+        if !input.start.is_continuation || !self.stored_header_physical_rows(st, input.source) {
+            return None;
+        }
+        let top = st.current_height + outer_top;
+        Some(crate::renderer::float_placement::ParagraphFloatPlacement {
+            flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+            anchor_y: st.current_height,
+            stored_host_origin: None,
+            stored_successor_line_origin: None,
+            table_left: None,
+            table_top: top,
+            occupied_bottom: top,
+        })
+    }
+
     pub(super) fn stored_header_fragment_row_budget(
         &self,
         st: &TypesetState,

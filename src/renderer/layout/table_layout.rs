@@ -21801,8 +21801,7 @@ impl LayoutEngine {
             && table.common.vert_rel_to == crate::model::shape::VertRelTo::Para
             && table.common.text_wrap == crate::model::shape::TextWrap::TopAndBottom
             && table.page_break == crate::model::table::TablePageBreak::RowBreak
-            && host.text.is_empty()
-            && matches!(host.controls.as_slice(), [Control::Table(_)])
+            && crate::renderer::float_placement::stored_rowbreak_outer_frame_host(host, table)
             && !host.stored_text_partition_is_dirty()
             && host.line_segs.first().is_some_and(|line| {
                 line.vertical_pos >= line.line_height
