@@ -5212,6 +5212,15 @@ impl LayoutEngine {
             }
         }
 
+        // The fallback consumes the same source opening frame as measurement.
+        for (row, height) in row_heights.iter_mut().enumerate() {
+            if let Some(frame) = self.stored_span_opening_frame(table, row) {
+                let minimum = hwpunit_to_px(frame.height_hu, self.dpi);
+                *height = height.max(minimum);
+                content_row_floor[row] = content_row_floor[row].max(minimum);
+            }
+        }
+
         // 2단계: 병합 셀에서 미지 행 높이를 반복적으로 해결
         {
             let mut constraints: Vec<(usize, usize, f64)> = Vec::new();
@@ -24747,6 +24756,27 @@ impl LayoutEngine {
                 if straddles_end { 1 } else { usize::MAX },
             );
         }
+        let stored_opening_owner = self
+            .stored_span_opening_frame(table, cell_row)
+            .is_some_and(|frame| frame.restart_columns.contains(&cell.col));
+        // The start cut belongs to start_row. An earlier row's continuation
+        // cannot consume this cell, which starts later in the same fragment.
+        if stored_opening_owner
+            && straddles_end
+            && end_row == cell_row + 1
+            && end_cut.is_empty()
+            && (start_row < cell_row
+                || (start_row == cell_row
+                    && start_cut.is_empty()
+                    && start_row_height_override.is_none()))
+        {
+            return (0, 1);
+        }
+        let resumes_stored_opening = stored_opening_owner
+            && straddles_start
+            && start_row == cell_row + 1
+            && start_cut.is_empty()
+            && start_row_height_override.is_none();
         let cell_spacing = hwpunit_to_px(table.cell_spacing as i32, self.dpi);
         let padding = cell.effective_padding(&table.padding);
         let pad_top = hwpunit_to_px(padding.top as i32, self.dpi);
@@ -24805,7 +24835,10 @@ impl LayoutEngine {
             })
             .and_then(|carry| carry.next_unit);
         let su = accepted_start.unwrap_or_else(|| {
-            if prior_h > 0.0 {
+            if resumes_stored_opening {
+                // 앞 조각이 소비한 첫 원본 유닛을 이어받는다. 실제 carry 컷이 우선한다.
+                1
+            } else if prior_h > 0.0 {
                 let fit = self.cell_units_fitting_height(cell, table, styles, prior_h - pad_top);
                 self.snap_units_to_stored_cell_reset(cell, table, styles, 0, fit)
             } else {

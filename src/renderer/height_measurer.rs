@@ -4024,6 +4024,22 @@ impl HeightMeasurer {
             }
         }
 
+        // Shared source-frame content occupies its opening row, before the
+        // declared span remainder can be assigned to later rows.
+        for (row, height) in row_heights.iter_mut().enumerate() {
+            if let Some(frame) = crate::renderer::float_placement::stored_span_opening_frame(
+                table,
+                row,
+                self.is_native_hwp5 || self.hwpx_stored_layout,
+                self.session_edited,
+                self.render_normalization.table_text_reflowed(table),
+            ) {
+                let minimum = hwpunit_to_px(frame.height_hu, self.dpi);
+                *height = height.max(minimum);
+                content_row_floor[row] = content_row_floor[row].max(minimum);
+            }
+        }
+
         // 2-b단계: 병합 셀에서 미지 행 높이를 반복적으로 해결
         {
             let mut constraints: Vec<(usize, usize, f64)> = Vec::new();

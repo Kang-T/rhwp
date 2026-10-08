@@ -6,6 +6,23 @@ use crate::model::table::{Cell, Table, TablePageBreak};
 use super::{LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    pub(crate) fn stored_span_opening_frame(
+        &self,
+        table: &Table,
+        row: usize,
+    ) -> Option<crate::renderer::float_placement::StoredSpanOpeningFrame> {
+        let profile = self.profile.get();
+        crate::renderer::float_placement::stored_span_opening_frame(
+            table,
+            row,
+            profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout(),
+            profile.session_edited(),
+            self.render_normalization
+                .borrow()
+                .table_text_reflowed(table),
+        )
+    }
+
     /// A frame with blank tail cannot identify an ordinary row cut from one
     /// cell alone. Completed siblings fit; remaining owners must agree on the
     /// same source ink boundary before restarting within their paragraph.
