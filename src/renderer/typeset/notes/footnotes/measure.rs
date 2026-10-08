@@ -40,7 +40,7 @@ impl BodyFootnoteMeasure<'_> {
 }
 
 impl crate::renderer::typeset::TypesetEngine {
-    /// 단일 단의 본문 각주도 표 큐와 동일한 실제 FootnoteArea를 예약한다.
+    /// 재조판한 단일 단 본문 각주도 실제 FootnoteArea를 예약한다.
     /// 이미 구분선·여백을 포함한 상자에 추정용 안전 여백을 다시 더하지 않는다.
     pub(in crate::renderer::typeset) fn reserve_current_body_note_area(
         &self,
@@ -55,6 +55,16 @@ impl crate::renderer::typeset::TypesetEngine {
             return;
         };
         let layout = crate::renderer::layout::LayoutEngine::new(self.dpi);
+        // Native saved HWP5 notes retain source page cuts, including note
+        // continuations whose markers were already assigned to an earlier page.
+        // A new physical reflow budget must not change those stored owners.
+        // Missing, synthesized or edited lines use the composed box below.
+        if st.profile.native_hwp5_layout()
+            && !st.profile.session_edited()
+            && layout.footnote_area_has_stored_lines(&page.footnotes, paragraphs)
+        {
+            return;
+        }
         layout.set_layout_profile(st.profile);
         layout.set_render_normalization_overlay(self.render_normalization.clone());
         let height = layout.estimate_footnote_area_height_with_metrics(

@@ -1397,6 +1397,30 @@ impl LayoutEngine {
         }
     }
 
+    /// The saved-note composer retains these source lines without reflow.
+    /// Source pagination owns their page cuts; an edited or fallback note uses
+    /// the newly composed physical budget instead.
+    pub(crate) fn footnote_area_has_stored_lines(
+        &self,
+        footnotes: &[FootnoteRef],
+        paragraphs: &[Paragraph],
+    ) -> bool {
+        !footnotes.is_empty()
+            && footnotes.iter().all(|note| {
+                let paras = get_footnote_paragraphs(note, paragraphs);
+                !paras.is_empty() && paras.iter().all(|para| {
+                    !para.line_segs.is_empty()
+                        && !para.stored_text_partition_is_dirty()
+                        && para.line_segs.iter().all(|line| {
+                            line.line_height > 0
+                                && line.tag
+                                    & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                                    == 0
+                        })
+                })
+            })
+    }
+
     pub(crate) fn estimate_footnote_area_height(
         &self,
         footnotes: &[FootnoteRef],
