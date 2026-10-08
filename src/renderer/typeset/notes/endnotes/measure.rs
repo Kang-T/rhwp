@@ -275,6 +275,7 @@ impl TypesetEngine {
                     start_row_height_override,
                     straddle_row_relief,
                     straddle_page_bands,
+                    fragment_row_heights,
                 } => lookup_local(*para_index).map(|l| PageItem::PartialTable {
                     para_index: l + 1,
                     control_index: *control_index,
@@ -290,6 +291,7 @@ impl TypesetEngine {
                     start_row_height_override: *start_row_height_override,
                     straddle_row_relief: straddle_row_relief.clone(),
                     straddle_page_bands: straddle_page_bands.clone(),
+                    fragment_row_heights: fragment_row_heights.clone(),
                 }),
                 PageItem::Shape {
                     para_index,

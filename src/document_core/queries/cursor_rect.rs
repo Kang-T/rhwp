@@ -3108,6 +3108,7 @@ impl DocumentCore {
             start_row_height_override,
             straddle_row_relief,
             straddle_page_bands,
+            fragment_row_heights,
         }) = col.items.first()
         else {
             return Ok(Unsupported);
@@ -3314,6 +3315,15 @@ impl DocumentCore {
             v.iter()
                 .find(|mt| mt.para_index == parent_para_idx && mt.control_index == control_idx)
         });
+        let fragment_measurement =
+            pt_mt
+                .zip(fragment_row_heights.as_deref())
+                .map(|(measured, rows)| {
+                    let mut measured = measured.clone();
+                    measured.row_heights = rows.to_vec();
+                    measured
+                });
+        let pt_mt = fragment_measurement.as_ref().or(pt_mt);
         let outline_num_id = self
             .document
             .sections

@@ -43,6 +43,9 @@ pub(in crate::renderer::typeset) struct TableContinuationCursor {
     /// 다음 조각의 scan 과 paint 가 같은 행 높이 덜기(`straddle_page_band_relief`)를 쓴다.
     pub(in crate::renderer::typeset) straddle_page_bands:
         Vec<crate::renderer::pagination::StraddleCellCarry>,
+    /// Complete row boxes actually accepted in preceding stored fragments.
+    /// Repeated headers and content cuts are separate owners.
+    pub(in crate::renderer::typeset) accepted_row_boxes: Vec<Option<f64>>,
 }
 
 /// RowBreak 표 셀 각주가 HWP 저장 vpos reset에서 물리 page를 넘을 때의 tail 정보.

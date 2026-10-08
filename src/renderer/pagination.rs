@@ -742,6 +742,9 @@ pub enum PageItem {
         /// 조판 scan 이 같은 값으로 행을 쟀으므로 그리기도 이 값을 그대로 적용한다.
         straddle_row_relief: Vec<(usize, f64)>,
         straddle_page_bands: Vec<crate::renderer::pagination::StraddleCellCarry>,
+        /// Fragment row geometry with previously accepted physical boxes.
+        /// None keeps the ordinary global measured-row contract.
+        fragment_row_heights: Option<Vec<f64>>,
     },
     /// 그리기 개체
     Shape {
@@ -947,6 +950,7 @@ impl PageItem {
                 start_row_height_override,
                 straddle_row_relief,
                 straddle_page_bands,
+                fragment_row_heights,
             } => PageItem::PartialTable {
                 para_index: adjust(*para_index),
                 control_index: *control_index,
@@ -962,6 +966,7 @@ impl PageItem {
                 start_row_height_override: *start_row_height_override,
                 straddle_row_relief: straddle_row_relief.clone(),
                 straddle_page_bands: straddle_page_bands.clone(),
+                fragment_row_heights: fragment_row_heights.clone(),
             },
             PageItem::Shape {
                 para_index,

@@ -10441,6 +10441,7 @@ impl LayoutEngine {
                     None,
                     &[],
                     &[],
+                    None,
                     &overlay_ctx,
                     col_area.y,
                 );
@@ -11634,6 +11635,7 @@ impl LayoutEngine {
                 start_row_height_override,
                 straddle_row_relief,
                 straddle_page_bands,
+                fragment_row_heights,
             } => {
                 y_offset = self.layout_partial_table_item(
                     tree,
@@ -11653,6 +11655,7 @@ impl LayoutEngine {
                     *start_row_height_override,
                     straddle_row_relief,
                     straddle_page_bands,
+                    fragment_row_heights.as_deref(),
                     &ctx,
                     y_offset,
                 );
@@ -14898,6 +14901,7 @@ impl LayoutEngine {
         start_row_height_override: Option<f64>,
         straddle_row_relief: &[(usize, f64)],
         straddle_page_bands: &[crate::renderer::pagination::StraddleCellCarry],
+        fragment_row_heights: Option<&[f64]>,
         ctx: &ColumnItemCtx,
         mut y_offset: f64,
     ) -> f64 {
@@ -15024,6 +15028,12 @@ impl LayoutEngine {
         let pt_mt = measured_tables
             .iter()
             .find(|mt| mt.para_index == para_index && mt.control_index == control_index);
+        let fragment_measurement = pt_mt.zip(fragment_row_heights).map(|(measured, rows)| {
+            let mut measured = measured.clone();
+            measured.row_heights = rows.to_vec();
+            measured
+        });
+        let pt_mt = fragment_measurement.as_ref().or(pt_mt);
         let repeat_fragment_outer_margin = paragraphs
             .get(para_index)
             .map(|para| {

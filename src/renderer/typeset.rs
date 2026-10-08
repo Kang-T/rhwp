@@ -7033,6 +7033,7 @@ mod tests {
                 start_row_height_override: None,
                 straddle_row_relief: Vec::new(),
                 straddle_page_bands: Vec::new(),
+                fragment_row_heights: None,
             }]),
             page_with_items(vec![PageItem::PartialTable {
                 para_index: 7,
@@ -7049,6 +7050,7 @@ mod tests {
                 start_row_height_override: None,
                 straddle_row_relief: Vec::new(),
                 straddle_page_bands: Vec::new(),
+                fragment_row_heights: None,
             }]),
         ];
 

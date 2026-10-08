@@ -10,6 +10,7 @@ use super::{BlockTableContinuationPreparedState, TableContinuationCursor};
 
 mod budget;
 mod emit;
+mod physical_rows;
 mod scan;
 
 pub(super) struct FragmentProfile {
@@ -39,6 +40,7 @@ struct FragmentInput<'a> {
     prepared: &'a BlockTableContinuationPreparedState,
     start: &'a FragmentStart,
     row_cursor_is_nested: bool,
+    fragment_row_heights: Option<&'a [f64]>,
 }
 
 impl FragmentInput<'_> {
@@ -182,11 +184,33 @@ impl TypesetEngine {
             start_row_height_override: continuation.start_row_height_override,
             start_cut,
         };
+        let physical_rows = self.stored_fragment_row_plan(st, prepared, continuation, source);
+        let fragment_measurement = physical_rows.as_ref().map(|rows| {
+            let mut measured = source.measured_table.clone();
+            measured.row_heights.clone_from(rows);
+            measured.cumulative_heights = vec![0.0];
+            for (row, &height) in rows.iter().enumerate() {
+                let spacing = if row > 0 { measured.cell_spacing } else { 0.0 };
+                let next =
+                    measured.cumulative_heights.last().copied().unwrap_or(0.0) + height + spacing;
+                measured.cumulative_heights.push(next);
+            }
+            measured.total_height = measured.cumulative_heights.last().copied().unwrap_or(0.0)
+                + measured.caption_height;
+            measured
+        });
+        let source = BlockTableContinuationSource {
+            measured_table: fragment_measurement
+                .as_ref()
+                .unwrap_or(source.measured_table),
+            ..source
+        };
         let input = FragmentInput {
             source,
             prepared,
             start: &start,
             row_cursor_is_nested,
+            fragment_row_heights: physical_rows.as_deref(),
         };
         let row_geometry_table = input.source.row_geometry_table;
         let styles = input.source.styles;

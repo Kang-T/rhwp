@@ -30,12 +30,14 @@ impl TypesetEngine {
         let cut_row_h = input
             .start
             .relieved_cut_row_heights
-            .as_ref()
+            .as_deref()
+            .or(input.fragment_row_heights)
             .unwrap_or(&input.prepared.cut_row_heights);
         let whole_row_fit_h = input
             .start
             .relieved_whole_row_fit_heights
-            .as_ref()
+            .as_deref()
+            .or(input.fragment_row_heights)
             .unwrap_or(&input.prepared.whole_row_fit_heights);
         let total_footnote = input.prepared.total_footnote_height;
         let fn_margin = input.prepared.footnote_margin;
@@ -55,17 +57,17 @@ impl TypesetEngine {
             ..
         } = *budget;
         let source_cut_heights = budget.source_complete_frame_last_row.map(|(row, height)| {
-            let mut heights = cut_row_h.clone();
+            let mut heights = cut_row_h.to_vec();
             heights[row] = height;
             heights
         });
         let source_fit_heights = budget.source_complete_frame_last_row.map(|(row, height)| {
-            let mut heights = whole_row_fit_h.clone();
+            let mut heights = whole_row_fit_h.to_vec();
             heights[row] = height;
             heights
         });
-        let cut_row_h = source_cut_heights.as_ref().unwrap_or(cut_row_h);
-        let whole_row_fit_h = source_fit_heights.as_ref().unwrap_or(whole_row_fit_h);
+        let cut_row_h = source_cut_heights.as_deref().unwrap_or(cut_row_h);
+        let whole_row_fit_h = source_fit_heights.as_deref().unwrap_or(whole_row_fit_h);
         // The original content cut and the two boxes are one accepted result.
         // A blank band is reserved here, before emit and paint, and never
         // consumed as an extra content unit on the following page.
@@ -513,6 +515,31 @@ impl TypesetEngine {
                     split_end_limit = refit.split_end_limit;
                     end_row_height_override = refit.end_row_height_override;
                 }
+            }
+        }
+
+        // Refit has finished: only now can a complete continuation reserve its
+        // remaining physical band without changing content ownership.
+        if is_continuation
+            && start_cut.is_empty()
+            && end_row > cursor_row
+            && end_row < row_count
+            && split_block_start.is_none()
+            && split_end_cut.is_empty()
+            && split_end_limit <= 0.0
+            && end_row_height_override.is_none()
+            && self.stored_header_physical_rows(st, input.source)
+            && row_geometry_table.cells.iter().any(|cell| {
+                let first = cell.row as usize;
+                first < end_row && first + cell.row_span as usize > end_row
+            })
+        {
+            let whole_rows = whole_row_fit_h[cursor_row..end_row].iter().sum::<f64>()
+                + cs * (end_row - cursor_row).saturating_sub(1) as f64;
+            if avail_for_rows > consumed && (whole_rows - consumed).abs() <= 0.5 {
+                let before_last = whole_rows - whole_row_fit_h[end_row - 1];
+                end_row_height_override = Some(avail_for_rows - before_last);
+                consumed = avail_for_rows;
             }
         }
 

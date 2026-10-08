@@ -30,7 +30,8 @@ impl TypesetEngine {
         let cut_row_h = input
             .start
             .relieved_cut_row_heights
-            .as_ref()
+            .as_deref()
+            .or(input.fragment_row_heights)
             .unwrap_or(&input.prepared.cut_row_heights);
         let straddle_row_relief = &input.start.straddle_row_relief;
         let straddle_page_bands = &input.start.straddle_page_bands;
@@ -866,6 +867,14 @@ impl TypesetEngine {
                 });
                 st.advance_flow_by(partial_height + host_spacing_total);
             } else {
+                self.record_stored_fragment_rows(
+                    st,
+                    continuation,
+                    input,
+                    end_row,
+                    split_end_cut.is_empty() && split_end_limit <= 0.0,
+                    end_row_height_override,
+                );
                 st.append_item(PageItem::PartialTable {
                     para_index: para_idx,
                     control_index: ctrl_idx,
@@ -882,6 +891,7 @@ impl TypesetEngine {
                     start_row_height_override,
                     straddle_row_relief: straddle_row_relief.clone(),
                     straddle_page_bands: straddle_page_bands.clone(),
+                    fragment_row_heights: input.fragment_row_heights.map(<[f64]>::to_vec),
                 });
                 // 마지막 fragment: spacing_after만 포함 (Paginator engine.rs:1051 동일)
                 // host line advance/positive offset은 원 anchor 조각의 계약이며,
@@ -1043,6 +1053,14 @@ impl TypesetEngine {
             straddle_page_bands.clone()
         };
         // 중간 또는 내용이 완전히 소비된 최종 컷 fragment 배치
+        self.record_stored_fragment_rows(
+            st,
+            continuation,
+            input,
+            end_row,
+            split_end_cut.is_empty() && split_end_limit <= 0.0,
+            end_row_height_override,
+        );
         st.append_item(PageItem::PartialTable {
             para_index: para_idx,
             control_index: ctrl_idx,
@@ -1060,6 +1078,7 @@ impl TypesetEngine {
             start_row_height_override,
             straddle_row_relief: straddle_row_relief.clone(),
             straddle_page_bands: accepted_straddle_cells.clone(),
+            fragment_row_heights: input.fragment_row_heights.map(<[f64]>::to_vec),
         });
         // 저장 host 원점이 없는 조각은 흐름 좌표로 같은 상자를 잰다 — 위는 흐름 커서 +
         // host·세로 오프셋, 아래는 비끝 조각 상자 바닥(7062 2~9쪽 996.49 ↔ 정본 996.43).
