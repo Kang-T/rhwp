@@ -1343,6 +1343,33 @@ impl LayoutEngine {
             // rowspan·세로쓰기·실제로 잘리지 않는 셀은 기존 전량 경로를 유지한다.
             // 유한한 저장 프레임은 가운데·아래 정렬도 보존할 수 있다.
             // 위 정렬 전용 탐색 최적화로 선택한 앞 조각의 높이를 생략하지 않는다.
+            let straddle_cut_units = is_rowbreak_straddle.then(|| {
+                self.rowbreak_straddle_cut_units(
+                    table,
+                    cell,
+                    start_row,
+                    render_range_end,
+                    start_cut,
+                    start_row_height_override,
+                    end_cut.is_empty(),
+                    cell_h,
+                    resolved_row_heights,
+                    straddle_page_bands,
+                    styles,
+                )
+            });
+            // A saved first-line restart separates two physical frames. The
+            // final frame aligns its remaining owners in its own cell box.
+            // Reuse the selected cut for composition and paint below.
+            let stored_restart_span_frame_owns_alignment = cell_end_row <= render_range_end
+                && straddle_cut_units.is_some_and(|(start, end)| {
+                    let units = self.cell_units(cell, table, styles);
+                    start == 1
+                        && end >= units.len()
+                        && self.native_first_line_restart_cut_trailing_trim(
+                            table, cell, &units, 0, start, styles,
+                        ) > 0.0
+                });
             let full_width_frame_owns_alignment = end_row_height_override.is_some()
                 && cell_row + 1 == end_row
                 && !end_cut.is_empty()
@@ -1430,30 +1457,17 @@ impl LayoutEngine {
                             })));
             // 유효한 저장 앞 프레임과 이어받기 프레임은 원본 정렬을 소유한다.
             // 줄 구성 창과 최종 배치 원점에서 같은 소유 결과를 사용한다.
-            let stored_span_frame_owns_alignment = is_rowbreak_straddle
+            let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment || is_rowbreak_straddle
                 && cell.row_span > 1
                 && cell.vertical_align != crate::model::table::VerticalAlign::Top
-                && {
-                    let (start, end) = self.rowbreak_straddle_cut_units(
-                        table,
-                        cell,
-                        start_row,
-                        render_range_end,
-                        start_cut,
-                        start_row_height_override,
-                        end_cut.is_empty(),
-                        cell_h,
-                        resolved_row_heights,
-                        straddle_page_bands,
-                        styles,
-                    );
+                && straddle_cut_units.is_some_and(|(start, end)| {
                     self.stored_plain_spanning_frame_owns_alignment(cell, table, start, end, styles)
                         || (start > 0
                             && end >= self.cell_units(cell, table, styles).len()
                             && straddle_page_bands.iter().any(|carry| {
                                 carry.cell_index == cell_idx && carry.physical_height > 0.0
                             }))
-                };
+                });
             // The descendant source row owns its closing blank band. The
             // enclosing cursor forwards that physical space without moving
             // the whole child into the parent's vertical alignment band.
@@ -1706,19 +1720,7 @@ impl LayoutEngine {
                 }
                 Some((su, eu))
             } else if is_rowbreak_straddle {
-                Some(self.rowbreak_straddle_cut_units(
-                    table,
-                    cell,
-                    start_row,
-                    render_range_end,
-                    start_cut,
-                    start_row_height_override,
-                    end_cut.is_empty(),
-                    cell_h,
-                    resolved_row_heights,
-                    straddle_page_bands,
-                    styles,
-                ))
+                straddle_cut_units
             } else {
                 None
             };

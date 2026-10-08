@@ -16958,7 +16958,9 @@ impl LayoutEngine {
             let genuine_source = |owner: &crate::model::table::Cell| {
                 !owner.dirty_flag
                     && owner.paragraphs.iter().all(|para| {
-                        !para.stored_text_partition_is_dirty() && !para.cell_format_vpos_dirty
+                        !para.stored_text_partition_is_dirty()
+                            && !para.cell_format_vpos_dirty
+                            && para.controls.is_empty()
                     })
                     && source_restart(owner)
             };
@@ -16989,7 +16991,7 @@ impl LayoutEngine {
         true
     }
 
-    fn native_first_line_restart_cut_trailing_trim(
+    pub(super) fn native_first_line_restart_cut_trailing_trim(
         &self,
         table: &crate::model::table::Table,
         cell: &crate::model::table::Cell,
