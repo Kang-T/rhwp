@@ -105,8 +105,6 @@ impl TypesetEngine {
             };
             let current_content =
                 layout_engine.row_cut_content_height(table, row, row_start, &split_end_cut, styles);
-            let remaining_content =
-                layout_engine.row_cut_content_height(table, row, &split_end_cut, &[], styles);
             let accepted_scan_height = end_row_height_override.unwrap_or(current_content);
             let before_row = (consumed - accepted_scan_height).max(0.0);
             let available = (avail_for_rows - before_row).max(0.0);
@@ -114,9 +112,11 @@ impl TypesetEngine {
             // cut. It is a lower bound, not proof that the saved row's blank
             // physical band has already been reserved. Allocate that band in
             // the available fragment and carry the actual box in the ledger.
-            let source_space = (declared - used - remaining_content)
-                .max(0.0)
-                .min(available);
+            // Later content cuts are not physical boxes already accepted on
+            // earlier pages. In particular, a saved page reset can leave a
+            // centered picture in a tall source frame. Deduct only the boxes
+            // actually placed, rather than the height of future content.
+            let source_space = (declared - used).max(0.0).min(available);
             let height = accepted_scan_height.max(current_content).max(source_space);
             Some((row, used, height, accepted_scan_height))
         });
@@ -129,6 +129,13 @@ impl TypesetEngine {
                 end_row_height_override = Some(height);
                 partial_height += height - current_content;
             }
+        }
+        if std::env::var("RHWP_DIAG_SCAN").is_ok() {
+            eprintln!(
+                "DIAG_SCAN FRAGMENT rows={}..{} continuation={} block={:?} cut={:?} consumed={:.3} frame={:?} override={:?}",
+                cursor_row, end_row, is_continuation, split_block_start, split_end_cut,
+                consumed, stored_row_frame, end_row_height_override
+            );
         }
         // 원본 셀의 저장 쪽 0에서 재개하는 새 단은 실제 좌표축을 가진다.
         // 후속 TAC가 이 증거를 잃고 누적 좌표를 임의의 0 기준으로 읽지 않게 한다.
