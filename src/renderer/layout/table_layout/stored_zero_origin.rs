@@ -1,4 +1,4 @@
-//! A source paragraph can restart at zero inside the table's opening row frame.
+//! Original line frames can restart at zero beyond the opening object box.
 
 use crate::model::paragraph::LineSeg;
 use crate::model::shape::TextWrap;
@@ -7,6 +7,39 @@ use crate::model::table::{Cell, Table, TablePageBreak};
 use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    /// A completed sibling cannot certify another owner's unfinished cut.
+    pub(crate) fn row_cut_ends_at_saved_zero_origin_frame(
+        &self,
+        table: &Table,
+        row: usize,
+        start_cut: &[usize],
+        end_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        let mut cells: Vec<_> = table
+            .cells
+            .iter()
+            .filter(|cell| usize::from(cell.row) == row && cell.row_span == 1)
+            .collect();
+        cells.sort_by_key(|cell| cell.col);
+        let mut unfinished = false;
+        for (index, cell) in cells.into_iter().enumerate() {
+            let units = self.cell_units(cell, table, styles);
+            let start = start_cut.get(index).copied().unwrap_or(0);
+            let end = end_cut.get(index).copied().unwrap_or(start);
+            if end >= units.len() {
+                continue;
+            }
+            if end <= start
+                || !self.cut_starts_saved_zero_origin_text_frame(table, cell, &units, end)
+            {
+                return false;
+            }
+            unfinished = true;
+        }
+        unfinished
+    }
+
     pub(crate) fn row_cut_ends_at_shared_zero_origin_frame(
         &self,
         table: &Table,
@@ -114,6 +147,9 @@ impl LayoutEngine {
             || next.line_height <= 0
             || previous.line_spacing < 0
             || previous.text_start >= next.text_start
+            || previous.column_start != next.column_start
+            || previous.segment_width <= 0
+            || previous.segment_width != next.segment_width
         {
             return false;
         }
@@ -125,10 +161,29 @@ impl LayoutEngine {
                 && !para.cell_format_vpos_dirty
                 && para.controls.is_empty()
                 && !para.text.trim().is_empty()
-                && para
-                    .line_segs
-                    .windows(2)
-                    .any(|lines| std::ptr::eq(&lines[0], previous) && std::ptr::eq(&lines[1], next))
+                && para.line_segs.windows(2).enumerate().any(|(index, lines)| {
+                    if !std::ptr::eq(&lines[0], previous) || !std::ptr::eq(&lines[1], next) {
+                        return false;
+                    }
+                    // A terminal line needs no later position. When a
+                    // following source line exists, its advance must agree
+                    // with this restart; a later valid pair cannot certify
+                    // the current cut or a manually broken source ladder.
+                    let paragraph_index = cell
+                        .paragraphs
+                        .iter()
+                        .position(|candidate| std::ptr::eq(candidate, para))
+                        .expect("source paragraph belongs to cell");
+                    let after = para.line_segs.get(index + 2).or_else(|| {
+                        cell.paragraphs
+                            .get(paragraph_index + 1)
+                            .and_then(|following| following.line_segs.first())
+                    });
+                    after.is_none_or(|line| {
+                        i64::from(line.vertical_pos)
+                            == i64::from(next.line_height) + i64::from(next.line_spacing)
+                    })
+                })
         }) {
             return false;
         }
@@ -148,9 +203,7 @@ impl LayoutEngine {
         let Some(&height) = rows.get(row) else {
             return false;
         };
-        if prefix
-            .iter()
-            .any(|&height| height == 0 || height > i32::MAX as u32)
+        if prefix.iter().any(|&height| height > i32::MAX as u32)
             || height == 0
             || height > i32::MAX as u32
         {
@@ -159,7 +212,18 @@ impl LayoutEngine {
         let start = prefix.iter().map(|&height| i64::from(height)).sum::<i64>()
             + i64::from(table.cell_spacing) * row as i64;
         let frame = i64::from(table.common.height);
-        start < frame && frame < start + i64::from(height)
+        // The first object box cannot bound every later page of a table.
+        // An original in-paragraph return to zero in the same text column
+        // still owns a line-frame boundary after that opening box. The raw
+        // row boxes must independently prove that the object is a fragment;
+        // paragraph-local origins and a complete object box do not suffice.
+        // A merged-only row can have no single-row declaration. Zero then
+        // contributes only a lower bound: it cannot authenticate an exact
+        // opening cut, but cannot erase the known preceding physical space.
+        (prefix.iter().all(|&height| height > 0)
+            && start < frame
+            && frame < start + i64::from(height))
+            || (start >= frame && self.stored_row_boxes_exceed_first_frame(table))
     }
 
     pub(super) fn cut_starts_saved_zero_origin_text_frame(
