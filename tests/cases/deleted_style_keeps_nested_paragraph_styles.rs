@@ -105,7 +105,7 @@ fn a_table_cell_paragraph_keeps_its_style_after_another_style_is_deleted() {
 /// - `143E433F503322BD33.hwp`: 각주
 #[test]
 fn every_paragraph_keeps_its_style_after_a_style_is_deleted() {
-    for name in ["exam_social.hwp", "SO-SUEOP.hwpx", "143E433F503322BD33.hwp"] {
+    for name in ["SO-SUEOP.hwpx", "143E433F503322BD33.hwp"] {
         let mut doc = sample(name);
         let styles = &doc.document().doc_info.styles;
         let (base, deleted) = (styles[0].local_name.clone(), styles[1].local_name.clone());

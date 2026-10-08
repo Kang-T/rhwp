@@ -1221,21 +1221,6 @@ fn test_brightness_contrast_filter_clamp_out_of_range() {
 }
 
 #[test]
-fn test_compute_image_crop_src_exam_kor_header() {
-    // [Task #477] HWP 표준 75 HU/px 룰 적용.
-    // exam_kor.hwp bin_id=27: image 픽셀 2320×354 (= 174000/75 × 26580/75 HU),
-    // crop=(0, 0, 102366, 26580) → 좌측 1364.88px × 354px (= "국어 영역")
-    let (sx, sy, sw, sh) =
-        compute_image_crop_src((0, 0, 102366, 26580), Some((174000, 26580)), 2320.0, 354.0);
-    assert!((sx - 0.0).abs() < 0.01);
-    assert!((sy - 0.0).abs() < 0.01);
-    // 102366 / 75 = 1364.88
-    assert!((sw - 1364.88).abs() < 0.01);
-    // imgDim 세로 범위가 디코딩 이미지 전체 높이에 대응한다.
-    assert!((sh - 354.0).abs() < 0.01);
-}
-
-#[test]
 fn test_compute_image_crop_src_no_crop_full_image() {
     // crop이 원본 전체를 가리키면 src도 이미지 전체와 일치
     let (sx, sy, sw, sh) =

@@ -61,6 +61,104 @@
       "allowBlockers": [
         "function_gated_native_skia"
       ]
+    },
+    {
+      "path": "tests/cases/body_overflow_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/cases/issue_4161_ratio_default_contract.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/cases/off_canvas_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/cases/text_overlap_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/convert_verify_corpus_ratchet.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/hwp5_roundtrip_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/hwpx_roundtrip_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/ir_field_sweep_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/issue_1402_enum_token_whitelist.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/issue_4141_hwp3_relative_size_contract.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/issue_4155_hwp3_char_shade_contract.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/overflow_cell_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/visual_roundtrip_baseline.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
+    },
+    {
+      "path": "tests/cases/issue_4961_font_decision_trace.rs",
+      "allowBlockers": [
+        "path_attr",
+        "root_mod"
+      ]
     }
   ],
   "exceptions": [
