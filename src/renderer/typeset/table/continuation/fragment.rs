@@ -80,6 +80,7 @@ impl FragmentInput<'_> {
                     rows - 1,
                     rows - 1,
                     end_cut,
+                    false,
                     None,
                     &self.source.measured_table.row_heights,
                     &self.start.straddle_page_bands,

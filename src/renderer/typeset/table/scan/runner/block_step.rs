@@ -44,6 +44,7 @@ impl TypesetEngine {
             strict_painted_bottom_fit,
             source_first_fragment_overflow_allowance,
             source_first_fragment_row_end,
+            start_cut_is_block: _,
             start_row_height_override,
             ..
         } = v;

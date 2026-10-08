@@ -7,6 +7,31 @@ use crate::renderer::hwpunit_to_px;
 use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    /// Physical prefix at a RowCut, measured from this spanning owner's origin.
+    pub(in crate::renderer::layout) fn rowbreak_cut_prefix_height(
+        &self,
+        table: &Table,
+        cell: &Cell,
+        boundary_row: usize,
+        cut: &[usize],
+        resolved_row_heights: &[f64],
+        styles: &ResolvedStyleSet,
+    ) -> f64 {
+        let stored_physical_span = self.stored_plain_text_span_frame(table, cell);
+        let spacing = hwpunit_to_px(table.cell_spacing as i32, self.dpi);
+        let mut height = 0.0;
+        for row in cell.row as usize..boundary_row {
+            height += self.rowbreak_prior_row_height(
+                table,
+                row,
+                resolved_row_heights,
+                styles,
+                stored_physical_span,
+            ) + spacing;
+        }
+        height + self.row_cut_content_height(table, boundary_row, &[], cut, styles)
+    }
+
     pub(in crate::renderer::layout) fn rowbreak_prior_row_height(
         &self,
         table: &Table,

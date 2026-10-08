@@ -48,6 +48,7 @@ impl TypesetEngine {
             strict_painted_bottom_fit,
             source_first_fragment_overflow_allowance,
             source_first_fragment_row_end,
+            start_cut_is_block,
             start_row_height_override,
             ..
         } = v;
@@ -87,6 +88,7 @@ impl TypesetEngine {
                 r,
                 cursor_row,
                 start_cut,
+                start_cut_is_block,
                 start_row_height_override,
             };
             let opening_available = (avail_for_rows - consumed - cs_before).max(0.0);

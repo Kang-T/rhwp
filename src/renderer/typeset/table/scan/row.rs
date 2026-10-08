@@ -10,6 +10,7 @@ pub(in crate::renderer::typeset) struct RowScanQuery<'a> {
     pub(in crate::renderer::typeset) r: usize,
     pub(in crate::renderer::typeset) cursor_row: usize,
     pub(in crate::renderer::typeset) start_cut: &'a [usize],
+    pub(in crate::renderer::typeset) start_cut_is_block: bool,
     pub(in crate::renderer::typeset) start_row_height_override: Option<f64>,
 }
 
@@ -36,6 +37,7 @@ impl RowScanQuery<'_> {
             r,
             cursor_row,
             start_cut,
+            start_cut_is_block,
             start_row_height_override,
         } = *self;
         let RowBlockQuery {
@@ -51,6 +53,7 @@ impl RowScanQuery<'_> {
                 r,
                 cursor_row,
                 start_cut,
+                start_cut_is_block,
                 start_row_height_override,
                 &mt.row_heights,
                 rows.straddle_page_bands,

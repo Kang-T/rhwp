@@ -24713,8 +24713,10 @@ impl LayoutEngine {
         start_row: usize,
         end_row: usize,
         start_cut: &[usize],
+        start_cut_is_block: bool,
         start_row_height_override: Option<f64>,
-        end_cut_is_empty: bool,
+        end_cut: &[usize],
+        end_cut_is_block: bool,
         cell_height: f64,
         resolved_row_heights: &[f64],
         straddle_page_bands: &[crate::renderer::pagination::StraddleCellCarry],
@@ -24730,14 +24732,15 @@ impl LayoutEngine {
                 cell,
                 start_row,
                 start_cut,
+                start_cut_is_block,
                 start_row_height_override,
             );
         let straddles_end = cell_row < end_row
-            && (cell_end > end_row || (cell_end == end_row && !end_cut_is_empty));
+            && (cell_end > end_row || (cell_end == end_row && !end_cut.is_empty()));
         // HWP5 저장 pagination의 2행/2문단 계약에서는 문단 하나가 행 하나의 owner다.
         if start_cut.is_empty()
             && start_row_height_override.is_none()
-            && end_cut_is_empty
+            && end_cut.is_empty()
             && ((straddles_start && start_row == cell_row + 1)
                 || (straddles_end && end_row == cell_row + 1))
             && self.native_two_row_rowspan_paragraph_owner_boundary(cell, table, styles)
@@ -24766,10 +24769,19 @@ impl LayoutEngine {
             if let Some(remaining_band) = start_row_height_override {
                 // 내용 컷으로는 이미 소비한 물리 빈 밴드를 알 수 없다. 앞 조각이
                 // 남긴 정확한 행 높이로 소비 구간을 복원해 앞 조각 eu와 이어준다.
-                prior_h += (resolved_row_heights.get(start_row).copied().unwrap_or(0.0)
+                let physical_prefix = (resolved_row_heights.get(start_row).copied().unwrap_or(0.0)
                     - remaining_band)
                     .max(0.0);
-            } else if !start_cut.is_empty() {
+                // A stored row can declare its opening frame rather than both
+                // physical fragments. The accepted RowCut still consumed its
+                // content and padding; a blank physical band can consume more.
+                let accepted_cut_prefix = if !start_cut_is_block && !start_cut.is_empty() {
+                    self.row_cut_content_height(table, start_row, &[], start_cut, styles)
+                } else {
+                    0.0
+                };
+                prior_h += physical_prefix.max(accepted_cut_prefix);
+            } else if !start_cut_is_block && !start_cut.is_empty() {
                 prior_h += self.row_cut_content_height(table, start_row, &[], start_cut, styles);
             }
         }
@@ -24804,6 +24816,21 @@ impl LayoutEngine {
             }
         });
         let eu = if straddles_end {
+            // A physical cell box can differ from the accepted RowCut prefix.
+            // Use the same end origin that the next fragment uses for its start.
+            let consumed_end = if !end_cut_is_block && !end_cut.is_empty() {
+                self.rowbreak_cut_prefix_height(
+                    table,
+                    cell,
+                    end_row.saturating_sub(1),
+                    end_cut,
+                    resolved_row_heights,
+                    styles,
+                )
+            } else {
+                prior_h + cell_height
+            };
+            let accepted_height = (consumed_end - prior_h).max(0.0);
             // Rebase the budget at the actual accepted content cursor. A saved reset
             // can snap that cursor backward; original physical rows no longer give
             // the height of the units beginning here.
@@ -24811,7 +24838,7 @@ impl LayoutEngine {
             let mut fit = su.min(units.len());
             while fit < units.len()
                 && self.cell_cut_visible_height(cell, table, styles, su, fit + 1)
-                    <= cell_height + 0.1
+                    <= accepted_height + 0.1
             {
                 fit += 1;
             }
@@ -24831,6 +24858,7 @@ impl LayoutEngine {
         row: usize,
         start_row: usize,
         start_cut: &[usize],
+        start_cut_is_block: bool,
         start_row_height_override: Option<f64>,
         resolved_row_heights: &[f64],
         straddle_page_bands: &[crate::renderer::pagination::StraddleCellCarry],
@@ -24859,6 +24887,7 @@ impl LayoutEngine {
                     cell,
                     start_row,
                     start_cut,
+                    start_cut_is_block,
                     start_row_height_override,
                 );
                 cell.row_span > 1
@@ -24874,8 +24903,12 @@ impl LayoutEngine {
                     start_row,
                     end_row,
                     start_cut,
+                    start_cut_is_block,
                     start_row_height_override,
-                    end_cut_is_empty,
+                    // The filter above selected a completed owner: no end cut
+                    // covers its last row, even if a later fragment row is cut.
+                    &[],
+                    false,
                     0.0,
                     resolved_row_heights,
                     straddle_page_bands,

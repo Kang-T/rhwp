@@ -599,3 +599,28 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 다음 원인 경로: advance_row_cut의 일반 행 컷은 row_span1 소유자만 기록 → start_cut_covers_cell은 같은 시작행의 rowspan도 소관으로 판정 → cell_cut_window가 unrelated 단일행 슬롯을 rowspan의 su로 읽음 → is_in_split_row 때문에 공통 straddle cut/완료 프레임 Center 경로가 차단된다. 일반 행 공간과 블록 공간을 명시적으로 전달하고, rowspan은 앞 조각이 실제 소비한 물리 밴드로 공통 유닛 창을 계산하게 한다. reservation의 straddle_continuation_demand와 paint의 rowbreak_straddle_cut_units/resumes_inside_own_start_row에 같은 시작 컷 공간을 전달한다. 블록 소유자의 컷 슬롯은 유지한다. 새로운 px assertion/fixture는 추가하지 않는다.
 
 - v51 retry 기존 경계 회귀50/50 PASS(exit0, 전체327.230초/실행7.447초,1677skip)다. Native 선택8쪽은 두 원본 모두 exit0/312.569초이며 HWPX p3/p4/p19/p20=99.68701/99.67973/99.46133/97.15814%다. freshWASM/전수 및 가운데 정렬 차이는 후속 보정에서 다시 검증하며 완료를 선언하지 않는다.
+
+
+### 진행 중 보정 34: 일반 행 컷과 병합 셀의 소유 공간
+
+- start_cut_covers_cell/일반 end 판정과 cell_cut_window의 행 슬롯은 row_span1만 소유한다. 같은 행의 rowspan은 start_row_height_override와 명시적인 start_cut_is_block으로 앞 조각 소비 높이를 복원한다. 기존 빈 컷/병합 전용 행과 BlockCut 슬롯의 소유 계약은 유지한다.
+- 전달 경로: FragmentInput.start.start_cut_is_block → BlockRowScanVars → RowScanQuery.required_height → straddle_continuation_demand → rowbreak_straddle_cut_units/resumes_inside_own_start_row다. paint도 PageItem.start_cut_is_block에서 동일 helper에 전달한다. 시작 RowCut/끝 BlockCut이 섞인 조각은 끝 블록 슬롯을 보존하고 시작의 물리 prefix만 공유 cut으로 소비한다. 한 쪽 공간이 다른 쪽 공간을 대신하지 않는다.
+- 최종 저장 plaintext span은 공통 가시 창의 마지막 내용이 완료되었을 때 기존 Center/Bottom 정렬을 적용한다. 절대 위치 clamp·문서ID·기대값 완화는 추가하지 않았다. source snapshot/source SHA는 source-code-v52/native-build-row-cut-span-ownership-v52.json에 남기고 관련 기존67개 및 원본 HWP/HWPX의 p3/p4/p19/p20부터 검증한다. 같은 행 회귀 #7226, 이어받기 요구 #6981, 시작/끝 보존 #6803, #6024, #6756을 기존50개에 포함한다.
+
+- v52 첫 Native build exit0/256.852초, binary SHAf89d269356484284e05be8a2097f04c5b5c1ba924c87e7de6124dee1cb4584d5다. 실제 p20 트리에서 IDDV가 다시 보인다(scattered-p20-trace-v52/render_tree_020.json). 이 후보는 실패이며 원인/증거를 보존한다. RowCut 슬롯 오소유를 제거한 뒤 start_row_height_override가 있는 분기의 resolved 높이−잔여 높이에서 자기 상단 패딩을 뺀 예산이 첫 줄 점유보다 작아 공통 su0으로 돌아갔다. 저장 선언이 첫 물리 프레임만 나타내는 경우 그 차이만으로 앞 컷의 소비 내용을 복원할 수 없다. 실제 앞 RowCut의 padding 포함 점유 높이를 소비의 하한으로 함께 사용하고, 더 큰 원장의 빈 물리 밴드는 보존하는 공통 prefix 보정이 필요하다. 회귀와 최초 sweep은 실패 후보의 증거로 구분해 완료까지 보존하며 formal 기대값은 바꾸지 않는다.
+
+- v52 기존67개는 exit100/전체349.258초, 실행20.526초로62PASS/5FAIL/2127skip이다. #6024 원본의 전체 쪽수106vs105, #7226 교육과정의414vs413, #6981 같은 원본의 종료 뒤 노동인권 소속, #6803의 이어받기와 완전 보존2검사에서 실패했다. 기대값은 유지한다. 실패 원본의 Print/Visual Sweep을 추가하며, 기존 #6803 5쪽 PDF 대조는 pinned 실패 binary에서 시작했다. #6024·#7226/#6981·#6803의 원본3개는 버전별 MCP Print 계약을 새로 확인한다.
+
+- 실패 원본 #6803의 Native v52 전쪽5페이지 Visual Sweep은 exit1이며99.26183/93.32244/73.17339/34.27747/33.25166%다. 최신 실패 binary와 추적 독립 PDF의 출력 비교이고 최저33.25166%로 원본은90% 선행 조건을 충족하지 않는다. 테스트/기대값을 변경하지 않으며 실제 출력부터 보정한다(native-failed-6803-original-review-v52/6803-original/review/). 새 MCP Print와 freshWASM의 대응도 남아 있다.
+
+- v52 retry1 build exit0의 실제 트리도 IDDV 중복을 유지하므로 실패 후보(source-code-v52-retry)로 보존한다. 앞서 적은 물리 차이만의 가설은 충분하지 않았다. 같은 행의 일반 RowCut은 별도 start_row_height_override 없이도 이미 시작한 병합 셀의 물리/내용 prefix를 소유한다. 빈 컷/병합 전용 행만 height override를 요구하고, 일반 비어 있지 않은 RowCut은 자체로 이어받기를 입증하도록 조건을 교정한다.
+- #6803의 앞 eu와 뒤 su도 서로 다른 높이 공간이었다. 앞 helper는 cell_h를 사용했지만 뒤는 이전 행 점유와 실제 RowCut prefix를 사용한다. 새 rowbreak_cut_prefix_height는 동일 원점의 실제 이전 행 원장+accepted RowCut 점유를 산출하고 일반 걸침 helper의 끝 컷과 #6803 블록 시작/일반 끝 경로가 함께 소비한다. 끝 블록 컷 슬롯은 별도로 유지한다. 원본에 따라 조건을 좁히거나 px 기대값을 바꾸지 않는다.
+
+- 원인 분리를 위해 pinned v51(보정33)과 v52 retry1에서 실패 원본 쪽수를 다시 읽었다. #6024는 두 후보 모두106쪽, 교육과정은 두 후보 모두414쪽, #6803는5쪽이다(failed-original-page-count-comparison-v52.json). #6024/#7226의 쪽수 실패를 새 컷 공간 보정이 유입한 회귀라고 단정하지 않는다. 기존 검토 후보에 이미 남은 실패이며 원본 출력 보정이 필요하다. 교육과정의 독립415쪽 기준 PDF는 기존 pr_7544_review.md에 같은 원문 대응과 쪽수 불일치가 명시되어 있다. 새 MCP가 queue 대기 중이어도 기존의 미충족·미검증을 그대로 보존한다.
+
+- v52 retry2 Native build exit0/249.830초, binary SHAf5b1ac023d02adaf5deb90e1d195758d182d9d9f2f66b37a3050fc34abc3a5ca다. 원본 p20 실행 트리에서 IDDV 중복이 제거되고 ISO 두 줄 y112.5/133.5가 독립 Print112.286/133.406과 대응한다. 새 review PNG와 기존67개를 다시 실행한다. #6803 공용 JSON 탐색은 row_span/model 소유 정보가 없어 다른 표의 같은 row/col을 섞으므로 정식 소유 검증으로 사용하지 않는다. 원본의 typed 회귀2개로 확인하며 잘못된 탐색 집계를 not_evaluated로 교정했다.
+
+- v52 retry2 HWP p3/p4/p19/p20 review는99.69210/99.72851/99.35269/97.44457%다. 최신 p20 review_020.png를 대화에 표시해 IDDV 중복 제거와 ISO 두 줄의 세로 Center를 확인했다. 같은 첫줄 Native “(ISO ”는 줄끝 공백을 포함해 x188.2/폭34.3인 반면 독립 Print 잉크는 x191.36/폭27.835다. 가시 텍스트·공백의 정렬 폭과 줄말 공백 소유를 후속 확인한다. 하단 괘선의 작은 차이도 남아 있어 수치만으로 확대 판독을 통과하지 않는다.
+
+- v52 retry2 선택 Native HWP/HWPX8쪽 review는 exit0/336.111초이며 HWPX p3/p4/p19/p20=99.68701/99.67973/99.46133/97.58977%다. 기존67개는 exit100/전체346.771초/실행20.623초,64PASS/3FAIL/2127skip이다. #6803 이어받기·완전 보존2검사는 수정 전 v52에서 FAIL/수정 후 retry2에서 PASS로 복구했고 원본/기대값은 그대로다. 남은 #6024 쪽수와 #7226 쪽수/#6981 종료 뒤 소속은 앞 후보에도 남은 원본 실패로 계속 보정한다. typed 검사의 복구를 #6803 전체 피델리티 승인으로 승격하지 않는다.
+- 정확한 retry2 binary에서 원본 두 파일52쪽 Native 전수 TSV를 시작했다(native-row-cut-span-ownership-full-v52-retry2). 소스 형상/입력/기준/명령/선택 PNG는 source-code-v52-retry2 및 명령 JSON/검토 폴더로 고정했다. freshWASM, 최종 Rust lint/전체 nextest/Studio, 원본3개의90% 선행 검증과 나머지 최초18개 범위가 아직 남아 있으며 PR 생성·승인·merge는 보류한다. source 보정의 로컬 체크포인트만 커밋한다.

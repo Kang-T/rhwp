@@ -532,23 +532,26 @@ fn block_cut_index(
 ///
 /// 앞 조각이 남긴 정확한 잔여 밴드(`start_row_height_override`)는 그 행에서
 /// 시작하는 걸침 칸에도 같은 뜻이다 — 소비 높이 = 선언 행 높이 − 잔여 밴드.
-/// 컷 부기가 성립하는 행(= `row_span == 1` 칸이 하나라도 있는 행)은 종전대로
-/// `start_cut` 이 소관하므로 건드리지 않는다.
+/// 일반 행 컷의 슬롯은 단일행 칸만 소유한다. 같은 시작행의 병합 칸도 잔여
+/// 물리 밴드와 실제 소비된 행 컷의 점유를 공통 높이 계산으로 이어받는다.
+/// 블록 컷은 병합 칸의 명시적인 슬롯을 계속 소유한다.
 pub(crate) fn resumes_inside_own_start_row(
     table: &crate::model::table::Table,
     cell: &crate::model::table::Cell,
     start_row: usize,
     start_cut: &[usize],
+    start_cut_is_block: bool,
     start_row_height_override: Option<f64>,
 ) -> bool {
-    start_row_height_override.is_some()
-        && start_cut.is_empty()
-        && cell.row_span > 1
+    cell.row_span > 1
         && cell.row as usize == start_row
-        && !table
-            .cells
-            .iter()
-            .any(|c| c.row as usize == start_row && c.row_span == 1)
+        && ((!start_cut_is_block && !start_cut.is_empty())
+            || (start_row_height_override.is_some()
+                && start_cut.is_empty()
+                && !table
+                    .cells
+                    .iter()
+                    .any(|c| c.row as usize == start_row && c.row_span == 1)))
 }
 
 /// [#6935] 이 조각의 **시작 컷**이 `cell` 을 실제로 가리키는가.
@@ -558,7 +561,7 @@ pub(crate) fn resumes_inside_own_start_row(
 /// - 블록 공간(`start_cut_is_block`): 컷이 블록-셀 `(row,col)` 서수라 블록에 걸친 칸도
 ///   자기 자리를 갖는다 — 블록 범위와 겹치면 컷이 소관한다.
 /// - 행 공간: 컷이 시작 행의 `row_span == 1` 칸만 담는다. 그 행에서 시작하지 않는 걸친
-///   칸은 **적을 자리가 없으므로** 컷이 소관하지 않는다. 그런 칸은 `#1748` 의 높이 기반
+///   칸이나 같은 행에서 시작한 병합 칸은 **적을 자리가 없으므로** 컷이 소관하지 않는다. 그런 칸은 `#1748` 의 높이 기반
 ///   구제(`rowbreak_straddle_cut_units`)가 앞 조각 소비분을 이어 준다.
 ///
 /// 종전에는 `is_block_split` 하나가 시작·끝 두 공간을 OR 로 합쳐, 시작이 행 공간인데 끝이
@@ -576,7 +579,7 @@ fn start_cut_covers_cell(
     if start_cut_is_block {
         split_start_block.is_some_and(|(s, e)| cell_row < e && cell_end_row > s)
     } else {
-        !start_cut.is_empty() && cell_row == start_row
+        !start_cut.is_empty() && cell_row == start_row && cell_end_row == cell_row + 1
     }
 }
 
@@ -642,7 +645,7 @@ fn cell_cut_window(
                 .unwrap_or(0),
             _ => 0,
         }
-    } else if apply_start {
+    } else if apply_start && cell.row_span == 1 {
         start_cut
             .get(single_row_cut_index(table, cell))
             .copied()
@@ -659,7 +662,7 @@ fn cell_cut_window(
                 .unwrap_or(usize::MAX),
             _ => usize::MAX,
         }
-    } else if apply_end {
+    } else if apply_end && cell.row_span == 1 {
         end_cut
             .get(single_row_cut_index(table, cell))
             .copied()
@@ -821,7 +824,7 @@ impl LayoutEngine {
         let is_split_end_row = if is_block_split {
             split_end_block.is_some_and(|(s, e)| cell_row < e && cell_end_row > s)
         } else {
-            !end_cut.is_empty() && cell_row == end_row.saturating_sub(1)
+            !end_cut.is_empty() && cell.row_span == 1 && cell_row == end_row.saturating_sub(1)
         };
         if !(is_split_start_row || is_split_end_row) {
             return true; // 이 조각에서 셀이 컷되지 않음 → 전체 가시
@@ -908,7 +911,7 @@ impl LayoutEngine {
         let is_split_end_row = if is_block_split {
             split_end_block.is_some_and(|(s, e)| cell_row < e && cell_end_row > s)
         } else {
-            !end_cut.is_empty() && cell_row == end_row.saturating_sub(1)
+            !end_cut.is_empty() && cell.row_span == 1 && cell_row == end_row.saturating_sub(1)
         };
         if !(is_split_start_row || is_split_end_row) {
             // row_span==1 이므로 is_rowbreak_straddle(rowspan>1 전제) 도달 불가 — 전체 가시.
@@ -1221,7 +1224,7 @@ impl LayoutEngine {
             let is_split_end_row = if is_block_split {
                 split_end_block.is_some_and(|(s, e)| cell_row < e && cell_end_row > s)
             } else {
-                !end_cut.is_empty() && cell_row == end_row.saturating_sub(1)
+                !end_cut.is_empty() && cell.row_span == 1 && cell_row == end_row.saturating_sub(1)
             };
             let is_in_split_row = is_split_start_row || is_split_end_row;
             // [#5946] 쪽 분할이 행 높이 override 로만 이어질 때(컷 부기 없음)
@@ -1257,6 +1260,7 @@ impl LayoutEngine {
                     cell,
                     start_row,
                     start_cut,
+                    start_cut_is_block,
                     start_row_height_override,
                 );
             let straddle_end_uncovered =
@@ -1264,7 +1268,8 @@ impl LayoutEngine {
             // CellBreak 표의 경계 straddle rowspan 셀도 같은 기전으로 중복된다
             // (10857 p67 '조사관 교육훈련', pb=CellBreak 실측) — 높이-유닛 컷은
             // 분할 모드와 무관한 산술이라 함께 적용한다.
-            let is_rowbreak_straddle = !is_in_split_row
+            let is_rowbreak_straddle = (!is_in_split_row
+                || (straddle_start_uncovered && !start_cut_is_block))
                 && cell.row_span > 1
                 && !is_repeated_header_cell
                 && matches!(
@@ -1350,8 +1355,10 @@ impl LayoutEngine {
                     start_row,
                     render_range_end,
                     start_cut,
+                    start_cut_is_block,
                     start_row_height_override,
-                    end_cut.is_empty(),
+                    end_cut,
+                    is_block_split,
                     cell_h,
                     resolved_row_heights,
                     straddle_page_bands,
@@ -1361,7 +1368,7 @@ impl LayoutEngine {
             // A completed stored text span aligns the remaining owners in
             // its final physical cell box, including a continuous source ladder.
             // Reuse the selected cut for composition and paint below.
-            let stored_restart_span_frame_owns_alignment = cell_end_row <= render_range_end
+            let stored_restart_span_frame_owns_alignment = !is_in_split_row && cell_end_row <= render_range_end
                 && straddle_cut_units.is_some_and(|(start, end)| {
                     let units = self.cell_units(cell, table, styles);
                     start > 0
@@ -1654,7 +1661,7 @@ impl LayoutEngine {
             {
                 Some(cut)
             } else if is_in_split_row {
-                let (su, mut eu) = cell_cut_window(
+                let (mut su, mut eu) = cell_cut_window(
                     table,
                     cell,
                     start_cut_is_block,
@@ -1669,6 +1676,14 @@ impl LayoutEngine {
                     start_row,
                     end_row.saturating_sub(1),
                 );
+                // A RowCut does not own this spanning cell, even when the
+                // fragment ends with a BlockCut that does. Preserve that end
+                // slot and consume the same physical start prefix as reservation.
+                if straddle_start_uncovered && !start_cut_is_block {
+                    if let Some((physical_start, _)) = straddle_cut_units {
+                        su = su.max(physical_start);
+                    }
+                }
                 // [#6803] 조각 **시작 행에서 시작해 끝 행을 넘는** rowspan 셀은 끝 컷을
                 // 받지 못한다. `end_cut` 은 `end_row-1` 행의 부기라 그 셀이 담기지 않고
                 // (`apply_end == false` → `eu == usize::MAX`), 시작 행에 걸린 탓에
@@ -1691,20 +1706,14 @@ impl LayoutEngine {
                     // 높이. 그래서 `이 조각의 eu == 다음 조각의 su` 가 산술적으로
                     // 보장된다(같은 파일 아래 `#1748` 주석의 관찰 그대로다).
                     let boundary_row = render_range_end.saturating_sub(1);
-                    let mut consumed_h = 0.0f64;
-                    let stored_physical_span = self.stored_plain_text_span_frame(table, cell);
-                    for r in cell_row..boundary_row {
-                        let h = self.rowbreak_prior_row_height(
-                            table,
-                            r,
-                            resolved_row_heights,
-                            styles,
-                            stored_physical_span,
-                        );
-                        consumed_h += h + cell_spacing;
-                    }
-                    consumed_h +=
-                        self.row_cut_content_height(table, boundary_row, &[], end_cut, styles);
+                    let consumed_h = self.rowbreak_cut_prefix_height(
+                        table,
+                        cell,
+                        boundary_row,
+                        end_cut,
+                        resolved_row_heights,
+                        styles,
+                    );
                     let fit = self
                         .cell_units_fitting_height(cell, table, styles, consumed_h - pad_top)
                         .max(su);
@@ -5720,6 +5729,7 @@ impl LayoutEngine {
                             r,
                             start_row,
                             start_cut,
+                            start_cut_is_block,
                             start_row_height_override,
                             &resolved_row_heights,
                             straddle_page_bands,

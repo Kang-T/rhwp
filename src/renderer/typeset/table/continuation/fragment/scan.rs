@@ -204,6 +204,7 @@ impl TypesetEngine {
             strict_painted_bottom_fit: strict_following_plain_text_fit,
             source_first_fragment_overflow_allowance,
             source_first_fragment_row_end,
+            start_cut_is_block: input.start.start_cut_is_block,
             start_row_height_override,
             source_terminal_suffix_start: input.prepared.source_terminal_suffix_start,
         };
