@@ -591,3 +591,32 @@ HWPX oracle는 격차가 개선되어 실제차단이 아니므로 원장행을 
 ## 2026-10-03 ParameterSet 74쪽 문서 전체 피델리티 이관
 
 `samples/hwpctl_ParameterSetID_Item_v1.2.hwp` 전74쪽 Native TSV 최저44쪽22.70986%,9쪽미달입니다. 해당입력 #6656 2함수/#6307 1함수·쪽수/기하원장4행을제거하고corpus4종에서제외합니다. 원문/PDF 및 파싱자산은유지합니다. [전쪽TSV](../planet6897_green_20261002/deferred_parameterset_native.tsv),[범위](../planet6897_green_20261002/deferred_parameterset_validation.json).
+
+
+## 2026-10-09: 최신 upstream/devel의 hwpspec 실패 항목 이관
+
+사용자 지시는 **최신 `upstream/devel`에서 90% 미만인 문서의 실패 항목만 기존 #7445로 이관**하고, 90% 이상인 문서는 현재 통합 브랜치에서 수정하는 것입니다. 정확히 90%는 이관 대상이 아니며 미측정·PDF 부재는 미달로 간주하지 않습니다. 새 이슈는 만들지 않습니다.
+
+기준 source는 `74f9b71b15a2db18b17c37ceab6cf2b3c20c03c3`입니다. 해당 clean review worktree를 Native와 fresh WASM으로 새로 빌드했습니다. Native 실행 파일 SHA-256은 `55a56f8b1773d0a1dea560373bfc32216813a3813334e4c1591c9fce24950cb6`입니다. Sweep 도구 실행 작업공간 HEAD `e469c4486e5e5d7b6de5a6e4a74d938e89dab188`은 **비교 도구의 출처**이며, 실제 renderer는 위 base binary입니다. 두 checkout의 Sweep/exporter source는 동일합니다. 이 두 SHA를 혼동하지 않습니다.
+
+- [보존 원문](../../../../samples/hwpspec.hwp), SHA-256 `64df877f3c4accda0111ecf39d837da889741bb821b220cf61b6c126dc88364d`.
+- [독립 한컴 Print 기준 PDF178쪽](../../../../pdf/hwpspec-2024.pdf), SHA-256 `9c8110347efd719c75098b97509bd4ddf4c5eb6c838d4a6d78982da5f610512b`.
+- Native 18/20/21/35/44/46쪽의 2px 관용 내용 실루엣 일치율은 각각 **70.63287/36.37650/74.33545/29.76551/45.03046/36.58140%**입니다. 전178쪽 통과는 주장하지 않습니다. 선택 쪽에서 이미 미달이 확인되어 이관 조건이 성립했습니다.
+- 20쪽 review와 standalone overlay에서 제어문자 표의 행 소속 및 뒤 본문 위치 차이를 확인했습니다. 35쪽 review에서는 앞 표가 다른 쪽에 놓이고 뒤 표·제목의 수직 위치가 어긋납니다. 글꼴만의 차이로 면제하지 않습니다.
+- 현재 통합 source `e469c4486e5e5d7b6de5a6e4a74d938e89dab188`의 전체 회귀는 **10224 PASS / 28 FAIL / 46 skipped, nextest exit100**입니다. 제거를 결함 해결·전체 통과로 세지 않습니다.
+
+정확한 이관 범위는 실패한 `task1086_hwpspec_page_count_matches_hancom_office`, `task1086_hwpspec_extended_control_figure_starts_on_next_page`, `hwpspec_split_control_figures_no_duplicate_image_emit` 3함수와 off-canvas corpus의 해당 입력, oracle의 해당 한 행(`samples/hwpspec.hwp<TAB>178<TAB>178`)입니다. #418 파일은 이 실패 함수만 포함했으므로 제거했습니다. 기존 함수 원문은 Git source `e469c4486e5e5d7b6de5a6e4a74d938e89dab188`의 `tests/issue_1086.rs`와 `tests/issue_418.rs`에서 복원할 수 있습니다. 입력·PDF·다른 문서의 정상 검사, hwpspec의 다른 정상 검사와 다른 원장·공차는 보존합니다. 파티션 전체를 제거하거나 baseline 수치를 완화하지 않습니다.
+
+명령은 다음과 같고 실제 명령·빌드/입력/PDF 해시·전 실패 로그는 ignored `output/pr-review/planet6897-20261008/`에 보존합니다. `upstream-74f9b71b1-failure-triage/initial-native-sweeps.json`, `build.json`, `wasm-build.json`, `committed-e469c4486-failure-inventory.json`을 사용합니다. fresh WASM도 같은 선택6쪽을 실제 Chrome에서 비교했고 각 값은 위 Native와 동일합니다(`focused-wasm.json`의 hwpspec 행). 그 드라이버는 후속 단일쪽 입력의 파일명 해석 오류로 종료했으며 그 오류를 hwpspec 완료 쪽의 제품 실패로 세지 않습니다. 후속 입력은 파일명 계약을 수정한 별도 실행으로 확인했습니다. 이관 뒤 최종 source 회귀는 아직 실행하지 않았습니다. [이관 등록 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6063165946)의 한국어 본문은 API로 재확인했습니다.
+
+```powershell
+venv\Scripts\python.exe scripts\visual_sweep.py --hwp samples/hwpspec.hwp --pdf pdf/hwpspec-2024.pdf --key upstream-hwpspec --rhwp-bin output/pr-review/planet6897-20261008/upstream-74f9b71b1-failure-triage/rhwp-upstream-74f9b71b1.exe --embed-fonts=full --font-path C:\Users\admin\Downloads\planet6897-review-fonts\legacy-kopub --dpi 96 --pages 18,20,21,35,44,46 --out output/pr-review/planet6897-20261008/upstream-74f9b71b1-failure-triage/native-initial/hwpspec
+```
+
+복원은 같은 입력·독립 PDF의 관련 전체 범위 Native/fresh WASM 최저값 90% 이상 및 쪽수/내용 소속·중복 보존을 확인한 뒤, 절대 px 핀 대신 의미·소유 관계로 재구축합니다. #7445는 열린 상태로 유지합니다.
+
+![최신 base의 hwpspec20쪽 행 소속·본문 차이](hwpspec_upstream_74f9b71b1_review_020.png)
+
+![같은 20쪽 standalone overlay](hwpspec_upstream_74f9b71b1_overlay_020.png)
+
+![최신 base의 hwpspec35쪽 표·제목 소속 차이](hwpspec_upstream_74f9b71b1_review_035.png)
