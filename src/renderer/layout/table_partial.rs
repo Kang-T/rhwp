@@ -3290,12 +3290,23 @@ impl LayoutEngine {
                                     continue;
                                 }
                                 if shape.common().treat_as_char {
-                                    // 인라인 도형: 순차 X 위치로 배치
+                                    // 글줄이 예약한 위치에는 앞 텍스트, 문단 여백과
+                                    // 실제 소유 줄의 기준선이 포함된다. 온전한 셀과
+                                    // 같이 그 결과를 소비하고, 등록 없는 경로만
+                                    // 기존 순차 배치를 사용한다.
                                     let shape_w =
                                         hwpunit_to_px(shape.common().width as i32, self.dpi);
+                                    let (shape_x, shape_y) = tree
+                                        .get_inline_shape_position(
+                                            section_index,
+                                            cp_idx,
+                                            ctrl_idx,
+                                            Some(&cell_context),
+                                        )
+                                        .unwrap_or((inline_x, para_y_before_compose));
                                     let shape_area = LayoutRect {
-                                        x: inline_x,
-                                        y: para_y_before_compose,
+                                        x: shape_x,
+                                        y: shape_y,
                                         width: shape_w,
                                         height: inner_area.height,
                                     };
@@ -3313,14 +3324,14 @@ impl LayoutEngine {
                                         &mut cell_node,
                                         shape,
                                         &shape_area,
-                                        para_y_before_compose,
+                                        shape_y,
                                         Alignment::Left,
                                         styles,
                                         bin_data_content,
                                         clamp_header_negative_para_offset,
                                         table_cell_ctx,
                                     );
-                                    inline_x += shape_w;
+                                    inline_x = shape_x + shape_w;
                                 } else {
                                     // 비인라인 도형: 기존 동작
                                     let shape_anchor_y = if matches!(

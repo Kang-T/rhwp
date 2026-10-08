@@ -4150,6 +4150,59 @@ fn font_local_bold_aliases(font_family: &str) -> Vec<&'static str> {
 /// 폰트명 → 알려진 파일명 매핑 (HWP/한컴/MS 폰트)
 fn known_font_filenames(font_name: &str) -> Vec<&'static str> {
     match font_name {
+        // 기존 KoPub의 name table에 있는 한글/영문 face와 실제 배포
+        // 파일명을 연결한다. KoPub World는 별도 family이므로 포함하지 않는다.
+        "KoPub돋움체"
+        | "KoPubDotum"
+        | "KoPub Dotum"
+        | "KoPub돋움체 Light"
+        | "KoPubDotum Light"
+        | "KoPub Dotum Light"
+        | "KoPubDotumLight" => vec![
+            "KoPub Dotum Light.ttf",
+            "KoPubDotum-Light.ttf",
+            "KoPubDotumLight.ttf",
+        ],
+        "KoPub돋움체 Medium" | "KoPubDotum Medium" | "KoPub Dotum Medium" | "KoPubDotumMedium" => {
+            vec![
+                "KoPub Dotum Medium.ttf",
+                "KoPubDotum-Medium.ttf",
+                "KoPubDotumMedium.ttf",
+            ]
+        }
+        "KoPub돋움체 Bold" | "KoPubDotum Bold" | "KoPub Dotum Bold" | "KoPubDotumBold" => {
+            vec![
+                "KoPub Dotum Bold.ttf",
+                "KoPubDotum-Bold.ttf",
+                "KoPubDotumBold.ttf",
+            ]
+        }
+        "KoPub바탕체"
+        | "KoPubBatang"
+        | "KoPub Batang"
+        | "KoPub바탕체 Light"
+        | "KoPubBatang Light"
+        | "KoPub Batang Light"
+        | "KoPubBatangLight" => vec![
+            "KoPub Batang Light.ttf",
+            "KoPubBatang-Light.ttf",
+            "KoPubBatangLight.ttf",
+        ],
+        "KoPub바탕체 Medium"
+        | "KoPubBatang Medium"
+        | "KoPub Batang Medium"
+        | "KoPubBatangMedium" => vec![
+            "KoPub Batang Medium.ttf",
+            "KoPubBatang-Medium.ttf",
+            "KoPubBatangMedium.ttf",
+        ],
+        "KoPub바탕체 Bold" | "KoPubBatang Bold" | "KoPub Batang Bold" | "KoPubBatangBold" => {
+            vec![
+                "KoPub Batang Bold.ttf",
+                "KoPubBatang-Bold.ttf",
+                "KoPubBatangBold.ttf",
+            ]
+        }
         // 실제 설치 face가 있어도 파일명 누락으로 Noto를 원 family에 내장하지 않는다.
         "한컴 고딕" | "Hancom Gothic" => vec!["Hancom Gothic Regular.ttf"],
         // 한컴 PDF의 함초롬바탕은 HCR Batang이다. HBATANG.TTF는 다른
@@ -4222,6 +4275,28 @@ fn known_font_filenames(font_name: &str) -> Vec<&'static str> {
 /// 별도 선언해야 글리프 폭과 획 두께가 유지된다.
 fn known_bold_font_filenames(font_name: &str) -> Vec<&'static str> {
     match font_name {
+        "KoPub돋움체"
+        | "KoPubDotum"
+        | "KoPub Dotum"
+        | "KoPub돋움체 Bold"
+        | "KoPubDotum Bold"
+        | "KoPub Dotum Bold"
+        | "KoPubDotumBold" => vec![
+            "KoPub Dotum Bold.ttf",
+            "KoPubDotum-Bold.ttf",
+            "KoPubDotumBold.ttf",
+        ],
+        "KoPub바탕체"
+        | "KoPubBatang"
+        | "KoPub Batang"
+        | "KoPub바탕체 Bold"
+        | "KoPubBatang Bold"
+        | "KoPub Batang Bold"
+        | "KoPubBatangBold" => vec![
+            "KoPub Batang Bold.ttf",
+            "KoPubBatang-Bold.ttf",
+            "KoPubBatangBold.ttf",
+        ],
         "한컴 고딕" | "Hancom Gothic" => vec!["Hancom Gothic Bold.ttf"],
         "함초롬바탕" | "함초롱바탕" | "한컴바탕" | "휴먼명조" => {
             vec!["HANBatangB.ttf", "HBATANGB.TTF"]
