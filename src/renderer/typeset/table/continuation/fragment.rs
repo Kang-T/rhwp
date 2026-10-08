@@ -12,6 +12,7 @@ mod budget;
 mod emit;
 mod physical_rows;
 mod scan;
+mod stored_frame_budget;
 
 pub(super) struct FragmentProfile {
     pub(super) enabled: bool,

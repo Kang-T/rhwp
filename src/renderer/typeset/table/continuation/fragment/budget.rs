@@ -1491,6 +1491,30 @@ impl TypesetEngine {
         if accepted_source_frame_limit.is_some() {
             source_first_fragment_overflow_allowance = 0.0;
         }
+        let (
+            avail_for_rows,
+            source_first_fragment_row_end,
+            source_first_fragment_overflow_allowance,
+            source_complete_frame_last_row,
+        ) = if let Some(frame) = self.stored_partial_fragment_height(
+            st,
+            input,
+            saved_first_fragment_source_frame,
+            source_frame_declared_height_is_credible,
+            avail_for_rows,
+        ) {
+            // This slot is a physical source fragment. The unit walker
+            // determines ownership inside it; a nearest row boundary and
+            // body-tail allowance cannot authorize another source row.
+            (frame.height, None, 0.0, frame.complete_last_row)
+        } else {
+            (
+                avail_for_rows,
+                source_first_fragment_row_end,
+                source_first_fragment_overflow_allowance,
+                source_complete_frame_last_row,
+            )
+        };
 
         // [Task #1046 Stage 2 진단] 첫/연속 fragment 의 가용공간 분해 — 렌더러
         // y_start 점프(vert_offset)·host_before 와의 정합 확인용. 동작 불변(게이트).
