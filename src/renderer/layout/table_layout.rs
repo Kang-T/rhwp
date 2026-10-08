@@ -4653,7 +4653,8 @@ impl LayoutEngine {
                 .all(|p| !crate::renderer::para_has_no_stored_line_segs(p))
     }
 
-    /// 앞 행의 저장 상자와 현재 줄 끝이 선언된 첫 표 frame을 정확히 닫는가.
+    /// 앞 행의 저장 상자와 현재 줄 끝이 선언된 첫 표 frame을 닫는가.
+    /// 잉크 뒤 빈 밴드도 그 frame에 속하지만 다음 원점0 줄은 별도 소유다.
     /// 작은 행 내부 reset도 전체 표의 물리 경계일 수 있다. 셀 자체가 본문
     /// 절반보다 작은지만 보면 2+2 저장 줄을 3+1 또는 4+0으로 소비한다.
     /// 선행 행은 control-free 저장 줄만으로 계산 가능해야 하며, 그 안에
@@ -4664,7 +4665,8 @@ impl LayoutEngine {
         table: &crate::model::table::Table,
         previous: &crate::model::paragraph::LineSeg,
     ) -> bool {
-        if !self.profile.get().hwp5_stored_pagination_layout()
+        if !(self.profile.get().hwp5_stored_pagination_layout()
+            || self.profile.get().hwpx_stored_layout())
             || cell.row == 0
             || cell.row_span != 1
             || !Self::cell_has_stored_line_segs(cell)
@@ -4735,7 +4737,58 @@ impl LayoutEngine {
             + i64::from(previous.line_height)
             + i64::from(padding.top)
             + i64::from(padding.bottom);
-        (frame_end - i64::from(table.common.height)).abs() <= 2
+        let declared_frame = i64::from(table.common.height);
+        if (frame_end - declared_frame).abs() <= 2 {
+            return true;
+        }
+        if self.profile.get().session_edited()
+            || self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+            || cell.dirty_flag
+            || previous.vertical_pos <= 0
+            || previous.line_spacing < 0
+            || cell.height > i32::MAX as u32
+            || table
+                .cells
+                .iter()
+                .filter(|prior| prior.row <= cell.row && prior.row_span == 1)
+                .any(|prior| {
+                    prior.dirty_flag
+                        || prior.paragraphs.iter().any(|para| {
+                            para.stored_text_partition_is_dirty() || para.cell_format_vpos_dirty
+                        })
+                })
+        {
+            return false;
+        }
+        // A reset inside this paragraph proves a different source owner. The
+        // first frame may retain blank space after its ink, but cannot consume
+        // the next line's full occupancy as if its local origin had advanced.
+        cell.paragraphs.iter().any(|para| {
+            para.line_segs.windows(2).any(|pair| {
+                let next = &pair[1];
+                std::ptr::eq(&pair[0], previous)
+                    && next.vertical_pos == 0
+                    && next.line_height > 0
+                    && next.text_start > previous.text_start
+                    && next.column_start == previous.column_start
+                    && next.segment_width > 0
+                    && next.segment_width == previous.segment_width
+                    && next.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                    && frame_end < declared_frame
+                    && declared_frame
+                        < frame_end + i64::from(previous.line_spacing) + i64::from(next.line_height)
+                    && declared_frame < prefix + i64::from(cell.height)
+                    && self.stored_row_cut_has_shared_ink_end(
+                        table,
+                        cell,
+                        previous,
+                        declared_frame - prefix,
+                    )
+            })
+        })
     }
 
     /// 전체 행이 남은 공간에 들어가더라도 선언 frame이 행 중간에서 끝나면

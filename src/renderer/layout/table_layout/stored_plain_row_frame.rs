@@ -1,11 +1,107 @@
 //! Source row boxes authenticate partial text frames beyond the opening fragment.
 
 use crate::model::paragraph::LineSeg;
-use crate::model::table::{Table, TablePageBreak};
+use crate::model::table::{Cell, Table, TablePageBreak};
 
 use super::{LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    /// A frame with blank tail cannot identify an ordinary row cut from one
+    /// cell alone. Completed siblings fit; remaining owners must agree on the
+    /// same source ink boundary before restarting within their paragraph.
+    pub(super) fn stored_row_cut_has_shared_ink_end(
+        &self,
+        table: &Table,
+        cell: &Cell,
+        previous: &LineSeg,
+        frame: i64,
+    ) -> bool {
+        let padding = cell.effective_padding(&table.padding);
+        let ink_end = i64::from(previous.vertical_pos)
+            + i64::from(previous.line_height)
+            + i64::from(padding.top)
+            + i64::from(padding.bottom);
+        let mut shared_boundary = false;
+        for peer in table
+            .cells
+            .iter()
+            .filter(|peer| peer.row == cell.row && peer.row_span == 1 && peer.col != cell.col)
+        {
+            if peer.dirty_flag
+                || peer.paragraphs.iter().any(|para| {
+                    !para.controls.is_empty()
+                        || para.stored_text_partition_is_dirty()
+                        || para.cell_format_vpos_dirty
+                        || para.line_segs.is_empty()
+                        || para.line_segs.iter().any(|line| {
+                            line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                                || line.vertical_pos < 0
+                                || line.line_height <= 0
+                        })
+                })
+            {
+                return false;
+            }
+            let pad = peer.effective_padding(&table.padding);
+            let peer_padding = i64::from(pad.top) + i64::from(pad.bottom);
+            let shared = peer.paragraphs.iter().any(|para| {
+                para.line_segs.windows(2).any(|pair| {
+                    let (before, after) = (&pair[0], &pair[1]);
+                    let prefix: Vec<_> = peer
+                        .paragraphs
+                        .iter()
+                        .flat_map(|paragraph| &paragraph.line_segs)
+                        .take_while(|line| !std::ptr::eq(*line, before))
+                        .collect();
+                    before.vertical_pos > 0
+                        && after.vertical_pos == 0
+                        && before.line_spacing >= 0
+                        && after.text_start > before.text_start
+                        && before.column_start == after.column_start
+                        && before.segment_width > 0
+                        && before.segment_width == after.segment_width
+                        && prefix
+                            .windows(2)
+                            .all(|lines| lines[0].vertical_pos <= lines[1].vertical_pos)
+                        && prefix
+                            .last()
+                            .is_none_or(|line| line.vertical_pos <= before.vertical_pos)
+                        && i64::from(before.vertical_pos)
+                            + i64::from(before.line_height)
+                            + peer_padding
+                            == ink_end
+                        && ink_end < frame
+                        && frame
+                            < ink_end
+                                + i64::from(before.line_spacing)
+                                + i64::from(after.line_height)
+                        && frame < i64::from(peer.height)
+                })
+            });
+            if shared {
+                shared_boundary = true;
+                continue;
+            }
+            let lines: Vec<_> = peer
+                .paragraphs
+                .iter()
+                .flat_map(|para| &para.line_segs)
+                .collect();
+            if lines.is_empty()
+                || lines
+                    .windows(2)
+                    .any(|pair| pair[1].vertical_pos < pair[0].vertical_pos)
+                || lines.iter().any(|line| {
+                    i64::from(line.vertical_pos) + i64::from(line.line_height) + peer_padding
+                        > frame
+                })
+            {
+                return false;
+            }
+        }
+        shared_boundary
+    }
+
     pub(crate) fn stored_row_boxes_exceed_first_frame(&self, table: &Table) -> bool {
         if table.common.height == 0 || table.common.height > i32::MAX as u32 {
             return false;
