@@ -647,3 +647,29 @@ KTX2쪽에서 본문·목차 번호와 외곽선의 수직 차이를 직접 확�
 ![정상 생성 nested-split5쪽](nested7518_upstream_74f9b71b1_review_005.png)
 
 ![같은 문서6쪽 빈 종료 프레임](nested7518_upstream_74f9b71b1_review_006.png)
+
+
+## 2026-10-09: 교육과정415쪽 문서의 실패 범위 이관
+
+사용자가 지정한 **최신 upstream/devel에서90% 미만인 문서만 기존 #7445로 이관** 기준을 적용합니다. 새 이슈는 만들지 않습니다.
+
+- 실제 renderer source: `74f9b71b15a2db18b17c37ceab6cf2b3c20c03c3`의 새 Native 빌드. CLI SHA-256 `55a56f8b1773d0a1dea560373bfc32216813a3813334e4c1591c9fce24950cb6`.
+- [원문](../../../../samples/task2287/1342000_edu_curriculum_map.hwp), [독립 한컴 Print PDF415쪽](../../../../pdf/1342000_edu_curriculum_map-2024.pdf). 입력·PDF 해시는 아래 별도 줄에 기록합니다.
+- Native83/154/273/287/378/379/380쪽의 2px 관용 내용 실루엣은 각각 **33.95761/49.66566/43.49009/23.66529/28.44172/29.44762/22.02606%**입니다. 전415쪽 및 이 문서의 fresh WASM 비교는 아직 미실행입니다. Native에서 이미 실제 미달을 확인했으므로90% 이상으로 분류하지 않습니다.
+- 83쪽 직접 review에서 표 외곽·행 내용의 수직 차이를,380쪽에서 기준 PDF의「노동인권 교육」시작 대신 앞 표의 이어진 내용이 남은 쪽 소속 차이를 확인했습니다. 글꼴만의 차이로 면제하지 않습니다.
+
+전체 회귀 head `e469c4486e5e5d7b6de5a6e4a74d938e89dab188`에서 실제 실패한 `partial_retreat_inside_a_page_does_not_break`, `the_fix_does_not_add_a_page`, `physical_blank_band_is_not_reserved_again_on_continuation` 3함수와 oracle의 한 행(`samples/task2287/1342000_edu_curriculum_map.hwp / 415 / 413`)만 이관했습니다. 함수 원문·기존 기대값은 위 Git source와 실패 로그에 보존했습니다. 현재418쪽을 baseline으로 갱신하지 않았으며 다른 정상 이어받기·셀 포함·종료/각주 보존 검사와 다른 원장은 유지합니다. 원문과 기존 PDF를 이동·삭제하지 않습니다.
+
+이관을 제품 결함 해결 또는 전체 통과로 세지 않습니다. 최종 source의 정상 대조군·회귀는 이어서 검증합니다. 같은 원본·독립 출력의 전체 쪽수와 관련 Native/fresh WASM 최저90% 이상을 확인한 뒤 의미/소유 관계 검사로 복원합니다. #7445는 열린 상태로 유지합니다.
+
+실제 명령·source/binary/input/PDF 해시·선택7쪽 metric·실패 로그는 ignored `output/pr-review/planet6897-20261008/`의 `upstream-74f9b71b1-failure-triage/additional-native-sweeps.json`, `build.json`, `committed-e469c4486-failure-inventory.json` 및 `edu-transfer.json`에 보존합니다. 대표 PNG3개와 복원 범위는 issue7445 README에 준비해 검증을 마친 통합 PR에 포함하며 미게시 asset URL을 공개 링크로 표시하지 않습니다.
+
+입력 SHA-256: `623b00d56beffc45d27c5bf23911bdc49d3a541ded8aecbb323d0716a2bc9f4e`. PDF SHA-256: `11315a0acbaac474cfe3515abc8d59f463101bab1513e6643b04ab7c2b872d3f`.
+
+![83쪽 표 행·외곽 차이](edu_map_upstream_74f9b71b1_review_083.png)
+
+![같은83쪽 standalone overlay](edu_map_upstream_74f9b71b1_overlay_083.png)
+
+![380쪽 내용 소속 차이](edu_map_upstream_74f9b71b1_review_380.png)
+
+[교육과정 이관 등록 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6063814441)의 한국어 본문을 API로 확인했습니다.
