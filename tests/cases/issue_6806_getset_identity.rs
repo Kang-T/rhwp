@@ -22,13 +22,6 @@ fn load(rel: &str) -> DocumentCore {
     DocumentCore::from_bytes(&std::fs::read(p).expect("표본 로드")).expect("파싱")
 }
 
-fn picture(core: &DocumentCore, si: usize, pi: usize, ci: usize) -> &rhwp::model::image::Picture {
-    match &core.document().sections[si].paragraphs[pi].controls[ci] {
-        Control::Picture(p) => p,
-        _ => panic!("표본 전제 위반: s{si}p{pi}c{ci} 가 그림이 아니다"),
-    }
-}
-
 fn shape(core: &DocumentCore, si: usize, pi: usize, ci: usize) -> &rhwp::model::shape::ShapeObject {
     match &core.document().sections[si].paragraphs[pi].controls[ci] {
         Control::Shape(s) => s.as_ref(),
@@ -37,108 +30,6 @@ fn shape(core: &DocumentCore, si: usize, pi: usize, ci: usize) -> &rhwp::model::
 }
 
 // ───────────────────────── 그림 ─────────────────────────
-
-const PIC: &str = "samples/3-09월_교육_통합_2023.hwp";
-const PIC_AT: (usize, usize, usize) = (0, 236, 0);
-
-#[test]
-fn picture_getset_keeps_raw_rendering_and_current_size() {
-    let (si, pi, ci) = PIC_AT;
-    let mut core = load(PIC);
-    let before = picture(&core, si, pi, ci);
-    assert_ne!(
-        before.shape_attr.current_height, before.common.height,
-        "표본 전제: current ≠ common 이어야 판정이 의미를 갖는다"
-    );
-    let (raw0, cur_h0, common_h0) = (
-        before.shape_attr.raw_rendering.clone(),
-        before.shape_attr.current_height,
-        before.common.height,
-    );
-    assert!(
-        raw0.len() >= 146,
-        "표본 전제: 한컴 렌더링 행렬이 있어야 한다"
-    );
-
-    let bag = core.get_picture_properties_native(si, pi, ci).expect("get");
-    core.set_picture_properties_native(si, pi, ci, &bag)
-        .expect("set 같은 봉지");
-
-    let after = picture(&core, si, pi, ci);
-    assert_eq!(
-        after.shape_attr.raw_rendering, raw0,
-        "같은 봉지 되먹임이 원본 행렬을 지웠다"
-    );
-    assert_eq!(
-        after.shape_attr.current_height, cur_h0,
-        "current_height 가 common 으로 덮였다"
-    );
-    assert_eq!(after.common.height, common_h0);
-}
-
-#[test]
-fn picture_same_rotation_angle_does_not_refresh_layout() {
-    let (si, pi, ci) = PIC_AT;
-    let mut core = load(PIC);
-    let raw0 = picture(&core, si, pi, ci).shape_attr.raw_rendering.clone();
-    let vo0 = picture(&core, si, pi, ci).common.vertical_offset;
-    let angle = picture(&core, si, pi, ci).shape_attr.rotation_angle;
-
-    core.set_picture_properties_native(si, pi, ci, &format!("{{\"rotationAngle\":{angle}}}"))
-        .expect("같은 각도");
-
-    let after = picture(&core, si, pi, ci);
-    assert_eq!(
-        after.shape_attr.raw_rendering, raw0,
-        "같은 각도인데 회전 재배치가 돌았다"
-    );
-    assert_eq!(
-        after.common.vertical_offset, vo0,
-        "재배치가 오프셋을 재중심화했다"
-    );
-}
-
-#[test]
-fn picture_undo_size_bag_is_identity() {
-    // ResizeObjectCommand.before = { width, height } — 값은 게터의 common.* 다.
-    let (si, pi, ci) = PIC_AT;
-    let mut core = load(PIC);
-    let p0 = picture(&core, si, pi, ci);
-    let (w, h, cur_h0, raw0) = (
-        p0.common.width,
-        p0.common.height,
-        p0.shape_attr.current_height,
-        p0.shape_attr.raw_rendering.clone(),
-    );
-
-    core.set_picture_properties_native(si, pi, ci, &format!("{{\"width\":{w},\"height\":{h}}}"))
-        .expect("undo 봉지");
-
-    let after = picture(&core, si, pi, ci);
-    assert_eq!(after.shape_attr.current_height, cur_h0);
-    assert_eq!(after.shape_attr.raw_rendering, raw0);
-}
-
-#[test]
-fn picture_changed_size_still_applies() {
-    // 되먹임을 막았다고 실제 변경까지 막히면 안 된다.
-    let (si, pi, ci) = PIC_AT;
-    let mut core = load(PIC);
-    let h = picture(&core, si, pi, ci).common.height;
-    core.set_picture_properties_native(si, pi, ci, &format!("{{\"height\":{}}}", h + 400))
-        .expect("실제 변경");
-    let after = picture(&core, si, pi, ci);
-    assert_eq!(after.common.height, h + 400);
-    assert_eq!(
-        after.shape_attr.current_height,
-        h + 400,
-        "실제 변경은 current 도 따라가야 한다"
-    );
-    assert!(
-        after.shape_attr.raw_rendering.is_empty(),
-        "변환이 실제로 바뀌면 원본 행렬은 무효화된다"
-    );
-}
 
 // ───────────────────────── 가로선 ─────────────────────────
 

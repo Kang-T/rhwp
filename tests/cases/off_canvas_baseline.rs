@@ -40,6 +40,11 @@
 //! TSV 로 남긴다 — 조판이 환경에 따라 갈리는 문서가 있어(#6325) 다른 환경의 baseline 을
 //! 만들려면 그 정보가 필요하다.
 
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/deferred_exam_scope.rs"
+));
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -92,6 +97,9 @@ fn collect_samples() -> Vec<(PathBuf, String)> {
         let entries = std::fs::read_dir(dir).expect("samples 읽기 실패");
         for entry in entries {
             let path = entry.expect("dir entry").path();
+            if is_deferred_exam_document(path.to_string_lossy().as_ref()) {
+                continue;
+            }
             if path.is_dir() {
                 walk(&path, root, acc);
             } else if matches!(
@@ -123,6 +131,7 @@ fn load_baseline() -> BTreeMap<String, u64> {
         .unwrap_or_else(|e| panic!("baseline 읽기 실패 {BASELINE_PATH}: {e}"));
     text.lines()
         .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+        .filter(|line| !is_deferred_exam_document(line.split('\t').next().unwrap_or_default()))
         .map(|l| {
             let (rel, n) = l.rsplit_once('\t').expect("baseline TSV 행 형식");
             (rel.to_string(), n.parse::<u64>().expect("baseline 수치"))

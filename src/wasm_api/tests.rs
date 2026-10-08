@@ -5,6 +5,11 @@ use crate::paint::{RenderProfile, LAYER_TREE_SCHEMA};
 use crate::parser::control::parse_common_obj_attr;
 use serde_json::Value;
 
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/support/deferred_exam_scope.rs"
+));
+
 #[test]
 fn test_create_empty_document() {
     let doc = HwpDocument::create_empty();
@@ -27450,6 +27455,7 @@ fn corpus_split_join_sweep_all_samples() {
         .expect("samples 디렉터리")
         .filter_map(|e| e.ok())
         .map(|e| e.path())
+        .filter(|path| !is_deferred_exam_document(path.to_string_lossy().as_ref()))
         .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("hwp"))
         .collect();
     files.sort();

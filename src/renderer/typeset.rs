@@ -6760,6 +6760,7 @@ mod tests {
             first_anchor_offset_consumed: false,
             host_placement: None,
             empty_opening_row_frame: None,
+            source_text_first_frame_height: None,
             host_frame: (0, 0, 0.0_f64.to_bits()),
             row_count: 3,
             cell_spacing: 0.0,
