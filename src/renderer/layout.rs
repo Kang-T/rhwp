@@ -3354,6 +3354,11 @@ pub(crate) fn stored_first_margin_is_page_relative(
         .get(next.para_shape_id as usize)
         .map(|style| style.spacing_before)
         .unwrap_or(0.0);
+    let first_after = styles
+        .para_styles
+        .get(first.para_shape_id as usize)
+        .map(|style| style.spacing_after)
+        .unwrap_or(0.0);
     // 글자처럼 취급되는 도형이 있는 첫 문단은 제목과 개체가 저장 원점을 함께
     // 소유한다. 문단 앞 여백만으로 쪽 원점을 다시 정하면 후속 표가 그 여백만큼
     // 위로 이동한다. 일반 텍스트 문단의 여백 사다리와 구분한다(#6797 7쪽).
@@ -3375,7 +3380,8 @@ pub(crate) fn stored_first_margin_is_page_relative(
                 - last_seg.line_height
                 - last_seg.line_spacing,
             dpi,
-        ) - next_before)
+        ) - first_after
+            - next_before)
             .abs()
             <= 0.5
 }

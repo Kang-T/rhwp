@@ -1379,6 +1379,11 @@ impl LayoutEngine {
                                 // cut must keep its top origin.
                                 end >= units.len()
                                     && (self.row_uses_reflow_physical_frame(table, cell_row)
+                                        || (self.profile.get().hwp5_stored_pagination_layout()
+                                            && !self.profile.get().session_edited()
+                                            && self.cell_unit_opens_stored_page_frame(
+                                                cell, table, styles, start,
+                                            ))
                                         || self.stored_paragraph_allows_orphan_split(
                                             table, cell, &units, start, styles,
                                         ))

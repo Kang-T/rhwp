@@ -4163,7 +4163,8 @@ fn known_font_filenames(font_name: &str) -> Vec<&'static str> {
             "KoPubDotum-Light.ttf",
             "KoPubDotumLight.ttf",
         ],
-        "KoPub돋움체 Medium" | "KoPubDotum Medium" | "KoPub Dotum Medium" | "KoPubDotumMedium" => {
+        "KoPub돋움체 Medium" | "KoPubDotum Medium" | "KoPub Dotum Medium" | "KoPubDotumMedium" =>
+        {
             vec![
                 "KoPub Dotum Medium.ttf",
                 "KoPubDotum-Medium.ttf",
