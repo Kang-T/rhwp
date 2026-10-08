@@ -17026,6 +17026,7 @@ impl LayoutEngine {
                         ts.default_tab_width,
                         ts.auto_tab_right,
                         ts.available_width,
+                        ts.text_start_offset,
                     );
                     est_x = tp;
                 } else {

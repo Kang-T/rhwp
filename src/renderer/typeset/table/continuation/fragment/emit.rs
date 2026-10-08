@@ -155,8 +155,8 @@ impl TypesetEngine {
             st.record_vpos_origin_provenance(true);
         }
         // 종료 조각의 빈 저장 밴드도 같은 물리 행 높이로 예약·배치한다.
-        // 실제 컷이 새 원본 쪽 프레임에서 시작한 경우에만 선언 차이를 쓴다.
-        let single_cell_closing_frame = (is_continuation
+        // 실제 컷이 새 원본 쪽 프레임에서 시작한 경우에만 후속 저장 하단을 쓴다.
+        let single_cell_closing_frame_bottom = (is_continuation
             && cursor_row == 0
             && end_row == 1
             && split_end_cut.is_empty()
@@ -175,7 +175,7 @@ impl TypesetEngine {
                 .paragraphs_all
                 .get(para_idx + 1)
                 .and_then(|next| {
-                    crate::renderer::float_placement::stored_single_cell_closing_frame_height(
+                    crate::renderer::float_placement::stored_single_cell_closing_frame_bottom(
                         input.source.paragraph,
                         next,
                         table,
@@ -184,10 +184,16 @@ impl TypesetEngine {
                 })
         })
         .flatten();
-        if let Some(height) = single_cell_closing_frame
-            .filter(|height| *height >= partial_height && *height <= avail_for_rows)
+        // 저장 하단은 단 기준 원점이다. 지금 조각의 위 여백·원점과
+        // 반복 머리행은 같은 상자 안에 있으며 행 높이로 중복 예약하지 않는다.
+        let fragment_top = st.current_height + host_before_overhead + vert_offset_overhead;
+        if let Some(height) = single_cell_closing_frame_bottom
+            .map(|bottom| bottom - fragment_top)
+            .filter(|height| {
+                *height >= partial_height && *height <= avail_for_rows + header_overhead
+            })
         {
-            end_row_height_override = Some(height);
+            end_row_height_override = Some(height - header_overhead);
             partial_height = height;
         }
         // #7095의 동일한 쪽 하단 상자를 저장 rowspan 경계에도 적용한다.

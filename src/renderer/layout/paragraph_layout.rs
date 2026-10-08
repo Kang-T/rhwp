@@ -1839,7 +1839,7 @@ fn tac_picture_label_extra_for_line(
 /// inline 이 비었거나 `\t` 인덱스를 초과하는 경우에만 `find_next_tab_stop` 기반 TabDef 폴백으로 판정한다.
 ///
 /// 반환 `Some((tab_pos, tab_type, fill_type))` 은 `pending_right_tab_*` 에 그대로 대입 가능 (tab_type ∈ {1, 2}).
-/// fill_type 은 호출 측에서 리더(점선/실선/파선 등) 가 있는 RIGHT 탭을 단 우측 끝으로 보정하는 용도.
+/// 반환 위치는 명시적/자동 탭 모두 단 기준이다. 리더는 채움 모양이며 탭 정지를 바꾸지 않는다.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_last_tab_pending(
     run_text: &str,
@@ -1874,8 +1874,14 @@ pub(crate) fn resolve_last_tab_pending(
     let w_before = estimate_text_width(text_before, text_style);
     let abs_before = text_style.line_x_offset + w_before;
     let tw = if tab_width > 0.0 { tab_width } else { 48.0 };
-    let (tp, tt, ft) =
-        find_next_tab_stop(abs_before, tab_stops, tw, auto_tab_right, available_width);
+    let (tp, tt, ft) = find_next_tab_stop(
+        abs_before,
+        tab_stops,
+        tw,
+        auto_tab_right,
+        available_width,
+        text_style.text_start_offset,
+    );
     if tt == 1 || tt == 2 {
         Some((tp, tt, ft))
     } else {
@@ -1964,8 +1970,14 @@ pub(crate) fn resolve_intra_run_right_tab(
     let w_before = estimate_text_width(&before, text_style);
     let abs_before = text_style.line_x_offset + w_before;
     let tw = if tab_width > 0.0 { tab_width } else { 48.0 };
-    let (_tab_pos, tab_type, _fill_type) =
-        find_next_tab_stop(abs_before, tab_stops, tw, auto_tab_right, available_width);
+    let (_tab_pos, tab_type, _fill_type) = find_next_tab_stop(
+        abs_before,
+        tab_stops,
+        tw,
+        auto_tab_right,
+        available_width,
+        text_style.text_start_offset,
+    );
     if tab_type != 1 && tab_type != 2 {
         return (full_width, layout_positions);
     }
@@ -7691,23 +7703,9 @@ impl LayoutEngine {
                     pending_right_tab_render = Some((tab_pos, tab_type, fill_type));
                 } else {
                     text_style.line_x_offset = x - col_area.x;
-                    // [Task #279] 리더(fill_type ≠ 0) 가 있는 RIGHT 탭은 "이 줄 우측 끝까지" 의미.
-                    // 한컴은 TabDef.position 을 절대 좌표로 신뢰하지 않고 리더 도트의 시멘틱
-                    // (= 단/셀 콘텐츠 영역 우측 끝까지 채움) 으로 재해석한다.
-                    // 셀 안 문단에서는 col_area 가 이미 cell padding 적용된 inner_area 이므로
-                    // `effective_margin_left + available_width` 가 inner 우측 끝.
-                    // tab_pos (HWP 저장값) 이 inner 우측 끝을 초과하면 셀 padding_right 침범이므로 강제 클램핑.
-                    // [Task #874] auto_tab_right (fill_type=0) 도 effective_margin_left 변환 필요.
-                    let effective_pos = if tab_type == 1 {
-                        effective_margin_left
-                            + (if fill_type != 0 {
-                                available_width
-                            } else {
-                                tab_pos
-                            })
-                    } else {
-                        tab_pos
-                    };
+                    // 측정과 같은 탭 정지를 쓴다. 리더가 있어도 명시적 정지를
+                    // 셀 우단으로 덮어쓰거나 문단 왼쪽 여백을 다시 더하지 않는다.
+                    let effective_pos = tab_pos;
                     // [Issue #842 #4] 탭 다음 콘텐츠가 여러 composed run 으로 쪼개진 경우
                     // (스크립트·char-shape 경계, 예 "Ctrl+(회색)5") 전체 블록 폭 기준 정렬.
                     let next_w = right_tab_block_width(
@@ -9643,23 +9641,8 @@ impl LayoutEngine {
                     pending_right_tab_est = Some((tab_pos, tab_type, fill_type));
                 } else {
                     ts.line_x_offset = est_x;
-                    // [Task #279] 리더(fill_type ≠ 0) 가 있는 RIGHT 탭은 "이 줄 우측 끝까지" 의미.
-                    // 셀 안 문단에서는 col_area 가 이미 cell padding 적용된 inner_area 이므로
-                    // `effective_margin_left + available_width` 가 inner 우측 끝.
-                    // [Task #874] auto_tab_right 의 tab_pos = available_width (text-start
-                    // 상대). RIGHT 탭은 모두 col-start 좌표계로 변환 시 effective_margin_left
-                    // 더해야 함. 종전엔 fill_type ≠ 0 만 변환되어 leader 없는 auto_right tab
-                    // (shortcut.hwp 인쇄/개체 모양 복사 등) 가 ~27 px 왼쪽으로 밀려 렌더됨.
-                    let effective_pos = if tab_type == 1 {
-                        effective_margin_left
-                            + (if fill_type != 0 {
-                                available_width
-                            } else {
-                                tab_pos
-                            })
-                    } else {
-                        tab_pos
-                    };
+                    // 측정도 배치도 생산자가 해소한 단 기준 탭 정지를 소비한다.
+                    let effective_pos = tab_pos;
                     // [Issue #842 #4] 탭 다음 콘텐츠가 여러 composed run 으로 쪼개진 경우
                     // (스크립트·char-shape 경계) 전체 블록 폭 기준으로 정렬해야 마지막 글자가
                     // 탭스톱에 맞는다. (선행 공백 run "예 16" 케이스도 합산에 포함되어 동작 유지.)

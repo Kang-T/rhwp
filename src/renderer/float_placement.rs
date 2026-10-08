@@ -1313,9 +1313,11 @@ pub(crate) fn stored_rowbreak_closing_frame_height(
         .then(|| remaining as f64 * dpi / 7200.0)
 }
 
-/// 단일 셀의 전체 선언 높이와 첫 개체 프레임의 차이를 뒤 빈 문단이
-/// 정확히 닫으면 종료 조각의 물리 높이이다. 내용 높이와 빈 밴드를 구분한다.
-pub(crate) fn stored_single_cell_closing_frame_height(
+/// 원본 쪽 프레임에서 재개한 단일 셀 뒤 빈 문단의 저장 원점이다.
+/// 셀 선언 높이에는 여러 앞 조각이 들어갈 수 있으므로 첫 상자 하나만
+/// 빼서 마지막 상자를 추측하지 않는다. 호출자가 실제 재개 컷의 출처를
+/// 확인하고 이 하단과 현재 조각 원점의 차이를 예약·배치에 함께 전달한다.
+pub(crate) fn stored_single_cell_closing_frame_bottom(
     host: &Paragraph,
     successor: &Paragraph,
     table: &Table,
@@ -1346,6 +1348,9 @@ pub(crate) fn stored_single_cell_closing_frame_height(
         || !successor.controls.is_empty()
         || host.stored_text_partition_is_dirty()
         || successor.stored_text_partition_is_dirty()
+        || host.cell_format_vpos_dirty
+        || successor.cell_format_vpos_dirty
+        || next.vertical_pos <= 0
         || host.line_segs.is_empty()
         || host
             .line_segs
@@ -1355,9 +1360,7 @@ pub(crate) fn stored_single_cell_closing_frame_height(
     {
         return None;
     }
-    let remaining = cell.height - table.common.height;
-    (i64::from(next.vertical_pos) == i64::from(remaining))
-        .then(|| hwpunit_to_px(next.vertical_pos, dpi))
+    Some(hwpunit_to_px(next.vertical_pos, dpi))
 }
 
 /// 다음 빈 문단이 누적 저장 원점과 개체 프레임의 끝을 정확히 잇는 경우,

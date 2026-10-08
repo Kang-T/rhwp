@@ -111,6 +111,7 @@ pub(crate) fn find_next_tab_stop(
     default_tab_width: f64,
     auto_tab_right: bool,
     available_width: f64,
+    text_start_offset: f64,
 ) -> (f64, u8, u8) {
     // 커스텀 탭 정지에서 현재 위치 뒤의 첫 번째 검색
     for ts in tab_stops {
@@ -127,8 +128,9 @@ pub(crate) fn find_next_tab_stop(
         }
     }
     // auto_tab_right: 커스텀 탭이 모두 지나갔으면 오른쪽 끝을 right 탭으로
-    if auto_tab_right && available_width > abs_x + 0.5 {
-        return (available_width, 1, 0); // type=1(오른쪽), fill=0(없음)
+    let right_edge = text_start_offset + available_width;
+    if auto_tab_right && available_width > 0.0 && right_edge > abs_x + 0.5 {
+        return (right_edge, 1, 0); // 명시적 탭과 같은 단 기준 좌표
     }
     // 기본 등간격 탭
     let tab_w = if default_tab_width > 0.0 {
@@ -195,18 +197,6 @@ fn right_leader_tab_fill(style: &TextStyle) -> Option<u8> {
         .rev()
         .find(|tab| tab.tab_type == 1 && tab.fill_type != 0)
         .map(|tab| tab.fill_type)
-}
-
-fn right_leader_body_target_rel(style: &TextStyle) -> Option<f64> {
-    if style.available_width <= 0.0 || right_leader_tab_fill(style).is_none() {
-        return None;
-    }
-    let target = style.text_start_offset + style.available_width - style.line_x_offset;
-    if target.is_finite() {
-        Some(target)
-    } else {
-        None
-    }
 }
 
 /// 탭 문자의 위치로부터 탭 리더 정보를 추출한다.
@@ -287,6 +277,7 @@ pub fn extract_tab_leaders_with_extended(
                     tab_w,
                     style.auto_tab_right,
                     style.available_width,
+                    style.text_start_offset,
                 );
                 ft
             } else {
@@ -389,16 +380,6 @@ fn compute_char_positions_walk(
                 x = inline_tab_x(i, x, ext, &chars, &cluster_len, &char_width);
                 tab_char_idx += 1;
             } else if has_custom_tabs {
-                let has_more_tabs_after = chars[i + 1..].contains(&'\t');
-                if !has_more_tabs_after && tab_suffix_is_ascii_page_number(&chars, i + 1) {
-                    if let Some(target_rel) = right_leader_body_target_rel(style) {
-                        let seg_w = measure_segment_from(&chars, &cluster_len, i + 1, &char_width);
-                        x = (target_rel - seg_w).max(x);
-                        tab_char_idx += 1;
-                        positions.push(x);
-                        continue;
-                    }
-                }
                 let abs_x = style.line_x_offset + x;
                 let (tab_pos, tab_type, fill_type) = find_next_tab_stop(
                     abs_x,
@@ -406,18 +387,9 @@ fn compute_char_positions_walk(
                     tab_w,
                     style.auto_tab_right,
                     style.available_width,
+                    style.text_start_offset,
                 );
                 let rel_tab = tab_pos - style.line_x_offset;
-                // [Task #874] auto_tab_right / leader RIGHT 탭은 col-relative 우측 끝
-                // (= text_start_offset + available_width) 까지 정렬.
-                let effective_rel_tab = if tab_type == 1
-                    && style.available_width > 0.0
-                    && (fill_type != 0 || style.auto_tab_right)
-                {
-                    style.text_start_offset + style.available_width - style.line_x_offset
-                } else {
-                    rel_tab
-                };
                 match tab_type {
                     1 => {
                         // 오른쪽
@@ -432,7 +404,7 @@ fn compute_char_positions_walk(
                         };
                         let seg_w =
                             measure_segment_from(&chars, &cluster_len, seg_start, &char_width);
-                        x = (effective_rel_tab - seg_w).max(x);
+                        x = (rel_tab - seg_w).max(x);
                     }
                     2 => {
                         // 가운데
@@ -568,42 +540,22 @@ impl EmbeddedTextMeasurer {
                     }
                     tab_char_idx += 1;
                 } else if has_custom_tabs {
-                    let has_more_tabs_after = chars[i + 1..].contains(&'\t');
-                    if !has_more_tabs_after && tab_suffix_is_ascii_page_number(&chars, i + 1) {
-                        if let Some(target_rel) = right_leader_body_target_rel(style) {
-                            let seg_w =
-                                measure_segment_from(&chars, &cluster_len, i + 1, &char_width);
-                            total = (target_rel - seg_w).max(total);
-                            tab_char_idx += 1;
-                            continue;
-                        }
-                    }
                     let abs_x = style.line_x_offset + total;
-                    let (tab_pos, tab_type, fill_type) = find_next_tab_stop(
+                    let (tab_pos, tab_type, _) = find_next_tab_stop(
                         abs_x,
                         &style.tab_stops,
                         tab_w,
                         style.auto_tab_right,
                         style.available_width,
+                        style.text_start_offset,
                     );
                     let rel_tab = tab_pos - style.line_x_offset;
-                    // [Task #874] auto_tab_right 의 tab_pos = available_width 는 텍스트
-                    // 영역 시작 기준 상대값. col-relative 우측 끝 = text_start_offset +
-                    // available_width. line_x_offset 도 col-relative 이므로 변환.
-                    let effective_rel_tab = if tab_type == 1
-                        && style.available_width > 0.0
-                        && (fill_type != 0 || style.auto_tab_right)
-                    {
-                        style.text_start_offset + style.available_width - style.line_x_offset
-                    } else {
-                        rel_tab
-                    };
                     match tab_type {
                         1 => {
                             // 오른쪽
                             let seg_w =
                                 measure_segment_from(&chars, &cluster_len, i + 1, &char_width);
-                            total = (effective_rel_tab - seg_w).max(total);
+                            total = (rel_tab - seg_w).max(total);
                         }
                         2 => {
                             // 가운데
