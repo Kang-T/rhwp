@@ -1408,16 +1408,17 @@ impl LayoutEngine {
         !footnotes.is_empty()
             && footnotes.iter().all(|note| {
                 let paras = get_footnote_paragraphs(note, paragraphs);
-                !paras.is_empty() && paras.iter().all(|para| {
-                    !para.line_segs.is_empty()
-                        && !para.stored_text_partition_is_dirty()
-                        && para.line_segs.iter().all(|line| {
-                            line.line_height > 0
+                !paras.is_empty()
+                    && paras.iter().all(|para| {
+                        !para.line_segs.is_empty()
+                            && !para.stored_text_partition_is_dirty()
+                            && para.line_segs.iter().all(|line| {
+                                line.line_height > 0
                                 && line.tag
                                     & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
                                     == 0
-                        })
-                })
+                            })
+                    })
             })
     }
 

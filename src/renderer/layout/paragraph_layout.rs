@@ -2553,10 +2553,11 @@ fn compute_line_extra_spacing(
                     0.0,
                 )
             } else {
-                // 공백 없는 양쪽 맞춤도 남는 폭은 글자 사이 N-1곳에 배분한다.
-                // 끝 글자의 뒤 전진에 한 몫을 남기면 실제 잉크 오른쪽이 줄 안쪽으로
-                // 밀린다. 배분 정렬과 같은 글자 경계를 사용한다.
-                let raw = slack / (total_char_count - 1) as f64;
+                // A projected soft-wrap still carries its consumed separator.
+                // That final space advances too; distribute over all slots in
+                // this case. Other rows distribute between visible glyphs.
+                let slots = total_char_count - usize::from(!renders_synthetic_wrap_trailing_space);
+                let raw = slack / slots as f64;
                 let avg_char_w = total_text_width / total_char_count as f64;
                 let min_sp = -avg_char_w * 0.5;
                 (0.0, raw.max(min_sp), 0.0)
@@ -6638,8 +6639,7 @@ impl LayoutEngine {
             let needs_distribute = alignment == Alignment::Distribute;
 
             let has_tabs = comp_line.runs.iter().any(|r| r.text.contains('\t'));
-            let renders_synthetic_wrap_trailing_space = !physical_frame_rows
-                && !is_last_line_of_para
+            let renders_synthetic_wrap_trailing_space = !is_last_line_of_para
                 && para
                     .and_then(|p| p.line_segs.get(line_idx))
                     .is_some_and(|seg| seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0)
