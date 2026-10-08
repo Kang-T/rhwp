@@ -620,3 +620,30 @@ venv\Scripts\python.exe scripts\visual_sweep.py --hwp samples/hwpspec.hwp --pdf 
 ![같은 20쪽 standalone overlay](hwpspec_upstream_74f9b71b1_overlay_020.png)
 
 ![최신 base의 hwpspec35쪽 표·제목 소속 차이](hwpspec_upstream_74f9b71b1_review_035.png)
+
+
+## 2026-10-09: KTX 목차·배경 표 호스트·#7518 실패 범위의 조건부 이관
+
+같은 최신 base `74f9b71b15a2db18b17c37ceab6cf2b3c20c03c3`를 새로 빌드한 Native/fresh WASM으로 확인했습니다. 두 backend의 값이 동일했고 선택 쪽 또는 전쪽의 최저값이 엄격히 90% 미만인 다음 실패 범위만 #7445로 이관합니다. 원문·기준 PDF·다른 정상 함수와 assertion, golden 파일은 유지합니다.
+
+| 입력·독립 PDF | 실제 확인 범위와 최저값(Native/fresh WASM) | 정확한 이관 범위 |
+| --- | --- | --- |
+| [KTX.hwp](../../../../samples/KTX.hwp) / [한컴2022 PDF](../../../../pdf/KTX-2022.pdf) | 실패 대상 목차2쪽 **49.63836 / 49.63836%**, 전27쪽 통과 미주장 | `ktx_toc_page_numbers_aligned_to_cell_right_inner`, `issue_267_ktx_toc_page` 2함수. #874 파일은 이 함수만 포함하며 다른 snapshot/golden은 보존 |
+| [overlay-top.hwpx](../../../../samples/stored-nested-content-flow/overlay-top.hwpx) / [같은 저장본 PDF](../../../../pdf/pr7200/pr7200-overlay-top-2020.pdf) | 전1쪽 **89.44020 / 89.44020%** | `nested_alignment_uses_rewrapped_text_and_actual_float_flow`의 **overlay-top 세로 advance assertion 하나만**. 가로·포함 관계, Center/Bottom과 square/flow/width 등 정상 검사는 보존 |
+| [정상 생성 nested-split.hwp](../../../../tests/fixtures/pr7518_review_page_budget/valid_generated/nested-split.hwp) / [같은 저장본 PDF](../../../../pdf/pr7518_review/valid_generated/nested-split-2020.pdf) | 전6쪽 최저5쪽 **89.52230 / 89.52230%** | `trailing_empty_paragraphs_keep_their_continued_cell_outline` 1함수. 같은 입력의 다른 정상 함수는 보존 |
+
+KTX2쪽에서 본문·목차 번호와 외곽선의 수직 차이를 직접 확인했습니다. overlay-top에서는 빈 호스트 줄의 후속 표 위치 차이를 확인했고 Center/Bottom은 각각 **90.88425/90.90771%**이므로 동반 제외하지 않습니다. nested-split5쪽의 표 경계·뒤 텍스트 위치 차이를 확인했습니다. 해당 문서6쪽의 실루엣 값 **100%**와 빈 셀 테두리 직접 비교도 기록하며, 마지막 쪽만의 점수로 문서 전쪽을 통과시켜 이관을 면제하지 않습니다.
+
+입력/PDF/실행 파일과 실제 WASM package 해시·명령·전쪽 값·PNG는 ignored `output/pr-review/planet6897-20261008/upstream-74f9b71b1-failure-triage/`의 `initial-native-sweeps.json`, `additional-native-sweeps.json`, `remaining-wasm-v2.json`, `countercase-wasm-v3.json`, `low-fixture-transfer.json`에 보존합니다. 제거 전 함수·assertion 원문은 `e469c4486e5e5d7b6de5a6e4a74d938e89dab188` Git source와 같은 head의 실패 로그에 보존합니다. 이관 뒤 전체 통과는 아직 주장하지 않으며 정상 대조군과 최종 회귀를 이어서 검증합니다.
+
+이번 기준에서 **95.92922%**인 #6800의 전1쪽, **94.68150%**인 aift 실패 대상4쪽, **93.64421%**인 #6844 실패 대상4쪽은 두 backend 모두 확인했습니다. 이 문서들의 실패는 #7445로 제외하지 않고 현재 브랜치의 구현·검사 계약을 개선합니다. 다쪽 문서의 선택 쪽 결과는 전쪽 통과 증거로 쓰지 않습니다. [추가 이관 등록 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6063592661)의 한국어 본문도 API로 확인했습니다.
+
+![KTX 목차2쪽 위치 차이](ktx-toc_upstream_74f9b71b1_review_002.png)
+
+![같은 목차2쪽 standalone overlay](ktx-toc_upstream_74f9b71b1_overlay_002.png)
+
+![배경 표 host1쪽](overlay-top_upstream_74f9b71b1_review_001.png)
+
+![정상 생성 nested-split5쪽](nested7518_upstream_74f9b71b1_review_005.png)
+
+![같은 문서6쪽 빈 종료 프레임](nested7518_upstream_74f9b71b1_review_006.png)
