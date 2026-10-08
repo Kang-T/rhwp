@@ -7744,7 +7744,7 @@ impl LayoutEngine {
                     //    않으므로 대상이 아니며
                     // ③ 재배치가 없는 줄의 런은 전혀 건드리지 않는다.
                     if let Some(tab_run_idx) = line_node.children.iter().rposition(|n| {
-                        matches!(&n.node_type, RenderNodeType::TextRun(tr) if tr.display_or_text().ends_with('\t'))
+                        matches!(&n.node_type, RenderNodeType::TextRun(tr) if TextRunNode::ends_with_alignment_tab(tr.display_or_text()))
                     }) {
                         let tab_run_x = line_node.children[tab_run_idx].bbox.x;
                         // 탭 런과 현재 런 사이에 이미 emit 된 런(공백 only carry-over)이
@@ -7986,10 +7986,7 @@ impl LayoutEngine {
             // inline_tabs(composed.tab_extended) 가 LEFT 를 명시하면 cross-run pending 을 설정하지 않는다.
             // [Task #279] trailing 공백 (\t 뒤에 따라오는 ' ') 도 허용 — 목차 소제목의
             // 들여쓰기 문단에서 한컴이 "\t " 형태로 저장하는 케이스가 있음.
-            let trimmed_end_r = run
-                .text
-                .trim_end_matches(|c: char| c == ' ' || c == '\u{2007}');
-            if has_tabs && trimmed_end_r.ends_with('\t') {
+            if has_tabs && TextRunNode::ends_with_alignment_tab(&run.text) {
                 let run_tab_count = run.text.chars().filter(|c| *c == '\t').count();
                 if run_tab_count > 0 {
                     let last_inline_idx = inline_tab_cursor_render + run_tab_count - 1;
@@ -9769,10 +9766,7 @@ impl LayoutEngine {
             // inline_tabs(composed.tab_extended) 가 LEFT 를 명시하면 cross-run pending 을 설정하지 않는다.
             // [Task #279] trailing 공백 (\t 뒤에 따라오는 ' ') 도 허용 — 목차 소제목의
             // 들여쓰기 문단에서 한컴이 "\t " 형태로 저장하는 케이스가 있음.
-            let trimmed_end = run
-                .text
-                .trim_end_matches(|c: char| c == ' ' || c == '\u{2007}');
-            if trimmed_end.ends_with('\t') {
+            if TextRunNode::ends_with_alignment_tab(&run.text) {
                 let run_tab_count = run.text.chars().filter(|c| *c == '\t').count();
                 if run_tab_count > 0 {
                     let last_inline_idx = inline_tab_cursor_est + run_tab_count - 1;

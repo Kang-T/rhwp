@@ -976,6 +976,12 @@ pub struct TextRunNode {
 }
 
 impl TextRunNode {
+    /// Same logical end-tab rule as cross-run alignment: saved trailing
+    /// spaces belong to the tab's advance, rather than visible content.
+    pub(crate) fn ends_with_alignment_tab(text: &str) -> bool {
+        text.trim_end_matches([' ', '\u{2007}']).ends_with('\t')
+    }
+
     /// [#6801] 다음 블록 배치가 확정한 끝 탭 경계를 모든 replay 소비자에 전달한다.
     /// 앞선 가시 문자의 폭은 보존하고 뒤 공백/탭만 남은 advance에 맞춘다.
     pub(crate) fn resolve_trailing_tab_end(
@@ -984,7 +990,7 @@ impl TextRunNode {
         leader_limit_width: f64,
     ) -> Option<f64> {
         let text = self.display_or_text();
-        if !text.ends_with('\t')
+        if !Self::ends_with_alignment_tab(text)
             || !requested_width.is_finite()
             || requested_width < 0.0
             || !leader_limit_width.is_finite()
