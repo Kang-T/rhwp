@@ -16904,8 +16904,10 @@ impl LayoutEngine {
         start_cut: usize,
         end_cut: usize,
     ) -> bool {
-        if !self.profile.get().hwp5_stored_pagination_layout()
-            || self.profile.get().session_edited()
+        let profile = self.profile.get();
+        let stored_span = cell.row_span > 1 && profile.hwpx_stored_layout();
+        if !(profile.hwp5_stored_pagination_layout() || stored_span)
+            || profile.session_edited()
             || self
                 .render_normalization
                 .borrow()
@@ -16949,12 +16951,33 @@ impl LayoutEngine {
         if !source_restart(cell) {
             return false;
         }
-        let mut siblings = table
-            .cells
-            .iter()
-            .filter(|other| other.row == cell.row && other.col != cell.col)
-            .peekable();
-        if siblings.peek().is_none() || !siblings.all(source_restart) {
+        let shared_restart = if cell.row_span > 1 {
+            // These cells own the same physical span. A one-row sibling can
+            // have finished already and therefore need not restart with them.
+            // Require a second genuine source owner of this exact span.
+            let genuine_source = |owner: &crate::model::table::Cell| {
+                !owner.dirty_flag
+                    && owner.paragraphs.iter().all(|para| {
+                        !para.stored_text_partition_is_dirty() && !para.cell_format_vpos_dirty
+                    })
+                    && source_restart(owner)
+            };
+            genuine_source(cell)
+                && table.cells.iter().any(|other| {
+                    other.row == cell.row
+                        && other.row_span == cell.row_span
+                        && other.col != cell.col
+                        && genuine_source(other)
+                })
+        } else {
+            let mut siblings = table
+                .cells
+                .iter()
+                .filter(|other| other.row == cell.row && other.col != cell.col)
+                .peekable();
+            siblings.peek().is_some() && siblings.all(source_restart)
+        };
+        if !shared_restart {
             return false;
         }
         // 끝 컷은 첫 source 줄 뒤에 있어야 한다. 재합성으로 유닛 소유가 바뀌면 제외한다.
