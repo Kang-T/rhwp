@@ -288,3 +288,9 @@ Native Skia lib는 `cargo test --locked --profile release-test --target-dir $env
 ### 원 PR의 CI 취소 보정
 
 #7622의 [Adapter run 37637724623](https://github.com/edwardkim/rhwp/actions/runs/37637724623)과 #7617의 [Adapter run 37637759547](https://github.com/edwardkim/rhwp/actions/runs/37637759547)은 attempt 1에서 preflight가 취소됐다. #7622의 head object 오류는 checkout 취소 뒤 발생했으며, source 결함으로 단정하지 않았다. 같은 head의 해당 job만 재실행한 attempt 2는 두 workflow 모두 SUCCESS다. #7622 Adapter worker는 실제 SUCCESS, #7617 worker는 policy SKIPPED로 구별한다. 재조회한 9개 원 PR은 모두 MERGEABLE/CLEAN, 실패·취소·진행 중 check 없음이다. 통합 후보의 새 GitHub CI는 미실행이며 시각 gate 실패를 원 PR CI 성공으로 면제하지 않는다.
+
+### 대체 PR 병합 이후 최신 base 정렬
+
+2026-10-08 base를 `f0e7228f6dd2ea1437724e53ad640c40c56d204b`로 갱신하고 `review/planet6897-20261008`를 재정렬했다. 정렬 뒤 head는 `5734e80c11bf6c313e79066419f67d48bbeb77c6`이며 정렬 전 시험지 제거 커밋 `171103c1b7777df790a1345757c8f305421b0831`은 `backup/planet6897-before-rebase-171103`에 보존한다. 대체 #7667로 이미 병합된 #7618 기능·시험·증적 커밋 4개는 patch 동등성을 확인해 자동 제외됐다. 오늘할일 충돌은 최신 base의 #7667·#7630 기록 전체 뒤에 누적 검토 이력을 추가해 해결했다. `table_layout.rs`의 보정 충돌은 base의 일반 `tac_nested_stored_anchor_fits` 계약을 유지하면서 기존 `stored_inline_content_frame`의 측정·배치 소비를 결합했다. 병합된 #7619·#7667·#7630 review는 base와 byte-identical이며, 시험지 전용 source 60개의 삭제·공통 코퍼스 제외를 보존했다. 첨부 목록과 source의 재대조는 0개 추가 제거 후보로 끝났다. ignored `rebase-f0e722-audit.json`, `rebase-f0e722-cherry-audit.txt`, `exam-post-rebase-f0e-audit.json`에 증거를 보존한다. 새 base의 실제 출력·회귀는 미검증이며 이전 PASS를 승격하지 않는다.
+
+보존한 실패 후보 31의 Native helper로 동일 입력 SHA-256 `40d6d05eac4d55bdc4b0c62c42d93af104d5123b447581246f36fd15de7bd46f`를 `RHWP_DIAG_SCAN=1`로 다시 실행하여 289·290쪽을 산출했다(exit 0, 26.98초). sec 10/pi 28/r 4의 `CUT_TRY`는 budget 448.2px, consumed 448.2px, fully=true, end_cut=[1,1,13]이었다. 이 로그는 source-tail 확장 뒤에 출력되므로 일반 컷이 이미 완전 소비였다는 근거로 해석하지 않는다. 확장 전후 및 최종 예약·배치의 값을 추가로 대조해야 한다. `candidate-31-scan-runtime/runtime.json`·`stderr.txt`와 두 SVG/tree에 실제 명령·입력·실행 binary 해시를 보존한다. 이는 구 후보의 원인 진단이며 정렬 뒤 최신 head의 통과 증거가 아니다.
