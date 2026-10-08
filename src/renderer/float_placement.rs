@@ -3553,7 +3553,7 @@ pub(crate) fn nested_group_occupied_height(
     flow_height.max(overlay_height)
 }
 
-pub(crate) fn nested_table_groups(para: &Paragraph, hwpx_stored: bool) -> Vec<NestedTableGroup> {
+pub(crate) fn nested_table_groups(para: &Paragraph, _hwpx_stored: bool) -> Vec<NestedTableGroup> {
     let lines = para_nested_table_line_indices(para);
     let mut groups: Vec<NestedTableGroup> = Vec::new();
     for (ci, ctrl) in para.controls.iter().enumerate() {
