@@ -687,10 +687,41 @@ KTX2쪽에서 본문·목차 번호와 외곽선의 수직 차이를 직접 확�
 
 ignored 증적은 `output/pr-review/planet6897-20261008/remaining-failure-print-pdfs.json`, `upstream-74f9b71b1-failure-triage/new-print-native-full-v2.json`, `low-extra-selected-wasm.json`, `child6712-native-panels.json`과 실제 전쪽 TSV에 보존합니다. 같은 원문의 전체 Native/fresh WASM90% 이상 및 표·그림/본문 소유 관계를 확인한 뒤 의미 검사로 복원합니다.
 
-같이 조사한 지방공기업 개혁 원문은 새 Print PDF와 base Native 전13쪽 최저 **93.73641%**이므로 이관하지 않고 현재 브랜치에서 겹침 증가를 보정합니다. pic-in-head/pic-in-table의 기존2022 PDF는 직접 판독에서 내용 순서와 문구가 원문과 달라 대응 기준으로 사용할 수 없었습니다. 해당 PDF로 얻은49.86198%는 이관 근거에서 철회하고 동일 원문의 새 Print 출력으로 재판정합니다. 미측정을90% 미만으로 취급하지 않습니다.
+같이 조사한 지방공기업 개혁 원문은 새 Print PDF와 base Native 전13쪽 최저 **93.73641%**이므로 이관하지 않고 현재 브랜치에서 겹침 증가를 보정합니다. pic-in-head/pic-in-table은 실제 출력과 기존PDF의 내용 순서·문구 차이가 보여 동일 원문의 Print PDF를 새로 생성했습니다. 새PDF에서도 같은 차이가 재현되어 기존PDF의 원문 불일치로 단정했던 설명을 정정합니다. 재판정에는 새Print PDF를 사용하며 결과는 아래에 기록합니다. 미측정을90% 미만으로 취급하지 않습니다.
 
 ![중국어 가정통신문1쪽 review](child6712_upstream_74f9b71b1_review_001.png)
 
 ![같은1쪽 standalone overlay](child6712_upstream_74f9b71b1_overlay_001.png)
 
 [중국어 원문 이관 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6065683093)의 한국어·BOM·치환 여부를 API로 확인했습니다.
+
+
+## 2026-10-09: pic 두 입력의 겹침 원장을 동일 원문 Print 출력으로 재판정
+
+실제 renderer는 `74f9b71b15a2db18b17c37ceab6cf2b3c20c03c3`입니다. 사용자 조건인 **문서 최저값90% 미만만 #7445 이관**을 적용합니다. `pic-in-head-01.hwp`·`pic-in-table-01.hwp`의 원본 바이트는 서로 같으며 SHA-256은 `c73145d60f3f0b041bc8fee64b65e6d419a1fc78aa62a90fa150b36f35278f4a`입니다. 두 원문과 다른 원장의 정상 검사를 유지하고 `text_overlap_baseline`의 두 경로만 보류합니다. baseline 값을 늘리지 않습니다.
+
+기존PDF에서 실제 renderer와 내용 순서·문구가 다른 것을 발견해 원문 대응을 재확인했습니다. **동일 원문을 실제 한컴2020 runtime11.0.0.9136의 `pdf_print_method=0 / hancom2020_pdf_driver_one_up`으로 새 Print 출력해도 같은 차이가 재현**됐습니다. 따라서 기존PDF가 다른 원문이라는 이전 단정은 철회합니다. 이번 이관의 근거는 다음 새PDF입니다.
+
+| 원문 / 새 독립 PDF | Native 전22쪽 | fresh WASM 선택2/10/19쪽 |
+| --- | --- | --- |
+| [pic-in-head](../../../../samples/pic-in-head-01.hwp) / [새Print PDF](../../../../pdf/pic-in-head-01-review-20261009-2020.pdf) | 최저19쪽 **49.86890%**,10/11/19쪽 미달 | **98.09696 / 56.57229 / 49.86890%** |
+| [pic-in-table](../../../../samples/pic-in-table-01.hwp) / [새Print PDF](../../../../pdf/pic-in-table-01-review-20261009-2020.pdf) | 최저19쪽 **49.86890%**,10/11/19쪽 미달 | **98.09696 / 56.57229 / 49.86890%** |
+
+실패한 목차2쪽 자체는90% 이상이며,2쪽에서 겹침 원장0→1건이 증가했습니다. **이관은 실패 쪽의 미달이라는 주장이 아니라 사용자 지정 문서 전체 최저값 기준**입니다.19쪽의 감점 상자 높이·줄바꿈 차이를 직접 review/overlay로 확인했습니다. 기존PDF로 비교했던10쪽의 내용 순서 차이도 새Print에서 재현됩니다. 이관을 겹침 결함 해결 또는 전체 회귀 통과로 세지 않습니다.
+
+Native는 immutable base 실행 파일로 같은 원문에서 산출했던 전22쪽 raster의 해시를 검증해 재사용하고 새Print PDF만 교체했습니다. fresh WASM은 같은 base의 실제 Chrome 출력2/10/19쪽 raster를 해시 검증해 재사용했습니다. WASM 전22쪽 실행은 미검증입니다. 원문·새Print PDF SHA/실행 모드·명령/전쪽 TSV·대표 PNG·base binary/package 출처는 ignored `picture-fresh-print-pdfs.json`, `upstream-74f9b71b1-failure-triage/picture-fresh-base-compare.json`, `picture-fresh-base-wasm-compare.json`에 기록합니다. 새PDF의 SHA는 아래에 고정합니다.
+
+같은 원본의 전쪽 Native/fresh WASM90% 이상 및 실제 글자 겹침·줄 순서/내용 소유를 확인한 뒤 두 경로의 의미 회귀를 복원합니다. 원문·PDF를 이동/삭제하지 않으며 새 이슈 없이 #7445를 열린 상태로 유지합니다.
+
+![pic-head19쪽 새Print review](pic-head_upstream_74f9b71b1_freshPrint_review_019.png)
+
+![같은19쪽 standalone overlay](pic-head_upstream_74f9b71b1_freshPrint_overlay_019.png)
+
+![pic-table19쪽 새Print review](pic-table_upstream_74f9b71b1_freshPrint_review_019.png)
+
+![같은19쪽 standalone overlay](pic-table_upstream_74f9b71b1_freshPrint_overlay_019.png)
+
+- pic-head PDF SHA-256: `bdd50b016b157ed721fb4b36e5021eab9e74babac4257647e80e6f2e3db57968`.
+- pic-table PDF SHA-256: `0e55f13ff078d5238e022a450c94d04728ca8f49f500fb5f10b08b988e455e85`.
+
+[pic 두 원문 재판정 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6065865468)과 앞선 PDF 설명 정정을 API로 확인했습니다.

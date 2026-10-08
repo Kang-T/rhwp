@@ -61,6 +61,10 @@ const DEDICATED_SLOW_FIXTURES: &[&str] = &["issue2063_huge_cellbreak_table.hwp"]
 /// 각 증가/시각 근거는 #7445 증적과 corpus_scope_restore_validation.json에 연결한다.
 /// 개별 정상 회귀와 다른 원장에서는 계속 검사하며 원문은 samples에 유지한다.
 const DEFERRED_TEXT_OVERLAP_FIXTURES: &[&str] = &[
+    // #7445: base74f9b71b1과 동일 원문의 새 Print PDF 전22쪽 최저49.86890%.
+    // 실패한 목차2쪽은98.09696%; 사용자 지정 문서 최저값 기준으로 이관.
+    "pic-in-head-01.hwp",
+    "pic-in-table-01.hwp",
     // #7445: 이 통합 브랜치의 신규 겹침2건과 Native 전1쪽78.18921%를 이관한다.
     "basic/KTX-003.hwp",
     // #7445: 신규 겹침1건, Native 전10쪽 중8쪽 미달·최저0%; 다른 검사는 유지한다.
