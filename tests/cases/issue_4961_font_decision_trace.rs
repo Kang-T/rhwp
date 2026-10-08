@@ -1,7 +1,8 @@
 use rhwp::document_core::DocumentCore;
 
-#[path = "../common/corpus_scope.rs"]
-mod corpus_scope;
+mod corpus_scope {
+    include!("../common/corpus_scope.rs");
+}
 
 fn standalone_native_reason() -> &'static str {
     if cfg!(all(not(target_arch = "wasm32"), feature = "native-skia")) {
