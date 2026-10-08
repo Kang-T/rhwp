@@ -16,7 +16,8 @@ last_verified: 2026-10-08
 | 항목 | 값 |
 | --- | --- |
 | 원 PR·작성자·base | [#7591](https://github.com/edwardkim/rhwp/pull/7591) / planet6897 / devel |
-| 원 head | `d5cc92dba07eb7c7db768d7a14fd72fb47e72417` |
+| 최초 검토 head | `d5cc92dba07eb7c7db768d7a14fd72fb47e72417` |
+| 최신 보완 head | `41c64bd552b5f44eaf340112628f340f1745b6a3`; 기존 검증을 이 head의 통과로 재사용하지 않음 |
 | 최초 적용 commit | `c08ce6cf47b2aa6d07c0fb7d350f618b170ab848` |
 | 이 PR의 적용 뒤 head | `cba840e0febbf392772b798a3b19832e9ecf4765`; 기능 commit 22개, 원 저자·cherry-pick -x 보존 |
 | 누적 검증 source head | `90e2c6fd2c614ba0ea7667355c4ed2f3617f6563` |
@@ -34,3 +35,9 @@ last_verified: 2026-10-08
 **미검증:** 원 PR이 보고한 전체 범위의 90% 미만 쪽과 미주 제목·본문 혼합 단, 각주/구분선·빈 줄의 직접 비교를 이 통합 head에서 전수 재확인하지 못했다. 전체 회귀의 endnote 검사 PASS는 독립 PDF 일치의 대용이 아니다. 원 PR의 overflow baseline 증가를 정상 변화로 승인하지 않으며 기존 테스트·증적은 보존한다. 대형 PR 경로를 적용하고 공통 통합 후보의 시각 gate 실패도 유지한다.
 
 공통 빌드·회귀·글꼴 등록·383쪽 시각 결과와 입력/기준 해시·증적 보존·merge 후 댓글 계획은 [#7611 공통 통합 검증](pr_7611_review.md#공통-통합-검증과-증거-보존)에 연결한다. 이 PR의 조건부 수용이 아니라 미충족·미검증 해소 후 재검토 계획이다.
+
+## 최신 보완 적용과 재검증 범위
+
+2026-10-08 최신 `upstream/devel` `c7f357efbca7c967380c242b1b0e0c94b42043bb` 위로 누적 branch를 리베이스했다. 이미 병합된 #7619의 중복 커밋 5개를 제외하고, 기존 병합 리뷰와 오늘할일을 보존했다. 리베이스 직후 `d7617672df2700b95479e94a39980adb2a2066e5`의 `src`·`tests`·Cargo 파일은 리베이스 전 커밋 `760e86891142b16b3b84f9f9e436e7dc79c05055`와 동일하다.
+
+새 기능 보완 `405418404874eb6bfa8f1354794f07d6f4118a14`와 대표 PNG 증적 `41c64bd552b5f44eaf340112628f340f1745b6a3`를 저자·출처를 유지한 `cherry-pick -x`로 추가했다. 적용 커밋은 각각 `13b3715d1`·`587eeff76`이며, contributor의 devel merge 커밋은 추가하지 않았다. 새 미주 첫 문단의 소유 경계, 모든 수용 판정의 scratch 렌더, 저장 기준선·글자 상자의 소비 경로를 다시 검증해야 한다. 새 테스트 4개와 contributor의 PNG는 새 통합 head의 독립 검증 완료를 뜻하지 않는다. 이 단계에서는 Git 충돌·공백·base 정렬만 확인했으며, 새 source의 회귀·Native/fresh WASM·최종 Clippy는 미검증이다.
