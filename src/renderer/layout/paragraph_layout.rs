@@ -4266,6 +4266,7 @@ impl LayoutEngine {
                 wrap_anchor,
                 false,
                 vertical_spacing,
+                None,
             );
         }
 
