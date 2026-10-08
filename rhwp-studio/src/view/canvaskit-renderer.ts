@@ -3263,7 +3263,7 @@ export class CanvasKitLayerRenderer {
       this.unsupportedOps.add('equation:unsupportedDirectReplay');
       return;
     }
-    const scaleX = op.layoutBox.width > 0 && op.bbox.width > 0
+    const scaleX = op.scaleX !== undefined && Number.isFinite(op.scaleX) ? op.scaleX : op.layoutBox.width > 0 && op.bbox.width > 0
       ? op.bbox.width / op.layoutBox.width
       : 1;
     const budget: EquationRenderBudget = {
@@ -3274,7 +3274,9 @@ export class CanvasKitLayerRenderer {
     let recordingFinished = false;
     let replayed = false;
     try {
-      const recordingCanvas = recorder.beginRecording(this.rect(op.bbox));
+      const recordingCanvas = recorder.beginRecording(this.rect({
+        ...op.bbox, width: Math.max(op.bbox.width, op.layoutBox.width * scaleX),
+      }));
       recordingCanvas.save();
       recordingCanvas.translate(op.bbox.x, op.bbox.y);
       if (Math.abs(scaleX - 1) > 0.01) recordingCanvas.scale(scaleX, 1);
@@ -3342,6 +3344,26 @@ export class CanvasKitLayerRenderer {
     );
 
     switch (layout.kind.type) {
+      case 'hancomGlyphs': {
+        const run = layout.kind;
+        const typeface = this.findPreparedTypeface('HyhwpEQ')?.typeface;
+        const glyphs = Array.from(run.glyphs);
+        if (!typeface || glyphs.length !== run.positions.length
+          || glyphs.length > CanvasKitLayerRenderer.MAX_EQUATION_TEXT_LENGTH
+          || !run.positions.every(Number.isFinite) || !Number.isFinite(run.baselineShift)) return false;
+        const font = new this.canvasKit.Font(typeface, fontSize);
+        font.setHinting(this.canvasKit.FontHinting.None);
+        font.setSubpixel(true);
+        const paint = this.makeFillPaint(color);
+        try {
+          const ids = font.getGlyphIDs(run.glyphs, glyphs.length);
+          if (!ids || ids.some(id => id === 0)) return false;
+          glyphs.forEach((glyph, index) => canvas.drawText(
+            glyph, x + run.positions[index], y + layout.baseline + run.baselineShift, paint, font,
+          ));
+          return true;
+        } finally { font.delete(); paint.delete(); }
+      }
       case 'row':
         return layout.kind.children.every((box) => child(box));
       case 'text':

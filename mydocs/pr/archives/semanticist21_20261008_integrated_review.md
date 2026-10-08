@@ -305,3 +305,29 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 
 - v18 Native build exit 0(4분 30초), 실행 파일 SHA `ae3b5fc14e8ee09afc5513b16c988b706a234d9bd68d89904deea32ceb263ec2`. 진단 101/101, 기존 표·각주 경계 32/32 PASS(기대값 변경 없음). 원래 HWP3 저장본 `6b4f6a375029...`과 원래 Print의 full Native review가 p1 약 95.47%, p2 92.07237%로 개선됐다. `hwp3-old-pages-v18.json`에서 빈 문단 36/37을 실제 다음 쪽으로 이월하고 navigator(38)가 같은 쪽에서 뒤따르는 것을 확인했다. 두 review PNG에서 참조·표·본문·하단 각주·뒤 쪽 순서를 직접 대조했다. source-code-v18/에 새 모듈을 포함한 source manifest를 고정했다. 이 결과의 fresh WASM과 정식 관계 회귀는 아직 남아 있다.
 - e13595c90 fresh WASM filename HF 20개 모두 100%, 크기별 필드 6개 최저 99.7331%, 누락 없음. 20pt 필드 review PNG를 직접 대조해 번호·파일명·밑줄 끝 배치를 확인했다. v16 주석 크기 대조 6개의 Native 최저는 98.42374%다. 이 검증을 v18 이후 source 전체 검증으로 승격하지 않는다.
+
+### 진행 중 보정 12: HYhwpEQ Latin 글리프와 공통 전진폭
+
+- ignored `equation_font_probe--hancom/`의 8/10/20pt, italic 소문자·대문자, rm, 숫자·연산자 독립 한컴2020 Print를 확보했다. 실제 변수는 소문자 E0E5..E0FE/대문자 E000..E019, 숫자는 E03D/E034..E03C, rm은 ASCII 글리프를 쓴다. 일반 Latin Modern 글리프와 다르다. `x+y`의 수정 전 보조값은 83.0303%, 기호 대조는 85.32189%였다.
+- HYHWPEQ.TTF의 cmap/hmtx(1024 UPEM)와 Print 전진을 대조했다. 48dpi 논리 크기를 반올림한 뒤 glyph advance를 반올림하는 두 단계가 10pt/20pt 변수 전진과 일치했다. 고정 px 간격 대신 source 글꼴·AST 스타일·글자 크기로 선택·전진을 산출한다. 필요한 글꼴을 기존 review 공급 경로에 실제 제공했고 font hash는 별도 로그에 남겼다.
+- 측정 producer `hancom_glyphs::measure → EqLayout::layout_hancom_glyphs`의 선택 글리프/개별 원점을 SVG·Canvas2D·Native Skia·CanvasKit layer JSON이 소비하도록 보정 중이다. 아직 Native/fresh WASM/Skia/CanvasKit 직접 검증 전이며 정식 회귀/fixture/기대값은 추가하지 않았다. glyph mapping이 확인되지 않은 문자와 bold/특수 font style은 기존 경로를 유지한다. 저장 수식 bbox의 최종 가로 scale 및 본문/셀 기준선 소비는 별도로 대조해야 한다.
+
+- `3d2709c07bcf693e8ef7316048cb981f46abd192` fresh WASM build exit 0(9분 22초), WASM SHA `05ec62a17acb9856deb5e7c1f77eff643d986cca509a94cc9ebc51c3e04cf3bf`, root/pkg와 Studio public 일치. 원래 HWP3 저장본/원래 Print 두 쪽 fresh WASM 최저 92.07237%, full review gate passed, 공개 API 6/6 PASS. Native와 같은 문단 소속·본문·각주 두 쪽 출력을 확보했다. 현재 수식 dirty 변경의 검증으로 승격하지 않는다.
+
+- v19 Native build exit 0(4분 14초), binary SHA `4baa6a66c3e9b580d91bbbf14bb63671115931809a61886a3e4bc9f4dfd343dd`, 진단 101/101 PASS, Studio TypeScript는 closure 내부 union narrowing 오류 수정 뒤 exit 0. `source-code-v19/` snapshot을 보존했다. 같은 `x+y` Print full review는 86.70886%로 여전히 실패한다. `inline-xy-v19-zoom.png`에서 마지막 bbox 압축과 operator baseline 차이를 확인했다.
+- 독립 한컴 Save한 x+y HWP도 원래 1955x1000 상자를 유지했다. 앞뒤 본문을 추가한 Print 대조에서 다음 글자는 저장 control advance를 소비하고 수식은 자연 글리프 크기로 그려졌다. v20은 독립 검증된 unprotected linear Latin 경로에서 공통 `stored_horizontal_scale`을 SVG/Canvas2D/Skia가 사용하고 CanvasKit JSON에 같은 scaleX를 발행한다. 보호 크기·비선형/mixed 경로를 같은 증거로 확대하지 않는다. Native Skia의 공급된 custom Hancom face도 실제 paint에 전달한다. 현재 검증 중이다.
+
+- v20 Native build exit 0(4분 7초), SHA `e52d51da566fc20ed881b98a55f16caa969707cfec7397a8ea8ae6ff2e658135`, 진단 101/101 PASS, Studio TypeScript exit 0. 같은 실제 HTML 셀 수식 input `433acb46d996...` Native full review 100%. 독립 x+y 8/10/20pt 및 앞뒤 본문 대조도 완료된 다섯 입력은 100%. 전체 대조 batch는 아직 실행 중이며 `inline-xy-v20-zoom.png`에서 operator baseline 잔차를 확인해 완료로 선언하지 않았다.
+- 추가 Print: baseline70에서도 operator/variable의 상대 기준선 차이가 유지되고 X+X/단독+/rm 숫자를 대조했다. v21은 Roman face ascent(820/1024)와 formula baseline의 차이를 공통 GlyphRun에 발행한다. 이 수치 근거와 글리프 위치/확대 결과는 별도로 보존한다. 연산자의 pad는 같은 AST row의 실제 앞뒤 피연산자와의 경계에서만 계상하며 단독/연속 연산자에는 내부 이항 간격을 넣지 않는다. 알려진 ×÷≤≥의 Unicode 글리프도 같은 메트릭으로 선택한다.
+- v12의 각주 뒤 모든 문단 cache 무효화는 2단 차트 host(문단7)의 유효한 저장 줄·단 소속까지 지우는 부작용이 있다. v18은 원래 저장 줄을 유지한 HWP3 입력에서 이미 Native/fresh WASM 통과했다. v21에서는 뒤 문단 무효화를 제거하고 host reflow/본문 pagination이 예약 프레임의 실제 수용을 계산하도록 되돌린다. 새 API 산출/같은 Print 비교는 아직 검증 전이다. 새 정식 회귀·fixture·기대값은 추가하지 않았다.
+
+- v21 Native build exit 0(4분 7초), binary SHA `13ec4ecd88a34591e41e55f0dfde930e0a74242fde6d785d231b9d198979c806`, 진단 101/101 PASS, TypeScript exit 0, 실제 셀 수식 100%. 연속 연산자 대조는 86.83093%로 남았다. SVG 원문에서 `DIVIDE`를 ÷ 대신 여섯 변수로 출력하는 기존 명령 누락을 확인했다. 같은 script의 Print는 ÷를 출력한다. v22는 기존 DIV/DIVDE와 함께 DIVIDE를 같은 연산자로 해소한다.
+- v21 새 각주 API가 만든 차트 입력 `0466.hwpx`의 hash가 원래 `b3c9896ea898...`로 돌아왔다. 원래 저장 줄·단 소속을 보존하며 v12 잘못된 무효화 산출물 `8394cca6978e...`를 해결된 원본으로 바꾸어 보고하지 않는다. 차트 원본의 88.42212% 실패는 여전히 남아 있다.
+- v22의 수식 가로 여백: common.margin의 좌/우를 inline advance에 포함하고 같은 여백으로 glyph content box를 얻는다. `composer::collect_tac_controls`/`tac_control_occupied_size → Frame/tac width → paragraph_layout`의 두 실제 분기와 table/table_partial/textbox fallback이 같은 helper를 소비한다. 앞뒤 본문 Print에서 저장 상자와 실제 glyph 원점의 좌측 여백을 대조했다. 수식 상자의 높이·원시 control 소속/내용은 변경하지 않는다. 새로운 검증은 진행 중이며 정식 회귀/fixture/기대값은 추가하지 않았다.
+
+- v22 native-skia 첫 build는 새 `Font::new` 호출에 Option을 전달한 타입 오류로 exit 101이며 실제 Typeface/기존 default 생성 분기로 수정했다. 이후 새 수식 font 수집기의 Footnote/Endnote와 Header/Footer를 같은 타입으로 묶은 오류도 exit 101이며 각각의 실제 모델 타입별 arm으로 수정했다. 실패 build는 검증에 포함하지 않는다. 문서 fontsUsed에는 본문/셀/주석/header/footer/textbox/캡션의 실제 수식 font name도 발행해 공급 단계에서 요청할 수 있게 한다. 실제 브라우저의 공급된 face·Canvas2D/CanvasKit 확인은 아직 남아 있다.
+
+- v22 native-skia 정상 build exit 0(4분 13초), SHA `e787ea69b78f731d61f7e46c773d4e25928ee5f0891d5f28e8dbde236f8504cb`. optional feature 도입 뒤 진단 driver의 serde_json 후보가 build/runtime 둘로 늘어난 문제는 Cargo artifact JSON의 runtime opt-level3와 실제 native library 경로로 해소했고 진단 101/101 PASS. 연속 연산자 대조와 실제 HTML 셀 수식 Native full review 모두 100%. 독립 x+y 및 HTML 셀의 실제 Skia PNG도 산출했다. `inline-xy-skia-v22-zoom.png`에서 hinting으로 굵어진 stem 차이를 확인해 v23은 supplied face의 outline을 subpixel/no-hinting으로 출력한다.
+- CanvasKit preflight에도 실제 HancomGlyphs 사용을 기준으로 필요한 HyhwpEQ face를 발행한다. Source 문서에 없는 바깥 face를 임의로 정하는 것이 아니라 수식 컨트롤이 지정한 face다. 실제 face 공급과 브라우저 replay 검증은 다음 검증에 포함한다.
+
+- v23 native-skia build exit 0(4분 16초), binary SHA `2a4cc6ee2aafc09f3532683955a21c170bad65fa20377fed6996a71c652f7354`, 기존 진단 101/101 PASS(5.99초), Studio TypeScript exit 0. `source-code-v23/manifest.json`에 실제 source 24개를 고정했다. `inline-xy-skia-v23-zoom.png`에서 독립 Print와 supplied face의 실제 Skia 출력을 확대 대조했고 v22의 굵은 + stem 차이가 줄었다. 전체 15개 Native 수식 full review는 실행 중이며 fresh WASM/Canvas2D/CanvasKit은 아직 미검증이다. 이 checkpoint는 완료/승인 판정이 아니다.

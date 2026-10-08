@@ -2668,7 +2668,7 @@ impl LayoutEngine {
                             hwpunit_to_px(shape.common().width as i32, self.dpi)
                         }
                         Control::Equation(eq) => hwpunit_to_px(
-                            crate::renderer::equation::flow_width_hwp(eq) as i32,
+                            crate::renderer::equation::inline_advance_width_hwp(eq),
                             self.dpi,
                         ),
                         _ => 0.0,
@@ -2690,7 +2690,7 @@ impl LayoutEngine {
                             Control::Equation(eq) => (
                                 true,
                                 hwpunit_to_px(
-                                    crate::renderer::equation::flow_width_hwp(eq) as i32,
+                                    crate::renderer::equation::inline_advance_width_hwp(eq),
                                     self.dpi,
                                 ),
                             ),
@@ -2888,7 +2888,7 @@ impl LayoutEngine {
                                 Some(hwpunit_to_px(shape.common().width as i32, self.dpi))
                             }
                             Control::Equation(eq) => Some(hwpunit_to_px(
-                                crate::renderer::equation::flow_width_hwp(eq) as i32,
+                                crate::renderer::equation::inline_advance_width_hwp(eq),
                                 self.dpi,
                             )),
                             _ => None,
@@ -3697,7 +3697,7 @@ impl LayoutEngine {
                             Control::Equation(eq) => {
                                 // 분할 표 내 수식: 항상 글자처럼 인라인 배치
                                 let eq_w = hwpunit_to_px(
-                                    crate::renderer::equation::flow_width_hwp(eq) as i32,
+                                    crate::renderer::equation::inline_advance_width_hwp(eq),
                                     self.dpi,
                                 );
                                 let eq_h = hwpunit_to_px(
@@ -3763,7 +3763,11 @@ impl LayoutEngine {
                                         cell_para_index: Some(cp_idx),
                                         note_ref: None,
                                     }),
-                                    BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                                    crate::renderer::equation::inline_content_box(
+                                        eq,
+                                        BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                                        self.dpi,
+                                    ),
                                 );
                                 cell_node.children.push(eq_node);
                             }

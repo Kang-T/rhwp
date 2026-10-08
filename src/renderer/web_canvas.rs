@@ -1162,11 +1162,7 @@ impl WebCanvasRenderer {
     }
 
     fn render_equation(&mut self, bbox: &BoundingBox, eq: &EquationNode) {
-        let scale_x = if eq.layout_box.width > 0.0 && bbox.width > 0.0 {
-            bbox.width / eq.layout_box.width
-        } else {
-            1.0
-        };
+        let scale_x = super::equation::stored_horizontal_scale(bbox.width, &eq.layout_box);
         let scale_y =
             super::equation::stored_vertical_scale(bbox.height, eq.layout_box.height, eq.font_size);
         self.ctx.save();

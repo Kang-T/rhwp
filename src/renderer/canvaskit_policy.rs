@@ -1341,6 +1341,13 @@ impl CanvasKitReplayPlanBuilder {
                 PaintOp::FootnoteMarker { marker, .. } => {
                     self.record_required_font_family(&marker.font_family);
                 }
+                PaintOp::Equation { equation, .. }
+                    if crate::renderer::equation::hancom_glyphs::is_used(&equation.layout_box) =>
+                {
+                    self.record_required_font_family(
+                        crate::renderer::equation::hancom_glyphs::FONT_FAMILY,
+                    );
+                }
                 _ => {}
             }
         }
@@ -1844,6 +1851,12 @@ fn canvaskit_equation_layout_is_supported(layout: &LayoutBox) -> bool {
             visit(child, depth + 1, remaining_nodes, max_text_utf16_units)
         };
         match &layout.kind {
+            LayoutKind::HancomGlyphs(run) => {
+                text_supported(&run.glyphs)
+                    && run.baseline_shift.is_finite()
+                    && run.glyphs.chars().count() == run.positions.len()
+                    && run.positions.iter().all(|x| x.is_finite())
+            }
             LayoutKind::Row(children) => children.iter().all(|item| child(item, remaining_nodes)),
             LayoutKind::Text(text)
             | LayoutKind::Number(text)

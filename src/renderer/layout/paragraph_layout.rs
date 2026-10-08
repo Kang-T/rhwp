@@ -5011,7 +5011,11 @@ impl LayoutEngine {
                             cell_para_index: eq_cell_para_idx,
                             note_ref,
                         }),
-                        BoundingBox::new(inline_x, eq_y, tac_w, eq_h),
+                        crate::renderer::equation::inline_content_box(
+                            eq,
+                            BoundingBox::new(inline_x, eq_y, tac_w, eq_h),
+                            self.dpi,
+                        ),
                     );
                     line_node.children.push(eq_node);
                     tree.set_inline_shape_position(
@@ -5019,7 +5023,12 @@ impl LayoutEngine {
                         para_index,
                         tac_ci,
                         cell_ctx.as_ref(),
-                        inline_x,
+                        crate::renderer::equation::inline_content_box(
+                            eq,
+                            BoundingBox::new(inline_x, eq_y, tac_w, eq_h),
+                            self.dpi,
+                        )
+                        .x,
                         eq_y,
                     );
                     row_inline_x[tac_row] += tac_w;
@@ -9028,7 +9037,11 @@ impl LayoutEngine {
                                         note_ref,
                                     },
                                 ),
-                                BoundingBox::new(x, eq_y, tac_w, eq_h),
+                                crate::renderer::equation::inline_content_box(
+                                    eq,
+                                    BoundingBox::new(x, eq_y, tac_w, eq_h),
+                                    self.dpi,
+                                ),
                             );
                             line_node.children.push(eq_node);
                             // 인라인 좌표 등록 → shape_layout에서 이 수식을 스킵
@@ -9037,7 +9050,12 @@ impl LayoutEngine {
                                 para_index,
                                 tac_ci,
                                 cell_ctx.as_ref(),
-                                x,
+                                crate::renderer::equation::inline_content_box(
+                                    eq,
+                                    BoundingBox::new(x, eq_y, tac_w, eq_h),
+                                    self.dpi,
+                                )
+                                .x,
                                 eq_y,
                             );
                         }

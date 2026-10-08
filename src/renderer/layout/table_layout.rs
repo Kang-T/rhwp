@@ -6979,7 +6979,7 @@ impl LayoutEngine {
                         Control::Equation(eq) => (
                             true,
                             hwpunit_to_px(
-                                crate::renderer::equation::flow_width_hwp(eq) as i32,
+                                crate::renderer::equation::inline_advance_width_hwp(eq),
                                 self.dpi,
                             ),
                         ),
@@ -8454,7 +8454,7 @@ impl LayoutEngine {
                     Control::Equation(eq) => {
                         // 수식 컨트롤: 글자처럼 인라인 배치
                         let eq_w = hwpunit_to_px(
-                            crate::renderer::equation::flow_width_hwp(eq) as i32,
+                            crate::renderer::equation::inline_advance_width_hwp(eq),
                             self.dpi,
                         );
 
@@ -8521,7 +8521,11 @@ impl LayoutEngine {
                                     cell_para_index: Some(cp_idx),
                                     note_ref: None,
                                 }),
-                                BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                                crate::renderer::equation::inline_content_box(
+                                    eq,
+                                    BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                                    self.dpi,
+                                ),
                             );
                             cell_node.children.push(eq_node);
                         }

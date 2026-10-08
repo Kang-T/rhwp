@@ -595,17 +595,8 @@ impl DocumentCore {
         // 대화형 편집의 관문과 같은 한 곳을 쓴다.
         self.reflow_paragraph(section_idx, para_idx);
 
-        // 각주 영역이 생기면 뒤 본문 줄의 가용 높이와 쪽 소속이 바뀐다.
-        // 삽입 전 쪽 좌표를 현재 캐시로 내보내면, 예전 쪽 끝의 빈 줄을
-        // 감추거나 원래 reset에서 한 쪽을 더 만든다. 문단 내용·글자모양은
-        // 보존하고 이전 프레임에서 만든 줄 캐시만 무효화한다.
-        for paragraph in self.document.sections[section_idx]
-            .paragraphs
-            .iter_mut()
-            .skip(para_idx + 1)
-        {
-            paragraph.invalidate_layout_inputs();
-        }
+        // 뒤 문단의 저장 줄 구성·단 소속은 보존한다. 각주 예약으로 바뀐
+        // 프레임 수용은 같은 저장 줄의 점유를 소비하는 pagination이 계산한다.
 
         // 리플로우 + 페이지네이션
         self.recompose_section(section_idx);

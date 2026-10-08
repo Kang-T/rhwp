@@ -443,7 +443,11 @@ fn compose_paragraph_scoped(
                 }
                 Control::Equation(eq) if eq.common.treat_as_char => {
                     // HWP 저장값을 사용 — 한컴 편집기가 실제 폰트로 계산한 정확한 너비
-                    Some((pos, crate::renderer::equation::flow_width_hwp(eq) as i32, i))
+                    Some((
+                        pos,
+                        crate::renderer::equation::inline_advance_width_hwp(eq),
+                        i,
+                    ))
                 }
                 Control::Form(f) if f.common.treat_as_char => Some((pos, f.width as i32, i)),
                 Control::Table(t)

@@ -1570,11 +1570,10 @@ impl SkiaLayerRenderer {
                         }
                         PaintOp::Equation { bbox, equation } => {
                             canvas.save();
-                            let scale_x = if equation.layout_box.width > 0.0 && bbox.width > 0.0 {
-                                bbox.width / equation.layout_box.width
-                            } else {
-                                1.0
-                            };
+                            let scale_x = crate::renderer::equation::stored_horizontal_scale(
+                                bbox.width,
+                                &equation.layout_box,
+                            );
                             let scale_y = crate::renderer::equation::stored_vertical_scale(
                                 bbox.height,
                                 equation.layout_box.height,

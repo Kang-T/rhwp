@@ -822,7 +822,7 @@ impl LayoutEngine {
 
             // 인라인 좌표 없으면 기존 방식 (정렬 기반 단독 배치)
             let eq_w = hwpunit_to_px(
-                crate::renderer::equation::flow_width_hwp(eq) as i32,
+                crate::renderer::equation::inline_advance_width_hwp(eq),
                 self.dpi,
             );
             let eq_h = hwpunit_to_px(
@@ -867,7 +867,11 @@ impl LayoutEngine {
                     cell_para_index: None,
                     note_ref: None,
                 }),
-                BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                crate::renderer::equation::inline_content_box(
+                    eq,
+                    BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                    self.dpi,
+                ),
             );
             parent.children.push(eq_node);
             return;
@@ -3627,7 +3631,7 @@ impl LayoutEngine {
                     }
                     Control::Equation(eq) => {
                         total_inline_width += hwpunit_to_px(
-                            crate::renderer::equation::flow_width_hwp(eq) as i32,
+                            crate::renderer::equation::inline_advance_width_hwp(eq),
                             self.dpi,
                         );
                         max_inline_height = max_inline_height.max(hwpunit_to_px(
@@ -3928,7 +3932,7 @@ impl LayoutEngine {
                     Control::Equation(eq) => {
                         // 글상자 내 수식: 항상 글자처럼 인라인 배치
                         let eq_w = hwpunit_to_px(
-                            crate::renderer::equation::flow_width_hwp(eq) as i32,
+                            crate::renderer::equation::inline_advance_width_hwp(eq),
                             self.dpi,
                         );
                         let eq_h = hwpunit_to_px(
@@ -4007,7 +4011,11 @@ impl LayoutEngine {
                                     cell_para_index: None,
                                     note_ref: None,
                                 }),
-                                BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                                crate::renderer::equation::inline_content_box(
+                                    eq,
+                                    BoundingBox::new(eq_x, eq_y, eq_w, eq_h),
+                                    self.dpi,
+                                ),
                             );
                             textbox_node.children.push(eq_node);
                         }

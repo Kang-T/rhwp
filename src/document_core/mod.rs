@@ -398,6 +398,12 @@ impl DocumentCore {
                 }
             }
         }
+        for section in &self.document.sections {
+            queries::equation_fonts::collect(&section.paragraphs, &mut fonts);
+            for master in &section.section_def.master_pages {
+                queries::equation_fonts::collect(&master.paragraphs, &mut fonts);
+            }
+        }
         let fonts_json: Vec<String> = fonts
             .iter()
             .map(|f| {

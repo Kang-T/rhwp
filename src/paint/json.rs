@@ -1071,6 +1071,14 @@ impl PaintOp {
                     equation.font_size
                 );
                 write_equation_layout_box(buf, &equation.layout_box);
+                let _ = write!(
+                    buf,
+                    ",\"scaleX\":{}",
+                    crate::renderer::equation::stored_horizontal_scale(
+                        bbox.width,
+                        &equation.layout_box
+                    )
+                );
                 buf.push('}');
             }
             PaintOp::FormObject { bbox, form } => {
@@ -2861,6 +2869,20 @@ fn write_equation_layout_box(buf: &mut String, layout: &LayoutBox) {
 
 fn write_equation_layout_kind(buf: &mut String, kind: &LayoutKind) {
     match kind {
+        LayoutKind::HancomGlyphs(run) => {
+            let _ = write!(
+                buf,
+                "{{\"type\":\"hancomGlyphs\",\"glyphs\":{},\"positions\":[",
+                json_escape(&run.glyphs)
+            );
+            for (index, offset) in run.positions.iter().enumerate() {
+                if index > 0 {
+                    buf.push(',');
+                }
+                let _ = write!(buf, "{offset}");
+            }
+            let _ = write!(buf, "],\"baselineShift\":{}}}", run.baseline_shift);
+        }
         LayoutKind::Row(children) => {
             buf.push_str("{\"type\":\"row\",\"children\":[");
             for (index, child) in children.iter().enumerate() {

@@ -47,6 +47,15 @@ fn render_box(
     let y = parent_y + lb.y;
 
     match &lb.kind {
+        LayoutKind::HancomGlyphs(run) => {
+            for (glyph, offset) in run.glyphs.chars().zip(&run.positions) {
+                svg.push_str(&format!(
+                    "<text x=\"{:.2}\" y=\"{:.2}\" font-size=\"{:.2}\" fill=\"{}\" font-family=\"{}\">{}</text>\n",
+                    x + offset, y + lb.baseline + run.baseline_shift, fs, color,
+                    super::hancom_glyphs::FONT_FAMILY, escape_xml(&glyph.to_string()),
+                ));
+            }
+        }
         LayoutKind::Row(children) => {
             for child in children {
                 render_box(svg, child, x, y, color, fs, italic, bold);

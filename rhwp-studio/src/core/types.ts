@@ -1349,6 +1349,7 @@ export interface LayerEquationOp {
   color?: string;
   fontSize?: number;
   layoutBox?: LayerEquationLayoutBox;
+  scaleX?: number;
 }
 
 export interface LayerControlLabelOp {
@@ -1396,6 +1397,7 @@ export interface LayerEquationLayoutBox {
 }
 
 export type LayerEquationLayoutKind =
+  | { type: 'hancomGlyphs'; glyphs: string; positions: number[]; baselineShift: number }
   | { type: 'row'; children: LayerEquationLayoutBox[] }
   | { type: 'text'; text: string }
   | { type: 'number'; text: string }

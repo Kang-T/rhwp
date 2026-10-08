@@ -911,11 +911,8 @@ impl SvgRenderer {
                 // HWP 저장 영역(bbox)과 레이아웃 산출 크기(layout_box)가 다를 수 있으므로
                 // bbox 너비에 맞춰 스케일링한다. 일반 높이는 줄 여백을 포함하므로
                 // 유지하고, 기본 글자보다 낮은 압축 프레임만 공통 세로 비율을 쓴다.
-                let scale_x = if eq.layout_box.width > 0.0 && node.bbox.width > 0.0 {
-                    node.bbox.width / eq.layout_box.width
-                } else {
-                    1.0
-                };
+                let scale_x =
+                    super::equation::stored_horizontal_scale(node.bbox.width, &eq.layout_box);
                 let scale_y = super::equation::stored_vertical_scale(
                     node.bbox.height,
                     eq.layout_box.height,

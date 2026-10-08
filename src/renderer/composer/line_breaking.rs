@@ -2688,7 +2688,7 @@ fn inline_control_size_hwp(ctrl: &Control) -> Option<(i32, i32)> {
             (width, table.common.height as i32)
         }
         Control::Equation(eq) if eq.common.treat_as_char => (
-            crate::renderer::equation::flow_width_hwp(eq) as i32,
+            crate::renderer::equation::inline_advance_width_hwp(eq),
             crate::renderer::equation::flow_height_hwp(eq) as i32,
         ),
         Control::Form(form) if form.common.treat_as_char => (form.width as i32, form.height as i32),
