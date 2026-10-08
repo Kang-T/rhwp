@@ -575,3 +575,21 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - v50 freshWASM build는 source dc18b952716db98d7c9aa758c5eb8055645f86f0에서 exit0/620.321초, WASM SHA b695a553c1b9e129934cfa0763d6034ef1ff67bba4d36a5ffd13d02df691de6a다. root pkg/public JS·WASM 해시는 각각 동일하며 --no-opt 진단 산출물로 구분한다. 같은 pinned binary/package의 p3..8 및 새 실패 경계p19/p20 review를 시작했다. Native p20에서 이미 미충족이므로 freshWASM 전수52쪽을 추가로 시작하지 않고 선행 경계 보정과 Native 전수를 이어간다.
 
 - v50 Native HWP52쪽 전수 TSV가 완료됐으며 최저48.03726%/미통과15쪽/누락0이다(native-stored-span-prior-height-full-v50-hwp-summary.json). 직전v49의28쪽 미통과에서13쪽이 수치 기준을 넘었으나 p10의 직접 판독 미충족과 다른15쪽이 남는다. HWPX 전수는 계속 실행 중이다. v49 freshWASM HWPX52쪽도 최저46.40781%/28쪽 미통과/누락0으로 완료됐으며 역사 source의 두 backend 전수 수치는 같다.
+
+### 진행 중 보정 33: 같은 행의 서로 다른 저장 소유자가 입증하는 원점0 경계
+
+- 독립 Print p19는146행의 “IDDV”/“KS M ISO 2507-1,” 첫 줄을 마지막 밴드에, p20은 “(ISO 3633)”/“KS M ISO 2507-2”부터 둔다. 원본146행 col7은 같은 문단의 두 실제 LS가0/0·LH1000·LS0이며 text_start는 전진한다. col1/span3은 IDDV의0과 다음 ISO 문단의0→1580(LH1000+LS580)이다. 일반 문단 로컬0만으로는 판정하지 않고 서로 다른 source 소유자의 같은 row에서의 restart/뒤 사다리를 함께 확인한다(scattered-source-frame-v50.tsv 및 최신 review_019/020.png).
+- 실행 경로는 advance_row_cut의 [1,1]/13.3px 콘텐츠 컷 → row_cut_content_height의 실제 패딩 포함20.9px → row_step의25px 고아 기각 →146행 통째 이월 → 앞145행에 남은 물리 띠 기록 → 다음 source rowspan의 불필요한 전진이다(scattered-p19-trace-v50.log). 일반 완전 행의 공간 원장은 앞 수정대로 유지한다.
+- 새 공유 경계 인증은 비편집/비재조판/비TAC TopAndBottom RowBreak의 원본 단일행 같은 문단0/0 및 같은 시작행의 실제 병합 peer의0/0→LH+LS를 함께 요구한다. target의 spacing0은 경계 존재와 공간 크기가 다른 상태이므로 허용하되, 증명 없는 첫 조각 경로는 기존 양수 spacing+Common.height의 물리 교차를 그대로 유지한다. 인증을 CellUnit의 frame-break/whole-row 제외/내용 컷 및 orphan keep가 같은 helper로 소비하게 한다. 모든0·합성·dirty·편집·개체·뒤 사다리가 없는 peer는 인정하지 않는다. 기존6761의 실제/부정 대조를 함께 검증하고 새 formal 테스트/fixture 추가는 전쪽 Native/freshWASM90%와 확대 판독까지 보류한다.
+
+- v51 최초 Native build exit0/282.366초, binary SHA0d1b516d8140f04b2036a392a450579911854d918e1ae9a2afb3cb6c0bd31850다. 실행에서53쪽으로 늘어나 원본52쪽 계약을 위반했으며 실패 후보를 보존한다(native-build-shared-zero-origin-frame-v51.json/source-code-v51/scattered-pages-v51.json). p19에서는146행을 계속 이월하고 p20에 첫 줄만 있는 별도 조각이 생긴다.
+- 추가 추적으로 초기 의심한 패딩 중복은 원인이 아님을 확인했다. content13.3/padding7.5, 컷[1,1]은 맞지만 stored_zero_origin_rewind_keep가 이미 끝난 col4의1줄에도 원점0 되감김을 요구하고, 다른 plain-reset gate는 표 전체의 모든 행에 single-row 선언이 있어야 하므로 원본의 병합 전용 행에서 차단된다(scattered-p19-drift-v51.log). 경계 인증과 공간 크기는 그대로 두고, 이미 완료된 소유자와 실제 이어질 source 소유자를 구분하는 공통 row-cut 판정을 추가한다.
+
+- v50 Native 원본 두 파일 전수52쪽은 exit1으로 종료했다. HWP/HWPX 최저48.03726/48.41629% 및 각각15쪽 미통과/누락0이다(native-stored-span-prior-height-full-v50-summary.json). 같은 code head의 freshWASM p3..8/p19/p20 review도 종료(exit1)했다. 두 backend의 선택 범위 페이지별 수치는 각 원본마다 동일하며 HWPX p19/p20=97.48563/59.68074%다. p3..8의 실제 개선은 유지되지만 p19→20의 잘못된 소속은 면제하지 않는다.
+
+
+### 한컴 기준 PDF 보존: untracked 자료 정리
+
+- 사용자 지시 “현재 untract 된 pdf 는 뭐임? 필요없으면 제거, 필요하면 커밋”에 따라 `pdf/semanticist21-20261008/`의210개 PDF(10,134,567바이트)를 확인했다. 원본 기준, 편집·합성 대조 및 진단·반증 대조이며 기존 추적 PDF/이번 폴더 내부의 바이트 동일 중복은0이다. 현재 검토의 독립 출력 증거로 보존한다.
+- `references.tsv`에 입력 경로·입력 SHA256, PDF SHA1/SHA256·크기·쪽수, Creator/Producer, engine·job ID·상태·print_method 및 로컬 작업 기록을 연결했다.210개 입력 해시는 현재 파일과 모두 일치하고210개 변환 상태는 succeeded다. 과거 작업 기록에 print_method가 없는 항목은 빈 칸으로 남겼으며 method0 검증으로 승격하지 않는다. 변환 서비스 주소/비밀 환경 값은 포함하지 않는다. 상세 검사 원장은 ignored `output/pr-review/semanticist21-20261008/pdf-reference-audit-v51.json`에 보존한다.
+- 이 커밋은 기준 PDF 보존이며 새 formal 회귀 fixture/golden 추가나 시각 gate 통과 판정이 아니다. 편집·합성 입력은 현재 ignored 증거 경로에 보존되어 있으며 최종 제출 증적의 입력 재현성 정리가 아직 남아 있다. 진행 중 v51 source는 별도로 검증한다.
