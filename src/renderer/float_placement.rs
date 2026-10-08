@@ -109,6 +109,34 @@ pub(crate) fn reflow_block_table_host_occupied_height(
     has_table.then_some(line_height.max(table_height))
 }
 
+/// The renderer defers visible TopAndBottom host text unless the saved lines
+/// independently place that text above the object. A Square host remains an
+/// opening text fragment. Reuse this ownership when converting a line origin
+/// to the paragraph origin before leading space.
+pub(crate) fn partial_table_defers_visible_host(
+    para: &Paragraph,
+    table: &Table,
+    control_index: usize,
+) -> bool {
+    !table.common.treat_as_char
+        && is_para_topbottom_float(&table.common)
+        && table.page_break == TablePageBreak::RowBreak
+        && para_has_non_whitespace_text(para)
+        && !super::layout::stored_host_lines_precede_float(para, table, control_index)
+}
+
+pub(crate) fn partial_table_opening_host_owns_lead(
+    para: &Paragraph,
+    table: &Table,
+    control_index: usize,
+    host_was_emitted: bool,
+) -> bool {
+    !host_was_emitted
+        && !table.common.treat_as_char
+        && !partial_table_defers_visible_host(para, table, control_index)
+        && para.text.chars().any(|c| c > '\u{001f}' && c != '\u{fffc}')
+}
+
 /// On reflow, an adjustable multi-row table is constrained by its physical
 /// row declarations and content, rather than by scaling every row to a cached
 /// object bounding height. A single row can consume the object-height minimum
@@ -203,6 +231,131 @@ pub(crate) fn stored_hwpx_no_adjust_cell_content_end(
         }
     }
     i32::try_from(end).ok().map(|hu| hwpunit_to_px(hu, dpi))
+}
+
+/// A complete inline cell can contain overlapping stored line boxes: a floating
+/// decoration and an inline picture retain separate control owners without
+/// occupying two successive picture-height bands. The enclosing object and the
+/// final stored line must independently close the same padded frame.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct StoredInlineContentFrame {
+    pub content_height_hu: i32,
+    pub body_height_hu: i32,
+}
+
+pub(crate) fn stored_inline_content_frame(
+    cell: &crate::model::table::Cell,
+    table: &Table,
+) -> Option<StoredInlineContentFrame> {
+    use crate::model::paragraph::{ColumnBreakType, LineSeg};
+    use crate::model::shape::SizeCriterion;
+    if !table.common.treat_as_char
+        || table.row_count != 1
+        || table.col_count != 1
+        || table.cells.len() != 1
+        || table.caption.is_some()
+        || table.common.width_criterion != SizeCriterion::Absolute
+        || table.common.height_criterion != SizeCriterion::Absolute
+        || cell.row_span != 1
+        || cell.col_span != 1
+        || cell.text_direction != 0
+        || cell.paragraphs.is_empty()
+        || !crate::renderer::cell_vpos_ladder_is_intact(&cell.paragraphs)
+    {
+        return None;
+    }
+    let pad = cell.effective_padding(&table.padding);
+    if pad.top < 0 || pad.bottom < 0 {
+        return None;
+    }
+    let mut previous_position = None;
+    let mut content_end = 0_i32;
+    for para in &cell.paragraphs {
+        if para.column_type != ColumnBreakType::None
+            || para.stored_text_partition_is_dirty()
+            || para.cell_format_vpos_dirty
+            || crate::renderer::para_has_no_stored_line_segs(para)
+        {
+            return None;
+        }
+        for line in &para.line_segs {
+            if line.vertical_pos < 0
+                || line.line_height <= 0
+                || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                || previous_position.is_some_and(|previous| line.vertical_pos < previous)
+            {
+                return None;
+            }
+            previous_position = Some(line.vertical_pos);
+            content_end = content_end.max(line.vertical_pos.checked_add(line.line_height)?);
+        }
+    }
+    let body_height = content_end
+        .checked_add(i32::from(pad.top))?
+        .checked_add(i32::from(pad.bottom))?;
+    if body_height <= 0 || body_height != signed_hwpunit(table.common.height) {
+        return None;
+    }
+    let mut has_inline_picture = false;
+    for para in &cell.paragraphs {
+        let owners = stored_control_line_indices(para)?;
+        for (control, owner) in para.controls.iter().zip(owners) {
+            let (common, height) = match control {
+                Control::Picture(picture) if picture.caption.is_none() => {
+                    let (_, height) = picture_flow_frame_size_hu(picture);
+                    has_inline_picture |= picture.common.treat_as_char;
+                    (&picture.common, height)
+                }
+                Control::Shape(shape) if !shape.common().treat_as_char => {
+                    (shape.common(), signed_hwpunit(shape.common().height))
+                }
+                _ => return None,
+            };
+            if height <= 0
+                || signed_hwpunit(common.width) <= 0
+                || common.width_criterion != SizeCriterion::Absolute
+                || common.height_criterion != SizeCriterion::Absolute
+            {
+                return None;
+            }
+            let object_end = if common.treat_as_char {
+                let owner = para.line_segs.get(owner)?;
+                let occupied_height = height
+                    .checked_add(i32::from(common.margin.top))?
+                    .checked_add(i32::from(common.margin.bottom))?;
+                if occupied_height > owner.line_height {
+                    return None;
+                }
+                owner.vertical_pos.checked_add(occupied_height)?
+            } else {
+                if common.vert_rel_to != VertRelTo::Para
+                    || common.vert_align != VertAlign::Top
+                    || !matches!(
+                        common.text_wrap,
+                        TextWrap::BehindText | TextWrap::InFrontOfText
+                    )
+                {
+                    return None;
+                }
+                let top = para
+                    .line_segs
+                    .first()?
+                    .vertical_pos
+                    .checked_add(signed_hwpunit(common.vertical_offset))?;
+                if top < 0 {
+                    return None;
+                }
+                top.checked_add(height)?
+            };
+            if object_end > content_end {
+                return None;
+            }
+        }
+    }
+    has_inline_picture.then_some(StoredInlineContentFrame {
+        content_height_hu: content_end,
+        body_height_hu: body_height,
+    })
 }
 
 /// 그림 띠 뒤의 빈 마지막 줄을 담는 원본 셀 프레임.
@@ -2464,15 +2617,20 @@ impl ParagraphFloatPlacement {
                 return None;
             };
             (line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
-                && !paragraph.stored_text_partition_is_dirty())
-            .then_some(line.vertical_pos)
+                && !paragraph.stored_text_partition_is_dirty()
+                && !paragraph.cell_format_vpos_dirty)
+                .then_some(line.vertical_pos)
         };
+        let is_paragraph_square = !table.common.treat_as_char
+            && table.common.text_wrap == TextWrap::Square
+            && matches!(table.common.vert_rel_to, VertRelTo::Para);
         if !matches!(para.controls.as_slice(), [Control::Table(_)])
             || para
                 .text
                 .chars()
                 .any(|ch| !ch.is_whitespace() && !ch.is_control() && ch != '\u{FFFC}')
-            || !is_para_topbottom_float(&table.common)
+            || !(is_para_topbottom_float(&table.common) || is_paragraph_square)
+            || next.column_type != crate::model::paragraph::ColumnBreakType::None
             || !matches!(table.common.vert_align, VertAlign::Top)
             || signed_hwpunit(table.common.vertical_offset) < 0
             || table.caption.is_some()
@@ -2506,11 +2664,15 @@ impl ParagraphFloatPlacement {
         let occupied_bottom = table_top
             + hwpunit_to_px(table.common.height.min(i32::MAX as u32) as i32, dpi)
             + hwpunit_to_px(i32::from(table.outer_margin_bottom), dpi);
+        // The independently stored successor line closes this complete object
+        // frame. Square wrapping also owns this end when the ladder proves that
+        // the successor is below the object, rather than beside it. The next
+        // paragraph's leading band is already inside its saved line origin.
         Some(Self {
             flow: ParagraphFloatFlow::Exclusion,
             anchor_y: origin,
             stored_host_origin: None,
-            stored_successor_line_origin: None,
+            stored_successor_line_origin: Some(occupied_bottom),
             table_left: None,
             table_top,
             occupied_bottom,
@@ -3114,7 +3276,7 @@ pub(crate) fn stored_block_cell_flow(
             .collect();
         let block_height: f64 = nested_table_groups(para, false)
             .iter()
-            .map(|group| nested_group_occupied_height(para, group, &h, false))
+            .map(|group| nested_group_occupied_height(para, group, &h, 0.0, dpi))
             .sum();
         if block_height > 0.0 {
             if let Some(next) = paragraphs.get(pi + 1) {
@@ -3194,18 +3356,62 @@ pub(crate) fn stored_block_cell_flow(
     Some(result)
 }
 
-/// 저장 HWPX의 글 뒤로 표는 문단 앵커를 공유하는 배경이며 흐름을 전진하지 않는다.
-/// 가로 기준이 단/문단인 경우 모두 같은 역할이다. TAC와 HWP5 기존 경로는 보존한다.
-pub(crate) fn nested_table_is_hwpx_overlay(table: &Table, hwpx_stored: bool) -> bool {
-    hwpx_stored
-        && !table.common.treat_as_char
-        && table.common.text_wrap == TextWrap::BehindText
-        && table.common.flow_with_text
+/// 문단 기준 글 앞/뒤 표는 같은 앵커에 겹치는 개체이며 별도의 흐름 띠가 아니다.
+/// HWP5의 직인 표와 HWPX의 배경 표 모두 이 계약을 소비한다. TAC는 글줄에 참여한다.
+pub(crate) fn nested_table_is_overlay(table: &Table) -> bool {
+    !table.common.treat_as_char
+        && matches!(
+            table.common.text_wrap,
+            TextWrap::BehindText | TextWrap::InFrontOfText
+        )
         && table.common.vert_rel_to == VertRelTo::Para
         && matches!(
             table.common.horz_rel_to,
             HorzRelTo::Column | HorzRelTo::Para
         )
+}
+
+/// The paragraph origin precedes its leading space. Overlay offsets are signed,
+/// and the supplied height already contains both outer margins. Measurement and
+/// painting consume this same outer frame, independently of cursor advance.
+pub(crate) fn nested_overlay_outer_frame(
+    table: &Table,
+    paragraph_origin: f64,
+    outer_height: f64,
+    dpi: f64,
+) -> Option<Range<f64>> {
+    if !nested_table_is_overlay(table)
+        || !matches!(table.common.vert_align, VertAlign::Top)
+        || !paragraph_origin.is_finite()
+        || !outer_height.is_finite()
+        || outer_height < 0.0
+    {
+        return None;
+    }
+    let top = paragraph_origin + hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), dpi);
+    Some(top..top + outer_height)
+}
+
+/// Original stored cell positions describe the first line, after leading space.
+/// Reflow has no stored line origin to subtract from. The first cell paragraph
+/// uses the same saved-leading-space result as text measurement and painting.
+pub(crate) fn nested_overlay_stored_line_lead(
+    para: &Paragraph,
+    para_index: usize,
+    spacing_before: f64,
+    dpi: f64,
+) -> f64 {
+    if crate::renderer::para_has_no_stored_line_segs(para)
+        || para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+    {
+        return 0.0;
+    }
+    if para_index == 0 {
+        crate::renderer::cell_first_para_stored_lead(para, spacing_before, dpi)
+    } else {
+        spacing_before
+    }
 }
 
 /// 흐름 표는 나란함/적층을 따르지만 배경의 시각 높이는 같은 앵커에서 최댓값으로 합친다.
@@ -3214,7 +3420,8 @@ pub(crate) fn nested_group_occupied_height(
     para: &Paragraph,
     group: &NestedTableGroup,
     heights: &[f64],
-    hwpx_stored: bool,
+    stored_line_lead: f64,
+    dpi: f64,
 ) -> f64 {
     let mut flow_height = 0.0_f64;
     let mut overlay_height = 0.0_f64;
@@ -3222,8 +3429,10 @@ pub(crate) fn nested_group_occupied_height(
         let Control::Table(table) = &para.controls[ci] else {
             continue;
         };
-        if nested_table_is_hwpx_overlay(table, hwpx_stored) {
-            overlay_height = overlay_height.max(heights[ci]);
+        if nested_table_is_overlay(table) {
+            let bottom = nested_overlay_outer_frame(table, -stored_line_lead, heights[ci], dpi)
+                .map_or(heights[ci], |frame| frame.end);
+            overlay_height = overlay_height.max(bottom);
         } else if group.side_by_side {
             flow_height = flow_height.max(heights[ci]);
         } else {
@@ -3256,9 +3465,7 @@ pub(crate) fn nested_table_groups(para: &Paragraph, hwpx_stored: bool) -> Vec<Ne
             .controls
             .iter()
             .filter_map(|&ci| match &para.controls[ci] {
-                Control::Table(t) if !nested_table_is_hwpx_overlay(t, hwpx_stored) => {
-                    Some(t.as_ref())
-                }
+                Control::Table(t) if !nested_table_is_overlay(t) => Some(t.as_ref()),
                 _ => None,
             })
             .collect();

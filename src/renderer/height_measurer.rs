@@ -2601,10 +2601,8 @@ impl HeightMeasurer {
                 let Control::Table(nested) = ctrl else {
                     return None;
                 };
-                if crate::renderer::float_placement::nested_table_is_hwpx_overlay(
-                    nested,
-                    self.hwpx_stored_layout,
-                ) || para_max_lh >= nested.common.height as i32
+                if crate::renderer::float_placement::nested_table_is_overlay(nested)
+                    || para_max_lh >= nested.common.height as i32
                 {
                     return None;
                 }
@@ -2725,13 +2723,20 @@ impl HeightMeasurer {
                     })
                     .collect();
                 let para_top_hu = p.line_segs.first().map_or(0, |s| s.vertical_pos);
+                let stored_line_lead = crate::renderer::float_placement::nested_overlay_stored_line_lead(
+                    p,
+                    pidx,
+                    styles.para_styles.get(p.para_shape_id as usize).map_or(0.0, |s| s.spacing_before),
+                    self.dpi,
+                );
                 let mut nested_h = 0.0f64;
                 for group in groups {
                     let height = crate::renderer::float_placement::nested_group_occupied_height(
                         p,
                         &group,
                         &heights,
-                        self.hwpx_stored_layout,
+                        stored_line_lead,
+                        self.dpi,
                     );
                     let bottom = if let Some(line) = group.line {
                         let seg = &p.line_segs[line];
@@ -3634,6 +3639,15 @@ impl HeightMeasurer {
                     }
                 };
 
+                let stored_inline_frame = (self.is_native_hwp5
+                    && !self.session_edited
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| crate::renderer::float_placement::stored_inline_content_frame(cell, table))
+                .flatten();
+                let content_height = stored_inline_frame
+                    .map(|frame| hwpunit_to_px(frame.content_height_hu, self.dpi))
+                    .unwrap_or(content_height);
+
                 // 닫힌 원본 프레임의 빈 마지막 줄은 그림 띠와 별도의 실제 공간이다.
                 let text_height = if self.is_native_hwp5
                     && !self.session_edited
@@ -3690,7 +3704,9 @@ impl HeightMeasurer {
                         self.render_normalization.table_text_reflowed(table),
                         relaxed_pad_mirror,
                     );
-                let required_height = if let Some(end) = stored_frame_end {
+                let required_height = if let Some(frame) = stored_inline_frame {
+                    hwpunit_to_px(frame.body_height_hu, self.dpi)
+                } else if let Some(end) = stored_frame_end {
                     end
                 } else if crate::model::table::Cell::vertical_padding_is_abnormal(
                     cell_h_px, total_pad,

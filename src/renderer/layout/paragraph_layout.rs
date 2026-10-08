@@ -2729,6 +2729,7 @@ impl LayoutEngine {
                             .get(para.para_shape_id as usize)
                             .map_or(0.0, |s| s.spacing_after),
                     }),
+                None,
             );
             return;
         }
@@ -4382,7 +4383,7 @@ impl LayoutEngine {
                                 image_data,
                                 BoundingBox::new(x + margin_left, img_y, pic_w, pic_h),
                             );
-                            line_node.children.push(img_node);
+                            self.append_picture_image_node(tree, line_node, pic, img_node);
                             x += tac_w;
                         }
                     }
@@ -4808,6 +4809,7 @@ impl LayoutEngine {
             wrap_anchor,
             false,
             None,
+            None,
         )
     }
 
@@ -4833,6 +4835,7 @@ impl LayoutEngine {
         wrap_anchor: Option<&crate::renderer::pagination::WrapAnchorRef>,
         physical_frame_rows: bool,
         vertical_spacing: Option<ParagraphVerticalSpacing>,
+        stored_cell_content_origin: Option<f64>,
     ) -> f64 {
         let mut y = y_start;
         let end = end_line.min(composed.lines.len());
@@ -5401,7 +5404,11 @@ impl LayoutEngine {
                 y = base_y + hwpunit_to_px(seg.vertical_pos - base_vpos, self.dpi);
             }
 
-            if physical_frame_rows {
+            if let Some(origin) = stored_cell_content_origin {
+                if let Some(row) = para.and_then(|p| p.line_segs.get(line_idx)) {
+                    y = origin + hwpunit_to_px(row.vertical_pos, self.dpi);
+                }
+            } else if physical_frame_rows {
                 if let Some(row) = para.and_then(|p| p.line_segs.get(line_idx)) {
                     y = y_start
                         + vertical_spacing.map_or(spacing_before, |s| s.before)
@@ -8586,7 +8593,7 @@ impl LayoutEngine {
                                     image_data,
                                     BoundingBox::new(x + margin_left, img_y, pic_w, pic_h),
                                 );
-                                line_node.children.push(img_node);
+                                self.append_picture_image_node(tree, line_node, pic, img_node);
                                 // [Task #864 Stage G] inline TAC picture 의 위치 등록.
                                 // layout.rs 의 TAC inline branch (line ~2906) 가
                                 // already_registered 체크로 중복 emit 방지하나, 기존
@@ -10126,7 +10133,7 @@ impl LayoutEngine {
                                 image_data,
                                 BoundingBox::new(img_x + margin_left, img_y, pic_w, pic_h),
                             );
-                            line_node.children.push(img_node);
+                            self.append_picture_image_node(tree, line_node, pic, img_node);
                             // [Task #418/#376] layout_shape_item 의 Task #347 분기 (빈 문단 +
                             // TAC Picture 직접 emit) 와 이중 렌더링되지 않도록 인라인 위치를
                             // 등록한다. layout_shape_item 은 등록된 경우 push 를 스킵한다.

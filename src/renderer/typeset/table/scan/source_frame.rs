@@ -160,6 +160,17 @@ impl SourceFrameQuery<'_> {
             && !ordinary_declared_band_can_split
             && source_first_fragment_overflow_allowance > 0.0
             && source_first_fragment_row_end == Some(r + 1)
+            // Source object-height slack may absorb an empty physical band,
+            // but it cannot consume visible content that belongs beyond the
+            // actual row budget. The same content/alignment query is used by
+            // ordinary band splitting, independently of the stored border.
+            && layout_engine.row_aligned_content_bottom(
+                table,
+                r,
+                layout_engine.row_complete_cut_content_height(table, r, styles),
+                row_total,
+                styles,
+            ) <= avail_for_rows - consumed - cs_before + 0.5
             && consumed + cs_before + row_total
                 <= avail_for_rows + source_first_fragment_overflow_allowance;
         // A direct HWPX row with one visible owner and a structural empty

@@ -8332,9 +8332,23 @@ impl LayoutEngine {
                 // [Task #1027 Stage C] inter-item VPOS_CORR 보정을 HeightCursor 에 위임 (동작 동일).
                 // 이전 문단 overlay-shape/분할표 bypass, page/lazy base 산출, sb 차감,
                 // ≤8px 백워드 클램프를 모두 캡슐화 (Stage A/B 함수 결합). 렌더러·페이지네이터 공유.
-                // [#7351] 표 조각은 host 문단의 앞 간격을 그리지 않으므로
-                // 스냅의 `sb_N` 사전 차감에서 뺀다.
-                hcursor.curr_item_is_table_fragment = matches!(item, PageItem::PartialTable { .. });
+                // [#7351] continuation/이미 그린 host는 앞 간격을 다시 그리지 않는다.
+                // 첫 조각이 실제 host 글줄을 그리면 그 앞 간격은 같은 원점에서 한 번 소유한다.
+                let opening_host_owns_lead = match item {
+                    PageItem::PartialTable { para_index, control_index, is_continuation: false, .. } => {
+                        paragraphs.get(*para_index).is_some_and(|para| {
+                            matches!(para.controls.get(*control_index), Some(Control::Table(table))
+                                if composed.get(*para_index).is_some()
+                                    && crate::renderer::float_placement::partial_table_opening_host_owns_lead(
+                                        para, table, *control_index,
+                                        self.pre_emitted_host_paras.borrow().contains(para_index),
+                                    ))
+                        })
+                    }
+                    _ => false,
+                };
+                hcursor.curr_item_is_table_fragment =
+                    matches!(item, PageItem::PartialTable { .. }) && !opening_host_owns_lead;
                 y_offset = hcursor.vpos_adjust(y_offset, item_para, paragraphs, styles);
                 hcursor.curr_item_is_table_fragment = false;
             } // !shape_jumped
@@ -14213,11 +14227,11 @@ impl LayoutEngine {
                 // HWP5와 그 marker HWPX도 컨트롤 번호와 저장 줄 번호가 다르다.
                 // 앞 텍스트 줄의 음수 줄간격으로 표 뒤 흐름을 되돌리지 않도록,
                 // 표 높이를 담은 실제 소속 줄을 같은 사영으로 고른다.
-                // 용지 고정 그림은 host 줄의 흐름을 소유하지 않는다. 원본
+                // 용지 고정 그림과 글 앞/뒤 중첩 표는 host 줄의 흐름을 소유하지 않는다. 원본
                 // 표 줄과 다음 줄이 정확히 이어지는 경우에는 그 장식 때문에
-                // 표의 후행 간격을 버리지 않는다. 문단 상대 가시 개체는 기존
+                // 표의 후행 간격을 버리지 않는다. 흐름을 전진시키는 문단 상대 개체는 기존
                 // 이중 가산 방지 계약을 그대로 따른다.
-                let has_only_paper_decoration_before_tac = para.controls
+                let has_only_flow_neutral_decorations_before_tac = para.controls
                     [..control_index.min(para.controls.len())]
                     .iter()
                     .all(|control| match control {
@@ -14226,12 +14240,15 @@ impl LayoutEngine {
                                 && picture.common.vert_rel_to
                                     == crate::model::shape::VertRelTo::Paper
                         }
-                        Control::Table(_) | Control::Shape(_) => false,
+                        Control::Table(table) => {
+                            crate::renderer::float_placement::nested_table_is_overlay(table)
+                        }
+                        Control::Shape(_) => false,
                         _ => true,
                     });
                 let continuous_stored_table_line =
                     self.profile.get().hwp5_stored_pagination_layout()
-                        && has_only_paper_decoration_before_tac
+                        && has_only_flow_neutral_decorations_before_tac
                         && control_line_seg_index(para, control_index)
                             .and_then(|index| para.line_segs.get(index))
                             .is_some_and(|seg| {
@@ -14550,6 +14567,16 @@ impl LayoutEngine {
                 y_offset = next_flow_top;
             }
         }
+        // A complete stored object frame owns the successor's line origin.
+        // Consume that same accepted result after painting; generic empty-host
+        // line advances above must not replace it with a separate cursor.
+        if let Some(origin) = ctx
+            .paragraph_float_placements
+            .get(&(para_index, control_index))
+            .and_then(|placement| placement.stored_successor_line_origin)
+        {
+            y_offset = col_area.y + origin;
+        }
         (y_offset, false)
     }
 
@@ -14603,16 +14630,11 @@ impl LayoutEngine {
                 .get(control_index)
                 .and_then(|ctrl| match ctrl {
                     Control::Table(t)
-                        if !t.common.treat_as_char
-                            && is_para_topbottom_float(&t.common)
-                            && matches!(
-                                t.page_break,
-                                crate::model::table::TablePageBreak::RowBreak
-                            )
-                            && para_has_non_whitespace_text(para)
-                            // [#5584] 저장 기하가 "호스트 줄 전부가 표 위" 를
-                            // 증언하면 지연하지 않는다 — 그 줄은 pre-text 다.
-                            && !stored_host_lines_precede_float(para, t, control_index) =>
+                        if crate::renderer::float_placement::partial_table_defers_visible_host(
+                            para,
+                            t,
+                            control_index,
+                        ) =>
                     {
                         Some(t.row_count as usize)
                     }
@@ -14627,7 +14649,13 @@ impl LayoutEngine {
                 is_continuation && end_cut.is_empty() && end_row >= row_count
             });
         // ── 분할 표 첫 부분: 호스트 문단 텍스트 렌더링 ──
-        if !is_continuation && defer_visible_rowbreak_host_text.is_none() && !host_pre_emitted {
+        let opening_host_owns_lead = paragraphs.get(para_index).is_some_and(|para| {
+            matches!(para.controls.get(control_index), Some(Control::Table(table))
+            if crate::renderer::float_placement::partial_table_opening_host_owns_lead(
+                para, table, control_index, host_pre_emitted,
+            ))
+        });
+        if !is_continuation && opening_host_owns_lead {
             if let Some(para) = paragraphs.get(para_index) {
                 let is_tac = para
                     .controls
@@ -15421,14 +15449,22 @@ impl LayoutEngine {
                             // col_node.children에 들어있으면 그 앞에 끼워넣어 z-order 보존
                             // (인라인 TAC 그림은 박스 프레임 시각이고 InFrontOfText 표가
                             //  본문 콘텐츠로 그 위에 그려져야 함).
+                            let border_node =
+                                self.make_picture_border_node(tree, pic, img_node.bbox);
                             let insert_pos = col_node.children.iter().position(|c| {
                                 matches!(&c.node_type, RenderNodeType::Table(t)
                                     if t.para_index == Some(para_index))
                             });
                             if let Some(pos) = insert_pos {
                                 col_node.children.insert(pos, img_node);
+                                if let Some(border_node) = border_node {
+                                    col_node.children.insert(pos + 1, border_node);
+                                }
                             } else {
                                 col_node.children.push(img_node);
+                                if let Some(border_node) = border_node {
+                                    col_node.children.push(border_node);
+                                }
                             }
                             // 후속 InFrontOfText 객체의 para_y 기준이 되도록 위치 등록
                             tree.set_inline_shape_position(

@@ -1513,6 +1513,7 @@ impl LayoutEngine {
                         None, // 각주 컨텍스트 — wrap zone 무관
                         false,
                         Some(placement.spacing),
+                        None,
                     );
                     if is_last_selected_line {
                         // fragment의 마지막 줄은 trailing line-spacing을 쓰지 않는다.
@@ -2087,10 +2088,39 @@ impl LayoutEngine {
         w: f64,
         h: f64,
     ) {
+        if let Some(border) =
+            self.make_picture_border_node(tree, picture, BoundingBox::new(x, y, w, h))
+        {
+            parent.children.push(border);
+        }
+    }
+
+    /// Inline and floating pictures use the same outer object frame for their
+    /// outline; bitmap crop/inset changes only the image's painted interior.
+    pub(crate) fn append_picture_image_node(
+        &self,
+        tree: &mut PageLayoutContext,
+        parent: &mut RenderNode,
+        picture: &crate::model::image::Picture,
+        image: RenderNode,
+    ) {
+        let bbox = image.bbox;
+        parent.children.push(image);
+        if let Some(border) = self.make_picture_border_node(tree, picture, bbox) {
+            parent.children.push(border);
+        }
+    }
+
+    pub(crate) fn make_picture_border_node(
+        &self,
+        tree: &mut PageLayoutContext,
+        picture: &crate::model::image::Picture,
+        bbox: BoundingBox,
+    ) -> Option<RenderNode> {
         let line_type = picture.border_attr.attr & 0x3F;
         // 선 종류 0 = 없음
         if line_type == 0 {
-            return;
+            return None;
         }
         let border_w = if picture.border_width > 0 {
             hwpunit_to_px(picture.border_width, self.dpi)
@@ -2115,11 +2145,14 @@ impl LayoutEngine {
             shadow: None,
         };
         let border_id = tree.next_id();
-        let border_node = RenderNode::new(
+        let transform = extract_shape_transform(&picture.shape_attr);
+        let bbox = transform.effective_image_bbox(&bbox);
+        let mut rectangle = RectangleNode::new(0.0, style, None);
+        rectangle.transform = transform;
+        Some(RenderNode::new(
             border_id,
-            RenderNodeType::Rectangle(RectangleNode::new(0.0, style, None)),
-            BoundingBox::new(x, y, w, h),
-        );
-        parent.children.push(border_node);
+            RenderNodeType::Rectangle(rectangle),
+            bbox,
+        ))
     }
 }
