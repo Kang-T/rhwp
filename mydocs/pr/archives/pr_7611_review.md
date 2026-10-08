@@ -340,3 +340,25 @@ head `79ff4d035e5be151644e600006e354c40632db48` 위 미커밋 후보 32에서 �
 같은 편람 HWP·한컴 Print PDF의 최신 Native 전쪽 재출력은 383쪽 모두 비교됐고, 최저는 154쪽 90.08363%, 90% 미만·누락은 0쪽이다. TSV와 SVG/render tree/PNG 출처는 ignored `output/pr-review/planet6897-20261008/native-full-59e1756d59-fast-tsv/`의 `silhouette.tsv`·`latest-source-provenance.json`에 남겼다. 기준 PDF raster만 해시 일치를 확인해 재사용했으며, Native SVG·render tree·PNG는 이 head에서 새로 생성했다.
 
 그 최신 PNG로 같은 증적 루트의 `representative-native-59e175-v2/`에 compare·standalone overlay·review를 만들고 154·241·289·290·374·376쪽을 직접 열었다. 표 외곽과 뒤 표의 순서, 289쪽 도식의 원점, 290쪽으로 이어진 응답 세 줄, 마지막 두 단의 표·서식 경계를 대조했다. 글꼴 획·농도, 화살표 모양 및 일부 괘선·기호 차이는 남는다. `representative-provenance.json`은 사용 PNG 해시와 직접 판독 범위를 기록한다. 이는 해당 HWP의 Native 범위이며, fresh WASM·HWPX 전쪽 결과나 다른 원 PR의 검증 완료를 대신하지 않는다. 전체 회귀는 같은 head에서 `nextest --test-threads 10`으로 시작했으나 사용자 요청으로 컴파일 중 중지했다. exit 1은 이 사용자 중지의 종료값이며 테스트 실패나 PASS로 기록하지 않는다. 다음 실행은 Cargo 빌드 잡 8개·테스트 병렬 10개를 사용한다.
+
+
+## 2026-10-09: 최신 base의 실패 분류와 보정 진행
+
+현재 통합 branch는 `review/planet6897-20261008`, 고정 base는 `74f9b71b15a2db18b17c37ceab6cf2b3c20c03c3`입니다. 사용자 지시는 **동일 원문·독립 PDF를 base에서 비교한 문서 최저값이 엄격히90% 미만일 때만 기존 #7445로 이관**,90% 이상이면 이 branch에서 개선하는 것입니다. 정확히90%와 미측정은 이관 대상이 아닙니다. 기존 시험지 제외 지시는 보존합니다.
+
+| 실제 base 비교 | 이번 조치 |
+| --- | --- |
+| 중국어 가정통신문 전2쪽 Native/fresh WASM 최저79.32995% | 본문 넘침 원장 한 경로만 #7445 이관. 원문·다른 원장·한국어 입력·baseline 보존 |
+| pic-in-head/pic-in-table 각각 새Print 전22쪽 Native 최저49.86890%, fresh WASM2/10/19쪽에서도 미달 | 겹침 원장 두 경로만 #7445 이관. 실패한 목차2쪽은98.09696%라는 구분도 기록. 원문·다른 검사 보존 |
+| 어구 금지 원문 전21쪽 Native/fresh WASM 최저93.33917% | 두 실패를 유지하고 현재 branch에서 물리 프레임·이어받기 보정 |
+| 지방공기업 개혁 원문 새Print 전13쪽 Native 최저93.73641% | 겹침 증가를 현재 branch에서 보정. base fresh WASM 전13쪽 검증은 아직 미실행 |
+
+이관 근거와 재현 범위·해시·대표 PNG·복원 조건은 [#7445 증적](../assets/issue7445/README.md)에 연결합니다. [중국어 이관 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6065683093), [pic 두 입력 재판정 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6065865468)의 한국어·BOM·치환 여부를 API로 확인했습니다. pic의 실제 출력과 기존PDF의 내용 차이를 다른 원문으로 단정했던 설명은 철회했습니다. 동일 원문의 새Print에서도 차이가 재현되어 이관에는 새PDF를 사용합니다. 이관을 결함 해결 또는 전체 회귀 통과로 세지 않습니다.
+
+보정 `c981cb56b7f412c9bcbf7732e7f1ddab7556259f`는 선언 행의 잔여에서 **실제 배치한 조각만** 차감합니다. 미래 내용 높이를 이미 소비한 물리 상자로 취급해 지도·캡션을 위로 당기던 계산을 제거했습니다. 이 정확한 후보의 어구 금지1/17/18/19/20/21쪽 Native 최저는96.41265%이며1/17/20쪽 review를 직접 확인했습니다. 첫쪽 표 하단이 짧은 차이는 남고, 이 후보의 fresh WASM 및 전21쪽 재검증은 미검증입니다. source별 결과를 최종 source의 통과로 승격하지 않습니다.
+
+보정 `44ace221e`는 `탭+공백`의 논리 끝 탭을 측정·cross-run 감지·기존 런 탐색·replay 끝점에서 같은 helper로 판정합니다. 가시 글자의 끝은 보존하고 뒤 공백/탭만 확정된 다음 블록 경계에 맞춥니다. 실제 겹침을 bbox 축소로 숨기지 않습니다. 보정 `d3f2f60a9f20db7f44f0bab0031aacb527855008`는 원문 `common.height + outer margins`가 본문을 닫는 프레임에 single-cell 조각의 별도100HU inset을 중복 적용하던 경계를 교정합니다. 저장 구조 witness → fragment budget의 `rowbreak_fragment_frame_bottom` → partial paint의 동일 helper/하단과 HWP/HWPX 원점 선택을 연결했습니다. 문서ID·행 번호·임의 공차 분기는 추가하지 않았습니다.
+
+`13ce645d02f57961a76db66d44a3ae3dbbcef852`의 집중40검사는 공용 `target/pr-review`, build jobs8/test threads10으로 실행 중입니다. 여기에는 뒤의 `d3f2f60a9`가 포함되지 않으므로 완료돼도 최종 후보 검증을 대신하지 않습니다. 후속 검증은 실제 최종 source를 새로 빌드해 진행합니다. 최신 전체 회귀·세 Clippy/workspace build·최종 fresh WASM/시각 증적은 아직 끝나지 않았고 최종 판정은 **머지 보류**입니다. 새로운 통합 PR·push·merge는 아직 수행하지 않았습니다.
+
+ignored 증적은 `output/pr-review/planet6897-20261008/`의 `child6712-transfer.json`, `picture-transfer.json`, `candidate-c981cb56b-map-trace.json`, `candidate-c981cb56b-map-sweep.json`, `candidate-13ce645d0-focused-v2.json`과 각 실제 로그에 보존합니다. source SHA·빌드/입력/PDF 해시·선택/전쪽 범위를 구분합니다.
