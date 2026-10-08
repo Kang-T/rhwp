@@ -1,5 +1,7 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
+mod stored_zero_origin;
+
 use super::super::composer::{compose_paragraph, ComposedLine, ComposedParagraph};
 use super::super::height_measurer::{
     fit_measured_table_declared_tail_to_declared_height,
@@ -13783,7 +13785,9 @@ impl LayoutEngine {
             {
                 return true;
             }
-            if self.stored_row_reset_closes_declared_frame(cell, table, prev) {
+            if self.stored_row_reset_closes_declared_frame(cell, table, prev)
+                || self.stored_zero_origin_text_frame_break(table, cell, prev, cur)
+            {
                 return true;
             }
             // HWPX 저장 lineseg의 reset은 중첩 셀 로컬 좌표계일 수 있다
@@ -14616,7 +14620,8 @@ impl LayoutEngine {
                     && cur.vertical_pos < prev_end
                     // [#5585] 문단 안 줄에도 같은 계약 — 앞 줄 시작보다 뒤로 가야 되감김이다.
                     && (!cell_uses_overlapping_line_boxes
-                        || cur.vertical_pos < prev.vertical_pos)
+                        || cur.vertical_pos < prev.vertical_pos
+                        || self.stored_zero_origin_text_frame_break(table, cell, prev, cur))
             };
             let stored_frame_break_before = |li: usize| -> bool {
                 if li == 0 {
@@ -18145,7 +18150,8 @@ impl LayoutEngine {
         };
         if previous_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
             || next_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
-            || previous_seg.vertical_pos <= 0
+            || (previous_seg.vertical_pos <= 0
+                && !self.stored_zero_origin_text_frame_break(table, cell, previous_seg, next_seg))
             || next_seg.vertical_pos > 0
         {
             return 0.0;
@@ -18155,6 +18161,10 @@ impl LayoutEngine {
             .min(previous_unit.height.max(0.0));
         if trim <= 0.0 {
             return 0.0;
+        }
+
+        if self.stored_zero_origin_text_frame_break(table, cell, previous_seg, next_seg) {
+            return trim;
         }
 
         let declared_box = hwpunit_to_px(signed_hwpunit(table.common.height), self.dpi);
@@ -20801,6 +20811,7 @@ impl LayoutEngine {
                                 )
                             }))
                         || declared_saved_frame_break
+                        || self.cut_starts_saved_zero_origin_text_frame(table, cell, &units, j)
                         || (j == 1
                             && start == 0
                             && self.native_saved_two_line_row_frame(table, row, styles))
@@ -22186,19 +22197,22 @@ impl LayoutEngine {
             // A reset inside one paragraph does not determine the remaining
             // physical bands of a competing rowspan owner. Those fragments
             // retain the base's merged-cell frame contract instead.
-            let same_paragraph_original_reset = allow_within_paragraph
-                && !table.cells.iter().any(|owner| {
-                    owner.row_span > 1
-                        && owner.row as usize <= row
-                        && row < owner.row as usize + owner.row_span as usize
-                })
-                && next.para_idx == previous.para_idx
-                && cell.paragraphs.get(next.para_idx).is_some_and(|para| {
-                    para.line_segs
-                        .get(previous.vis_end - 1)
-                        .zip(para.line_segs.get(next.vis_start))
-                        .is_some_and(|(before, after)| {
-                            before.vertical_pos > 0
+            let original_zero_origin_frame = allow_within_paragraph
+                && self.cut_starts_saved_zero_origin_text_frame(table, cell, &units, end);
+            let same_paragraph_original_reset = original_zero_origin_frame
+                || (allow_within_paragraph
+                    && !table.cells.iter().any(|owner| {
+                        owner.row_span > 1
+                            && owner.row as usize <= row
+                            && row < owner.row as usize + owner.row_span as usize
+                    })
+                    && next.para_idx == previous.para_idx
+                    && cell.paragraphs.get(next.para_idx).is_some_and(|para| {
+                        para.line_segs
+                            .get(previous.vis_end - 1)
+                            .zip(para.line_segs.get(next.vis_start))
+                            .is_some_and(|(before, after)| {
+                                before.vertical_pos > 0
                                 && after.vertical_pos == 0
                                 && before.tag
                                     & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
@@ -22206,8 +22220,8 @@ impl LayoutEngine {
                                 && after.tag
                                     & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
                                     == 0
-                        })
-                });
+                            })
+                    }));
             if !((next.hard_break_before && next.para_idx > previous.para_idx)
                 || same_paragraph_original_reset)
             {

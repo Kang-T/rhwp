@@ -1341,9 +1341,23 @@ impl TypesetEngine {
                     &[],
                     styles,
                 );
+                // A source row minimum can be almost exhausted while a visible
+                // line still belongs to the next frame. Produce the complete
+                // continuation box here: the carried-row scanner and paint both
+                // consume this exact value instead of reserving only the blank
+                // minimum and expanding the glyph box afterwards. Block cuts
+                // retain their own multi-row frame accounting.
+                let height = if split_block_start.is_none() {
+                    let content = layout_engine.row_cut_content_height(
+                        table, end_row - 1, &next_cut, &[], styles,
+                    );
+                    remaining.max(content)
+                } else {
+                    remaining
+                };
                 (remaining > 0.0
                     && (!blank_band_within_reset_trim || remaining + 0.5 >= split_content))
-                    .then_some(remaining)
+                    .then_some(height)
                 })();
                 base_remaining.or_else(|| {
                 // A stored opening frame owns blank space without consuming

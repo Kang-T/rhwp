@@ -9,18 +9,20 @@ last_verified: 2026-10-08
 
 ## 현재 판정
 
-**머지 보류 — 검토 진행 중.** 18개 비 draft PR의 고유 41개 contributor commit을 누적 적용했다. #7613·#7616·#7641·#7656·#7658에서 실행으로 gate 미충족을 확인했다. 나머지 PR의 부분 계약 통과를 전체 검토·CI·merge 완료로 취급하지 않는다.
+**머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- base: `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`
-- contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 현재 추가 메인터너 보정은 미커밋 진단 단계.
+- 현재 통합 base: `f0e7228f6dd2ea1437724e53ad640c40c56d204b` (최신 devel 재조회 일치). 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
+- contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
 - 47 source/test 파일, 5421 추가 / 823 삭제. contributor 원 commit은 `cherry-pick -x`로 보존. merge commit 제외, #7615 중복 의존 commit 4개는 재적용하지 않음.
 - draft 제외: #7559, #7572, #7573, #7588, #7589, #7598.
 - 통합 PR 생성/push/merge/원 PR close/후속 처리: 아직 미수행. 실패 gate를 통과한 것으로 보고하거나 일부 PR만으로 scope를 줄이지 않음.
 
-## PR별 진행
+## PR별 최초 검토 근거
+
+아래 표는 최초 누적 후보의 판정이다. 이후 메인터너 보정의 개선/남은 차이와 Native/fresh WASM 증거는 아래 source별 기록을 따른다.
 
 | PR | source head | 적용 commit | 현재 근거와 남은 범위 |
 | --- | --- | --- | --- |
@@ -489,3 +491,15 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 기존 검사46/46 PASS(exit0,7.666초,1090skipped):2097/6639/7379/1133/TAC 및 PageItem 직접 생성이 있는6935/7032 대조다. fmt check, unit-tiers/base(f0e7228f6dd2ea1437724e53ad640c40c56d204b) PASS. manifest 최초 실행은 source 변경 뒤 파생 harness drift를 검출했다. --prepare로 새 source fingerprint를 재생성한 뒤 같은 base check가PASS(1455source/6258attrs/48targets)다. 파생 파일은 제출하지 않는다. 새 정식 렌더링 회귀·fixture·golden은 추가하지 않았다.
 - 독립 여백 대조 p2/p3: margin0는99.45708/80.62738%로 gate exit1, margin+75는99.44336/95.95205%다. 두 변형 모두61행의 앞/뒤쪽 소속은 독립Print와 같다. margin0 p3는 앞 표가 거의 겹치지만 후속 제목/표의 원점이 다르다. 수동 변경한 source LineSeg와 재인쇄의 관계를 대조할 범위이며 숫자90 미만을 면제하지 않는다(physical-row-plan-validation-v44.json).
 - 수치 통과 후 직접 검출한 미충족: 원래 Print p3 비고는 “바다모래인”만 있고 “경우”는 p4 첫 행에 이어진다. Native는 두 줄을 p3에 넣었다(p3-last-note-rhwp_png/pdf_png-v44.png, pdftotext p3/p4). 실제 원본 HWP pi9,row9,col8의 같은 문단 두 저장 줄은 text_start0/6, vpos0/0, LH1000/LS600/tag393216이며 dirty/keep/page-break가 없다(scattered-last-note-source-v44.log). 전체 행 fast path와 이 내용 컷의 소유를 계속 보정한다. 점수99.05%로 이 차이를 면제하거나 통합 승인하지 않는다.
+
+### 진행 중 보정 29: 저장 첫 행 프레임의 문단 내부 원점0 컷
+
+- 실제 HWP pi9의9행 col8은 같은 문단의0/6 text_start가 각각 vpos0/LH1000/LS600/tag393216이다. 이는 수동 메타데이터가 아니며 원본 HWP와 대응 HWPX에 같다. 원본 raw 행0..8 합18246HU < 첫 common frame21399HU <9행 끝21412HU다. 독립2024Print는 두 줄을 p3/p4에 분리한다. 단순0→0을 전체 행으로 흡수하는 가정에 대한 실제 반례다.
+- 생산/소비 계획: 같은 원본 문단의 순서가 있는 양수 줄 전진과 선언 첫 행 프레임 경계를 함께 인증 → SourceFrameQuery의 전체 행 fast path 제외 → CellUnit의 strict source-frame cut → 기존 saved_multirow_opening_frame의 선언 상자/내용 컷 분리 → continuation/paint의 같은 cut. 같은 두0 줄만 가진 합성/편집/재조판/첫 frame을 닫지 않는 행은 이 새 원본 경계의 근거로 사용하지 않는다. 뒤 병합 라벨의 보존은 기존 opening-frame 수용성 검사가 그대로 확인한다.
+
+- 최신 GitHub 재조회(v45): 비 draft24/draft6, 초기18개 이후7661/7662/7663/7670/7671/7673은 별도 검토 대기다. 사용자 선택에 따라 초기18개 통합 전에는 추가 체리픽하지 않는다. #7615 최신head4a6c27c5ffa54e4988a7e0e7956115d933725aca는 deferred7662 의존 갱신이 포함된 별도 delta이며 이번 원 적용headed9c2847523c18f658344ec89cb7ed1a426807ae와 구분한다(github-open-pr-snapshot-v45.json). 최신 upstream/devel은 f0e7228f6dd2ea1437724e53ad640c40c56d204b로 바뀌지 않았고 HEAD 기준 behind0이다.
+
+- v45 Native build exit0/254.386초, binary SHA085389c3e70b9f81eb379bafe5becd2b9b11b8ed385f99f7c9dbf30de14d2b61. 원본 HWP/HWPX Print 모두 p3“바다모래인”/p4“경우”임을 다시 확인했다. 실제 새 내용 컷은 p3 pi9 rows0..10/endCut[1,1,2,1], p4 row9/startCut[1,1,2,1]이고52쪽을 유지한다. p3 Native는99.69210/99.68701%이며 두 줄의 페이지 소속도 직접 일치한다. p4는69.39683/69.34749%로 여전히 gate exit1이다. 관련 기존 검사 실제36/36 PASS(exit0,7.809초); 현 파생 suite 배정에서6935/7032의10건은 이 실행에 포함되지 않아 해당 통과를 주장하지 않는다.
+- p4의 실행으로 확인한 원인은 first_fragment_blank_band의 base_remaining 생산값이다. 원시 행3166HU−첫 물리 프레임3153HU=13HU(0.1733px)만 continuation.start_row_height_override로 넘겼다. scanner의 carried-row 조기 경로는 이 값을 그대로 예약하고, paint는 이 높이를 그대로 적용한 뒤 남은“경우”의17.0933px 글줄 상자만 확장해 row10과 겹쳤다. 단일 행 source cut의 다음 프레임은 물리 최소 잔여와 남은 내용+패딩의 큰 값을 생산하여 같은 cursor/scanner/PageItem/paint로 전달한다. 블록 컷은 multi-row accounting을 유지한다. 기존 기대값 변경은 없다.
+
+- 사용자 지시(2026-10-08): 현재 보정을 checkpoint commit한 뒤 최신 upstream/devel로 rebase하고 계속한다. v45 수치/내용 컷 증거와 아직 빌드하지 않은 이어받기 내용 높이 보정을 구분해 보존한다. source tree 동일성과 저장 reset의 두 독립 guard를 rebase 후 확인하며, 새 producer의 Native/freshWASM 출력은 재검증한다.
