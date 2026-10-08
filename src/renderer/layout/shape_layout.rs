@@ -1473,7 +1473,9 @@ impl LayoutEngine {
                     style.stroke_width = 0.0;
                 }
                 let round_px = if rect.round_rate > 0 {
-                    (rect.round_rate as f64 / 100.0) * render_w.min(render_h) / 2.0
+                    // 한컴 곡률 50%는 반원이다. 짧은 변의 절반이 반지름이며,
+                    // 백분율을 적용한 뒤 다시 2로 나누면 50%도 둥근 모서리에 그친다.
+                    (rect.round_rate as f64 / 100.0) * render_w.min(render_h)
                 } else {
                     0.0
                 };

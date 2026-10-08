@@ -257,6 +257,8 @@ Native Skia lib는 `cargo test --locked --profile release-test --target-dir $env
 
 ### 문서 검사 범위
 
+287·289쪽 제목의 모서리는 원본 `round_rate=50`인데 일반 사각형 paint가 짧은 변에 50%를 적용한 뒤 다시 2로 나누어 반지름을 1/4로 만들었다. [한컴 공식 개체 속성 도움말](https://help.hancom.com/hoffice130/ko-KR/Hwp/insert/objectattribute/objectattribute%28line%29.htm)은 0% 직각·20% 둥근 모양·50% 반원을 정의한다. 후보 29는 이 백분율을 짧은 변에 한 번 적용하여 50%에서 반지름이 짧은 변의 절반이 되도록 한다. 사각형 원점·높이·흐름은 변경하지 않고 공유 RectangleNode가 모든 backend에 같은 반지름을 전달한다. 일반 곡률값과 직각 대조군을 포함해 실제 출력으로 검증하며, 아직 빌드·시각 통과 전이다. 이는 289쪽의 줄바꿈과 290쪽 후속 간격을 해결했다는 주장이 아니다.
+
 새 review 9개는 canonical `check_document_metadata.validate_file`로 각각 PASS, review·오늘할일 10문서는 `check_markdown_links.py --changed-from HEAD <10개 경로>`로 상대 링크 PASS다. UTF-8 without BOM과 LF를 확인했다. 첫 staged 공백 검사는 제가 만든 CRLF 때문에 실패하여 새 Markdown 10개만 LF로 고치고 다시 PASS를 확인했다.
 
 전체 `check_document_metadata.py`는 파일 인자를 받지 않고 canonical 문서 614개를 검사하여 기존 4개 문서의 필수 필드 16개 누락으로 FAIL했다. `benchmark_vs_alternatives.md`, issue-4964 README, issue-5511 README와 CLI surface inventory는 최신 base와 동일함을 확인했고 이번 변경에서 수정하지 않았다. 새 기록의 PASS와 저장소 전체의 기존 FAIL을 구별하며 전역 메타데이터 통과로 보고하지 않는다. 실제 Git merge tree와 기록 commit tree의 대조 결과는 ignored `review-submission-tree.json`에 보존한다.
