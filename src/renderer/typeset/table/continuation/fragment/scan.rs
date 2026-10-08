@@ -294,6 +294,37 @@ impl TypesetEngine {
                 // 밀린다. 그리는 쪽 상한 절삭은 별도이며 선언 공간을 줄이지 않는다.
             }
         }
+        // The accepted source frame owns physical space independently of its
+        // complete content cut. A protected next block can stop the row walk
+        // before the nearest source-frame row candidate. Keep that actual cut,
+        // and account for the frame's blank tail in both reservation and paint.
+        if !is_continuation
+            && cursor_row == 0
+            && start_cut.is_empty()
+            && end_row > 0
+            && end_row < row_count
+            && split_block_start.is_none()
+            && split_end_cut.is_empty()
+            && split_end_limit <= 0.0
+            && end_row_height_override.is_none()
+            && (st.profile.hwp5_stored_pagination_layout() || st.profile.hwpx_stored_layout())
+            && !st.profile.session_edited()
+            && !input.source.paragraph.stored_text_partition_is_dirty()
+            && !self.render_normalization.table_text_reflowed(table)
+        {
+            if let Some((frame, _)) = saved_first_fragment_source_frame {
+                let whole_rows = whole_row_fit_h[..end_row].iter().sum::<f64>()
+                    + cs * end_row.saturating_sub(1) as f64;
+                if frame > consumed
+                    && frame <= avail_for_rows + 0.5
+                    && (whole_rows - consumed).abs() <= 0.5
+                {
+                    let before_last = whole_rows - whole_row_fit_h[end_row - 1];
+                    end_row_height_override = Some(frame - before_last);
+                    consumed = frame;
+                }
+            }
+        }
         // [#3674 진단] 표 행 분할 스캔 입력/결과 — 동작 불변.
         if std::env::var("RHWP_DIAG_SPLITSCAN").is_ok() {
             eprintln!(
