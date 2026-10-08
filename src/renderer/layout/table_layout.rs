@@ -1,5 +1,6 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
+mod stored_span_content;
 mod stored_zero_origin;
 
 use super::super::composer::{compose_paragraph, ComposedLine, ComposedParagraph};
@@ -22560,13 +22561,24 @@ impl LayoutEngine {
     ) -> usize {
         const EPS: f64 = 0.1;
         let units = self.cell_units(cell, table, styles);
+        let stored_text_span = self.stored_plain_text_span_frame(table, cell);
         let mut n = 0usize;
         let mut h = 0.0f64;
         while n < units.len() {
             let next_height = h + units[n].height;
             let closing_advance =
                 self.native_saved_reset_cut_trailing_trim(table, cell, &units, 0, n + 1, styles);
-            if next_height - closing_advance > budget + EPS {
+            // A physical fragment can end between ordinary source lines as
+            // well as at a saved restart. Its final line owns the line box;
+            // its following spacing advances toward the next owner. The final
+            // whole-cell unit already excludes that spacing in cell_units.
+            let line_tail = if stored_text_span && n + 1 < units.len() {
+                self.stored_span_line_tail_spacing(cell, &units[n])
+            } else {
+                0.0
+            };
+            let source_tail = closing_advance.max(line_tail);
+            if next_height - source_tail > budget + EPS {
                 break;
             }
             h = next_height;

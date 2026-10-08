@@ -16,7 +16,7 @@ last_verified: 2026-10-08
 - contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
-- 47 source/test 파일, 5421 추가 / 823 삭제. contributor 원 commit은 `cherry-pick -x`로 보존. merge commit 제외, #7615 중복 의존 commit 4개는 재적용하지 않음.
+- 최초 contributor 누적 diff(역사 후보):47 source/test 파일, 5421 추가 / 823 삭제. contributor 원 commit은 `cherry-pick -x`로 보존. merge commit 제외, #7615 중복 의존 commit 4개는 재적용하지 않음.
 - draft 제외: #7559, #7572, #7573, #7588, #7589, #7598.
 - 통합 PR 생성/push/merge/원 PR close/후속 처리: 아직 미수행. 실패 gate를 통과한 것으로 보고하거나 일부 PR만으로 scope를 줄이지 않음.
 
@@ -532,4 +532,16 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - v46 원본 두 파일 전수52쪽 TSV 완료(exit1): HWP 최저45.96876%/29쪽 미통과, HWPX 최저46.40781%/29쪽 미통과, 둘 다 누락0이다(native-continuation-content-height-full-v46-summary.json). 이 기록은 이전 source ab46e1c74의 진단 범위이며 현재 후보의 gate 통과로 대체하지 않는다.
 - 후속 직접 검출: p5 하단96행/9행 병합의 “콘크리트 혼입용 방수재”는 독립 Print에3줄이 있지만 Native는2줄만 놓고 “방수재”를 p6에 넘긴다. 실제 저장 줄은0/1600/3200/4800HU로 원점 재시작이 없는 연속 텍스트다. `cell_units_fitting_height`가 마지막 보이는 줄의 spacing600HU까지 요구해 선택한 물리 행밴드에서3번째 줄을 배제한다. Print p6는 “(KS F 4926)”만 남은 병합 프레임에 가운데 정렬하지만 Native는 두 줄을 위에 붙인다(scattered-print-p5-p6-bbox-v48.html/scattered-page6-owner-v48/). 단순 첫줄 재시작만 정렬 owner라고 가정한 범위도 이 실제 반례로 확대 검토한다. 일반 저장 plaintext rowspan의 가시 prefix 끝과 source advance를 구분하고 마지막 물리 프레임의 실제 잔여 내용/원래 valign을 공통 cut으로 소비하게 하는 후속 보정이 필요하다. 새 기대값/절대 px assertion으로 차이를 숨기지 않는다.
 
-- v48 HWPX p3/p4/p5는99.68701/99.67973/99.02628%다. HWP p5의 direct review에서53행 잔여 표제/빈도는독립 Print와 같은 가운데 정렬로개선됐지만96행 “방수재” 및 빈도 후속 줄의 미이월 차이는 남는다. 관련 기존50/50 PASS(exit0,전체315.112초/실행8.028초,1677skipped), manifest/base PASS다. source SHA와 Native 비교는 위에 고정했고freshWASM/최종 전체 검증은 미완료다. 사용자“메인터너 보정으로 해결” 지시에 따라같은 scope의 출력 보정을 계속한다.
+- v48 HWPX p3/p4/p5는99.68701/99.67973/99.02628%다. HWP p5의 direct review에서53행 잔여 표제/빈도는 독립 Print와 같은 가운데 정렬로 개선됐지만96행 “방수재” 및 빈도 후속 줄의 불필요한 이월 차이는 남는다. 관련 기존50/50 PASS(exit0,전체315.112초/실행8.028초,1677skipped), manifest/base PASS다. source SHA와 Native 비교는 위에 고정했고 freshWASM/최종 전체 검증은 미완료다. 사용자“메인터너 보정으로 해결” 지시에 따라 같은 scope의 출력 보정을 계속한다.
+
+### 진행 중 보정 31: 일반 저장 병합 셀의 가시 줄 끝과 다음 줄 전진
+
+- 원본96행의 연속0/1600/3200/4800HU는 마지막 보이는 줄의 glyph/LH와 그 뒤 source spacing600HU를 구분한다. Print p5는 “방수재”까지, p6는 “(KS F 4926)” 한 줄만 마지막 물리 프레임에 가운데 정렬한다. 초기 재시작 인증만으로 마지막 저장 프레임의 정렬을 정하는 가정을 제거한다.
+- 생산/소비: 새 stored_span_content의 비편집·비재조판·비TAC RowBreak/원본 plaintext rowspan 인증 → cell_units_fitting_height의 prefix 끝에서 source 줄뒤 간격만 제외/전체 전진량은 유지 → 이전 eu와 다음 su에 같은 함수 사용 → straddle_continuation_demand의 잔여 내용 높이 및 table_partial의 한번 계산한 cut → 끝난 물리 rowspan/완전 잔여 창의 원래 valign과 실제 paint. 마지막 whole-cell unit은 이미 LS를 제외하므로 다시 차감하지 않는다. controls·synthetic LS·dirty·음수 spacing·없는 원본 줄은 비적용이다.
+- 작은 원점 재시작에 맞추는 추가 수치·문서ID·픽셀 clamp는 없다. 새 source 모듈은55줄 수준이고 신규 formal 회귀/fixture/golden은 추가하지 않는다. 원본 HWP/HWPX p5/p6와 앞53행 경계의 무회귀, 기존50검사 및 이후 Native/freshWASM 전수·확대 판독으로 계속 검증한다.
+
+- v49 Native 최초 컴파일은 새 child module의 인증 메서드 접근 범위 오류(E0624)로68.419초/exit101이었다. 실제 table_partial 소비 지점이 볼 수 있는 layout 내부 범위로 수정하고 재빌드했다. retry exit0/251.204초, binary SHA `0aa3d8af2d3d6ccb2c1d2576d62d24eae17c8b9f19c1fd9adf0d2540670fe18a`다. 실패 metadata/log 및 수정 후 source SHA를 분리 보존했다(native-build-stored-span-content-v49-failed-visibility.json/native-build-stored-span-content-v49.json/source-code-v49-retry/).
+- v49 실제 원본 HWP/HWPX의 p5는96행 “콘크리트 혼입용 방수재”3줄과 빈도3줄을 보존한다. p6는“(KS F 4926)”/“때마다”만 남겨 같은 마지막 물리 셀 프레임의 Center를 적용한다(span-page-owners-v49.json). 독립 Print의 두 p6 단어 yMin115.654320pt와 Native 같은 영역의 줄 원점154.3px를 직접 대조했다. source53행 p4→p5의 컷과 Center도 유지한다. 진단 좌표를 새로운 기대값으로 고정하지 않는다. 3..6쪽 PNG/관련 기존 회귀/그 뒤 freshWASM 전수 검증은 진행 중이다.
+
+- v49 원본 HWP p3/p4/p5/p6 Native는99.69210/99.72851/99.71529/99.81823%, HWPX는99.68701/99.67973/99.61458/99.72035%다. 두 파일 모두4쪽 선택 범위의 수치 gate exit0이며 관련 최저99.61458%다. HWP p5 하단과 p6 첫 병합 셀을 같은2배 크기 Native/Print crop으로 직접 확인했고 “방수재”/후속KS와 빈도 마지막 줄의 소속·센터·뒤 셀 포함이 일치한다(row96-p5-native-print-zoom-v49.png/row96-p6-native-print-zoom-v49.png). HWPX p6 full review도 직접 확인했다. 이 범위에는 수식이 없으며 알려진 줄간격 차이를 수치 통과로 면제하지 않았다.
+- v49 기존 관련50/50 PASS(exit0,전체319.996초/실행7.862초,1677skipped); 원점 재시작 실제/부정 대조와 빈 문단/원자 창/이어받기/원래 외곽 대조를 같은 후보에서 실행했다. 실제 모듈 수량은 nextest-stored-span-content-v49-counts.json이다. source fmt/manifest/base PASS. 아직 Native/freshWASM 전체52쪽 및 다른 일반 문서의 미충족, 최종 lint/전체 회귀가 남아 있어 checkpoint로만 기록한다.

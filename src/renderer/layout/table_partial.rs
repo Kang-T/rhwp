@@ -1358,17 +1358,15 @@ impl LayoutEngine {
                     styles,
                 )
             });
-            // A saved first-line restart separates two physical frames. The
-            // final frame aligns its remaining owners in its own cell box.
+            // A completed stored text span aligns the remaining owners in
+            // its final physical cell box, including a continuous source ladder.
             // Reuse the selected cut for composition and paint below.
             let stored_restart_span_frame_owns_alignment = cell_end_row <= render_range_end
                 && straddle_cut_units.is_some_and(|(start, end)| {
                     let units = self.cell_units(cell, table, styles);
-                    start == 1
+                    start > 0
                         && end >= units.len()
-                        && self.native_first_line_restart_cut_trailing_trim(
-                            table, cell, &units, 0, start, styles,
-                        ) > 0.0
+                        && self.stored_plain_text_span_frame(table, cell)
                 });
             let full_width_frame_owns_alignment = end_row_height_override.is_some()
                 && cell_row + 1 == end_row
