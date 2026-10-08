@@ -4,9 +4,39 @@ use crate::model::paragraph::LineSeg;
 use crate::model::table::{Cell, Table, TablePageBreak};
 use crate::renderer::hwpunit_to_px;
 
-use super::{CellUnit, LayoutEngine};
+use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    pub(in crate::renderer::layout) fn rowbreak_prior_row_height(
+        &self,
+        table: &Table,
+        row: usize,
+        resolved_row_heights: &[f64],
+        styles: &ResolvedStyleSet,
+        stored_physical_span: bool,
+    ) -> f64 {
+        let physical = resolved_row_heights.get(row).copied().unwrap_or(0.0);
+        // The previous fragment accepted this physical box. Re-measuring its
+        // single-row siblings discards the trailing band and repeats span units.
+        if stored_physical_span {
+            return physical;
+        }
+        let has_single_row_cells = table
+            .cells
+            .iter()
+            .any(|cell| cell.row as usize == row && cell.row_span == 1);
+        let content = if has_single_row_cells {
+            self.row_cut_content_height(table, row, &[], &[], styles)
+        } else {
+            0.0
+        };
+        if content > 0.0 {
+            content
+        } else {
+            physical
+        }
+    }
+
     pub(in crate::renderer::layout) fn stored_plain_text_span_frame(
         &self,
         table: &Table,

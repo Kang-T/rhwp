@@ -1692,21 +1692,15 @@ impl LayoutEngine {
                     // 보장된다(같은 파일 아래 `#1748` 주석의 관찰 그대로다).
                     let boundary_row = render_range_end.saturating_sub(1);
                     let mut consumed_h = 0.0f64;
+                    let stored_physical_span = self.stored_plain_text_span_frame(table, cell);
                     for r in cell_row..boundary_row {
-                        let has_single_row_cells = table
-                            .cells
-                            .iter()
-                            .any(|c| c.row as usize == r && c.row_span == 1);
-                        let h = if has_single_row_cells {
-                            let h = self.row_cut_content_height(table, r, &[], &[], styles);
-                            if h > 0.0 {
-                                h
-                            } else {
-                                resolved_row_heights.get(r).copied().unwrap_or(0.0)
-                            }
-                        } else {
-                            resolved_row_heights.get(r).copied().unwrap_or(0.0)
-                        };
+                        let h = self.rowbreak_prior_row_height(
+                            table,
+                            r,
+                            resolved_row_heights,
+                            styles,
+                            stored_physical_span,
+                        );
                         consumed_h += h + cell_spacing;
                     }
                     consumed_h +=

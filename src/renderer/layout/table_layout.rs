@@ -24752,18 +24752,15 @@ impl LayoutEngine {
         let pad_top = hwpunit_to_px(padding.top as i32, self.dpi);
         let mut prior_h = 0.0;
         if straddles_start {
+            let stored_physical_span = self.stored_plain_text_span_frame(table, cell);
             for r in cell_row..start_row {
-                let has_single_row_cells = table
-                    .cells
-                    .iter()
-                    .any(|c| c.row as usize == r && c.row_span == 1);
-                let declared = resolved_row_heights.get(r).copied().unwrap_or(0.0);
-                let measured = if has_single_row_cells {
-                    self.row_cut_content_height(table, r, &[], &[], styles)
-                } else {
-                    0.0
-                };
-                prior_h += if measured > 0.0 { measured } else { declared };
+                prior_h += self.rowbreak_prior_row_height(
+                    table,
+                    r,
+                    resolved_row_heights,
+                    styles,
+                    stored_physical_span,
+                );
                 prior_h += cell_spacing;
             }
             if let Some(remaining_band) = start_row_height_override {
