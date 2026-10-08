@@ -673,3 +673,24 @@ KTX2쪽에서 본문·목차 번호와 외곽선의 수직 차이를 직접 확�
 ![380쪽 내용 소속 차이](edu_map_upstream_74f9b71b1_review_380.png)
 
 [교육과정 이관 등록 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6063814441)의 한국어 본문을 API로 확인했습니다.
+
+
+## 2026-10-09: 중국어 가정통신문의 본문 넘침 검사 이관
+
+사용자의 엄격한 조건에 따라 renderer base `74f9b71b15a2db18b17c37ceab6cf2b3c20c03c3`에서90% 미만인 이 입력의 **본문 넘침 원장만** #7445로 이관합니다. 다른 원장·한국어 원문·정상 테스트·공차·baseline은 보존합니다. 새 이슈는 만들지 않습니다.
+
+- [보존 중국어 원문](../../../../samples/issue6712/중국어_2026년 8호 가정통신문_여름철 영유아 감염병 예방.hwp), SHA-256 `34a5964fa791ae662052cba8482efae682f13b45a0c0cd6ce633425566a2d5a9`.
+- [같은 원문에서 새로 생성한 한컴2024 Print PDF](../../../../pdf\issue6712\중국어_2026년 8호 가정통신문_여름철 영유아 감염병 예방-review-20261009-2024.pdf),2쪽, SHA-256 `f915cfd1d1a91b61ee6c3ebf3b7db25f0736aa344c54d2b4e1ef0011fec8e5e2`. 실제 runtime13.0.0.3901, `pdf_print_method=0`, `frame_print_to_pdf_ex_one_up`. 비공개 접속 정보는 기록하지 않습니다.
+- Native/fresh WASM **전2쪽** 일치율은 각각1쪽 **79.32995%**,2쪽 **80.12113%**입니다. Native CLI와 base WASM package의 해시는 기존 `build.json`/`wasm-build.json`에 고정되어 있습니다.
+- 직접 review/overlay에서 제목 상자·중간 표의 수직 경계, 손씻기 그림과 외곽선 하단 위치 차이를 확인했습니다. 글꼴만의 차이로 면제하지 않습니다.
+- 전체 회귀 `e469c4486e5e5d7b6de5a6e4a74d938e89dab188`에서 이 입력의 본문 넘침이0→1건으로 증가했습니다. `tests/cases/body_overflow_baseline.rs`의 `DEFERRED_BODY_OVERFLOW_FIXTURES`에 이 경로만 추가하며 원문과 다른 원장의 검사는 유지합니다. 이번 제외를 제품 결함 해결 또는 전체 회귀 통과로 보고하지 않습니다.
+
+ignored 증적은 `output/pr-review/planet6897-20261008/remaining-failure-print-pdfs.json`, `upstream-74f9b71b1-failure-triage/new-print-native-full-v2.json`, `low-extra-selected-wasm.json`, `child6712-native-panels.json`과 실제 전쪽 TSV에 보존합니다. 같은 원문의 전체 Native/fresh WASM90% 이상 및 표·그림/본문 소유 관계를 확인한 뒤 의미 검사로 복원합니다.
+
+같이 조사한 지방공기업 개혁 원문은 새 Print PDF와 base Native 전13쪽 최저 **93.73641%**이므로 이관하지 않고 현재 브랜치에서 겹침 증가를 보정합니다. pic-in-head/pic-in-table의 기존2022 PDF는 직접 판독에서 내용 순서와 문구가 원문과 달라 대응 기준으로 사용할 수 없었습니다. 해당 PDF로 얻은49.86198%는 이관 근거에서 철회하고 동일 원문의 새 Print 출력으로 재판정합니다. 미측정을90% 미만으로 취급하지 않습니다.
+
+![중국어 가정통신문1쪽 review](child6712_upstream_74f9b71b1_review_001.png)
+
+![같은1쪽 standalone overlay](child6712_upstream_74f9b71b1_overlay_001.png)
+
+[중국어 원문 이관 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6065683093)의 한국어·BOM·치환 여부를 API로 확인했습니다.
