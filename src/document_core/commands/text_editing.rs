@@ -36,7 +36,7 @@ fn cell_vpos_resets(previous: &Paragraph, current: &Paragraph) -> bool {
     }
 }
 
-fn recalculate_cell_paragraph_vpos(
+pub(super) fn recalculate_cell_paragraph_vpos(
     paragraphs: &mut [Paragraph],
     start_para: usize,
     ignore_reset_at: Option<usize>,

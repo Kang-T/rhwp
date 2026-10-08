@@ -5,6 +5,7 @@ use crate::model::{
     paragraph::{LineSeg, Paragraph},
 };
 use crate::renderer::layout::control_line_seg_index;
+use unicode_width::UnicodeWidthChar;
 
 pub(super) fn physically_stale(para: &Paragraph) -> bool {
     if !supported_host(para) {
@@ -40,7 +41,11 @@ pub(super) fn physically_stale(para: &Paragraph) -> bool {
         };
         let owns_text = para.text.chars().enumerate().any(|(i, c)| {
             let pos = para.char_offsets.get(i).copied().unwrap_or(i as u32);
-            pos >= start && pos < end && !c.is_whitespace() && c != '\u{FFFC}'
+            pos >= start
+                && pos < end
+                && !c.is_whitespace()
+                && c != '\u{FFFC}'
+                && c.width().is_some_and(|width| width > 0)
         });
         if width >= i64::from(seg.segment_width) && owns_text {
             return true;
@@ -166,6 +171,7 @@ pub(super) fn repair(
             let mut projected = section.paragraphs[index].clone();
             for control in &mut projected.controls {
                 if let Control::Table(table) = control {
+                    repair_cell_width_caches(table, styles, dpi, hwp3, 0);
                     crate::document_core::html_table_width::reserve_content_heights(
                         table, styles, dpi,
                     );
@@ -181,6 +187,92 @@ pub(super) fn repair(
                 index,
                 None,
                 original_end,
+                styles,
+                dpi,
+                hwp3,
+            );
+        }
+    }
+}
+
+/// A rejected host can also contain cell rows from an older padding/width box.
+/// Rebuild only a single ordinary row whose recorded box disagrees with the
+/// current cell box; font fallback estimates do not decide this admission.
+fn repair_cell_width_caches(
+    table: &mut crate::model::table::Table,
+    styles: &crate::renderer::style_resolver::ResolvedStyleSet,
+    dpi: f64,
+    hwp3: bool,
+    depth: usize,
+) {
+    use crate::renderer::composer::{cell_inner_text_width, reflow_line_segs, ParagraphBox};
+    use crate::renderer::hwpunit_to_px;
+    if depth >= 32 || table.common.size_protect {
+        return;
+    }
+    for cell in &mut table.cells {
+        if cell.text_direction != 0 {
+            continue;
+        }
+        let padding = cell.effective_padding(&table.padding);
+        let inner = cell_inner_text_width(
+            hwpunit_to_px(cell.width.min(i32::MAX as u32) as i32, dpi),
+            hwpunit_to_px(i32::from(padding.left), dpi),
+            hwpunit_to_px(i32::from(padding.right), dpi),
+            dpi,
+        );
+        let mut first_changed = None;
+        for (index, paragraph) in cell.paragraphs.iter_mut().enumerate() {
+            for control in &mut paragraph.controls {
+                if let Control::Table(nested) = control {
+                    if nested.common.size_protect || !nested.common.treat_as_char {
+                        continue;
+                    }
+                    repair_cell_width_caches(nested, styles, dpi, hwp3, depth + 1);
+                    crate::document_core::html_table_width::reserve_content_heights(
+                        nested, styles, dpi,
+                    );
+                }
+            }
+            let style = styles.para_styles.get(paragraph.para_shape_id as usize);
+            // Floating objects can legitimately carve a narrower stored row.
+            // They need their own frame evidence, not this cell-box comparison.
+            if paragraph.controls.iter().any(|control| {
+                !matches!(
+                    control,
+                    Control::Field(_)
+                        | Control::Bookmark(_)
+                        | Control::SectionDef(_)
+                        | Control::ColumnDef(_)
+                ) && !matches!(control, Control::Table(table) if table.common.treat_as_char)
+                    && !matches!(control, Control::Equation(equation) if equation.common.treat_as_char)
+                    && !matches!(control, Control::Picture(picture) if picture.common.treat_as_char)
+            }) {
+                continue;
+            }
+            // Indented and carved rows have separate first/continuation boxes.
+            if style.is_some_and(|style| style.indent != 0.0) {
+                continue;
+            }
+            let box_ = ParagraphBox::content_for_style(inner, style, dpi);
+            let [line] = paragraph.line_segs.as_slice() else {
+                continue;
+            };
+            if !box_.is_usable()
+                || line.column_start != 0
+                || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                || line.segment_width == box_.width_hwp()
+            {
+                continue;
+            }
+            reflow_line_segs(paragraph, box_, styles, dpi);
+            first_changed.get_or_insert(index);
+        }
+        if let Some(first) = first_changed {
+            super::super::text_editing::recalculate_cell_paragraph_vpos(
+                &mut cell.paragraphs,
+                first,
+                None,
                 styles,
                 dpi,
                 hwp3,
