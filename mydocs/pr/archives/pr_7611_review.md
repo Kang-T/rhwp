@@ -369,3 +369,9 @@ ignored 증적은 `output/pr-review/planet6897-20261008/`의 `child6712-transfer
 그동안 upstream/devel은 `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`로 전진했습니다. 기존 비교 base74와의 Rust 제품 변경은 `commands/formatting.rs`의 `apply_char_format_native`/`set_char_shape_id_native` 편집 경로뿐이며, 원문 read/export에 쓰는 renderer/parser/model·queries와 이번5개 입력은 그대로입니다. 따라서 기존 **원문 렌더링** 분류를 유지한다는 source 동등성 추론을 기록하며,74의 실행 파일을5168의 새 빌드라고 표시하지 않습니다. 편집 저장본 검증에는 새 base가 필요합니다.
 
 최신 base를 충돌 없이 통합한 source는 `e7a3577e1c74e058e7e1f06a7e930b41f34a3281`입니다. 기존 기여자→메인터너 순서와 upstream의 #7464/#7468 review byte 일치를 확인했습니다. 이 head에서40개 집중검사를 build jobs8/test threads10으로 다시 시작했으며 fmt/manifest prepare가 통과하고 컴파일 중입니다. 아직 PASS를 주장하지 않습니다. 실제 전진 범위·입력 보존·원 source보다 앞선 보정 부재는 ignored `latest-base-5168-routing-audit.json`에 남깁니다. 이 실행과 현재 code head의 필수 전체 검증을 완료한 뒤에만 다음 통합 단계로 진행합니다.
+
+위 실행의 확정 결과는 `e7a3577e1` 집중 **40 PASS / 1251 skipped, exit0**입니다. 그러나 같은 head의 어구 금지 전21쪽 Native 비교는5쪽51.58707%·8쪽58.88626%로 FAIL입니다. 이전 선택6쪽의 통과로 전쪽 성공을 주장하지 않습니다. 지방공기업 개혁 전13쪽 Native는 최저93.84001%입니다. 필수 lint 중 fmt·Native/WASM Clippy·workspace build는 통과했지만 all-target Clippy는 이관한 교육과정 검사 뒤에 남은 doc comment의 빈 줄 때문에 실패했습니다. 이 주석은 일반 주석으로 교정했습니다. 이들 결과는 뒤의 보정 head를 검증한 결과가 아닙니다.
+
+어구 금지5·8쪽은 base와 시작/끝 내용 컷 및 쪽 소속이 같으나, 소비된 rowspan 내용과 그 셀이 덮는 남은 물리 행 밴드를 함께 버려 뒤 본문이 각각 약23.2px·7.5px 위로 이동했습니다. 보정 `bf900438d9ab6c9ff2692440bd0acabc17650261`은 `row_block_cut_uses_measured_height`가 이미 소비한 spanning cell의 내용은 재배치하지 않으면서 **현재 행의 측정 높이**를 보존하도록 복원합니다. 생산자 `typeset/table/scan.rs`와 소비자 `layout/table_partial.rs`가 같은 판정을 사용합니다. 부분 소비된 셀은 기존 cut 높이 경로를 유지합니다. 전체 spanning cell 높이를 각 행에 다시 합산하는 수정이 아닙니다.
+
+주석 교정을 포함한 검증 head `2f47e9649d197b12fbb32441044487825c1def60`를 공용 target에서 새로 빌드하고 전21쪽을 재비교 중입니다. base가90% 이상인 이 문서는 #7445 이관 대상이 아닙니다. 최종 Native/fresh WASM·회귀·lint 및 개별 PR 판정은 아직 미완료이며 **머지 보류**를 유지합니다. 실제 명령·로그·source/binary 해시는 ignored `candidate-2f47e9649-map-check.json`에 기록합니다.
