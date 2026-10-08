@@ -119,7 +119,7 @@ pub(super) fn measure(text: &str, role: Role, fs: f64, dpi: f64, pad: f64) -> Op
         // Roman glyphs use the font ascent, rather than the formula baseline.
         // Moving the stored control baseline moves the entire object separately.
         baseline_shift: if matches!(role, Role::Variable { italic: false })
-            || matches!(role, Role::Operator) && text.chars().all(|c| c.is_ascii())
+            || matches!(role, Role::Operator) && text.is_ascii()
         {
             fs * (820.0 / 1024.0 - 0.85)
         } else {
@@ -134,14 +134,10 @@ pub(crate) fn is_linear(layout: &super::layout::LayoutBox) -> bool {
     match &layout.kind {
         LayoutKind::HancomGlyphs(_) => true,
         LayoutKind::Row(children) => !children.is_empty() && children.iter().all(is_linear),
-        LayoutKind::FontStyle { style, body }
-            if matches!(
-                style,
-                super::symbols::FontStyleKind::Roman | super::symbols::FontStyleKind::Italic
-            ) =>
-        {
-            is_linear(body)
-        }
+        LayoutKind::FontStyle {
+            style: super::symbols::FontStyleKind::Roman | super::symbols::FontStyleKind::Italic,
+            body,
+        } => is_linear(body),
         _ => false,
     }
 }
