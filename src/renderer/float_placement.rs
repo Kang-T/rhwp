@@ -3371,6 +3371,97 @@ pub(crate) fn nested_table_is_overlay(table: &Table) -> bool {
         )
 }
 
+fn stored_empty_flow_line(para: &Paragraph) -> Option<&crate::model::paragraph::LineSeg> {
+    use crate::model::paragraph::LineSeg;
+    if para_has_non_whitespace_text(para)
+        || para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+    {
+        return None;
+    }
+    let [line] = para.line_segs.as_slice() else {
+        return None;
+    };
+    (line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+        && line.vertical_pos >= 0
+        && line.line_height > 0
+        && line.text_height > 0
+        && line.text_height <= line.line_height
+        && line.baseline_distance >= 0
+        && line.baseline_distance <= line.line_height
+        && line.line_spacing >= 0
+        && line.segment_width > 0)
+        .then_some(line)
+}
+
+/// A flow-neutral table does not erase its host's own stored line. The next
+/// independently stored line must close the nominal line box and trailing band;
+/// object height and the page-limit flag are not evidence for that ownership.
+pub(crate) fn stored_overlay_host_flow_line<'a>(
+    para: &'a Paragraph,
+    successor: Option<&Paragraph>,
+) -> Option<&'a crate::model::paragraph::LineSeg> {
+    if para.controls.is_empty()
+        || !para.controls.iter().all(
+            |control| matches!(control, Control::Table(table) if nested_table_is_overlay(table)),
+        )
+    {
+        return None;
+    }
+    let line = stored_empty_flow_line(para)?;
+    let successor = successor?;
+    if successor.column_type != crate::model::paragraph::ColumnBreakType::None {
+        return None;
+    }
+    let next = stored_empty_flow_line(successor)?;
+    let end = line
+        .vertical_pos
+        .checked_add(line.line_height)?
+        .checked_add(line.line_spacing)?;
+    (end == next.vertical_pos).then_some(line)
+}
+
+/// Empty source lines after a floating table remain real flow when the original
+/// source ladder is continuous. A guide without this independent closure keeps
+/// the existing non-flow treatment; edited and synthetic inputs cannot certify it.
+pub(crate) fn stored_overlay_guide_owns_flow(paragraphs: &[Paragraph], index: usize) -> bool {
+    let Some(current) = paragraphs.get(index) else {
+        return false;
+    };
+    if !current.controls.is_empty()
+        || current.column_type != crate::model::paragraph::ColumnBreakType::None
+        || stored_empty_flow_line(current).is_none()
+    {
+        return false;
+    }
+    let Some(owner) = (0..index).rev().find(|&previous| {
+        !paragraphs[previous].controls.is_empty()
+            || para_has_non_whitespace_text(&paragraphs[previous])
+    }) else {
+        return false;
+    };
+    if stored_overlay_host_flow_line(&paragraphs[owner], paragraphs.get(owner + 1)).is_none() {
+        return false;
+    }
+    for cursor in owner + 1..=index {
+        let previous = stored_empty_flow_line(&paragraphs[cursor - 1]);
+        let next = stored_empty_flow_line(&paragraphs[cursor]);
+        let (Some(previous), Some(next)) = (previous, next) else {
+            return false;
+        };
+        if paragraphs[cursor].column_type != crate::model::paragraph::ColumnBreakType::None
+            || previous
+                .vertical_pos
+                .checked_add(previous.line_height)
+                .and_then(|end| end.checked_add(previous.line_spacing))
+                != Some(next.vertical_pos)
+        {
+            return false;
+        }
+    }
+    true
+}
+
 /// The paragraph origin precedes its leading space. Overlay offsets are signed,
 /// and the supplied height already contains both outer margins. Measurement and
 /// painting consume this same outer frame, independently of cursor advance.

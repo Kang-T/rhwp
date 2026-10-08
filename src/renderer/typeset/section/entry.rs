@@ -82,7 +82,14 @@ impl TypesetEngine {
                 })
                 .and_then(|idx| paragraphs.get(idx))
                 .is_some_and(para_is_non_tac_overlay_table_anchor);
-        if is_overlay_guide_empty_para {
+        let original_overlay_guide_owns_flow = profile.hwp5_stored_pagination_layout()
+            && !profile.session_edited()
+            && !self.uniform_filler_ladder.get()
+            && !st.vpos_ladder_dirty
+            && crate::renderer::float_placement::stored_overlay_guide_owns_flow(
+                paragraphs, para_idx,
+            );
+        if is_overlay_guide_empty_para && !original_overlay_guide_owns_flow {
             // 글앞/글뒤 표 뒤의 빈 guide 줄은 떠 있는 개체의 위치 보조값이며,
             // 다단 flow 높이를 소비하지 않는다.
             return None;

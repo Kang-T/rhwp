@@ -43,6 +43,22 @@ use crate::renderer::style_resolver::ResolvedStyleSet;
 use metrics::FormattedParagraph;
 use stored_lines::{next_boundary_reverts_spacing_trim, spacing_trim_restorable};
 
+/// A certified source guide owns its whole empty line band, including trailing
+/// space. Fit may omit the trailing space at the page end; accepted flow must
+/// still advance by the same band which the paragraph painter consumes.
+fn stored_overlay_guide_advance(
+    st: &TypesetState,
+    fmt: &FormattedParagraph,
+    paragraphs: &[Paragraph],
+    index: usize,
+) -> Option<f64> {
+    (st.profile.hwp5_stored_pagination_layout()
+        && !st.profile.session_edited()
+        && !st.vpos_ladder_dirty
+        && crate::renderer::float_placement::stored_overlay_guide_owns_flow(paragraphs, index))
+    .then_some(fmt.total_height)
+}
+
 /// 진입 fit 판단 뒤의 줄 분할을 조정한다. 쪽 전환 후 후보를 다시 계산하며,
 /// 전체 문단 재시도와 조각 배치 후 이월을 구분한다. 진입 시 고정한 기준 예산은 유지한다.
 #[allow(clippy::too_many_arguments)]
@@ -252,35 +268,9 @@ pub(super) fn place_fitted_paragraph(
     //   - 다단 (col_count > 1): height_for_fit (exam_eng 8p 정상 단 채움 복원)
     // 다단에서는 layout 이 vpos 기반으로 항목을 단별로 stacking 하므로
     // typeset 누적 시 trailing_ls 인플레이션이 단을 조기 종료시킴.
-    let advance = fmt.flow_advance_height(
-        para,
-        st.col_count,
-        trim_spacing_before_for_flow,
-        st.vpos_ladder_dirty
-            || !spacing_trim_restorable(paragraphs, para_idx)
-            || next_boundary_reverts_spacing_trim(
-                st.profile.hwpx_stored_layout() && !st.profile.hwp3_layout(),
-                paragraphs,
-                styles,
-                para_idx,
-                dpi,
-            ),
-        st.vpos_page_base.is_none() && st.vpos_lazy_base.is_some(),
-    );
-    if std::env::var("RHWP_DIAG_ADV").is_ok() {
-        eprintln!(
-            "DIAG_ADV pi={} adv={:.1} total={:.1} h4f={:.1} sb={:.1} sa={:.1} cur={:.1}",
-            para_idx,
-            advance,
-            fmt.total_height,
-            fmt.height_for_fit,
-            fmt.spacing_before,
-            fmt.spacing_after,
-            st.current_height,
-        );
-    }
-    let trimmed_spacing_before = trimmed_sb_gate
-        * fmt.flow_trimmed_spacing_before(
+    let stored_guide_advance = stored_overlay_guide_advance(st, fmt, paragraphs, para_idx);
+    let advance = stored_guide_advance.unwrap_or_else(|| {
+        fmt.flow_advance_height(
             para,
             st.col_count,
             trim_spacing_before_for_flow,
@@ -294,7 +284,40 @@ pub(super) fn place_fitted_paragraph(
                     dpi,
                 ),
             st.vpos_page_base.is_none() && st.vpos_lazy_base.is_some(),
+        )
+    });
+    if std::env::var("RHWP_DIAG_ADV").is_ok() {
+        eprintln!(
+            "DIAG_ADV pi={} adv={:.1} total={:.1} h4f={:.1} sb={:.1} sa={:.1} cur={:.1}",
+            para_idx,
+            advance,
+            fmt.total_height,
+            fmt.height_for_fit,
+            fmt.spacing_before,
+            fmt.spacing_after,
+            st.current_height,
         );
+    }
+    let trimmed_spacing_before = if stored_guide_advance.is_some() {
+        0.0
+    } else {
+        trimmed_sb_gate
+            * fmt.flow_trimmed_spacing_before(
+                para,
+                st.col_count,
+                trim_spacing_before_for_flow,
+                st.vpos_ladder_dirty
+                    || !spacing_trim_restorable(paragraphs, para_idx)
+                    || next_boundary_reverts_spacing_trim(
+                        st.profile.hwpx_stored_layout() && !st.profile.hwp3_layout(),
+                        paragraphs,
+                        styles,
+                        para_idx,
+                        dpi,
+                    ),
+                st.vpos_page_base.is_none() && st.vpos_lazy_base.is_some(),
+            )
+    };
     // 다음 저장 표가 이 문단의 후행 간격을 사용할 수는 있어도
     // 실제 글줄 안으로 들어오면 안 된다. 수용에 쓴 구성 높이를 공유한다.
     if para.controls.is_empty() && para_has_non_whitespace_text(para) && fmt.line_count() > 0 {

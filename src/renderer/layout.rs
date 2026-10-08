@@ -7816,7 +7816,21 @@ impl LayoutEngine {
                             Some(source)
                         }
                     }
-                    // PartialTable/Shape: 지연 보정 사용
+                    PageItem::Shape { para_index, .. }
+                        if self.profile.get().hwp5_stored_pagination_layout()
+                            && !self.profile.get().session_edited() =>
+                    {
+                        let para = paragraphs.get(*para_index)?;
+                        let line = crate::renderer::float_placement::stored_overlay_host_flow_line(
+                            para, paragraphs.get(*para_index + 1),
+                        )?;
+                        // The empty host owns a real source line even though its
+                        // floating table is a Shape item with no flow advance.
+                        col_content.items.iter().any(|item| {
+                            matches!(item, PageItem::FullParagraph { para_index: owner } if owner == para_index)
+                        }).then_some(line.vertical_pos)
+                    }
+                    // PartialTable/other Shape: 지연 보정 사용
                     _ => None,
                 }
             })
@@ -10021,7 +10035,19 @@ impl LayoutEngine {
                     col_content,
                     self.dpi,
                 );
+            let stored_overlay_host_keeps_page_base =
+                self.profile.get().hwp5_stored_pagination_layout()
+                    && !self.profile.get().session_edited()
+                    && !hcursor.uniform_filler_ladder
+                    && paragraphs.get(item_para).is_some_and(|para| {
+                        crate::renderer::float_placement::stored_overlay_host_flow_line(
+                            para,
+                            paragraphs.get(item_para + 1),
+                        )
+                        .is_some()
+                    });
             if !heading_shape_keeps_page_base
+                && !stored_overlay_host_keeps_page_base
                 && !resolved_stored_wrap_fragment
                 && (was_tac || (is_table_or_shape && !is_para_float_table && !is_inline_tac_object))
             {
