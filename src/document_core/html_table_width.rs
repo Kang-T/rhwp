@@ -137,7 +137,5 @@ pub(super) fn reserve_content_heights(table: &mut Table, styles: &ResolvedStyleS
             cell.height = rows.iter().sum();
         }
     }
-    table.common.height = heights.iter().sum();
-    table.raw_ctrl_data[crate::model::shape::common_obj_offsets::HEIGHT]
-        .copy_from_slice(&table.common.height.to_le_bytes());
+    table.sync_ctrl_height(heights.iter().sum());
 }

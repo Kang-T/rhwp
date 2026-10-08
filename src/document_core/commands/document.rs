@@ -21,6 +21,8 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+mod tac_cache_repair;
+
 /// HWP 내보내기 + 자기 재로드 검증 결과 (#178 Stage 6).
 ///
 /// `serialize_hwp_with_verify` 의 반환값. 호출자가 페이지 회복 여부를 확인하고
@@ -333,6 +335,7 @@ impl DocumentCore {
             validation_report,
         };
 
+        tac_cache_repair::repair(&mut doc.document, &doc.styles, DEFAULT_DPI);
         doc.rebuild_embedded_exact_font_sources();
         doc.recompose_all_with_horizontal_shaping();
         doc.paginate();
