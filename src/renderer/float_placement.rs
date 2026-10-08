@@ -4360,6 +4360,22 @@ pub(crate) fn single_cell_page_fragment_bottom(table: &Table, body_bottom: f64, 
         - hwpunit_to_px(SINGLE_CELL_PAGE_FRAGMENT_BOTTOM_INSET_HU, dpi)
 }
 
+/// A source object that closes the body already declares the physical frame,
+/// including its outer margins. The extra inset for ordinary single-cell
+/// continuations is not another band inside that declared frame.
+pub(crate) fn rowbreak_fragment_frame_bottom(
+    table: &Table,
+    body_bottom: f64,
+    dpi: f64,
+    body_filling_source_frame: bool,
+) -> f64 {
+    if body_filling_source_frame {
+        body_bottom - hwpunit_to_px(i32::from(table.outer_margin_bottom), dpi)
+    } else {
+        single_cell_page_fragment_bottom(table, body_bottom, dpi)
+    }
+}
+
 /// [#6887] 문단 기준 왼쪽 정렬 어울림 표가 원점에 싣는 바깥 왼쪽 여백 (HU).
 ///
 /// 한글은 `horzRelTo="PARA"` + `horzAlign="LEFT"` 인 float 의 저장 `horzOffset` 을

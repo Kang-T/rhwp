@@ -4815,17 +4815,19 @@ impl LayoutEngine {
                 start_cut,
                 col_node.children.is_empty() && (y_start - col_area.y).abs() <= 0.5,
             );
-        let stored_body_frame_opens_outer_top = enclosing_cell_ctx.is_none()
-            && col_node.children.is_empty()
-            && (y_start - col_area.y).abs() <= 0.5
+        let body_filling_source_frame = enclosing_cell_ctx.is_none()
             && crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
                 &paragraphs[para_index],
                 table,
                 col_area.height,
                 self.dpi,
-                self.profile.get().hwpx_stored_layout(),
+                self.profile.get().hwpx_stored_layout()
+                    || self.profile.get().hwp5_stored_pagination_layout(),
                 self.profile.get().session_edited(),
             );
+        let stored_body_frame_opens_outer_top = body_filling_source_frame
+            && col_node.children.is_empty()
+            && (y_start - col_area.y).abs() <= 0.5;
         // 저장 HWP5의 반복 제목행을 가진 다행 RowBreak 표도 첫 저장 앵커와
         // 다음 쪽에서 반복 제목행을 여는 조각마다 바깥 위 여백을 다시 둔다.
         // 제목행 없는 이어지는 표(76076 34쪽)는 본문 상단에 붙는 별도 계약이다.
@@ -5670,10 +5672,11 @@ impl LayoutEngine {
         // `probe`(#4149 캐럿 fast path)는 그 행을 통째로 보지 못하므로, 대상 셀이 그 행의
         // 유일한 칸일 때만 접는다. 그 밖의 형상은 호출자가 legacy 로 폴백한다.
         // 줄간격 축소는 실제 이어받는 조각만 소유하지만, 완료 조각도 쪽 상한을 넘을 수 있다.
-        let page_cap = crate::renderer::float_placement::single_cell_page_fragment_bottom(
+        let page_cap = crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
             table,
             col_area.y + col_area.height,
             self.dpi,
+            body_filling_source_frame,
         );
         let page_cap_fold = (table_y + partial_table_height - page_cap).max(0.0);
         let owns_declared_row_frame = end_row_height_override.is_some()

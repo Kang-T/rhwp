@@ -449,10 +449,20 @@ impl TypesetEngine {
             .layout_engine
             .native_stored_table_has_text_frame_boundaries(table, input.source.styles)
         {
-            let bottom = crate::renderer::float_placement::single_cell_page_fragment_bottom(
+            let body_filling_source_frame =
+                crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
+                    para,
+                    table,
+                    st.layout.body_area.height,
+                    self.dpi,
+                    st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
+                    st.profile.session_edited(),
+                );
+            let bottom = crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
                 table,
                 st.inline_flow_column().height,
                 self.dpi,
+                body_filling_source_frame,
             );
             page_avail.min(
                 (bottom
