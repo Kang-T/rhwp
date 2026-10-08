@@ -938,7 +938,14 @@ impl SvgRenderer {
                     for segment in eq.svg_content.split("</text>") {
                         if let Some(start) = segment.rfind('>') {
                             let text = &segment[start + 1..];
-                            let family = if super::equation::text_has_cjk(text) {
+                            let header = &segment[..start];
+                            let family = if header
+                                .rsplit("<text ")
+                                .next()
+                                .is_some_and(|attrs| attrs.contains("font-family=\"HyhwpEQ\""))
+                            {
+                                super::equation::hancom_glyphs::FONT_FAMILY
+                            } else if super::equation::text_has_cjk(text) {
                                 "Haansoft Batang"
                             } else {
                                 "Latin Modern Math"
@@ -4238,6 +4245,7 @@ fn known_font_filenames(font_name: &str) -> Vec<&'static str> {
         "HY신명조" | "한양신명조" => {
             vec!["H2MJSM.TTF", "HYSNMJ.TTF", "hamchob-r.ttf"]
         }
+        "HyhwpEQ" | "HYhwpEQ" => vec!["HYHWPEQ.TTF", "hyhwpeq.ttf"],
         "Latin Modern Math" => vec![
             "latinmodern-math.otf",
             "LatinModernMath-Regular.otf",
