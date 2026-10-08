@@ -51,6 +51,9 @@
 //! 보이는데, `Body` 안만 보면 그 짝이 애초에 후보가 아니기 때문이다
 //! (편람 69쪽 실측 4건). 자세한 근거는 [`collect_text_outside_body`].
 
+mod glyph_advance;
+
+use glyph_advance::glyph_band_horizontal;
 use serde_json::{json, Value};
 
 use crate::document_core::DocumentCore;
