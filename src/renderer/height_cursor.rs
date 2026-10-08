@@ -212,12 +212,22 @@ pub(crate) struct HeightCursor {
     /// 간격을 그리는 문단 경로를 타지 않으므로 `vpos_corrected_end_y` 의 `sb_N` 사전 차감
     /// 대상이 아니다. layout 만 세운다.
     pub curr_item_is_table_fragment: bool,
+    /// [#7665] 미주 흐름에서 **미주의 첫 문단**(렌더가 번호 장식을 붙이는 문단, 조판 `ep_idx == 0`)
+    /// 인 전역 문단 번호. 새 문항 제목 판정은 이 소유 경계로 한다 — 첫 문단이 「문」 으로
+    /// 시작하는지(번호 장식 `문1)` 의 대리값)로 읽으면 같은 미주 안 `문서…` 본문도 제목이 된다.
+    /// 미주 흐름 단에서만 호출자가 채운다.
+    pub endnote_note_first_paras: std::sync::Arc<std::collections::HashSet<usize>>,
 }
 
 #[path = "height_cursor_lazy_base.rs"]
 mod lazy_base_rounding;
 
 impl HeightCursor {
+    /// [#7665] 미주 흐름 문단이 미주의 첫 문단(새 문항 제목)인가 — 소유 경계.
+    fn starts_endnote(&self, para_index: usize) -> bool {
+        self.endnote_note_first_paras.contains(&para_index)
+    }
+
     /// 컬럼 진입 시 생성. `vpos_page_base` 초기값은 호출자가 첫 PageItem 에서 산출.
     pub(crate) fn new(
         dpi: f64,
@@ -254,6 +264,7 @@ impl HeightCursor {
             trimmed_prev_spacing_before_px: 0.0,
             session_edited: false,
             curr_item_is_table_fragment: false,
+            endnote_note_first_paras: Default::default(),
         }
     }
 
@@ -772,17 +783,11 @@ impl HeightCursor {
                     );
                 }
                 let compact_endnote_question_title = self.suppress_large_forward_jump
-                    && paragraphs
-                        .get(item_para)
-                        .map(|p| p.text.trim_start().starts_with('문'))
-                        .unwrap_or(false)
+                    && self.starts_endnote(item_para)
                     && seg.line_spacing > 1000;
                 let compact_zero_gap_endnote_title_boundary = self.suppress_large_forward_jump
                     && self.endnote_between_notes_hu == 0
-                    && paragraphs
-                        .get(item_para)
-                        .map(|p| p.text.trim_start().starts_with('문'))
-                        .unwrap_or(false)
+                    && self.starts_endnote(item_para)
                     && seg.line_spacing > 0
                     && seg.line_spacing <= 800;
                 if compact_zero_gap_endnote_title_boundary {
@@ -1128,11 +1133,8 @@ impl HeightCursor {
             .map(|bottom| bottom.max(prev_content_bottom_y))
             .unwrap_or(prev_content_bottom_y);
         let follows_tall_inline_item = self.suppress_large_forward_jump && seg.line_height > 1500;
-        let current_is_compact_endnote_title = self.suppress_large_forward_jump
-            && paragraphs
-                .get(item_para)
-                .map(|p| p.text.trim_start().starts_with('문'))
-                .unwrap_or(false);
+        let current_is_compact_endnote_title =
+            self.suppress_large_forward_jump && self.starts_endnote(item_para);
         let prev_line_carries_note_gap = seg.line_spacing > 1000;
         let compact_endnote_question_title =
             current_is_compact_endnote_title && prev_line_carries_note_gap;
@@ -1210,16 +1212,10 @@ impl HeightCursor {
                     .get(item_para)
                     .map(para_is_treat_as_char_picture_only)
                     .unwrap_or(false));
-        let follows_endnote_title = self.suppress_large_forward_jump
-            && paragraphs
-                .get(prev_pi)
-                .map(|p| p.text.trim_start().starts_with('문'))
-                .unwrap_or(false);
-        let current_is_endnote_title = self.suppress_large_forward_jump
-            && paragraphs
-                .get(item_para)
-                .map(|p| p.text.trim_start().starts_with('문'))
-                .unwrap_or(false);
+        let follows_endnote_title =
+            self.suppress_large_forward_jump && self.starts_endnote(prev_pi);
+        let current_is_endnote_title =
+            self.suppress_large_forward_jump && self.starts_endnote(item_para);
         // page-path compact 미주 하단의 새 문항 제목은 저장 vpos가 이미
         // 제목/다음 본문을 분리하는 경우가 있다. 기존 95% 꼬리 조건은
         // 2022-09 p17 문29처럼 하단 1줄 차이에서 제목만 아래로 눌러
@@ -2283,6 +2279,11 @@ mod tests {
         )
     }
 
+    /// 미주 첫 문단(새 문항 제목)으로 표시한다 — 렌더의 `endnote_note_first_paras` 와 같은 소유 경계.
+    fn mark_note_first(c: &mut HeightCursor, para_index: usize) {
+        std::sync::Arc::make_mut(&mut c.endnote_note_first_paras).insert(para_index);
+    }
+
     fn compact_endnote_cursor(page_base: Option<i32>) -> HeightCursor {
         HeightCursor::new(
             DPI, COL_Y, COL_H, COL_Y, page_base, false, false, false, true,
@@ -2532,6 +2533,7 @@ mod tests {
         c.prev_layout_para = Some(0);
         let mut ps = vec![para(0, 70100, 900, 0, 5000), para(0, 70150, 900, 0, 5000)];
         ps[1].text = "문11)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(1030.0, 1, &ps, &styles(0.0));
         assert!((got - 1030.0).abs() < 1e-6, "got={got}");
@@ -2549,6 +2551,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문30)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(980.0, 1, &ps, &styles(0.0));
         assert!(got < 980.0, "got={got}");
@@ -2566,6 +2569,7 @@ mod tests {
         ];
         ps[0].text = "구하는 확률은".to_string();
         ps[1].text = "문29)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(946.0, 1, &ps, &styles(0.0));
         let expected = 100.0 + 62000.0 / 75.0 - 4.0;
@@ -2627,6 +2631,7 @@ mod tests {
             para(0, 70150, 900, 0, 5000),
         ];
         ps[1].text = "문23)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(980.0, 1, &ps, &styles(0.0));
 
@@ -2645,6 +2650,7 @@ mod tests {
         let prev = para(0, 681_069, 900, 5669, 5000);
         let mut curr = para(0, 706_832, 900, 452, 5000);
         curr.text = "문23)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 961.65;
         let got = c.vpos_adjust(y_offset, 1, &[prev, curr], &styles(0.0));
@@ -2668,6 +2674,7 @@ mod tests {
         let prev = para(0, 57_000, 900, 5669, 5000);
         let mut curr = para(0, 62_250, 900, 452, 5000);
         curr.text = "문16)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(950.0, 1, &[prev, curr], &styles(0.0));
         let expected = 930.0;
@@ -2691,6 +2698,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문29)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(650.0, 1, &ps, &styles(0.0));
         let expected = 650.0 + 1984.0 / 75.0 + 40.0;
@@ -2713,6 +2721,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문29)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(120.0, 1, &ps, &styles(0.0));
 
@@ -2731,6 +2740,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문22)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(450.0, 1, &ps, &styles(0.0));
         let expected = 450.0 + 1984.0 / 75.0;
@@ -2754,6 +2764,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문23)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 147.19;
         let end_y = COL_Y + (742719.0 - 719467.0) / 75.0;
@@ -2777,6 +2788,7 @@ mod tests {
             para(0, 108025, 900, 452, 5000),
         ];
         ps[1].text = "문19)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(650.0, 1, &ps, &styles(0.0));
         let expected = 650.0 + 1984.0 / 75.0;
@@ -2804,6 +2816,7 @@ mod tests {
         prev.text = " ( ㉡)".to_string();
         let mut curr = para(0, 1140848, 900, 452, 5000);
         curr.text = "문29)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 656.61;
         let got = c.vpos_adjust(y_offset, 1, &[prev, curr], &styles(0.0));
@@ -2827,6 +2840,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문13)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(500.0, 1, &ps, &styles(0.0));
         let expected = 500.0 - 1984.0 / 75.0 + 10.0;
@@ -2849,6 +2863,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문8)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(500.0, 1, &ps, &styles(0.0));
         let expected = 510.0;
@@ -2872,6 +2887,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문8)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(500.0, 1, &ps, &styles(0.0));
         let expected = 500.0 + 5669.0 / 75.0;
@@ -2896,6 +2912,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문13)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 419.63;
         let got = c.vpos_adjust(y_offset, 1, &ps, &styles(0.0));
@@ -2921,6 +2938,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문26)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 639.45;
         let end_y = COL_Y + (773893.0 - 736951.0) / 75.0;
@@ -2947,6 +2965,7 @@ mod tests {
             para(0, 164586, 900, 452, 5000),
         ];
         ps[1].text = "문27)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 990.0;
         let got = c.vpos_adjust(y_offset, 1, &ps, &styles(0.0));
@@ -2971,6 +2990,7 @@ mod tests {
         ];
         ps[0].text = "에서".to_string();
         ps[1].text = "문25)".to_string();
+        mark_note_first(&mut c, 1);
 
         let got = c.vpos_adjust(969.89, 1, &ps, &styles(30.0));
         let expected = 909.89;
@@ -2993,6 +3013,7 @@ mod tests {
         ];
         ps[0].text = "따라서".to_string();
         ps[1].text = "문28)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_offset = 216.0;
         let end_y = COL_Y + (994892.0 - 984738.0) / 7200.0 * DPI;
@@ -3013,6 +3034,7 @@ mod tests {
         c.prev_layout_para = Some(0);
         let mut ps = vec![para(0, 70100, 900, 0, 5000), para(0, 70150, 900, 0, 5000)];
         ps[0].text = "문11)".to_string();
+        mark_note_first(&mut c, 0);
 
         let got = c.vpos_adjust(1030.0, 1, &ps, &styles(0.0));
         assert!((got - 1030.0).abs() < 1e-6, "got={got}");
@@ -3025,6 +3047,7 @@ mod tests {
         c.prev_layout_para = Some(0);
         let mut ps = vec![para(0, 70100, 900, 0, 5000), para(0, 70150, 900, 0, 5000)];
         ps[0].text = "문27)".to_string();
+        mark_note_first(&mut c, 0);
         ps[1].line_segs.push(LineSeg {
             vertical_pos: 71502,
             line_height: 900,
@@ -3119,6 +3142,7 @@ mod tests {
         c.prev_layout_para = Some(0);
         let mut curr = para(0, 2800, 900, 0, 5000); // prev 내용 바닥(1900+900) → stored gap≈0
         curr.text = "문11)".to_string();
+        mark_note_first(&mut c, 1);
         let ps = vec![multiline_prev_with_injected_gap(), curr];
         let y_in = 100.0 + 2800.0 / 75.0; // page_path end_y 와 동일 → stored gap 0
         let got = c.vpos_adjust(y_in, 1, &ps, &styles(0.0));
@@ -3137,6 +3161,7 @@ mod tests {
         c.prev_layout_para = Some(0);
         let mut curr = para(0, 3550, 900, 0, 5000); // 2800 + 750(=10px) → stored gap 10px
         curr.text = "문13)".to_string();
+        mark_note_first(&mut c, 1);
         let ps = vec![multiline_prev_with_injected_gap(), curr];
         let y_in = 100.0 + 2800.0 / 75.0;
         let got = c.vpos_adjust(y_in, 1, &ps, &styles(0.0));
@@ -3156,6 +3181,7 @@ mod tests {
         let prev = para(0, 1900, 900, 1984, 5000); // 단일줄, ls=1984
         let mut curr = para(0, 2800, 900, 0, 5000);
         curr.text = "문11)".to_string();
+        mark_note_first(&mut c, 1);
         let ps = vec![prev, curr];
         let y_in = 100.0 + 2800.0 / 75.0;
         let got = c.vpos_adjust(y_in, 1, &ps, &styles(0.0));
@@ -3174,6 +3200,7 @@ mod tests {
         let mut curr = para(0, 1012850, 900, 452, 5000);
         prev.text = "따라서 이다.".to_string();
         curr.text = "문24)".to_string();
+        mark_note_first(&mut c, 1);
 
         let y_in = 831.44;
         let got = c.vpos_adjust(y_in, 1, &[prev, curr], &styles(0.0));
@@ -3223,6 +3250,7 @@ mod tests {
         let prev = para(0, 1900, 900, 1984, 5000); // 단일줄 빈 separator, ls=1984(주입 7mm)
         let mut curr = para(0, 2800, 900, 0, 5000);
         curr.text = "문7)".to_string();
+        mark_note_first(&mut c, 1);
         let ps = vec![prev, curr];
         // end_y = 100 + 2800/75 = 137.333. y_offset=160 → safe_backtrack(end_y<y_offset-8,
         // end_y>=prev_content_bottom=160-1984/75=133.55, mid-column) 발동 → 베이스라인 cram.
@@ -3252,6 +3280,7 @@ mod tests {
         let prev = para(0, 1900, 900, 5669, 5000);
         let mut curr = para(0, 3550, 900, 0, 5000); // y_offset보다 10px 아래 저장 vpos
         curr.text = "문10)".to_string();
+        mark_note_first(&mut c, 1);
         let ps = vec![prev, curr];
         let y_offset = 100.0 + 2800.0 / 75.0;
 
@@ -3280,6 +3309,7 @@ mod tests {
         let prev = para(0, 1900, 900, 180, 5000); // 자연 trailing(180 < 1984)
         let mut curr = para(0, 2800, 900, 0, 5000);
         curr.text = "문7)".to_string();
+        mark_note_first(&mut c, 1);
         let ps = vec![prev, curr];
         let base_before = c.vpos_page_base;
         let got = c.vpos_adjust(160.0, 1, &ps, &styles(0.0));
