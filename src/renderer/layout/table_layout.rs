@@ -11317,7 +11317,11 @@ impl LayoutEngine {
                 let len = self.cell_units(cell, table, styles).len();
                 let su = start.get(index).copied().unwrap_or(0).min(len);
                 let eu = end.get(index).copied().unwrap_or(len).clamp(su, len);
-                eu == len && (su == 0 || (cell.row_span > 1 && su == len))
+                // A spanning cell already consumed by the previous fragment
+                // cannot donate its whole measured frame to this row again.
+                // Use the cut's remaining owners instead; both the scan and
+                // paint callers consume this same decision.
+                eu == len && su == 0
             })
     }
 

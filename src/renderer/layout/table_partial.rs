@@ -5412,7 +5412,13 @@ impl LayoutEngine {
         let mut render_rows: Vec<usize> = Vec::new();
         render_rows.extend_from_slice(&header_rows);
         for r in start_row..end_row.min(row_count) {
-            render_rows.push(r);
+            // The block-cut scan sums spacing only between retained rows.
+            // Rows whose complete content belongs to an earlier fragment have
+            // no physical box here. A reserved empty band still has positive
+            // row height (including the explicit height overrides above).
+            if row_heights[r] > 0.0 {
+                render_rows.push(r);
+            }
         }
 
         // 렌더링 영역의 행별 y 위치 계산 (0부터 시작)
