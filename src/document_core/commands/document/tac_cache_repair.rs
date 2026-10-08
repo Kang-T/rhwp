@@ -171,7 +171,14 @@ pub(super) fn repair(
             let mut projected = section.paragraphs[index].clone();
             for control in &mut projected.controls {
                 if let Control::Table(table) = control {
-                    repair_cell_width_caches(table, styles, dpi, hwp3, 0);
+                    repair_cell_width_caches(
+                        table,
+                        styles,
+                        dpi,
+                        hwp3,
+                        section.section_def.line_grid == 0,
+                        0,
+                    );
                     crate::document_core::html_table_width::reserve_content_heights(
                         table, styles, dpi,
                     );
@@ -203,6 +210,7 @@ fn repair_cell_width_caches(
     styles: &crate::renderer::style_resolver::ResolvedStyleSet,
     dpi: f64,
     hwp3: bool,
+    no_line_grid: bool,
     depth: usize,
 ) {
     use crate::renderer::composer::{cell_inner_text_width, reflow_line_segs, ParagraphBox};
@@ -228,13 +236,35 @@ fn repair_cell_width_caches(
                     if nested.common.size_protect || !nested.common.treat_as_char {
                         continue;
                     }
-                    repair_cell_width_caches(nested, styles, dpi, hwp3, depth + 1);
+                    repair_cell_width_caches(nested, styles, dpi, hwp3, no_line_grid, depth + 1);
                     crate::document_core::html_table_width::reserve_content_heights(
                         nested, styles, dpi,
                     );
                 }
             }
             let style = styles.para_styles.get(paragraph.para_shape_id as usize);
+            // A cell's first saved line is relative to the cell content origin.
+            // Without a line grid or a flow object, its initial band is owned
+            // by paragraph before-space and the line's internal leading.
+            // Passive foreground/background objects do not create that band.
+            // Reject an unsupported band before either measurement or paint
+            // consumes it; the canonical cell reflow publishes both the new
+            // line metrics and the subsequent paragraph ladder below.
+            if index == 0
+                && no_line_grid
+                && !hwp3
+                && unsupported_initial_cell_band(paragraph, style, dpi)
+            {
+                let box_ = ParagraphBox::content_for_style(inner, style, dpi);
+                if box_.is_usable() {
+                    // Ordinary width reflow preserves the saved first origin.
+                    // This origin was rejected, so it must not seed that frame.
+                    paragraph.line_segs.clear();
+                    reflow_line_segs(paragraph, box_, styles, dpi);
+                    first_changed.get_or_insert(index);
+                }
+                continue;
+            }
             // Floating objects can legitimately carve a narrower stored row.
             // They need their own frame evidence, not this cell-box comparison.
             if paragraph.controls.iter().any(|control| {
@@ -279,4 +309,46 @@ fn repair_cell_width_caches(
             );
         }
     }
+}
+
+fn unsupported_initial_cell_band(
+    paragraph: &Paragraph,
+    style: Option<&crate::renderer::style_resolver::ResolvedParaStyle>,
+    dpi: f64,
+) -> bool {
+    use crate::model::shape::TextWrap;
+    let Some(style) = style else {
+        return false;
+    };
+    let Some(line) = paragraph.line_segs.first() else {
+        return false;
+    };
+    if line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || line.line_height <= 0
+        || line.text_height <= 0
+        || line.text_height > line.line_height
+        || line.baseline_distance < 0
+        || line.baseline_distance > line.line_height
+        || paragraph.stored_text_partition_is_dirty()
+    {
+        return false;
+    }
+    let passive = |common: &crate::model::shape::CommonObjAttr| {
+        !common.treat_as_char
+            && matches!(
+                common.text_wrap,
+                TextWrap::InFrontOfText | TextWrap::BehindText
+            )
+    };
+    if paragraph.controls.iter().any(|control| match control {
+        Control::Shape(shape) => !passive(shape.common()),
+        Control::Picture(picture) => !passive(&picture.common),
+        Control::Field(_) | Control::Bookmark(_) => false,
+        _ => true,
+    }) {
+        return false;
+    }
+    let before_hu = crate::renderer::px_to_hwpunit(style.spacing_before.max(0.0), dpi);
+    i64::from(line.vertical_pos)
+        > i64::from(before_hu) + i64::from(line.line_height.saturating_sub(line.text_height))
 }
