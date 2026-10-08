@@ -11,7 +11,7 @@ pub(crate) struct StoredSpanOpeningFrame {
     pub restart_columns: BTreeSet<u16>,
 }
 
-fn original_plain_cell(cell: &Cell) -> bool {
+pub(super) fn original_plain_cell(cell: &Cell) -> bool {
     !cell.dirty_flag
         && cell.text_direction == 0
         && !cell.paragraphs.is_empty()

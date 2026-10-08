@@ -217,6 +217,7 @@ impl TypesetEngine {
                 styles,
                 cut_row_h,
                 whole_row_fit_h,
+                input.fragment_row_heights.unwrap_or(&mt.row_heights),
                 rowspan_touched,
                 &start_cut,
                 &input.start.straddle_page_bands,
@@ -309,7 +310,10 @@ impl TypesetEngine {
             && split_block_start.is_none()
             && split_end_cut.is_empty()
             && split_end_limit <= 0.0
-            && end_row_height_override.is_none()
+            // Minimum growth keeps the complete source row and its saved
+            // blank tail. A compressed row has a different physical cut.
+            && end_row_height_override
+                .is_none_or(|height| height >= whole_row_fit_h[end_row - 1])
             && (st.profile.hwp5_stored_pagination_layout() || st.profile.hwpx_stored_layout())
             && !st.profile.session_edited()
             && !input.source.paragraph.stored_text_partition_is_dirty()
@@ -528,7 +532,10 @@ impl TypesetEngine {
             && split_block_start.is_none()
             && split_end_cut.is_empty()
             && split_end_limit <= 0.0
-            && end_row_height_override.is_none()
+            // A minimum extension still owns the complete row. Only a
+            // compressed band prevents the saved frame from consuming its tail.
+            && end_row_height_override
+                .is_none_or(|height| height >= whole_row_fit_h[end_row - 1])
             && self.stored_header_physical_rows(st, input.source)
             && row_geometry_table.cells.iter().any(|cell| {
                 let first = cell.row as usize;

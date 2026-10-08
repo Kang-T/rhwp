@@ -28,7 +28,11 @@ impl TypesetEngine {
         cursor: &TableContinuationCursor,
         source: BlockTableContinuationSource<'_>,
     ) -> Option<Vec<f64>> {
-        if !self.stored_header_physical_rows(st, source)
+        let keeps_source_boxes = self.stored_header_physical_rows(st, source)
+            || prepared
+                .layout_engine
+                .has_stored_continuous_spans(source.row_geometry_table);
+        if !keeps_source_boxes
             || !cursor.start_cut.is_empty()
             || cursor.start_row_height_override.is_some()
             || !cursor.accepted_row_boxes.iter().any(Option::is_some)
@@ -102,14 +106,21 @@ impl TypesetEngine {
         complete_end_cut: bool,
         last_height: Option<f64>,
     ) {
-        if !self.stored_header_physical_rows(st, input.source)
+        let keeps_source_boxes = self.stored_header_physical_rows(st, input.source)
+            || input
+                .prepared
+                .layout_engine
+                .has_stored_continuous_spans(input.source.row_geometry_table);
+        if !keeps_source_boxes
             || !input.start.start_cut.is_empty()
             || input.start.start_row_height_override.is_some()
             || !complete_end_cut
         {
             return;
         }
-        let heights = &input.source.measured_table.row_heights;
+        let heights = input
+            .fragment_row_heights
+            .unwrap_or(&input.source.measured_table.row_heights);
         cursor.accepted_row_boxes.resize(heights.len(), None);
         for (row, &height) in heights
             .iter()

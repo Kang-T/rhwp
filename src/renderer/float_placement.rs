@@ -4,6 +4,8 @@ mod stored_header_frame;
 pub(crate) use stored_header_frame::stored_repeated_header_rowbreak_outer_frame;
 mod stored_span_opening;
 pub(crate) use stored_span_opening::{stored_span_opening_frame, StoredSpanOpeningFrame};
+mod stored_span_content_frame;
+pub(crate) use stored_span_content_frame::stored_continuous_span_prefixes_hu;
 
 use std::ops::Range;
 

@@ -2,7 +2,7 @@
 
 use crate::renderer::typeset::{
     rowbreak_table_has_internal_saved_vpos_reset, table, BlockRowScanVars, BlockTableRowScan,
-    MeasuredTable, ResolvedStyleSet, TypesetEngine, TypesetState,
+    MeasuredTable, ResolvedStyleSet, TypesetEngine, TypesetState, MIN_TOP_KEEP_PX,
 };
 
 #[derive(Clone, Copy)]
@@ -50,6 +50,7 @@ impl TypesetEngine {
         styles: &ResolvedStyleSet,
         cut_row_h: &[f64],
         whole_row_fit_h: &[f64],
+        source_row_heights: &[f64],
         rowspan_touched: &[bool],
         start_cut: &[usize],
         straddle_page_bands: &[crate::renderer::pagination::StraddleCellCarry],
@@ -88,6 +89,13 @@ impl TypesetEngine {
             scan,
             bleed_absorbed_row_height: None,
         };
+        let source_span_reservation = start_cut.is_empty() && v.start_row_height_override.is_none();
+        let fresh_row_budget = if st.current_items.is_empty() && st.current_height == 0.0 {
+            // A fresh column already includes its note and zone constraints.
+            v.avail_for_rows
+        } else {
+            (st.base_available_height() - v.header_overhead).max(0.0)
+        };
         while progress.r < v.row_count {
             let r = progress.r;
             if v.source_terminal_suffix_start
@@ -96,6 +104,27 @@ impl TypesetEngine {
                 break;
             }
             let cs_before = if r > v.cursor_row { v.cs } else { 0.0 };
+            if source_span_reservation {
+                if let Some(minimum) = layout_engine.stored_span_fragment_minimum(
+                    table,
+                    v.cursor_row,
+                    r + 1,
+                    source_row_heights,
+                    fresh_row_budget,
+                    None,
+                    MIN_TOP_KEEP_PX,
+                ) {
+                    if minimum > v.avail_for_rows {
+                        if std::env::var("RHWP_DIAG_SCAN").is_ok() {
+                            eprintln!(
+                                "DIAG_SCAN SOURCE_SPAN_DEFER r={r} minimum={minimum:.3} avail={:.3}",
+                                v.avail_for_rows
+                            );
+                        }
+                        break;
+                    }
+                }
+            }
             // Consume a carried physical tail before scanning the next row.
             if r == v.cursor_row {
                 if let Some(height) = v.start_row_height_override.filter(|_| {
@@ -127,6 +156,53 @@ impl TypesetEngine {
             progress = step.progress;
             if !step.keep_scanning {
                 break;
+            }
+        }
+        // Choose the physical fragment once, after its row/unit ownership is
+        // known. Extra occupancy belongs to its last row, not every candidate.
+        if source_span_reservation
+            && progress.scan.end_row > v.cursor_row
+            && progress.scan.split_end_cut.is_empty()
+            && progress.scan.split_end_limit <= 0.0
+            && progress.scan.split_block_start.is_none()
+        {
+            if let Some(minimum) = layout_engine.stored_span_fragment_minimum(
+                table,
+                v.cursor_row,
+                progress.scan.end_row,
+                source_row_heights,
+                fresh_row_budget,
+                Some(v.avail_for_rows),
+                MIN_TOP_KEEP_PX,
+            ) {
+                let last = progress.scan.end_row - 1;
+                let height = progress
+                    .scan
+                    .end_row_height_override
+                    .unwrap_or(source_row_heights[last]);
+                let physical = source_row_heights[v.cursor_row..progress.scan.end_row]
+                    .iter()
+                    .sum::<f64>()
+                    + v.cs * (progress.scan.end_row - v.cursor_row).saturating_sub(1) as f64
+                    + height
+                    - source_row_heights[last];
+                // An override also changes saved-frame selection. Its presence
+                // must not be created by floating-point summation noise alone.
+                let roundoff = f64::EPSILON
+                    * (minimum.abs() + physical.abs()).max(1.0)
+                    * (progress.scan.end_row - v.cursor_row + 2) as f64;
+                if minimum - physical > roundoff && minimum <= v.avail_for_rows {
+                    progress.scan.end_row_height_override = Some(height + minimum - physical);
+                    progress.scan.consumed = progress.scan.consumed.max(minimum);
+                    if std::env::var("RHWP_DIAG_SCAN").is_ok() {
+                        eprintln!(
+                            "DIAG_SCAN SOURCE_SPAN_FRAME rows={}..{} physical={physical:.3} minimum={minimum:.3} last={:.3}",
+                            v.cursor_row,
+                            progress.scan.end_row,
+                            progress.scan.end_row_height_override.unwrap_or(height)
+                        );
+                    }
+                }
             }
         }
         progress.scan

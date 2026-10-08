@@ -2,6 +2,7 @@
 
 mod stored_plain_row_frame;
 mod stored_span_content;
+mod stored_span_reservation;
 mod stored_zero_origin;
 
 use super::super::composer::{compose_paragraph, ComposedLine, ComposedParagraph};
