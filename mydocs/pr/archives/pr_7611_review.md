@@ -2,7 +2,7 @@
 kind: investigation
 status: historical
 canonical: mydocs/pr/archives/pr_7611_review.md
-last_verified: 2026-10-08
+last_verified: 2026-10-09
 ---
 
 # PR #7611 리뷰 — 큰 표·저장 컷과 편람 쪽 배치
@@ -362,3 +362,10 @@ head `79ff4d035e5be151644e600006e354c40632db48` 위 미커밋 후보 32에서 �
 `13ce645d02f57961a76db66d44a3ae3dbbcef852`의 집중40검사는 공용 `target/pr-review`, build jobs8/test threads10으로 실행 중입니다. 여기에는 뒤의 `d3f2f60a9`가 포함되지 않으므로 완료돼도 최종 후보 검증을 대신하지 않습니다. 후속 검증은 실제 최종 source를 새로 빌드해 진행합니다. 최신 전체 회귀·세 Clippy/workspace build·최종 fresh WASM/시각 증적은 아직 끝나지 않았고 최종 판정은 **머지 보류**입니다. 새로운 통합 PR·push·merge는 아직 수행하지 않았습니다.
 
 ignored 증적은 `output/pr-review/planet6897-20261008/`의 `child6712-transfer.json`, `picture-transfer.json`, `candidate-c981cb56b-map-trace.json`, `candidate-c981cb56b-map-sweep.json`, `candidate-13ce645d0-focused-v2.json`과 각 실제 로그에 보존합니다. source SHA·빌드/입력/PDF 해시·선택/전쪽 범위를 구분합니다.
+
+
+위 실행 중 표기의 후속 결과: `13ce645d0`의 집중40검사는 **39 PASS / 1 FAIL / 1232 skipped, nextest exit100**입니다. 남은 실패는 `original_cut_labels_keep_their_pdf_pages_and_cell_owners`의 첫 물리 프레임입니다. 뒤의 `d3f2f60a9` 보정을 이 결과에 포함하지 않습니다.
+
+그동안 upstream/devel은 `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`로 전진했습니다. 기존 비교 base74와의 Rust 제품 변경은 `commands/formatting.rs`의 `apply_char_format_native`/`set_char_shape_id_native` 편집 경로뿐이며, 원문 read/export에 쓰는 renderer/parser/model·queries와 이번5개 입력은 그대로입니다. 따라서 기존 **원문 렌더링** 분류를 유지한다는 source 동등성 추론을 기록하며,74의 실행 파일을5168의 새 빌드라고 표시하지 않습니다. 편집 저장본 검증에는 새 base가 필요합니다.
+
+최신 base를 충돌 없이 통합한 source는 `e7a3577e1c74e058e7e1f06a7e930b41f34a3281`입니다. 기존 기여자→메인터너 순서와 upstream의 #7464/#7468 review byte 일치를 확인했습니다. 이 head에서40개 집중검사를 build jobs8/test threads10으로 다시 시작했으며 fmt/manifest prepare가 통과하고 컴파일 중입니다. 아직 PASS를 주장하지 않습니다. 실제 전진 범위·입력 보존·원 source보다 앞선 보정 부재는 ignored `latest-base-5168-routing-audit.json`에 남깁니다. 이 실행과 현재 code head의 필수 전체 검증을 완료한 뒤에만 다음 통합 단계로 진행합니다.
