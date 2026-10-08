@@ -11265,6 +11265,104 @@ impl LayoutEngine {
         }
     }
 
+    /// 저장 행의 물리 상자와 이미 소비한 rowspan의 측정 제약을 구분한다.
+    /// 온전한 자기 셀의 저장 상자가 있으면 그 상자가 남은 행의 높이를 소유한다.
+    pub(crate) fn row_block_cut_physical_height(
+        &self,
+        table: &crate::model::table::Table,
+        block: (usize, usize),
+        row_metric: (usize, f64),
+        start: &[usize],
+        end: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> Option<f64> {
+        let (row, measured_height) = row_metric;
+        if !self.row_block_cut_uses_measured_height(table, block, row, start, end, styles) {
+            return None;
+        }
+        let (bs, be) = block;
+        let mut cells = Self::row_block_cells(table, bs, be);
+        cells.sort_by_key(|cell| (cell.row, cell.col));
+        let has_spent_covering_span = cells.iter().enumerate().any(|(index, cell)| {
+            let len = self.cell_units(cell, table, styles).len();
+            cell.row_span > 1
+                && cell.row as usize <= row
+                && row < cell.row as usize + cell.row_span as usize
+                && len > 0
+                && start.get(index).copied().unwrap_or(0) >= len
+        });
+        if !has_spent_covering_span
+            || self.profile.get().session_edited()
+            || self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+        {
+            return Some(measured_height);
+        }
+        let shrink = i64::from(
+            table
+                .rowspan_declared_overflow_shrink()
+                .get(row)
+                .copied()
+                .unwrap_or(0),
+        );
+        let own_cells = Self::row_cut_cell_order(table, row);
+        let mut source_height = 0i64;
+        let mut closed_source_height: Option<i64> = None;
+        for index in &own_cells {
+            let cell = &table.cells[*index];
+            let frame = i64::from(cell.height) - shrink;
+            if cell.dirty_flag
+                || cell.height >= 0x8000_0000
+                || frame <= 0
+                || !Self::cell_has_stored_line_segs(cell)
+                || !crate::renderer::cell_vpos_ladder_is_intact(&cell.paragraphs)
+                || cell.paragraphs.iter().any(|paragraph| {
+                    paragraph.stored_text_partition_is_dirty()
+                        || paragraph.cell_format_vpos_dirty
+                        || !paragraph.controls.is_empty()
+                        || paragraph.line_segs.iter().any(|line| {
+                            line.vertical_pos < 0
+                                || line.line_height <= 0
+                                || line.tag
+                                    & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                                    != 0
+                        })
+                })
+            {
+                return Some(measured_height);
+            }
+            let source_bottom = cell
+                .paragraphs
+                .iter()
+                .flat_map(|paragraph| &paragraph.line_segs)
+                .map(|line| i64::from(line.vertical_pos) + i64::from(line.line_height))
+                .max()
+                .unwrap_or(0);
+            let padding = cell.effective_padding(&table.padding);
+            if source_bottom + i64::from(padding.top) + i64::from(padding.bottom) > frame {
+                return Some(measured_height);
+            }
+            if source_bottom + i64::from(padding.top) + i64::from(padding.bottom) == frame {
+                closed_source_height = Some(closed_source_height.unwrap_or(0).max(frame));
+            }
+            source_height = source_height.max(frame);
+        }
+        // The full table's measured row can contain a constraint from a span
+        // whose content was consumed on an earlier page. Preserve the complete
+        // remaining row's independently stored box, rather than either dropping
+        // its blank band or carrying that spent constraint into this fragment.
+        // A merely fitting line does not close an intentional blank band.
+        // Require an independent stored line end plus effective padding to
+        // close the tallest owning-cell frame; otherwise keep the measured band.
+        Some(if closed_source_height != Some(source_height) {
+            measured_height
+        } else {
+            hwpunit_to_px(source_height as i32, self.dpi)
+        })
+    }
+
     /// 내용이 잘리지 않은 저장 행은 원래 측정한 물리 높이를 보존한다.
     /// 걸침 셀의 일부 유닛이 이 조각에서 잘리면 콘텐츠 컷 높이를 계속 쓴다.
     pub(crate) fn row_block_cut_uses_measured_height(

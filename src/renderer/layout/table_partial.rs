@@ -4968,11 +4968,17 @@ impl LayoutEngine {
                         } else {
                             &[]
                         };
-                        if measured_table.is_some()
-                            && self
-                                .row_block_cut_uses_measured_height(table, block, r, su, eu, styles)
-                        {
-                            row_heights[r] = resolved_row_heights[r];
+                        if let Some(height) = measured_table.and_then(|_| {
+                            self.row_block_cut_physical_height(
+                                table,
+                                block,
+                                (r, resolved_row_heights[r]),
+                                su,
+                                eu,
+                                styles,
+                            )
+                        }) {
+                            row_heights[r] = height;
                             continue;
                         }
                     }
