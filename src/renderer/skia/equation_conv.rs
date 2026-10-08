@@ -92,7 +92,9 @@ fn render_box(
             let mut paint = Paint::default();
             paint.set_anti_alias(true);
             paint.set_color(color);
-            for (glyph, offset) in run.glyphs.chars().zip(&run.positions) {
+            for ((glyph, offset), shear) in run.glyphs.chars().zip(&run.positions).zip(&run.shears)
+            {
+                font.set_skew_x(-(*shear as f32));
                 canvas.draw_str(
                     glyph.to_string(),
                     (

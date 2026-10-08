@@ -3348,7 +3348,9 @@ export class CanvasKitLayerRenderer {
         const run = layout.kind;
         const typeface = this.findPreparedTypeface('HyhwpEQ')?.typeface;
         const glyphs = Array.from(run.glyphs);
+        const shears = run.shears ?? glyphs.map(() => 0);
         if (!typeface || glyphs.length !== run.positions.length
+          || glyphs.length !== shears.length || !shears.every(Number.isFinite)
           || glyphs.length > CanvasKitLayerRenderer.MAX_EQUATION_TEXT_LENGTH
           || !run.positions.every(Number.isFinite) || !Number.isFinite(run.baselineShift)) return false;
         const font = new this.canvasKit.Font(typeface, fontSize);
@@ -3358,9 +3360,14 @@ export class CanvasKitLayerRenderer {
         try {
           const ids = font.getGlyphIDs(run.glyphs, glyphs.length);
           if (!ids || ids.some(id => id === 0)) return false;
-          glyphs.forEach((glyph, index) => canvas.drawText(
-            glyph, x + run.positions[index], y + layout.baseline + run.baselineShift, paint, font,
-          ));
+          glyphs.forEach((glyph, index) => {
+            canvas.save();
+            try {
+              canvas.translate(x + run.positions[index], y + layout.baseline + run.baselineShift);
+              canvas.concat([1, -shears[index], 0, 0, 1, 0, 0, 0, 1]);
+              canvas.drawText(glyph, 0, 0, paint, font);
+            } finally { canvas.restore(); }
+          });
           return true;
         } finally { font.delete(); paint.delete(); }
       }

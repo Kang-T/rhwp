@@ -9,6 +9,7 @@ pub const FONT_FAMILY: &str = "HyhwpEQ";
 pub struct GlyphRun {
     pub glyphs: String,
     pub positions: Vec<f64>,
+    pub shears: Vec<f64>,
     pub width: f64,
     pub baseline_shift: f64,
 }
@@ -93,16 +94,27 @@ pub(super) fn measure(text: &str, role: Role, fs: f64, dpi: f64, pad: f64) -> Op
     let logical_size = (fs * 48.0 / dpi).round().max(1.0) * 2.0;
     let mut glyphs = String::new();
     let mut positions = Vec::new();
+    let mut shears = Vec::new();
     let mut width = pad;
     for ch in text.chars() {
         let (rendered, advance) = glyph(ch, role)?;
         positions.push(width);
+        // Independent Print uses this text matrix for upright PUA capitals.
+        // Lowercase PUA glyphs already contain their italic outline.
+        shears.push(
+            if matches!(role, Role::Variable { italic: true }) && ch.is_ascii_uppercase() {
+                0.333
+            } else {
+                0.0
+            },
+        );
         glyphs.push(rendered);
         width += (logical_size * f64::from(advance) / 1024.0).round() * dpi / 96.0;
     }
     Some(GlyphRun {
         glyphs,
         positions,
+        shears,
         width: width + pad,
         // Roman glyphs use the font ascent, rather than the formula baseline.
         // Moving the stored control baseline moves the entire object separately.

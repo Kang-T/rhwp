@@ -1397,7 +1397,7 @@ export interface LayerEquationLayoutBox {
 }
 
 export type LayerEquationLayoutKind =
-  | { type: 'hancomGlyphs'; glyphs: string; positions: number[]; baselineShift: number }
+  | { type: 'hancomGlyphs'; glyphs: string; positions: number[]; shears?: number[]; baselineShift: number }
   | { type: 'row'; children: LayerEquationLayoutBox[] }
   | { type: 'text'; text: string }
   | { type: 'number'; text: string }

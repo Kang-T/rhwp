@@ -2881,6 +2881,13 @@ fn write_equation_layout_kind(buf: &mut String, kind: &LayoutKind) {
                 }
                 let _ = write!(buf, "{offset}");
             }
+            buf.push_str("],\"shears\":[");
+            for (index, shear) in run.shears.iter().enumerate() {
+                if index > 0 {
+                    buf.push(',');
+                }
+                let _ = write!(buf, "{shear}");
+            }
             let _ = write!(buf, "],\"baselineShift\":{}}}", run.baseline_shift);
         }
         LayoutKind::Row(children) => {

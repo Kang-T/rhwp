@@ -48,10 +48,11 @@ fn render_box(
 
     match &lb.kind {
         LayoutKind::HancomGlyphs(run) => {
-            for (glyph, offset) in run.glyphs.chars().zip(&run.positions) {
+            for ((glyph, offset), shear) in run.glyphs.chars().zip(&run.positions).zip(&run.shears)
+            {
                 svg.push_str(&format!(
-                    "<text x=\"{:.2}\" y=\"{:.2}\" font-size=\"{:.2}\" fill=\"{}\" font-family=\"{}\">{}</text>\n",
-                    x + offset, y + lb.baseline + run.baseline_shift, fs, color,
+                    "<text x=\"0\" y=\"0\" transform=\"matrix(1 0 {} 1 {:.2} {:.2})\" font-size=\"{:.2}\" fill=\"{}\" font-family=\"{}\">{}</text>\n",
+                    -shear, x + offset, y + lb.baseline + run.baseline_shift, fs, color,
                     super::hancom_glyphs::FONT_FAMILY, escape_xml(&glyph.to_string()),
                 ));
             }
