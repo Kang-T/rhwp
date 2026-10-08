@@ -544,10 +544,19 @@ impl TypesetEngine {
         {
             let whole_rows = whole_row_fit_h[cursor_row..end_row].iter().sum::<f64>()
                 + cs * (end_row - cursor_row).saturating_sub(1) as f64;
-            if avail_for_rows > consumed && (whole_rows - consumed).abs() <= 0.5 {
+            // Logical line advances selected the content cut above. Only its
+            // unused physical tail uses the same closing boundary as paint;
+            // subtracting that band before scanning would move valid units.
+            let physical_rows_available = self.stored_header_fragment_row_budget(
+                st,
+                input,
+                budget.page_avail,
+                budget.host_before_overhead,
+            ) - header_overhead;
+            if physical_rows_available > consumed && (whole_rows - consumed).abs() <= 0.5 {
                 let before_last = whole_rows - whole_row_fit_h[end_row - 1];
-                end_row_height_override = Some(avail_for_rows - before_last);
-                consumed = avail_for_rows;
+                end_row_height_override = Some(physical_rows_available - before_last);
+                consumed = physical_rows_available;
             }
         }
 

@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-08
+last_verified: 2026-10-09
 ---
 
 # semanticist21 비 draft PR 통합 검토
@@ -12,8 +12,9 @@ last_verified: 2026-10-08
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 현재 통합 base: `f0e7228f6dd2ea1437724e53ad640c40c56d204b` (최신 devel 재조회 일치). 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
-- contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
+- 현재 통합 base: `5168e3256ad58eda425d84fdd4d67e9b47bb74b1` (진행39의fetch/rebase 확인; 원격최신상태는제출직전재조회). 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
+- 이전 메인터너 검증 체크포인트: `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae`; 후속v61후보의소스·빌드·검증과새base재동기화는진행42에기록한다.
+- rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
 - 최초 contributor 누적 diff(역사 후보):47 source/test 파일, 5421 추가 / 823 삭제. contributor 원 commit은 `cherry-pick -x`로 보존. merge commit 제외, #7615 중복 의존 commit 4개는 재적용하지 않음.
@@ -789,3 +790,33 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 
 - retry2의 기존73개 재검사는 exit100/358.857초/실행19.969초로71PASS/기존2FAIL/2767skip이다. 새#6761반례2개는검사·기대값변경없이PASS복구됐다. #6024가105쪽으로PASS지만독립Print103/전쪽90%는아직미충족이며검사PASS를원문시각승인으로보고하지않는다. 교육과정은415쪽으로독립Print와같지만기존#7226의413쪽핀과#6981종료쪽소유검사는실패한다. 같은원본의전쪽Native/freshWASM90%및독립소유대조가끝나기전까지그검사·baseline을바꾸지않는다.
 - retry2 Main47–52 Native 재검증은진행중이며HWP6쪽의점수는retry1과같다. HWPX도완료되는값을해당최신run에보존한다. 현후보소스/검토기록을로컬체크포인트로고정하고같은정확한코드의freshWASM을검증한다. Main51/#6761원본40/나머지초기18개미달및최종lint·전체nextest·편집API·원격CI/merge·후속처리는남아있다. Source3개해시와컴파일snapshot을commit에대조해귀속시키며생성JS와진단/로그는stage하지않는다.
+
+- retry2의Main47–52두형식Native최종review는exit1/477.744초이다. HWP99.81596/99.98427/100.00000/99.84891/80.03252/100.00000%, HWPX99.79842/100.00000/99.69468/99.57791/82.38518/99.99428%다. 두형식각6쪽중미달은51쪽하나이며52쪽전체소유를유지한다. source-commit-stored-later-zero-origin-frame-v60-retry2.json에서컴파일소스3개와commit eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae의바이트해시가모두같음을확인했다. 같은정확한head의freshWASM wrapper는공유target에서순차실행중이다. 독립Print51쪽괘선좌표는independent-print-p51-row-bands-v60-retry2.json/SVG로보존했고추가근거없이flow/paint를clamp하거나px상수로맞추지않는다.
+
+
+### 진행 42 — 반복 머리행 조각의 실제 물리 하단과 수용 원장 대조
+
+- eb29a7a9c fresh WASM은 exit0/574.324초, 소스16개해시불변이다. WASM SHA053c420ce12fad9ae5d05309099fd0416a8807f40587ad82f1a4b0a5d5fd2492 및 JS7462392b9b4dadb36c0b60cc0afa9de3fc6e41a861b150010ea51f0a7974737a가루트pkg/Studio public과일치한다. actual Studio 새브라우저/goto+reload/캐시비활성으로서빙해시·52쪽·글꼴loaded·canvas/오류0을확인했다(browser-studio-stored-later-zero-origin-frame-v60-retry2.json,oktrue). 이는독립Print시각승인과구분한다. 같은pin의Main47–52와#1133전쪽/#6761원본39–40Native/freshWASM비교를시작했다.
+- Main51잔여원인을최종paint까지추적했다. 이전50쪽pi59 191..237의예약partial_height1005.3867px를accepted_row_boxes에기록하지만layout/table_partial.rs의최종page_cap_fold가1.3333px를접어실제상자는1004.0533px다. 이물리차이를선언33483HU의row218..237종료span에서이미사용한공간으로잘못차감해51쪽종료행이25.7067px로축소된다. 원본뒤LS3876HU/5476HU/7396HU와현재pi62flow97.28px가1.3333px어긋나첫Common frame인증도배제된다. native-physical-fold-before-v61.log 및 native-print-p50-row-band-drift-v61.json으로관측을보존했다. Print A4축척의일반누적차이와이별도수용/paint차이를구분한다.
+- 보정후보는기존single_cell_page_fragment_bottom 생산결과를원본반복머리행의continuation행예산에서도소비한다. source/body하단→기존물리page cap→prepare_table_fragment_budget 행예산→scan의실제마지막밴드→record_stored_fragment_rows 원장→stored_fragment_row_plan 종료span잔여→PageItem/MeasuredTable→table_partial 최종높이순서다. footnote/zone의더작은가용은유지하고새100HU/px상수나허용치완화를추가하지않는다. 첫조각/편집/reflow/반복머리행없는경로는기존계약을유지한다. 끝유닛의내용컷과선언빈밴드는분리하며앞반례#6761두개/기존73개/원본전체쪽수와47–52의새Native로먼저대조한다. 아직미검증후보이며검사·기대값·baseline은변경하지않는다.
+
+- 최초v61후보Nativebuild exit0/267.375초/binary3b0176019b23284f5d6baa50d180c3fba26d211e78ce64f4f263b5e84db52cee다. 빠른원본검사는Main HWP54/HWPX53으로독립52쪽과충돌했다. #1133각3/#6935=3/#6803=5/#6024=105/교육과정415쪽은유지됐다(pages-original-countercheck-v61.json). 이를보정완료로보고하지않는다. 실제logical advance가선택할내용컷예산에서physical inset을먼저빼는가정이잘못됐으므로제거한다. 해당무효후보의nextest컴파일은원본쪽수회귀가확인된뒤자체소유cargo-nextest/cargo/rustc만SIGTERM했고최종exit-15/107.021초이며test summary없다(cancel-reason.json). 출력공백때문에중단한것이나testFAIL이아니다.
+- retry1은기존scanner의내용컷선택/요구높이를유지하고refit후내용완전소비행의빈tail예약에서만같은physical cap을쓴다. logical줄전진과실제빈밴드를분리하며원래높이를수용한뒤paint에서다시확장하지않는다. 행의최소요구보다작게압축하지않고기존컷·declared source·dirty/reflow인증은유지한다. 정확한physical마지막행override가수용원장과paint로함께전달되는지앞반례/새원본컷/시각검증부터재실행한다. 최초후보의page수/시각을retry1근거로재사용하지않는다.
+- #6761원본40의eb29Native/freshWASM은둘다71.53246%다(39쪽92.48720%). 40쪽SVG에‘돋움’이Noto Sans KR ExtraLight(SHA67b4003e2be99ea44a7c957e4b35acde1b5e6e82a54fe195c5598c3c617bc2e3)로대체되어있고독립PDF에는Dotum이실제로embed되어있음을확인했다. win10-ted의Windows설치gulim.ttc를읽기전용복사하여독립face이름/해시를verified-ms-font-supply-v61/provenance.json에기록했다. 해당새경로를명시한출력으로글꼴공급차이를따로대조하며위치결함이나90%gate를면제하지않는다.
+
+- eb29의20개대응페이지Native/freshWASM점수는모두동일하다(native-wasm-original-score-parity-v60-retry2.json). Main47–52각6쪽의freshWASM최종exit1/645.276초이며미달은51쪽두형식뿐이다. #1133각3쪽은Native exit0/170.867초,freshWASM exit0/253.546초로최저96.19594%다. #6761두쪽Native exit1/50.765초,freshWASM exit1/102.934초이며미달40쪽71.53246%다. 새WASM48쪽canonical review99.98427%를직접표시해상단‘뮴)’의소유와삭제밴드/뒤본문·괘선을대조했다. 후속v61후보의완료나초기18개전체통과로승격하지않는다.
+
+- Windows gulim.ttc그대로인font supply는돋움export에반영되지않아기존점수그대로였다. TTCollection의Dotum원본face를독립sfnt TTF로추출한명시경로는실제SVG에Dotum(embedded SHA1c08ea8777fe0f775c4139d7ff4f68886d7f5608c52dd4581a22bf19175417cf)을embed했다. 공급파일SHAd090c4cb35ec18af0938ba0f0cf2c4d92e210a61c309eb533aaa122720ffb2a5와embed의glyf/hmtx/hhea/maxp/OS2동일·rawcmap차이및bestUnicodeCmap비교는issue6761-dotum-embedded-font-proof-v61.json에기록했다. 해당eb29 Native재비교 exit1/65.175초의39–40쪽점수는[(39, 92.43318), (40, 72.36214)]%다. 글꼴공급만으로해결됐다고보고하지않으며실제표원점/행/후속문단차이와freshWASM최종검증은남는다. TTC원본·face추출절차/해시는standalone-faces-provenance.json에보존했다.
+
+- retry1 Native build exit0/254.956초/binarycf1536031259e270be069cf7b44fddcdbc3769f1a4270cf84a10fdf2248e2896이며소스2개해시불변이다. 두원본52쪽/47→48 row99부분컷및51 pi59 237..238/pi62 0..40을유지했다(pages-main-countercheck-v61-retry1.json). 직접RenderTree/드리프트에서pi59종료행25.7067→27.04px와pi62 typesetflow97.28→98.6133px,원본Common888.84px의source_frame인증복구를확인했다(native-physical-fold-after-v61-retry1/ 및log). 하지만실제pi62paint는y190.8/높이879.0px이며독립Print192.427/887.833과차이가남는다. 기존첫blank-band 수용의override없음조건/별도saved_opening_frame 생산조건과후속흐름의outerbottom소비까지추적중이다. source_frame인증복구만으로51쪽출력완료를선언하지않으며추가원점/높이소비보정과재검증이필요하다. 현재기존73개재검사/47–52새Native는진행중이다.
+
+- retry1 HWP51쪽Native canonical review는80.03252→95.67443%로개선됐고직접표시했다. 하단괘선/빈밴드차이가남아95%점수로완료를면제하지않는다. HWP47/48/49/50/52는99.81596/99.98427/100/99.84815/100%다. HWPX전체선택과기존73개최종summary는진행중이며현코드freshWASM은아직없다.
+- 최신fetch에서upstream/devel=6f66932a73ee6fd05a74a83bdc438c9499a89a12를확인했다(upstream-base-advance-v61.json). 초기대상#7612가83131ecd1으로별도병합됐고후속기록이upstream에들어왔다. 이는이번스레드의remote merge로보고하지않는다. 현재컴파일/원본sweep의기준5168e3256은유지해해당결과를정확하게완결하고체크포인트커밋후새base로rebase한다. 새base소스의최종gate는별도로재실행한다.
+
+- retry1 최초 nextest handle81936은 외부exit143으로 컴파일 중 종료됐고 test summary가 없다. 재감사에서 Cargo/nextest/rustc 실행0을 확인한 뒤 남아 있던 running metadata를 terminal/environment_interrupted/innerexit 미상으로 정정하고 interrupted.json을 보존했다. 소스2개 해시 불변을 확인해 공유cache에서 동일73개 명령을 rerun1 재실행한다. 제품FAIL로 집계하지 않으며 실행 중인 작업을 중복 재시작하지 않았다.
+
+- GitHub최신조회는open non-draft23/draft6,새PR0/head·draft변경0이며이전24개중#7612만닫혔다(github-open-pr-snapshot-v61.json). #7612 API state=MERGED/mergeCommit=83131ecd186bd7483671b7886d659ecb4fd380ca를확인했다(github-pr7612-merged-v61.json). 초기18개의기여자적용이력은유지하며아직열린초기17개검토와유보6개후속순서는바꾸지않는다.
+
+- retry1 기존73개의동일command warm-cache 재실행은최종exit100/126.460초/실행20.661초로71PASS/기존2FAIL/2767skip이다(nextest-stored-header-physical-page-cap-v61-retry1-rerun1-exit.json 및log). #6761두negative계약도유지됐고새FAIL없다. 남은#6981종료소유/#7226쪽수는원본전체Native/freshWASM90%선행조건미완료로검사·기대값·baseline을변경하지않았다. Native47–52전체선택review의최종값을완결한뒤같은소스해시의로컬체크포인트와최신upstream rebase를고정한다.
+
+- retry1 Native47–52두형식review는최종exit0/498.070초이다. HWP99.81596/99.98427/100/99.84815/95.67443/100%, HWPX99.79842/100/99.97037/99.85027/96.23354/99.99428%다. 두형식선택12쪽누락0/각전체52쪽이며새HWPX51 canonical review도직접표시했다. 90%통과와남은하단괘선·첫source빈밴드/뒤흐름차이를별도로기록한다. 현후보의freshWASM/전수TSV·최종lint/full nextest와다른초기PR미달은아직미완료다. 현단계2개Rust파일/통합기록을체크포인트커밋하며generated Studio JS/출력로그/진단산출물은포함하지않는다.

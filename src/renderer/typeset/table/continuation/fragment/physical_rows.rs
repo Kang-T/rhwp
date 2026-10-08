@@ -9,6 +9,30 @@ use super::super::TableContinuationCursor;
 use super::FragmentInput;
 
 impl TypesetEngine {
+    pub(super) fn stored_header_fragment_row_budget(
+        &self,
+        st: &TypesetState,
+        input: FragmentInput<'_>,
+        available: f64,
+        outer_top: f64,
+    ) -> f64 {
+        if !input.start.is_continuation || !self.stored_header_physical_rows(st, input.source) {
+            return available;
+        }
+        // Paint closes a page-filling fragment at this same physical boundary.
+        // Its accepted row boxes must exclude the unpainted bottom band before
+        // a later closing span subtracts those boxes from its declared height.
+        let bottom = crate::renderer::float_placement::single_cell_page_fragment_bottom(
+            input.source.table,
+            st.layout.body_area.height,
+            self.dpi,
+        );
+        available.min(
+            (bottom - st.current_zone_y_offset - st.layout.pagination_tolerance_px - outer_top)
+                .max(0.0),
+        )
+    }
+
     pub(super) fn stored_header_physical_rows(
         &self,
         st: &TypesetState,
