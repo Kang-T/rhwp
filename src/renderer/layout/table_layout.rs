@@ -4839,6 +4839,18 @@ impl LayoutEngine {
         }
         let decl_sum: f64 = decl.iter().sum();
         let measured_sum: f64 = rh[..row_count].iter().sum();
+        // The object box can independently confirm content plus padding.
+        // Uniform `cellSz + padding` is not, by itself, evidence that padding
+        // was counted twice: Hancom also stores minimum cellSz values under a
+        // larger, content-sized object box. Preserve the measured rows when
+        // that box agrees with their sum, rather than shrinking only paint.
+        if table.common.height > 0
+            && table.common.height < 0x8000_0000
+            && crate::renderer::px_to_hwpunit(measured_sum, self.dpi) == table.common.height as i32
+            && crate::renderer::px_to_hwpunit(decl_sum, self.dpi) != table.common.height as i32
+        {
+            return;
+        }
         if (decl_sum - measured_sum).abs() > 1.5 {
             // [#3386] 합이 다른데도 신뢰해야 하는 한 갈래 — **모든 행이 정확히
             // `선언 + 셀 상하 안 여백`** 인 경우다.
