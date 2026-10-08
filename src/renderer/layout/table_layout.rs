@@ -8066,10 +8066,28 @@ impl LayoutEngine {
                         // 저장 가로 오프셋을 한 번 적용한다.
                         let hwpx_nested_behind_text_overlay =
                             self.nested_table_is_overlay(nested_table);
+                        let sequential_control_origin = sequential_nested_layout
+                            .as_ref()
+                            // A cut fragment owns a local child cursor. Full-cell
+                            // origins must not reinsert already consumed content.
+                            .filter(|_| !stored_block_flow || fragment_cut_units.is_none())
+                            .and_then(|layout| layout.origins[cp_idx][ctrl_idx])
+                            .map(|origin| {
+                                if stored_block_flow {
+                                    text_y_start + origin
+                                } else {
+                                    inner_area.y + origin
+                                }
+                            });
+                        // A background object does not advance the flow, but
+                        // its paragraph still follows preceding line boxes.
+                        // Use the same composed origin that measures its extent.
+                        let overlay_paragraph_origin =
+                            sequential_control_origin.unwrap_or(para_y_before_compose);
                         let overlay_frame =
                             crate::renderer::float_placement::nested_overlay_outer_frame(
                                 nested_table,
-                                para_y_before_compose,
+                                overlay_paragraph_origin,
                                 self.calc_nested_table_height(nested_table, styles),
                                 self.dpi,
                             );
@@ -8096,26 +8114,13 @@ impl LayoutEngine {
                             frame.start
                         } else if hwpx_nested_behind_text_overlay {
                             // 배경은 앞 흐름 표가 전진한 커서가 아닌 같은 호스트 문단을 참조한다.
-                            para_y_before_compose
+                            overlay_paragraph_origin
                         } else if let Some(offset) = stored_square_offset {
                             para_y_before_compose + hwpunit_to_px(offset, self.dpi)
-                        } else if let Some(origin) = sequential_nested_layout
-                            .as_ref()
-                            // A cut fragment owns a local child cursor. Full-cell
-                            // origins must not reinsert already consumed content.
-                            .filter(|_| !stored_block_flow || fragment_cut_units.is_none())
-                            .and_then(|layout| layout.origins[cp_idx][ctrl_idx])
-                        {
+                        } else if let Some(origin) = sequential_control_origin {
                             // 빈 줄에도 점유 높이가 있다. 가시 글자 유무로 원점을 다시
                             // 선택하지 않고 정렬용 높이와 같은 계획의 원점을 사용한다.
-                            if sequential_nested_layout
-                                .as_ref()
-                                .is_some_and(|layout| layout.paragraph_origins.is_some())
-                            {
-                                text_y_start + origin
-                            } else {
-                                inner_area.y + origin
-                            }
+                            origin
                         } else if has_preceding_text {
                             para_y
                         } else {

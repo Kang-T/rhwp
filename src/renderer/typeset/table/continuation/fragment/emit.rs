@@ -110,12 +110,14 @@ impl TypesetEngine {
             let accepted_scan_height = end_row_height_override.unwrap_or(current_content);
             let before_row = (consumed - accepted_scan_height).max(0.0);
             let available = (avail_for_rows - before_row).max(0.0);
-            let height = end_row_height_override.unwrap_or_else(|| {
-                (declared - used - remaining_content)
-                    .max(0.0)
-                    .min(available)
-                    .max(current_content)
-            });
+            // The scanner's override may describe only the accepted content
+            // cut. It is a lower bound, not proof that the saved row's blank
+            // physical band has already been reserved. Allocate that band in
+            // the available fragment and carry the actual box in the ledger.
+            let source_space = (declared - used - remaining_content)
+                .max(0.0)
+                .min(available);
+            let height = accepted_scan_height.max(current_content).max(source_space);
             Some((row, used, height, accepted_scan_height))
         });
         // 행 컷이 소비한 내용과 header의 요구 높이. 저장 상자의 빈 밴드는
@@ -404,7 +406,7 @@ impl TypesetEngine {
                 table,
                 st.layout.body_area.height,
                 self.dpi,
-                st.profile.hwpx_stored_layout(),
+                st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
                 st.profile.session_edited(),
             );
         let first_fragment_blank_band = !is_continuation
@@ -509,17 +511,7 @@ impl TypesetEngine {
                     // 본문을 채우는 원본 프레임은 첫 조각 빈 밴드 경로가 상자와 이어받기를 함께
                     // 소유한다(form-002 hwpx 7→8쪽: 이어받는 행 상자 = 저장 행 − 첫 프레임).
                     // 같은 저장 구조면 원본 형식과 무관하다(form-002 hwp·hwpx 쌍둥이 정본이 같다).
-                    let body_filling =
-                        crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
-                            input.source.paragraph,
-                            table,
-                            st.layout.body_area.height,
-                            self.dpi,
-                            st.profile.hwpx_stored_layout()
-                                || st.profile.hwp5_stored_pagination_layout(),
-                            st.profile.session_edited(),
-                        );
-                    if !body_filling
+                    if !body_filling_source_frame
                         && frame_height > partial_height + 0.5
                         && frame_height <= partial_height + reset_trim + 0.5
                         && frame_height <= avail_for_rows + 0.5
