@@ -624,3 +624,12 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 
 - v52 retry2 선택 Native HWP/HWPX8쪽 review는 exit0/336.111초이며 HWPX p3/p4/p19/p20=99.68701/99.67973/99.46133/97.58977%다. 기존67개는 exit100/전체346.771초/실행20.623초,64PASS/3FAIL/2127skip이다. #6803 이어받기·완전 보존2검사는 수정 전 v52에서 FAIL/수정 후 retry2에서 PASS로 복구했고 원본/기대값은 그대로다. 남은 #6024 쪽수와 #7226 쪽수/#6981 종료 뒤 소속은 앞 후보에도 남은 원본 실패로 계속 보정한다. typed 검사의 복구를 #6803 전체 피델리티 승인으로 승격하지 않는다.
 - 정확한 retry2 binary에서 원본 두 파일52쪽 Native 전수 TSV를 시작했다(native-row-cut-span-ownership-full-v52-retry2). 소스 형상/입력/기준/명령/선택 PNG는 source-code-v52-retry2 및 명령 JSON/검토 폴더로 고정했다. freshWASM, 최종 Rust lint/전체 nextest/Studio, 원본3개의90% 선행 검증과 나머지 최초18개 범위가 아직 남아 있으며 PR 생성·승인·merge는 보류한다. source 보정의 로컬 체크포인트만 커밋한다.
+
+
+### 진행 중 보정 35: 줄바꿈 구분 공백과 가운데 정렬의 가시 폭
+
+- 원본 p20의 ISO3633 두 저장 줄과 독립 Print의 대응에서 첫줄 말미 ASCII 공백은 다음 단어로의 줄바꿈 구분자이며 가시 중심에 포함되지 않는다. Native는 글리프 뒤 공백 폭6.4px의 절반만큼 첫줄을 왼쪽에 둔다. 소스의 center_excludes_trailing_ws가 is_last_line_of_para만 허용한다는 가정이 원인이다.
+- 경로: estimate_composed_line_width에서 원본 줄의 전진 폭 생산 → effective_text_width/기존 trailing_space_width_after_last_inline_object가 각 run의 실제 스타일로 구분 공백 점유를 계산 → x_start의 Center 정렬 원점 → emit_line_runs의 실제 glyph 원점이다. 문단 마지막 여부 제한을 제거해 기존 순수 텍스트 Center의 가시 폭 계약을 모든 줄에 적용한다. 문서ID/절대 px 보정은 넣지 않으며 텍스트·char offsets·줄 전진과 소유는 그대로 보존한다. TAC 개체가 있는 줄, 밑줄 말미/공백만 있는 줄은 기존 가드·helper를 따른다. #7081/#6173/#6028의 기존 회귀와 원본 Print 대조를 연결한다. 새 formal 검사/fixture/기대값은 추가하지 않는다.
+- 앞 source6c041a692의 #6803 재출력 전쪽5페이지는 exit1로99.26183/93.32244/73.88708/34.42714/33.25166%다. typed 내용 보존2검사의 복구와 실제 배치 미충족을 구분한다. 이 원본도 먼저90% 출력 보정 대상으로 남기며 테스트를 바꾸지 않는다.
+
+- 실패原本3개의 MCP Print가 완료됐다. 모두 engine2020/11.0.0.9136, pdf_print_method0/hancom2020_pdf_driver_one_up이며 입력/다운로드 해시를 검증했다. 위임전결규정103쪽(PDF90eda86b2b4dfeabc601cd9b583408c6528a9efabf4e626fd6f2e28e3bcb2b97), 교육과정415쪽(PDF82fe8eefecbf3ad5176549976a8cd486ac0bb9c113e7ac34510a69ee6ccbf17f), #6803 5쪽(PDFb6941c58dde2b2af5c6d5103f549af11efb4e6e7b451436245d22f97ee0078cf)이다. references.tsv에 같은210개 형식으로3개를 추가한다. 실패 회귀의 원본103/415쪽과 현재Native106/414쪽 및 기존 기대105/413쪽을 각각 구분한다. 기대값이 Print와 다르다는 이유만으로 수정하지 않으며 실제 전체 출력을90% 이상으로 먼저 보정한다.
