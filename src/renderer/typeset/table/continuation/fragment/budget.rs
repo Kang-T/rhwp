@@ -698,13 +698,10 @@ impl TypesetEngine {
                 })
         });
         // 저장 줄 없는 표 전용 호스트는 계산 흐름 원점을 소유한다.
-        // 첫 조각 예산이 예약한 앞 여백과 오프셋을 paint에도 같은 원점으로 전달한다.
+        // 각 조각 예산이 예약한 앞 여백과 오프셋을 paint에도 같은 원점으로 전달한다.
         // 그렇지 않으면 컷은 여백을 빼고 정해지지만 괘선은 여백만큼 위에 그려진다.
         fragment_placement = fragment_placement.or_else(|| {
-            (!is_continuation
-                && cursor_row == 0
-                && start_cut.is_empty()
-                && para.line_segs.is_empty()
+            (crate::renderer::para_has_no_stored_line_segs(para)
                 && !para_has_non_whitespace_text(para)
                 && para.controls.len() == 1
                 && !table.common.treat_as_char

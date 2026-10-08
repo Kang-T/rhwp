@@ -38,7 +38,13 @@ impl TypesetEngine {
         let queue_table_footnotes = input.prepared.queue_table_footnotes;
         let table_footnotes = &input.prepared.table_footnotes;
         let host_spacing_total = input.prepared.host_spacing_total;
-        let host_spacing_after_only = input.prepared.host_spacing_after_only;
+        // 끝 조각의 물리 상자와 아래 바깥여백은 같은 영역을 소유한다.
+        // 엄격 예산·캡션 등이 이미 예약한 몫을 다시 더하지 않는다.
+        let terminal_flow_outer_bottom = (input.prepared.terminal_outer_bottom_flow
+            - budget.terminal_outer_bottom_overhead)
+            .max(0.0);
+        let host_spacing_after_only =
+            input.prepared.host_spacing_after_only + terminal_flow_outer_bottom;
         let terminal_host_spacing = input.prepared.terminal_host_spacing;
         let relax_terminal_table_footnote_fit = input.prepared.relax_terminal_table_footnote_fit;
         let cursor_row = input.start.cursor_row;
@@ -692,7 +698,7 @@ impl TypesetEngine {
                 placement.occupied_bottom = placement.table_top
                     + owner_height
                     + if terminal {
-                        terminal_outer_bottom_overhead
+                        terminal_outer_bottom_overhead + terminal_flow_outer_bottom
                     } else {
                         // 실제로 예약한 조각 뒤 여백만 후속 흐름에 전달한다.
                         // 바깥 위 여백의 재개가 아래 여백 재개까지 뜻하지는 않는다.
@@ -708,7 +714,7 @@ impl TypesetEngine {
                 st.align_flow_to(
                     placement.occupied_bottom
                         + if terminal {
-                            host_spacing_after_only
+                            input.prepared.host_spacing_after_only
                         } else {
                             0.0
                         },
@@ -866,6 +872,9 @@ impl TypesetEngine {
                         )
                     })
                     .unwrap_or(host_spacing_after_only + terminal_host_spacing);
+                if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+                    eprintln!("DIAG_SCAN FLOW_END pi={para_idx} row={cursor_row} cont={is_continuation} current={:.3} occupied={occupied:.3} terminal_spacing={terminal_spacing:.3} outer={} terminal_flow={:.3} reserved={terminal_outer_bottom_overhead:.3} host_tags={:?} next_line={:?}", st.current_height, table.outer_margin_bottom, input.prepared.terminal_outer_bottom_flow, input.source.paragraph.line_segs.iter().map(|line| line.tag).collect::<Vec<_>>(), input.source.paragraphs_all.get(para_idx + 1).and_then(|para| para.line_segs.first()).map(|line| (line.vertical_pos, line.tag)));
+                }
                 st.advance_flow_by(occupied + terminal_spacing);
             }
             commit_fragment(

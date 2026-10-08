@@ -5910,11 +5910,84 @@ impl DocumentCore {
                 .filter(|(_, para)| unplaced_rows && has_widthless_stored_rows(para))
                 .map(|(index, _)| index)
                 .collect();
-            if matches.is_empty() && !has_cell_stack && widthless.is_empty() {
+            let inline_frames: Vec<(usize, Paragraph)> =
+                if profile.hwp5_stored_pagination_layout() && !profile.session_edited() {
+                    section
+                        .paragraphs
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(index, paragraph)| {
+                            crate::renderer::layout::normalized_single_line_inline_textbox_host(
+                                paragraph,
+                                &self.styles,
+                                self.dpi,
+                            )
+                            .map(|projected| (index, projected))
+                        })
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+            if matches.is_empty()
+                && !has_cell_stack
+                && widthless.is_empty()
+                && inline_frames.is_empty()
+            {
                 out.push(None);
                 continue;
             }
             let mut np = section.paragraphs.clone();
+            let mut frame_changes = Vec::new();
+            if !inline_frames.is_empty() {
+                let mut frames = inline_frames.into_iter().peekable();
+                let mut shift_hu = 0i32;
+                let mut previous_source_end = None;
+                for (index, paragraph) in np.iter_mut().enumerate() {
+                    let source = &section.paragraphs[index];
+                    let first = source.line_segs.first();
+                    if !matches!(source.column_type, ColumnBreakType::None)
+                        || first.is_some_and(|line| {
+                            previous_source_end.is_some_and(|end| line.vertical_pos < end)
+                        })
+                    {
+                        shift_hu = 0;
+                    }
+                    previous_source_end = source.line_segs.last().map(|line| line.vertical_pos);
+                    let projected = frames
+                        .peek()
+                        .is_some_and(|(i, _)| *i == index)
+                        .then(|| frames.next().unwrap().1);
+                    if let Some(projected) = projected {
+                        let old_height =
+                            source.line_segs.first().map_or(0, |line| line.line_height);
+                        let new_height = projected
+                            .line_segs
+                            .first()
+                            .map_or(old_height, |line| line.line_height);
+                        *paragraph = projected;
+                        if shift_hu != 0 {
+                            for line in &mut paragraph.line_segs {
+                                line.vertical_pos = line.vertical_pos.saturating_sub(shift_hu);
+                                line.tag |=
+                                    crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY;
+                            }
+                        }
+                        frame_changes.push(index);
+                        shift_hu = shift_hu.saturating_add(old_height - new_height);
+                    } else if shift_hu != 0 && !paragraph.line_segs.is_empty() {
+                        // Derived page-frame coordinates stay with the projected
+                        // geometry. Original document/save caches are untouched.
+                        let mut lines = paragraph.line_segs.clone();
+                        for line in &mut lines {
+                            line.vertical_pos = line.vertical_pos.saturating_sub(shift_hu);
+                            line.tag |=
+                                crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY;
+                        }
+                        paragraph.replace_line_segs(lines);
+                        frame_changes.push(index);
+                    }
+                }
+            }
             for &index in &widthless {
                 discard_widthless_rows_for_render(&mut np[index]);
             }
@@ -5931,7 +6004,10 @@ impl DocumentCore {
                 .iter()
                 .enumerate()
                 .map(|(i, p)| {
-                    if matches.binary_search(&i).is_ok() || widthless.binary_search(&i).is_ok() {
+                    if matches.binary_search(&i).is_ok()
+                        || widthless.binary_search(&i).is_ok()
+                        || frame_changes.binary_search(&i).is_ok()
+                    {
                         let mut c = crate::renderer::composer::compose_paragraph_in_context(
                             p,
                             &self.styles,

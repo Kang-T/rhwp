@@ -455,6 +455,13 @@ impl TypesetEngine {
                 content_budget,
                 styles,
             );
+            if std::env::var("RHWP_DIAG_SCAN").is_ok() {
+                eprintln!(
+                    "DIAG_SCAN CUT_BASE r={} cursor={} avail={:.3} prior={:.3} cs={:.3} padding={:.3} content_budget={:.3} cut_budget={:.3} height={:.3} fully={} end_cut={:?}",
+                    r, cursor_row, avail_for_rows, consumed, cs_before, padding,
+                    content_budget, budget, res.consumed_height, res.fully_consumed, res.end_cut
+                );
+            }
             let source_tail_query = table::scan::source_tail::SourceTailQuery {
                 row: &row_query,
                 row_start_cut,
@@ -488,8 +495,17 @@ impl TypesetEngine {
                         &res,
                         &source_tail_cut,
                         mid_frame_only,
-                        avail_for_rows,
+                        content_budget,
                     );
+                    if std::env::var("RHWP_DIAG_SCAN").is_ok() {
+                        eprintln!(
+                            "DIAG_SCAN CUT_TAIL r={} enabled={} mid={} extension={:.3} fit={} owns={} candidate_height={:.3} candidate_fully={} candidate_cut={:?}",
+                            r, source_tail_enabled, mid_frame_only, extension,
+                            mid_extension_ok, source_tail_owns_this_page,
+                            source_tail_cut.consumed_height, source_tail_cut.fully_consumed,
+                            source_tail_cut.end_cut
+                        );
+                    }
                     if extension > 0.5 && mid_extension_ok && source_tail_owns_this_page {
                         // Downstream fit/retry decisions must reason in the
                         // same frame-sized budget as the cut.  The precise

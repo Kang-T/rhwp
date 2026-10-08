@@ -3678,7 +3678,40 @@ impl LayoutEngine {
                                     } else {
                                         tac_text_offset.min(inner_area.width)
                                     };
-                                    let ctrl_area = LayoutRect {
+                                    let empty_inline_table = nested_table.common.treat_as_char
+                                        && table_host_line_only_fragment
+                                        && all_runs_empty;
+                                    if empty_inline_table {
+                                        let owner = super::control_line_seg_index(para, ctrl_idx)
+                                            .unwrap_or(empty_tac_current_line);
+                                        if owner != empty_tac_current_line {
+                                            empty_tac_current_line = owner;
+                                            let line_width =
+                                                tac_line_widths.get(owner).copied().unwrap_or(0.0);
+                                            empty_tac_x = match para_alignment {
+                                                Alignment::Center | Alignment::Distribute => {
+                                                    inner_area.x
+                                                        + (inner_area.width - line_width).max(0.0)
+                                                            / 2.0
+                                                }
+                                                Alignment::Right => {
+                                                    inner_area.x
+                                                        + (inner_area.width - line_width).max(0.0)
+                                                }
+                                                _ => {
+                                                    inner_area.x
+                                                        + effective_margin_left_line(
+                                                            para_margin_left,
+                                                            para_indent,
+                                                            owner,
+                                                        )
+                                                }
+                                            };
+                                        }
+                                    }
+                                    // 재귀 컷도 전체 표 경로가 사용하는 인라인 줄 원점을 받는다.
+                                    // 자식 부분 표의 기본 Left 정렬로 이 원점을 다시 잃지 않는다.
+                                    let mut ctrl_area = LayoutRect {
                                         x: inner_area.x + tac_x_offset,
                                         y: nested_y,
                                         width: (inner_area.width - tac_x_offset).max(0.0),
@@ -3788,6 +3821,17 @@ impl LayoutEngine {
                                             || s.offset_within_start > 0.5
                                             || s.visible_height + 0.5 < nested_h
                                     });
+                                    if empty_inline_table
+                                        && split_info
+                                            .as_ref()
+                                            .is_some_and(|split| split.recursive_cut.is_some())
+                                    {
+                                        ctrl_area.x = empty_tac_x
+                                            + hwpunit_to_px(
+                                                nested_table.outer_margin_left as i32,
+                                                self.dpi,
+                                            );
+                                    }
                                     if split_ref.is_some_and(|s| {
                                         s.end_row < nested_table.row_count as usize
                                             || s.visible_height + 0.5 < nested_h
@@ -3914,15 +3958,50 @@ impl LayoutEngine {
                                             nested_ctx,
                                             0.0,
                                             0.0,
-                                            None,
+                                            empty_inline_table.then(|| {
+                                                empty_tac_x
+                                                    + hwpunit_to_px(
+                                                        nested_table.outer_margin_left as i32,
+                                                        self.dpi,
+                                                    )
+                                            }),
                                             split_ref,
                                             None,
                                             None,
                                             false,
                                             clamp_header_negative_para_offset,
                                             0.0,
-                                            stored_float_frame
-                                                .map(|f| (None, f.table_top))
+                                            empty_inline_table
+                                                .then(|| {
+                                                    (
+                                                        Some(
+                                                            empty_tac_x
+                                                                + hwpunit_to_px(
+                                                                    nested_table.outer_margin_left
+                                                                        as i32,
+                                                                    self.dpi,
+                                                                ),
+                                                        ),
+                                                        // x만 재사용해도 기존 세로 바깥여백은
+                                                        // 전체 표와 같은 원점 계산으로 보존한다.
+                                                        self.compute_table_y_position(
+                                                            nested_table,
+                                                            nested_h,
+                                                            nested_y,
+                                                            &ctrl_area,
+                                                            1,
+                                                            0.0,
+                                                            0.0,
+                                                            None,
+                                                            None,
+                                                            false,
+                                                            false,
+                                                        ),
+                                                    )
+                                                })
+                                                .or_else(|| {
+                                                    stored_float_frame.map(|f| (None, f.table_top))
+                                                })
                                                 .or_else(|| {
                                                     self.reflow_nested_table_origin(
                                                         para,
@@ -3945,6 +4024,17 @@ impl LayoutEngine {
                                         .as_ref()
                                         .map(|split| split.flow_height)
                                         .unwrap_or(table_h_rendered);
+                                    if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+                                        eprintln!("DIAG_SCAN INLINE_SLOT parent_pi={} cp={cp_idx} ctrl={ctrl_idx} tac={} table_only={table_host_line_only_fragment} empty_runs={all_runs_empty} alignment={para_alignment:?} recursive={} line={} line_widths={tac_line_widths:?} prepared_x={empty_tac_x:.3} area_x={:.3} area_w={:.3} nested_w={nested_w:.3} painted={:?}", cell_context.parent_para_index, nested_table.common.treat_as_char, split_info.as_ref().is_some_and(|split| split.recursive_cut.is_some()), empty_tac_current_line, ctrl_area.x, ctrl_area.width, cell_node.children.get(first_new_child).map(|child| child.bbox));
+                                    }
+                                    if empty_inline_table {
+                                        empty_tac_x += nested_w
+                                            + hwpunit_to_px(
+                                                nested_table.outer_margin_left as i32
+                                                    + nested_table.outer_margin_right as i32,
+                                                self.dpi,
+                                            );
+                                    }
                                     // An uncut stored float already resolved its physical
                                     // body and margins. The renderer's returned total band
                                     // must not add those margins again at table_top.

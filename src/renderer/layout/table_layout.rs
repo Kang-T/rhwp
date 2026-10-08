@@ -5805,7 +5805,7 @@ impl LayoutEngine {
     }
 
     /// 표 세로 위치 결정 (text_wrap + v_offset + 캡션)
-    fn compute_table_y_position(
+    pub(super) fn compute_table_y_position(
         &self,
         table: &crate::model::table::Table,
         table_height: f64,
@@ -21995,7 +21995,7 @@ impl LayoutEngine {
 
     /// 실제 선택한 중첩 표 구간의 추가 점유 공간을 구한다. 종결 컷은 비종결 컷과
     /// 다른 뷰포트 꼬리를 소유할 수 있으므로 끝 컷을 `units.len()-1`로 추정하지 않는다.
-    fn row_cut_mixed_nested_reserve(
+    pub(in crate::renderer) fn row_cut_mixed_nested_reserve(
         &self,
         table: &crate::model::table::Table,
         row: usize,

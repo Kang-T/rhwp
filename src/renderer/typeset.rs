@@ -300,6 +300,8 @@ struct HostSpacing {
     after: f64,
     /// spacing_after만 (마지막 fragment용 — Paginator와 동일)
     spacing_after_only: f64,
+    /// 재조판한 흐름 개체의 마지막 조각 뒤에서 닫을 아래 바깥여백.
+    terminal_outer_bottom_flow: f64,
     /// 페이지 적합 판정용 after — 빈 호스트 자리차지 표의 outer_margin_bottom 은
     /// 흐름 전진에만 계상하고 fit 에서 제외한다 (#2195 stage58: 86712 구분선 간격
     /// 한글 괘선 실측 vs hwpspec 178쪽 핀(#1086) 동시 충족).
@@ -6783,6 +6785,7 @@ mod tests {
             host_spacing_total: 0.0,
             host_spacing_before: 0.0,
             host_spacing_after_only: 0.0,
+            terminal_outer_bottom_flow: 0.0,
             terminal_host_spacing: 0.0,
             strict_following_plain_text_fit: false,
             budget_para_start_height: 0.0,

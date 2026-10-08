@@ -138,6 +138,8 @@ pub(in crate::renderer::typeset) struct BlockTableContinuationPreparedState {
     pub(in crate::renderer::typeset) host_spacing_total: f64,
     pub(in crate::renderer::typeset) host_spacing_before: f64,
     pub(in crate::renderer::typeset) host_spacing_after_only: f64,
+    /// 끝 조각 상자가 이미 예약한 몫을 제외하고 흐름에서 닫는 개체 아래여백.
+    pub(in crate::renderer::typeset) terminal_outer_bottom_flow: f64,
     /// 마지막 RowBreak child 뒤의 저장 empty-host line spacing. 첫 anchor
     /// fragment가 아니라 terminal continuation 뒤에서 한 번만 소비한다.
     pub(in crate::renderer::typeset) terminal_host_spacing: f64,

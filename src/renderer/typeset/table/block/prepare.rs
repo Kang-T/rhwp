@@ -1130,6 +1130,7 @@ impl TypesetEngine {
             host_spacing_total,
             host_spacing_before: ft.host_spacing.before,
             host_spacing_after_only: ft.host_spacing.spacing_after_only,
+            terminal_outer_bottom_flow: ft.host_spacing.terminal_outer_bottom_flow,
             terminal_host_spacing,
             strict_following_plain_text_fit: ft.strict_following_plain_text_fit,
             budget_para_start_height,
