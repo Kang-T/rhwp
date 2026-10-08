@@ -636,3 +636,19 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 
 - v53 Native build exit0/270.637초, binary SHAdcbc04665f608394f57c8b83fc6a412697508ec23e4ffb0b43f9cfcf6b6aa524다. ISO 첫줄 x188.2→191.2px/독립 Print191.36px로 가시 중심 차이를 제거하고 줄 전진·문자열은 보존했다. HWP p19/p20=99.99671/97.72314%, HWPX=99.92627/97.86418%의 새 review를 직접 읽었다(native-center-wrapped-space-review-v53). 아직 하단 괘선의 작은 차이는 남는다. 기존7081 Center/Right·6173 TAC·6028 밑줄4/4 PASS(exit0/296.718초,실행0.113초/631skip)이며 검사·입력·기대값을 바꾸지 않았다.
 - 앞 source6c041a692 HWP52쪽 전수 TSV 최저48.03726%/미통과13쪽/누락0이다. 미통과는22/23/24/28/29/30/31/39/48/49/50/51/52이며 v50의15쪽에서20/21쪽이 개선됐다. HWPX 전수는 계속 진행 중이다. 현재v53 재출력 p22는47.99365%의 직접 미충족이며 원인 조사는 다음 source 단계다.
+
+
+### 진행 중 보정 36: 첫 프레임 밖의 원본 두 문단 행 컷
+
+- p21/p22 독립 Print는237행의 “압축강도”/KS M ISO844를 p21, 다음 문단“(경질형 에폭시수지)”를 p22에 둔다. 실제 두 문단 LS는 각각0·LH1000·첫LS300HU이고 padding과 두 줄 점유/간격 합이cellSz2866HU를 정확히 닫는다. 현재p21 실행은 content budget14.1px에 first unit17.3px(글줄13.3+다음줄간격4)을 강제 선택하지만 가시 cutoff/paint에서도 간격을 남겨20.9px짜리 유효 줄 조각을 배제한다(scattered-p21-cut-trace-v53.log).
+- 기존 native_saved_two_line_row_frame은 동일 shape를 Common.height의 첫 프레임 교차에만 허용해 후속 프레임의 컷을 놓친다. 첫 프레임 위치 질의는 유지하고, 실제 RowCut의 source 두 줄/정확한cellSz 계약은 별도 공유 결과로 산출한다. 저장 표가 첫 프레임을 넘는 근거는 각 행의 명시적 single-row 최대 선언 높이 합이라는 하한이다. single-row 없는 병합 전용 행은0하한으로 포함하고 새로운 높이를 추정하지 않는다. 이 하한이Common.height를 넘으면 소유된 프레임은 전체 표가 아니다.
+- 공통결과는 native_saved_reset_cut_trailing_trim → advance_row_cut 예산 수용·row_cut_content_height/물리패딩 → row_step source-boundary keep → partial paint의같은 가시 컷으로 소비한다. 문단별0만으로 판정하지 않고 실제 원본dirty/합성LS/control/정확한선언상자/스타일 계약을 확인한다. HWP/HWPX 원본 둘과 기존6761/7379 등 경계 검사를 실행하며 새 fixture/기대값은 추가하지 않는다.
+
+- source6c041a692의Native HWPX52쪽도 종료(exit1)됐으며 최저48.41629%/미통과13쪽/누락0이다. source 이전 후보의 전수 HWP/HWPX 정리는 native-row-cut-span-ownership-full-v52-retry2-summary.json에 있다. 현재source 단계의 최종 증거로 이전 전수를 재사용하지 않는다.
+- 두 문단 행의 간격 trim은 부분 컷의 다음 unit이 남아 있을 때만 적용한다. 완료된 whole-cell 마지막unit은 이미 LS를 제외하므로 두 번 빼지 않는다. 기존 첫 프레임 위치 질의는 hwp5/원본 행-prefix 교차 계약을 그대로 유지하고 후속 RowCut helper와 별도로 호출한다. source-code-v54의 새 helper는90줄이며 source3파일+SHA를 새 build에 고정한다.
+
+- v54 첫 build exit0/260.076초이나 원본 HWP/HWPX dump-pages에서 p21 end237/endCut없음, p22 start237/startCut없음으로 보정 효과가 없었다. readonly 원본 진단은 row237의 원본 두 LS, padding283+283, spacing_before/after0과 1000+300+1000+566=2866HU의 정확한 선언 상자를 확인했다(plain-row-frame-source-v54.log). 원인은 컷 trim의 호출이 아직 첫 선언 프레임 전용 native_saved_two_line_row_frame에 남아 있던 연결 누락이다. retry1에서 후속 RowCut용 stored_two_line_row_cut_frame을 호출하도록 수정한다. 첫 프레임 예약의 별도 인증은 유지하며, 효과 없는 v54를 시각 통과로 보고하지 않는다.
+
+- v54 retry1 Native build exit0/255.321초, binary SHA cadc1391f0cb2750de5a3a5f50bc4892d69e3f9c27585494f40edd32beb44ec5다. 두 원본은52쪽이며 p21 end238/endCut[1,1], p22 start237/startCut[1,1]로 독립 Print와 동일한 원본237행의 문단 소유를 복구했다. table pi18의 일반 셀 row237에서 p21 압축강도/KS M ISO844, p22 (경질형 에폭시수지)/빈 완료 method를 직접 확인했다(scattered-row237-source-owned-cells-v54-retry1.json, independent-print-row237-text-pages-v54-retry1.json). JSON으로 rowspan 소유를 판정한 증거가 아니다.
+- Native 선택12쪽 review exit1/469.618초다. HWP p3/p4/p21/p22/p23/p24=99.87432/99.96125/100.00000/94.98743/50.15023/56.14305%, HWPX=99.86229/99.92357/99.95350/95.71094/49.94848/55.94398%다. p22/p23 review PNG를 직접 표시했으며 p22 상단 표·뒤 제목은 복구됐지만 하단 첫 조각/다음 쪽 내용은 미충족이다. 앞 후보p22 47.99365%와 구분한다. fresh WASM과 원본 전체90%는 아직 미검증이다.
+- 기존 경계67검사는64PASS/3FAIL/2127skip(exit100/339.041초,실행19.006초)다. 정상64개는 유지되며 실패도 기존 #6024(106vs105), #7226(414vs413), #6981 노동인권 소속 세 개 그대로다. 해당 원본의 전체90% 출력 선행 보정이 끝나지 않았으므로 검사·기대값·baseline을 변경하지 않았다.

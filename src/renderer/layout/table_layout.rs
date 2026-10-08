@@ -1,5 +1,6 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
+mod stored_plain_row_frame;
 mod stored_span_content;
 mod stored_zero_origin;
 
@@ -14493,7 +14494,7 @@ impl LayoutEngine {
             // row ladder extends beyond the first declared object frame.
             let declared_two_line_frame = pi == 1
                 && cell.paragraphs.len() == 2
-                && self.native_saved_two_line_row_frame(table, usize::from(cell.row), styles);
+                && self.stored_two_line_row_cut_frame(table, usize::from(cell.row), styles);
             let reset_before = declared_two_line_frame
                 || if pi > 0 && cell_has_local_vpos_origin {
                     // [#7095] 저장 LINE_SEG 가 없는 표 host 문단(p18: 3×3 표)은 비교할 줄이 없다.
@@ -17741,12 +17742,12 @@ impl LayoutEngine {
         // 그 뒤 줄 간격을 현재 조각의 별도 가시 밴드로 더하지 않는다.
         let two_line_row_frame = start_cut == 0
             && end_cut == 1
-            && self.native_saved_two_line_row_frame(table, usize::from(cell.row), styles);
+            && self.stored_two_line_row_cut_frame(table, usize::from(cell.row), styles);
         if two_line_row_frame {
-            if let Some(closing) = units
-                .first()
-                .filter(|u| u.para_idx == 0 && u.vis_start == 0 && u.vis_end == 1)
-            {
+            if let Some(closing) = units.first().filter(|u| {
+                // The last whole-cell unit already excludes trailing spacing.
+                end_cut < units.len() && u.para_idx == 0 && u.vis_start == 0 && u.vis_end == 1
+            }) {
                 if let Some([line]) = cell.paragraphs.first().map(|p| p.line_segs.as_slice()) {
                     if line.vertical_pos == 0
                         && line.line_height > 0
@@ -17941,65 +17942,8 @@ impl LayoutEngine {
                 && declared_frame < preceding_height + i64::from(height)
         });
         self.profile.get().hwp5_stored_pagination_layout()
-            && !self.profile.get().session_edited()
-            && !self
-                .render_normalization
-                .borrow()
-                .table_text_reflowed(table)
-            && !table.common.treat_as_char
-            && table.page_break == TablePageBreak::RowBreak
-            && table
-                .cells
-                .iter()
-                .filter(|cell| usize::from(cell.row) == row)
-                .all(|cell| cell.row_span == 1)
-            && table.common.height > 0
             && row_straddles_declared_frame
-            && table
-                .cells
-                .iter()
-                .filter(|other| usize::from(other.row) == row)
-                .all(|other| {
-                    other.row_span == 1
-                        && !other.dirty_flag
-                        && other.paragraphs.iter().all(|p| {
-                            !p.stored_text_partition_is_dirty()
-                                && !p.cell_format_vpos_dirty
-                                && p.controls.is_empty()
-                        })
-                })
-            && table
-                .cells
-                .iter()
-                .filter(|other| usize::from(other.row) == row)
-                .any(|other| {
-                    let [first, next] = other.paragraphs.as_slice() else {
-                        return false;
-                    };
-                    let ([a], [b]) = (first.line_segs.as_slice(), next.line_segs.as_slice()) else {
-                        return false;
-                    };
-                    let padding = other.effective_padding(&table.padding);
-                    (a.tag | b.tag) & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
-                        == 0
-                        && a.vertical_pos == 0
-                        && b.vertical_pos == 0
-                        && a.line_height > 0
-                        && b.line_height > 0
-                        && a.line_spacing >= 0
-                        && i64::from(a.line_height)
-                            + i64::from(a.line_spacing)
-                            + i64::from(b.line_height)
-                            + i64::from(padding.top)
-                            + i64::from(padding.bottom)
-                            == i64::from(other.height)
-                        && [first, next].iter().all(|p| {
-                            styles
-                                .para_styles
-                                .get(p.para_shape_id as usize)
-                                .is_some_and(|s| s.spacing_before == 0.0 && s.spacing_after == 0.0)
-                        })
-                })
+            && self.stored_two_line_row_cut_frame(table, row, styles)
     }
 
     /// 재조판 조각의 마지막 줄 뒤 간격은 다음 줄과의 거리다.

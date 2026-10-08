@@ -920,8 +920,9 @@ impl TypesetEngine {
             // the entire table. Keep the complete unit at its saved boundary
             // without weakening the actual fragment-height budget below.
             let stored_row_boxes_exceed_object_frame =
-                crate::renderer::layout::LayoutEngine::stored_row_boxes_exceed_object_frame(table);
-            let stored_plain_reset_boundary_keep = st.profile.hwp5_stored_pagination_layout()
+                layout_engine.stored_row_boxes_exceed_first_frame(table);
+            let stored_plain_reset_boundary_keep = (st.profile.hwp5_stored_pagination_layout()
+                || st.profile.hwpx_stored_layout())
                 && !st.profile.session_edited()
                 && !self.render_normalization.table_text_reflowed(table)
                 && stored_row_boxes_exceed_object_frame
