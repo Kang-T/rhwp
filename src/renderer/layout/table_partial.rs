@@ -117,6 +117,7 @@ struct PartialTableHostContext<'a> {
     pre_emitted_host_content_height: f64,
     host_line_spacing: f64,
     resolved_table_top: Option<f64>,
+    predecessor_flow_bottom: Option<f64>,
 }
 
 /// Returns the content table inside transparent, empty 1×1 wrapper tables.
@@ -3840,6 +3841,7 @@ impl LayoutEngine {
                                                 pre_emitted_host_height: 0.0,
                                                 pre_emitted_host_content_height: 0.0,
                                                 host_line_spacing: 0.0,
+                                                predecessor_flow_bottom: None,
                                                 resolved_table_top: stored_float_frame
                                                     .map(|f| f.table_top)
                                                     .or_else(|| {
@@ -4295,6 +4297,7 @@ impl LayoutEngine {
         clamp_header_negative_para_offset: bool,
         probe: Option<&PartialTableCellProbe>,
         resolved_table_top: Option<f64>,
+        predecessor_flow_bottom: Option<f64>,
     ) -> f64 {
         let para = match paragraphs.get(para_index) {
             Some(p) => p,
@@ -4347,6 +4350,7 @@ impl LayoutEngine {
                 pre_emitted_host_content_height,
                 host_line_spacing,
                 resolved_table_top,
+                predecessor_flow_bottom,
             },
             section_index,
             styles,
@@ -4420,6 +4424,7 @@ impl LayoutEngine {
             pre_emitted_host_content_height,
             host_line_spacing,
             resolved_table_top,
+            predecessor_flow_bottom,
         } = host;
 
         // [Issue #4326] Pagination can deliberately use the rows of a transparent
@@ -4589,7 +4594,8 @@ impl LayoutEngine {
                     };
                     Some(child.bbox.y + child.bbox.height + repeated_previous_bottom)
                 })
-                .fold(f64::NEG_INFINITY, f64::max);
+                .fold(f64::NEG_INFINITY, f64::max)
+                .max(predecessor_flow_bottom.unwrap_or(f64::NEG_INFINITY));
             let reclaims_previous_host_margin = reclaim_previous_host_margin.is_some_and(|max| {
                 prev_table_end.is_finite()
                     && y_start > prev_table_end

@@ -3422,6 +3422,11 @@ impl DocumentCore {
             col.paragraph_float_placements
                 .get(&(parent_para_idx, control_idx))
                 .map(|p| col_area.y + p.table_top),
+            crate::renderer::float_placement::preceding_float_flow_bottom_px(
+                &col.paragraph_float_placements,
+                parent_para_idx,
+            )
+            .map(|bottom| col_area.y + bottom),
         );
 
         // legacy 와 동일한 매칭 함수로 캐럿·셀 bbox 탐색

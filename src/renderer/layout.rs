@@ -14880,6 +14880,11 @@ impl LayoutEngine {
             ctx.paragraph_float_placements
                 .get(&(para_index, control_index))
                 .map(|p| col_area.y + p.table_top),
+            crate::renderer::float_placement::preceding_float_flow_bottom_px(
+                ctx.paragraph_float_placements,
+                para_index,
+            )
+            .map(|bottom| col_area.y + bottom),
         );
         if render_deferred_rowbreak_host_text_after {
             if let Some(para) = paragraphs.get(para_index) {
