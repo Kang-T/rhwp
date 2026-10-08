@@ -396,6 +396,11 @@ impl TypesetEngine {
                 .iter()
                 .filter_map(|((para, ctrl), v)| to_local(*para).map(|l| ((l, *ctrl), v.clone())))
                 .collect(),
+            float_pushed_line_spacings: st
+                .float_pushed_line_spacings
+                .iter()
+                .filter_map(|(para, spacing)| to_local(*para).map(|local| (local, *spacing)))
+                .collect(),
         };
         let scratch = crate::renderer::layout::LayoutEngine::new(self.dpi);
         // 렌더 셋업과 같은 출처 프로필·정규화를 싣는다. 프로필이 기본값이면 HWP3 변환본의
