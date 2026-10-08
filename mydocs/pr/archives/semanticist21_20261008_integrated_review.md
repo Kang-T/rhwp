@@ -591,5 +591,5 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 ### 한컴 기준 PDF 보존: untracked 자료 정리
 
 - 사용자 지시 “현재 untract 된 pdf 는 뭐임? 필요없으면 제거, 필요하면 커밋”에 따라 `pdf/semanticist21-20261008/`의210개 PDF(10,134,567바이트)를 확인했다. 원본 기준, 편집·합성 대조 및 진단·반증 대조이며 기존 추적 PDF/이번 폴더 내부의 바이트 동일 중복은0이다. 현재 검토의 독립 출력 증거로 보존한다.
-- `references.tsv`에 입력 경로·입력 SHA256, PDF SHA1/SHA256·크기·쪽수, Creator/Producer, engine·job ID·상태·print_method 및 로컬 작업 기록을 연결했다.210개 입력 해시는 현재 파일과 모두 일치하고210개 변환 상태는 succeeded다. 과거 작업 기록에 print_method가 없는 항목은 빈 칸으로 남겼으며 method0 검증으로 승격하지 않는다. 변환 서비스 주소/비밀 환경 값은 포함하지 않는다. 상세 검사 원장은 ignored `output/pr-review/semanticist21-20261008/pdf-reference-audit-v51.json`에 보존한다.
+- `references.tsv`에 입력 경로·입력 SHA256, PDF SHA1/SHA256·크기·쪽수, Creator/Producer, engine·job ID·상태·print_method 및 로컬 작업 기록을 연결했다.210개 입력 해시는 현재 파일과 모두 일치하고210개 변환 상태는 succeeded다. 출력 계약은 작업의 status.result.pdf_print_method에서 읽었으며210개 모두 method0을 확인했다. 원본 문서의 info.printMethod와 변환 결과 계약을 구분한다. 변환 서비스 주소/비밀 환경 값은 포함하지 않는다. 상세 검사 원장은 ignored `output/pr-review/semanticist21-20261008/pdf-reference-audit-v51.json`에 보존한다.
 - 이 커밋은 기준 PDF 보존이며 새 formal 회귀 fixture/golden 추가나 시각 gate 통과 판정이 아니다. 편집·합성 입력은 현재 ignored 증거 경로에 보존되어 있으며 최종 제출 증적의 입력 재현성 정리가 아직 남아 있다. 진행 중 v51 source는 별도로 검증한다.
