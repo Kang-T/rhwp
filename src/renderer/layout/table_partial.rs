@@ -4946,6 +4946,8 @@ impl LayoutEngine {
         ) || crate::renderer::float_placement::stored_empty_offset_rowbreak_fragment_repeats_outer_margin(
             self.profile.get().hwp5_stored_pagination_layout() || self.profile.get().hwpx_stored_layout(),
             para, outer_table,
+        ) || crate::renderer::float_placement::stored_repeated_header_rowbreak_outer_frame(
+                self.profile.get(), para, outer_table,
         ) || matches!(
             outer_table.page_break,
             crate::model::table::TablePageBreak::CellBreak

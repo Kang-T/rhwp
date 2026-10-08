@@ -110,13 +110,17 @@ impl TypesetEngine {
                 self.profile.get().hwp5_stored_pagination_layout() || self.profile.get().hwpx_stored_layout(),
                 para, table,
             );
+        let repeated_header_outer_frame =
+            crate::renderer::float_placement::stored_repeated_header_rowbreak_outer_frame(
+                st.profile, para, table,
+            );
         let (host_before_overhead, fragment_outer_bottom_overhead) =
             partial_rowbreak_fragment_spacing_px(
                 table,
                 host_spacing_before,
                 is_continuation,
                 strict_following_plain_text_fit || single_cell_page_fragment
-                    || repeat_fragment_outer_margin,
+                    || repeat_fragment_outer_margin || repeated_header_outer_frame,
                 crate::renderer::float_placement::empty_host_cellbreak_fragment_repeats_outer_margin(
                     self.profile.get().hwp5_stored_pagination_layout() || self.profile.get().hwpx_stored_layout(),
                     para,
@@ -194,6 +198,7 @@ impl TypesetEngine {
                 && !single_cell_page_fragment
                 && !recursive_overlay_frame
                 && !repeat_fragment_outer_margin
+                && !repeated_header_outer_frame
             {
                 hwpunit_to_px(table.outer_margin_top as i32, self.dpi)
             } else {

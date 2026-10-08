@@ -1,5 +1,8 @@
 //! 부동 개체의 흐름 예약과 실제 배치가 함께 쓰는 프레임.
 
+mod stored_header_frame;
+pub(crate) use stored_header_frame::stored_repeated_header_rowbreak_outer_frame;
+
 use std::ops::Range;
 
 use crate::model::control::Control;
