@@ -113,12 +113,17 @@ pub(crate) fn find_next_tab_stop(
     available_width: f64,
     text_start_offset: f64,
 ) -> (f64, u8, u8) {
+    let right_edge = text_start_offset + available_width;
     // 커스텀 탭 정지에서 현재 위치 뒤의 첫 번째 검색
     for ts in tab_stops {
-        // type=1(오른쪽) 탭은 단 기준 절대 위치이므로 available_width 클램핑 제외.
-        // 들여쓰기(left_margin)가 있는 문단에서도 오른쪽 탭이 동일 위치에 정렬되도록 한다.
-        // type=0(왼쪽)/2(가운데) 탭은 종전대로 클램핑하여 텍스트 영역 밖으로 넘어가지 않게 한다.
-        let pos = if ts.tab_type != 1 && ts.position > available_width && available_width > 0.0 {
+        // 명시적 오른쪽 정지는 단 기준 좌표다. 문단 여백을 다시 더하지 않고,
+        // 현재 셀/줄의 우단 안에 있는 정지는 보존한다. 원 문서 폭으로 저장된
+        // 정지가 더 좁은 셀 우단을 넘으면 그 셀의 정렬 프레임을 사용한다.
+        // #6800의 85040HU 정지는 셀 안에서 566.93px가 아닌 가용 우단에 정렬된다.
+        // 여백을 뺀 available_width만 비교하면 정상 들여쓰기 정지도 짧아진다.
+        let pos = if ts.tab_type == 1 && available_width > 0.0 && ts.position > right_edge {
+            right_edge
+        } else if ts.tab_type != 1 && ts.position > available_width && available_width > 0.0 {
             available_width
         } else {
             ts.position
@@ -128,7 +133,6 @@ pub(crate) fn find_next_tab_stop(
         }
     }
     // auto_tab_right: 커스텀 탭이 모두 지나갔으면 오른쪽 끝을 right 탭으로
-    let right_edge = text_start_offset + available_width;
     if auto_tab_right && available_width > 0.0 && right_edge > abs_x + 0.5 {
         return (right_edge, 1, 0); // 명시적 탭과 같은 단 기준 좌표
     }
