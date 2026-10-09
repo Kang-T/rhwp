@@ -9908,7 +9908,12 @@ impl LayoutEngine {
                 // a formatted height here would count leading spacing again
                 // after a partial table; leaving a trimmed cursor would let the
                 // following table overlap the title.
-                if multi_col_width.is_none() && matches!(item, PageItem::FullParagraph { .. }) {
+                if multi_col_width.is_none()
+                    && matches!(
+                        item,
+                        PageItem::FullParagraph { .. } | PageItem::Shape { .. }
+                    )
+                {
                     let stored_end = paragraphs.get(item_para).and_then(|para| {
                         let comp = composed.get(item_para)?;
                         if comp.lines.len() != para.line_segs.len() {
@@ -9921,16 +9926,28 @@ impl LayoutEngine {
                             self.profile.get(),
                             self.dpi,
                         )?;
-                        frame.project(
-                            _y_in,
-                            hcursor.vpos_page_base.or(hcursor.vpos_lazy_base),
-                            if hcursor.vpos_page_base.is_some() {
-                                hcursor.col_anchor_y
-                            } else {
-                                col_area.y
-                            },
-                            self.dpi,
-                        )
+                        // The shape item may follow its paragraph's empty text
+                        // item. Project from the same original paragraph entry
+                        // used by measurement, before that text item advances.
+                        let source_start = if matches!(item, PageItem::Shape { .. }) {
+                            *para_start_y.get(&item_para)?
+                        } else {
+                            _y_in
+                        };
+                        frame
+                            .project(
+                                source_start,
+                                hcursor.vpos_page_base.or(hcursor.vpos_lazy_base),
+                                if hcursor.vpos_page_base.is_some() {
+                                    hcursor.col_anchor_y
+                                } else {
+                                    col_area.y
+                                },
+                                self.dpi,
+                            )
+                            .filter(|(_, end)| {
+                                !matches!(item, PageItem::Shape { .. }) || *end >= new_y
+                            })
                     });
                     if let Some((_, end)) = stored_end {
                         new_y = end;

@@ -1671,8 +1671,8 @@ pub(crate) fn stored_frame_successor_shared_spacing_px(
         .unwrap_or(0.0)
 }
 
-/// A genuine text ladder and the following paragraph-relative flow table
-/// independently close the paragraph's trailing space. This is an endpoint,
+/// A genuine source ladder and its independently stored successor close the
+/// paragraph's trailing space. This is an endpoint,
 /// not a height to add to a cursor that may already include leading spacing.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct StoredParagraphSuccessorFlow {
@@ -1709,18 +1709,36 @@ pub(crate) fn stored_paragraph_successor_flow(
 ) -> Option<StoredParagraphSuccessorFlow> {
     use crate::model::paragraph::LineSeg;
 
+    let text_before_flow_table = para.controls.is_empty()
+        && !para.text.trim().is_empty()
+        && next.text.trim().is_empty()
+        && next.controls.iter().any(|control| {
+            matches!(control, Control::Table(table) if is_para_topbottom_float(&table.common))
+        });
+    // A single TAC shape owns its saved line box. A plain successor can prove
+    // that the trailing band is real even when paint collapses the empty text
+    // run and subsequently reserves the shape's box separately.
+    let inline_shape_before_text = matches!(para.controls.as_slice(), [Control::Shape(shape)]
+        if shape.common().treat_as_char
+            && matches!(para.line_segs.as_slice(), [line]
+                if i64::from(line.line_height) == i64::from(shape.flow_height_hu())
+                    + i64::from(shape.common().margin.top)
+                    + i64::from(shape.common().margin.bottom)))
+        && para
+            .text
+            .chars()
+            .all(|c| c.is_whitespace() || c <= '\u{001F}' || c == '\u{FFFC}')
+        && next.controls.is_empty()
+        && !next.text.trim().is_empty()
+        && next.column_type == crate::model::paragraph::ColumnBreakType::None;
+
     if profile.session_edited()
         || !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
-        || !para.controls.is_empty()
-        || para.text.trim().is_empty()
+        || !(text_before_flow_table || inline_shape_before_text)
         || para.stored_text_partition_is_dirty()
         || para.cell_format_vpos_dirty
         || next.stored_text_partition_is_dirty()
         || next.cell_format_vpos_dirty
-        || !next.text.trim().is_empty()
-        || !next.controls.iter().any(|control| {
-            matches!(control, Control::Table(table) if is_para_topbottom_float(&table.common))
-        })
         || para.line_segs.iter().any(|line| {
             line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
                 || line.vertical_pos < 0
@@ -1728,7 +1746,9 @@ pub(crate) fn stored_paragraph_successor_flow(
                 || line.line_spacing < 0
         })
         || para.line_segs.windows(2).any(|pair| {
-            pair[0].vertical_pos.checked_add(pair[0].line_height)
+            pair[0]
+                .vertical_pos
+                .checked_add(pair[0].line_height)
                 .is_none_or(|bottom| bottom > pair[1].vertical_pos)
         })
     {
@@ -3592,6 +3612,12 @@ pub(crate) fn stored_block_cell_flow(
                             || t.common.treat_as_char
                             || t.common.text_wrap != TextWrap::TopAndBottom
                             || t.common.vert_rel_to != VertRelTo::Para
+                            // This plan advances from the host's top. An
+                            // upward or non-top anchor has a signed placement
+                            // interval, not a block starting at that cursor;
+                            // preserve its stored anchor/extent path instead.
+                            || t.common.vert_align != VertAlign::Top
+                            || signed_hwpunit(t.common.vertical_offset) < 0
                             || t.caption.is_some()
                     }
                     Control::Field(_) => false,

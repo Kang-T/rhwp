@@ -287,3 +287,45 @@ source hash가 같고 실패 파일 전체가 재실행됐음을
 Native/fresh WASM 최저값이90% 미만으로 입증된 기존 미달만 기존 이슈 #7445로 이관하며,
 90% 이상이면 현재 통합 branch에서 개선한다. 기준 미검증은 이관 근거가 아니다.
 원 PR·통합 후보의 머지 보류는 유지한다.
+
+#### 실패 원본의 고정 base 대조와 묶음 보정 — 2026-10-10
+
+고정 base `21ed64071f81f35f37618717693bd30f727392c9`를 실제로 다시 빌드했다.
+Native CLI와 fresh WASM의 빌드는 각각 exit0이며, 실행 파일·package·1330개 source 파일의
+해시는 ignored `upstream-21ed64071-failure-triage/build.json`에 보존한다. 전자투표 원본
+`samples/issue6787/16774617-electronic-ballot-form.hwp`와 독립 Print
+`pdf/16774617-electronic-ballot-form-2020.pdf`의 동일 바이트를 비교한 결과, base의 Native와
+fresh WASM은 모두 2쪽 최저90.88965%, 미달0이다. base WASM은 새 compat setter가 없으므로,
+source에서 확인한 기본2022 계약을 그대로 export하는 비공개 protocol adapter를 사용했다.
+2024 WASM 검증으로 보고하지 않는다. 실패한 최초 exporter 실행도 보존했다.
+
+같은 조건의 후보 `5538efd38`은 첫 쪽24.04528%로 카드·사진이 탈락한다. Native base/후보의
+1·2쪽 compare/overlay/review를 직접 판독했으며, 2쪽은 같은 배치를 유지한다.
+불변 중간 CLI 11개의 실제 render tree에서 `3483c17f4`까지 카드281.6/280.3px와 사진2개가
+있지만 `7c9f55a69`부터 카드108.0px와 사진0개를 확인했다. 전자투표의 기존 검사3건은
+현재 수정에서 생긴 회귀이며 #7445로 이관하지 않는다.
+
+원본 native parser dump와 진단용 HWPX 직렬화에서 카드 표의 PARA/TOP 오프셋
+−20484/−20579HU, 호스트 저장 원점21683HU를 확인했다. 진단용 직렬화를 새 기준 원본으로
+사용하지 않는다. `stored_block_cell_flow`는 cursor 아래로 전진하는 상자를 생산하지만
+이 부호 있는 앵커까지 받아들였다. 동일 생산자를 소비하는
+`HeightMeasurer::cell_stored_block_flow`·`cell_nested_controls_bottom`과
+`LayoutEngine::sequential_nested_cell_layout`의 계약에서 위쪽/비TOP 앵커를 제외해
+기존 저장 앵커·점유 끝점 경로로 보낸다. 문서 식별자·관측 px 예외를 추가하지 않는다.
+
+다른 두 위치 보정도 같은 묶음에 포함한다. 편람93쪽의 가운데 정렬 인라인 그림 뒤5개
+공백은 그림 자체나 앞/사이 간격을 줄이지 않고 기존 후행 공백 측정 결과로 정렬 폭에서
+제외한다. 밑줄 공백과 일반 빈 줄 계약은 유지한다. 273쪽의 TAC 도형 줄은 저장 줄 높이가
+도형·바깥여백과 일치하고 다음 본문 원점이 저장 줄 끝·후행 간격을 정확히 닫을 때만,
+`stored_paragraph_successor_flow`의 같은 끝점을 조판과 마지막 Shape paint가 소비한다.
+paint는 이미 전진한 빈 text item 뒤에서 높이를 다시 합하지 않고 원래 문단 진입점으로
+투영한다. 이 세 보정의 실행·최종 lint·영향 페이지 시각 결과는 아직 미검증이다.
+
+rowbreak HWPX 18→19쪽과 PrEP HWPX 140→141쪽은 전자투표와 다른 구간에서 시작됐다.
+불변 CLI의 동일 원본·2022 출력에서 `02de253c1`은18/140쪽,
+`5e31d6db0`은19/141쪽이며, `rowbreak-prep-intermediate-stage-controls/provenance.json`에
+입력/실행 파일 해시와 명령을 보존했다. 실제 dump-pages의 첫 구조 차이는 rowbreak14쪽의
+호스트16 컷8→7과 추가 이어받기, PrEP105쪽의 호스트336 온전한20행→19행 조각이다.
+PrEP의 일부 빈 줄 전진량 변경도 관측했으나 쪽수 원인으로 단정하지 않는다.
+두 원본의 고정 base 전쪽 Native 시각 비교는 진행 중이며, 이 쪽수 진단만으로 기존 미달
+이관이나 기준값 변경을 결정하지 않는다. 통합·개별 PR의 보류 판정은 유지한다.

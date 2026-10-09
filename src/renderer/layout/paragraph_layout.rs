@@ -6632,22 +6632,22 @@ impl LayoutEngine {
             // 새로 나눈 줄은 wrapping 끝의 비가시 공백을 정렬 폭에서 제외한다.
             // 변경 이력 투영 뒤 재조판한 #5169 표제의 독립 Print가 이 계약을
             // 보이며, 저장 줄에도 적용하면 #3837 사진 안내 줄이 인장과 겹친다.
-            // ③ TAC 컨트롤이 있는 줄은 공백이 시각적 말미가 아니다 —
-            // line_tac_offsets_for_width 비어 있을 때 한정. ④ 전부 공백인
+            // ③ TAC 개체 앞·사이 공백은 말미가 아니다. 마지막 개체 위치에서
+            // 공백 범위를 자르므로 개체 뒤의 말미 공백만 제외한다. ④ 전부 공백인
             // 줄(밑줄 친 서명란)과 밑줄 스타일 말미 공백은 보이는 콘텐츠라
             // 유지(issue_157 직선 골든 — 제외하면 우측 클립까지 이탈).
             // [#7081] `cell_ctx.is_none()` 을 뺀다 — 칸 예외의 근거였던 `issue_1285` 는
-            // **TAC 개체가 우단을 잡는 줄**이고, 그 형상은 바로 아래
-            // `line_tac_offsets_for_width.is_empty()` 가 이미 거른다. 순수 텍스트 줄에서는
+            // **TAC 개체가 우단을 잡는 줄**이다. 마지막 개체 위치 뒤만 공백을 제외하므로
+            // 개체 앞 공백과 개체 폭은 보존된다. 순수 텍스트 줄에서도
             // 한/글도 칸 안에서 말미 공백을 빼고 정렬한다(3079571 취소신청서 1쪽,
             // '신청하는' + 공백 5칸 — 한/글 대비 -15.02px = 5 × 6.008 ÷ 2).
             let center_excludes_trailing_ws = alignment == Alignment::Center
                 && (is_last_line_of_para || !stored_geometry_source)
-                && line_tac_offsets_for_width.is_empty()
-                && comp_line
-                    .runs
-                    .iter()
-                    .any(|r| r.text.chars().any(|c| c != ' '));
+                && (!line_tac_offsets_for_width.is_empty()
+                    || comp_line
+                        .runs
+                        .iter()
+                        .any(|r| r.text.chars().any(|c| c != ' ')));
             // [#5820] 글상자(drawText) 안 문단은 표 셀이 아니다 — 한글은 글상자
             // 안에서도 오른쪽 정렬의 말미 공백을 제외한다(156560092 글상자:
             // [로고A][로고B][공백5] RIGHT 문단 — 한글 로고 우변 여백 4.1px,
@@ -6664,8 +6664,8 @@ impl LayoutEngine {
             //   3079571 취소신청서 1쪽  '신청하는' + 공백 5칸, 칸 안 CENTER
             //     -15.02px = 5 × 6.008 ÷ 2 — 가운데 정렬이라 절반만 밀린다.
             //
-            // Center 쪽은 이미 같은 가드(`line_tac_offsets_for_width.is_empty()`)를 갖고
-            // 있고, Right 에만 없었다. 두 정렬의 조건을 같은 형상으로 맞춘다.
+            // Right의 칸 내부 개체 줄 제외는 기존 검증 범위대로 유지한다.
+            // Center는 마지막 개체 위치 뒤의 공백만 제외하여 개체를 정렬 폭에 남긴다.
             let right_align_excludes_trailing_ws = alignment == Alignment::Right
                 && (cell_ctx.as_ref().is_none_or(|c| c.in_textbox)
                     || line_tac_offsets_for_width.is_empty());
