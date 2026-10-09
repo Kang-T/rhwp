@@ -421,7 +421,13 @@ fn stored_empty_square_picture_cell_frame(
     }
     let mut top = 0_i32;
     let mut bottom = line.line_height;
+    let mut has_picture = false;
     for control in &para.controls {
+        // Frame settings do not occupy a line or a picture box. Keep them
+        // outside the occupied union, as for an object-only table anchor.
+        if matches!(control, Control::SectionDef(_) | Control::ColumnDef(_)) {
+            continue;
+        }
         let Control::Picture(picture) = control else {
             return None;
         };
@@ -443,6 +449,10 @@ fn stored_empty_square_picture_cell_frame(
         let offset = signed_hwpunit(common.vertical_offset);
         top = top.min(offset);
         bottom = bottom.max(offset.checked_add(height)?);
+        has_picture = true;
+    }
+    if !has_picture {
+        return None;
     }
     let origin = top.checked_neg()?;
     Some(StoredEmptyPictureCellFrame {
