@@ -12233,7 +12233,9 @@ impl LayoutEngine {
                 // 선언 object frame이 없는 synthetic 표의 vpos reset은 물리 쪽
                 // 경계를 증명하지 못한다. 실제 저장 표는 선언 높이가 있으므로
                 // 기존 direct HWPX frame 계약을 그대로 따른다.
-                return table.common.height > 0;
+                // 안내 줄과 그림 줄의 상자는 겹칠 수 있다. 물리 쪽 경계는
+                // 줄 상자의 끝이 아닌 저장 원점 자체가 되감길 때만 생긴다.
+                return table.common.height > 0 && cur.vertical_pos < prev.vertical_pos;
             }
             // 한 쪽 중간에 시작한 1×1 저장 표는 첫 조각이 본문 절반보다
             // 작아도 물리 경계를 갖는다. 선언 상자가 직전 저장 줄의 잉크와
@@ -13054,6 +13056,13 @@ impl LayoutEngine {
             // 넣는다. 일반 칸·본문 섞인 줄까지 max 하면 컷이 빨라져 글이 겹친다.
             let apply_split_cell_tac = cell_is_page_split_candidate(cell, table, self.dpi);
             let corrected_h = |line: &ComposedLine, li: usize| -> f64 {
+                if !self.profile.get().session_edited() && !self.profile.get().hwp3_layout() {
+                    if let Some(height) =
+                        crate::renderer::stored_picture_guide_line_height_px(p, &comp, li, self.dpi)
+                    {
+                        return height;
+                    }
+                }
                 let raw_lh = hwpunit_to_px(line.line_height, self.dpi);
                 let tac_h = if apply_split_cell_tac {
                     crate::renderer::composed_line_tac_object_height_px(p, &comp, li, self.dpi)
@@ -17542,7 +17551,8 @@ impl LayoutEngine {
             }
         }
 
-        reset_count >= 2
+        self.direct_hwpx_cell_has_progressing_source_frames(cell)
+            || reset_count >= 2
             || (reset_count == 1 && {
                 let declared_height = cell.height as i32;
                 let source_frame_span = preceding_frame_end.saturating_add(trailing_frame_end);
@@ -17561,6 +17571,56 @@ impl LayoutEngine {
                     sum_fits_declared
                 }
             })
+    }
+
+    /// 공유 셀 좌표가 문단 경계를 넘어 진행한 뒤 되감기는 원본 프레임.
+    /// 새 쪽의 안 여백 때문에 원점은 양수일 수도 있다. 문단마다 로컬
+    /// vpos=0인 CENTER 셀은 진행 증거가 없어 이 계약을 사용하지 않는다.
+    fn direct_hwpx_cell_has_progressing_source_frames(
+        &self,
+        cell: &crate::model::table::Cell,
+    ) -> bool {
+        if self.profile.get().session_edited()
+            || cell.dirty_flag
+            || cell.height == 0
+            || cell.paragraphs.iter().any(|paragraph| {
+                paragraph.stored_text_partition_is_dirty()
+                    || paragraph.cell_format_vpos_dirty
+                    || paragraph.line_segs.iter().any(|line| {
+                        line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                            != 0
+                            || line.vertical_pos < 0
+                            || line.line_height <= 0
+                    })
+            })
+        {
+            return false;
+        }
+        let mut previous: Option<(usize, i32, i64)> = None;
+        let mut frame_end = 0i64;
+        let mut completed_span = 0i64;
+        let mut resets = 0usize;
+        let mut shared_paragraph_axis = false;
+        for (paragraph_index, paragraph) in cell.paragraphs.iter().enumerate() {
+            for line in &paragraph.line_segs {
+                let origin = i64::from(line.vertical_pos);
+                let end = origin + i64::from(line.line_height);
+                if let Some((previous_paragraph, previous_origin, previous_end)) = previous {
+                    if line.vertical_pos < previous_origin {
+                        completed_span += frame_end;
+                        frame_end = 0;
+                        resets += 1;
+                    } else if previous_paragraph != paragraph_index && origin >= previous_end {
+                        shared_paragraph_axis = true;
+                    }
+                }
+                frame_end = frame_end.max(end);
+                previous = Some((paragraph_index, line.vertical_pos, end));
+            }
+        }
+        let span = completed_span + frame_end;
+        let declared = i64::from(cell.height);
+        resets > 0 && shared_paragraph_axis && span >= declared * 4 / 5 && span <= declared
     }
 
     /// 컷이 인증한 원본 프레임의 줄 상자는 측정과 실제 배치가 함께 보존한다.

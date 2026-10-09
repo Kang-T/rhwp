@@ -113,3 +113,13 @@ f971 제품 source의 HWP 편람 전383쪽은 Native/fresh WASM 최저90.08363%�
 | 375쪽 | section12/문단18의 왼쪽 양식은 비TAC InFrontOfText 표이며 메모는 별도 본문41·42다. 표 내부 메모로 분류하지 않는다. 원문에는 그 사이 빈 문단의 양수 저장 슬롯과 간격이 있다. | 본문 빈 줄 점유·실제 후행 원점의 소비를 추가 확인한다. 가시 글자가 없다는 이유로 원문 공간을 없애지 않는다. |
 
 ignored `batch-original-source-native-audit.json`, `batch-original-stored-frame-rewinds.json` 및 `batch-8f-source-diagnostic/provenance.json`에 원문 입력/PDF/실행 파일 해시와 현재 컷 로그를 보존했다. 진단은 기존8f 실행 파일을 사용하며 새 빌드를 하지 않았다. render tree의 기본 진단 프로필을 Print 시각 증거와 구별한다. 같은 미달12쪽의 새 Native raster가 ca98의 raster와 바이트 단위로 같은지도 `batch-8f-ca98-native-raster-identity.json`에서 확인했다. 이전 라벨의 패널을 새로 생성한8f 패널이라고 바꾸어 부르지 않는다. source/회귀/golden 변경이나 새로운 #7445 이관은 이 분석 단계에서 수행하지 않았다.
+
+### 묶음 구현 후보 — 실행 검증 전
+
+135쪽 안내 줄의 공통 생산자는 `renderer::stored_picture_guide_line_height_px`다. 원본/구성 줄 수가 같고, 현재·다음 원본 줄이 비합성·미편집이며, 현재 textheight와 spacing이 다음 원점을 정확히 닫고, 실제 control-to-line 소유로 다음 줄의 TAC 그림이 같은 저장 높이를 소유할 때만 안내 줄의 textheight를 반환한다. 현재 줄의 TAC 그림·도형·표, 같은 text_start, dirty/reflow 줄은 이 단축을 쓰지 않는다. HeightMeasurer의 문단/셀 경로4개와 table_layout의 corrected_h, paragraph/format의 예약, paragraph_layout의 실제 줄 높이가 같은 값을 소비한다. 문단 전체 개체 높이를 앞 줄 소유의 대용으로 쓰지 않으며 원문을 수정하지 않는다. 실제 입력의 적용 여부와 수정 전후 출력은 아직 실행으로 확인하지 않았다.
+
+HWPX CENTER/양수 원점 프레임은 선언 span과 문단 사이 좌표 진행을 추가 인증한다. 진행 후 실제 원점이 작아질 때만 physical reset을 만들고, 큰 그림 줄 상자와 다음 줄의 겹침을 페이지 reset으로 보지 않는다. 단순 문단 로컬 vpos=0에는 진행 증거가 없어 새 인증을 쓰지 않으며 #6035 기존 대조군의 기대값은 바꾸지 않았다. 기존 HWP5 분기는 유지했다.
+
+도형의 기존 폭 fit·자동 높이·호스트 투영은 HWPX에도 같은 인증을 거쳐 적용한다. 본문 빈 원본 글줄은 format 결과의 전량 전진을 사용해 다단의 후행 간격 손실을 막는다.152쪽 제목처럼 다음 비TAC 흐름 표의 원점이 원본 줄 끝·줄간격·현재 뒤 간격·후속 앞 간격을 정확히 닫는 경우에도 같은 전량 전진을 소비한다. `FormattedParagraph`에 흐름 전진 보존 상태를 분리했으며 fit 높이나 paint 원점을 위장해 바꾸지 않았다. 기존 unit test 생성 helper에는 새 상태의 기본값만 넣었고 새 회귀/fixture/golden은 추가하지 않았다.
+
+이 후보는 수정 파일의 rustfmt와 `git diff --check`만 통과했다. 제품 빌드·집중 회귀·Native/fresh WASM·최종 lint는 아직 수행하지 않았다.140쪽의 내용 컷과 별개인 선언 물리 상자 잔여,126쪽 장식 표의 실제 발행 경로를 더 연결한 뒤 동일 묶음의 Native/WASM 산출물로 경계와 대조군을 함께 검증한다. 같은 작업의 수정마다 빌드를 다시 시작하지 않는다.

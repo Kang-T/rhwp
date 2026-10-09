@@ -31,6 +31,20 @@ pub(in crate::renderer::typeset) fn place(
         styles,
         is_last_in_section,
     } = input;
+    let flow_fmt = paragraph::metrics::stored_successor_consumes_full_flow_advance(
+        para,
+        paragraphs.get(para_idx + 1),
+        fmt,
+        styles,
+        st.paragraph_flow_profile(),
+        dpi,
+    )
+    .then(|| {
+        let mut projected = fmt.clone();
+        projected.preserve_full_stored_flow_advance = true;
+        projected
+    });
+    let fmt = flow_fmt.as_ref().unwrap_or(fmt);
     let stored_frame_shared_spacing =
         crate::renderer::float_placement::stored_frame_successor_shared_spacing_px(
             &st.paragraph_float_placements,

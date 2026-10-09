@@ -2042,6 +2042,13 @@ impl HeightMeasurer {
                 .iter()
                 .enumerate()
                 .map(|(line_idx, line)| {
+                    if !self.session_edited && !self.is_hwp3_variant {
+                        if let Some(height) = crate::renderer::stored_picture_guide_line_height_px(
+                            para, comp, line_idx, self.dpi,
+                        ) {
+                            return (height, hwpunit_to_px(line.line_spacing, self.dpi));
+                        }
+                    }
                     let raw_lh = hwpunit_to_px(line.line_height, self.dpi);
                     let max_fs = crate::renderer::composed_line_max_font_size(line, para, styles);
                     // [Task #1042 Stage 6c] line_segs.empty path (raw_lh < max_fs) 의 lh/ls
@@ -3178,7 +3185,12 @@ impl HeightMeasurer {
                                         ) {
                                             return 0.0;
                                         }
-                                        let raw_lh = hwpunit_to_px(line.line_height, self.dpi);
+                                        let guide_height = if !self.session_edited && !self.is_hwp3_variant {
+                                            crate::renderer::stored_picture_guide_line_height_px(p, &comp, i, self.dpi)
+                                        } else {
+                                            None
+                                        };
+                                        let raw_lh = guide_height.unwrap_or_else(|| hwpunit_to_px(line.line_height, self.dpi));
                                         let max_fs = line
                                             .runs
                                             .iter()
@@ -4169,7 +4181,12 @@ impl HeightMeasurer {
                                         ) {
                                             return 0.0;
                                         }
-                                        let raw_lh = hwpunit_to_px(line.line_height, self.dpi);
+                                        let guide_height = if !self.session_edited && !self.is_hwp3_variant {
+                                            crate::renderer::stored_picture_guide_line_height_px(p, &comp, i, self.dpi)
+                                        } else {
+                                            None
+                                        };
+                                        let raw_lh = guide_height.unwrap_or_else(|| hwpunit_to_px(line.line_height, self.dpi));
                                         let max_fs = line
                                             .runs
                                             .iter()
@@ -4711,7 +4728,12 @@ impl HeightMeasurer {
                                     line_heights.push(0.0);
                                     continue;
                                 }
-                                let raw_lh = hwpunit_to_px(line.line_height, self.dpi);
+                                let guide_height = if !self.session_edited && !self.is_hwp3_variant {
+                                    crate::renderer::stored_picture_guide_line_height_px(p, &comp, i, self.dpi)
+                                } else {
+                                    None
+                                };
+                                let raw_lh = guide_height.unwrap_or_else(|| hwpunit_to_px(line.line_height, self.dpi));
                                 let max_fs = line
                                     .runs
                                     .iter()

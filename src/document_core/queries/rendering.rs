@@ -5911,7 +5911,9 @@ impl DocumentCore {
                 .map(|(index, _)| index)
                 .collect();
             let inline_frames: Vec<(usize, Paragraph)> =
-                if profile.hwp5_stored_pagination_layout() && !profile.session_edited() {
+                if (profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
+                    && !profile.session_edited()
+                {
                     section
                         .paragraphs
                         .iter()

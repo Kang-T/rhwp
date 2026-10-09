@@ -10,6 +10,8 @@ use crate::model::{paragraph::Paragraph, provenance::LayoutCompatibilityProfile}
 /// 문단 format() 결과: 문단의 실제 렌더링 높이 정보
 #[derive(Debug, Clone)]
 pub(in crate::renderer::typeset) struct FormattedParagraph {
+    /// 다음 저장 흐름 개체가 이 문단의 전량 전진을 소비하는가. fit 높이와 분리한다.
+    pub preserve_full_stored_flow_advance: bool,
     /// Measured remaining inline space on the composed tail line. None means
     /// that this path has no reliable width result (not an implicit overflow).
     pub(in crate::renderer::typeset) tail_line_remaining_width: Option<f64>,
@@ -140,6 +142,26 @@ impl FormattedParagraph {
         ladder_dirty: bool,
         lazy_base: bool,
     ) -> f64 {
+        if self.preserve_full_stored_flow_advance {
+            return self.total_height;
+        }
+        // 빈 저장 글줄도 물리 슬롯을 소유한다. 글자가 없어 뒤의 가시 줄
+        // 스냅에 맡길 수 없으므로 다단에서도 후행 간격을 매번 버리지 않는다.
+        // 합성·편집·여러 줄은 기존 경로로 남기고 같은 format 결과를 소비한다.
+        if para.text.trim().is_empty()
+            && para.controls.is_empty()
+            && !para.stored_text_partition_is_dirty()
+            && !para.cell_format_vpos_dirty
+            && self.line_count() == 1
+            && self.line_heights[0] > 0.0
+            && matches!(para.line_segs.as_slice(), [line]
+                if line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                    && line.vertical_pos >= 0
+                    && line.line_height > 0
+                    && line.line_spacing >= 0)
+        {
+            return self.total_height;
+        }
         // [#6970] 다단에서도 **합성(reflow) lineseg 문단은 트림하지 않는다** — 아래
         // `#2279 ①` 이 단단 경로에 건 가드와 같은 이유다. 트림은 "저장 ladder 가 spacing 을
         // 이미 반영하고 vpos-snap 이 좌표를 복원한다"는 전제 위에 서는데, 합성 문단에는 그
@@ -199,6 +221,59 @@ impl FormattedParagraph {
         }
         self.total_height
     }
+}
+
+/// 다음 비TAC 흐름 표의 원점이 현재 원본 글줄과 후행 간격을 닫는 경우.
+/// paint에만 남은 위·뒤 간격을 흐름에서 트림해 표가 글줄 위로 돌아오지 않는다.
+pub(super) fn stored_successor_consumes_full_flow_advance(
+    para: &Paragraph,
+    next: Option<&Paragraph>,
+    fmt: &FormattedParagraph,
+    styles: &crate::renderer::style_resolver::ResolvedStyleSet,
+    profile: LayoutCompatibilityProfile,
+    dpi: f64,
+) -> bool {
+    use crate::model::{control::Control, paragraph::LineSeg};
+
+    if profile.session_edited()
+        || !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
+        || !para.controls.is_empty()
+        || para.text.trim().is_empty()
+        || para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+        || (fmt.spacing_before <= 0.0 && fmt.spacing_after <= 0.0)
+    {
+        return false;
+    }
+    let Some(next) = next else { return false };
+    let (Some(last), Some(after)) = (para.line_segs.last(), next.line_segs.first()) else {
+        return false;
+    };
+    if next.stored_text_partition_is_dirty()
+        || next.cell_format_vpos_dirty
+        || !next.text.trim().is_empty()
+        || (last.tag | after.tag) & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || last.vertical_pos < 0
+        || last.line_height <= 0
+        || last.line_spacing < 0
+        || !next.controls.iter().any(|control| {
+            matches!(control, Control::Table(table)
+                if crate::renderer::float_placement::is_para_topbottom_float(&table.common))
+        })
+    {
+        return false;
+    }
+    let next_before = styles
+        .para_styles
+        .get(next.para_shape_id as usize)
+        .map_or(0.0, |style| style.spacing_before);
+    let hu_per_px = 1.0 / crate::renderer::hwpunit_to_px(1, dpi);
+    let end = i64::from(last.vertical_pos)
+        + i64::from(last.line_height)
+        + i64::from(last.line_spacing)
+        + (fmt.spacing_after * hu_per_px).round() as i64
+        + (next_before * hu_per_px).round() as i64;
+    i64::from(after.vertical_pos) == end
 }
 
 /// 흐름 누적에 사용하는 독립 관측값. 전체 fit 높이와 섞지 않는다.

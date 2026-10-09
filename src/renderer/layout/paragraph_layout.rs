@@ -5513,7 +5513,17 @@ impl LayoutEngine {
             // LineSeg.line_height는 HWP에서 줄간격이 이미 반영된 값.
             // PARA_LINE_SEG가 없는 폴백(400 HWPUNIT=5.333px) 등 line_height가 폰트 크기보다 작으면,
             // ParaShape의 줄간격 설정(line_spacing_type + line_spacing)으로 올바른 줄 높이를 계산한다.
-            let raw_lh = hwpunit_to_px(comp_line.line_height, self.dpi);
+            let raw_lh =
+                if !self.profile.get().session_edited() && !self.profile.get().hwp3_layout() {
+                    para.and_then(|p| {
+                        crate::renderer::stored_picture_guide_line_height_px(
+                            p, composed, line_idx, self.dpi,
+                        )
+                    })
+                } else {
+                    None
+                }
+                .unwrap_or_else(|| hwpunit_to_px(comp_line.line_height, self.dpi));
             let text_before_picture_line = text_line_is_picture_lead_in(
                 para,
                 composed,

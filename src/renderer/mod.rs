@@ -1718,6 +1718,61 @@ fn para_text_is_picture_only_host(para: &crate::model::paragraph::Paragraph) -> 
     })
 }
 
+/// 원본의 다음 줄 원점이 닫는 안내 줄 슬롯. 문단 전체 그림 높이를
+/// 앞 안내 줄의 소유로 취급하지 않는다. 같은 text_start의 그림 줄과
+/// 재조판 줄은 이 계약으로 축소하지 않는다.
+pub(crate) fn stored_picture_guide_line_height_px(
+    para: &crate::model::paragraph::Paragraph,
+    composed: &composer::ComposedParagraph,
+    line_index: usize,
+    dpi: f64,
+) -> Option<f64> {
+    use crate::model::{control::Control, paragraph::LineSeg};
+
+    if para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+        || composed.lines.len() != para.line_segs.len()
+    {
+        return None;
+    }
+    let line = para.line_segs.get(line_index)?;
+    let next = para.line_segs.get(line_index + 1)?;
+    if (line.tag | next.tag) & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || line.vertical_pos < 0
+        || line.text_height <= 0
+        || line.text_height >= line.line_height
+        || line.line_spacing < 0
+        || next.text_start <= line.text_start
+        || line
+            .vertical_pos
+            .checked_add(line.text_height)?
+            .checked_add(line.line_spacing)?
+            != next.vertical_pos
+    {
+        return None;
+    }
+    let mut next_picture_owns_height = false;
+    for (index, control) in para.controls.iter().enumerate() {
+        let owner = layout::control_line_seg_index(para, index);
+        let inline = match control {
+            Control::Picture(picture) => picture.common.treat_as_char,
+            Control::Shape(shape) => shape.common().treat_as_char,
+            Control::Table(table) => table.common.treat_as_char,
+            _ => false,
+        };
+        if inline && owner == Some(line_index) {
+            return None;
+        }
+        if let Control::Picture(picture) = control {
+            next_picture_owns_height |= picture.common.treat_as_char
+                && owner == Some(line_index + 1)
+                && i64::from(picture.common.height) == i64::from(line.line_height)
+                && next.line_height == line.line_height;
+        }
+    }
+    next_picture_owns_height.then(|| hwpunit_to_px(line.text_height, dpi))
+}
+
 /// 쪽 분할 칸의 그림-only 문단에서, 합성 줄이 담은 TAC 그림의 흐름 높이.
 ///
 /// 저장 LINE_SEG 가 글줄만 담아도 그 줄의 TAC 그림은 자기 높이만큼 칸 조각
