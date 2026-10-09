@@ -10,8 +10,13 @@ impl LayoutEngine {
     /// only supplies the existing saved-cut tail calculation; accepted physical
     /// rows and the table's occupied extent remain in their original ledger.
     pub(super) fn stored_first_cell_frame_height(&self, table: &Table, cell: &Cell) -> Option<f64> {
+        (cell.row_span == 1)
+            .then(|| self.source_first_cell_frame_height(table, cell))
+            .flatten()
+    }
+
+    fn source_first_cell_frame_height(&self, table: &Table, cell: &Cell) -> Option<f64> {
         if cell.row == 0
-            || cell.row_span != 1
             || !self.stored_plain_text_cell_frame(table, cell)
             || table.common.height == 0
             || table.common.height > i32::MAX as u32
@@ -38,6 +43,94 @@ impl LayoutEngine {
             return None;
         }
         Some(hwpunit_to_px(i32::try_from(end - origin).ok()?, self.dpi))
+    }
+
+    fn first_source_frame_owner(
+        &self,
+        table: &Table,
+        cell: &Cell,
+        styles: &ResolvedStyleSet,
+    ) -> Option<(usize, f64)> {
+        let opening = self.source_first_cell_frame_height(table, cell)?;
+        let units = self.cell_units(cell, table, styles);
+        let padding = cell.effective_padding(&table.padding);
+        let padding = hwpunit_to_px(i32::from(padding.top) + i32::from(padding.bottom), self.dpi);
+        let epsilon = hwpunit_to_px(2, self.dpi);
+        let mut previous: Option<&crate::model::paragraph::LineSeg> = None;
+        let mut advance = 0.0;
+        for (index, unit) in units.iter().enumerate() {
+            if unit.vis_end != unit.vis_start + 1 {
+                return None;
+            }
+            let line = cell
+                .paragraphs
+                .get(unit.para_idx)?
+                .line_segs
+                .get(unit.vis_start)?;
+            if let Some(before) = previous {
+                if line.vertical_pos == 0 && before.vertical_pos > 0 {
+                    let ink = hwpunit_to_px(
+                        before.vertical_pos.checked_add(before.line_height)?,
+                        self.dpi,
+                    ) + padding;
+                    // A stored empty line owns the same line box and following
+                    // advance as text. The opening box ends in that final gap.
+                    return (opening + epsilon >= ink && opening < advance + padding)
+                        .then_some((index, opening));
+                }
+                if i64::from(line.vertical_pos)
+                    != i64::from(before.vertical_pos)
+                        + i64::from(before.line_height)
+                        + i64::from(before.line_spacing)
+                {
+                    return None;
+                }
+            } else if line.vertical_pos != 0 {
+                return None;
+            }
+            let source_advance =
+                hwpunit_to_px(line.line_height.checked_add(line.line_spacing)?, self.dpi);
+            if (unit.height - source_advance).abs() > epsilon {
+                return None;
+            }
+            advance += unit.height;
+            previous = Some(line);
+        }
+        None
+    }
+
+    pub(super) fn stored_span_partial_first_frame_owner(
+        &self,
+        table: &Table,
+        cell: &Cell,
+        row: usize,
+        cut: &[usize],
+        measured_rows: &[f64],
+        styles: &ResolvedStyleSet,
+    ) -> Option<usize> {
+        if cell.row_span <= 1 || usize::from(cell.row) != row || cut.is_empty() {
+            return None;
+        }
+        let (owner, opening) = self.first_source_frame_owner(table, cell, styles)?;
+        let epsilon = hwpunit_to_px(2, self.dpi);
+        let origin = measured_rows.get(..row)?.iter().sum::<f64>()
+            + hwpunit_to_px(table.cell_spacing as i32, self.dpi) * row as f64;
+        if (origin + opening - hwpunit_to_px(table.common.height as i32, self.dpi)).abs() > epsilon
+            || (self.row_cut_content_height(table, row, &[], cut, styles) - opening).abs() > epsilon
+        {
+            return None;
+        }
+        table
+            .cells
+            .iter()
+            .any(|peer| {
+                peer.row == cell.row
+                    && peer.col != cell.col
+                    && self
+                        .first_source_frame_owner(table, peer, styles)
+                        .is_some_and(|(_, height)| (height - opening).abs() <= epsilon)
+            })
+            .then_some(owner)
     }
 
     /// A source cut consumes the opening physical box, not the row's entire

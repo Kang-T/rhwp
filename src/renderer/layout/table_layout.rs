@@ -24825,7 +24825,21 @@ impl LayoutEngine {
             start_cut.is_empty() && start_row_height_override.is_none() && end_cut.is_empty();
         let saved_start_owner = whole_source_rows
             .then(|| self.stored_span_row_boundary_owner(table, cell, start_row, styles))
-            .flatten();
+            .flatten()
+            .or_else(|| {
+                (!start_cut_is_block)
+                    .then(|| {
+                        self.stored_span_partial_first_frame_owner(
+                            table,
+                            cell,
+                            start_row,
+                            start_cut,
+                            resolved_row_heights,
+                            styles,
+                        )
+                    })
+                    .flatten()
+            });
         if straddles_start {
             if let Some(index) = table
                 .cells
@@ -24878,7 +24892,21 @@ impl LayoutEngine {
             };
             let owner = whole_source_rows
                 .then(|| self.stored_span_row_boundary_owner(table, cell, end_row, styles))
-                .flatten();
+                .flatten()
+                .or_else(|| {
+                    (!end_cut_is_block)
+                        .then(|| {
+                            self.stored_span_partial_first_frame_owner(
+                                table,
+                                cell,
+                                end_row.saturating_sub(1),
+                                end_cut,
+                                resolved_row_heights,
+                                styles,
+                            )
+                        })
+                        .flatten()
+                });
             owner.unwrap_or_else(|| {
             let accepted_height = (consumed_end - prior_h).max(0.0);
             // Rebase the budget at the actual accepted content cursor. A saved reset
