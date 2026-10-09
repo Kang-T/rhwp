@@ -897,9 +897,12 @@ impl TypesetEngine {
                     st,
                     continuation,
                     input,
-                    end_row,
-                    split_end_cut.is_empty() && split_end_limit <= 0.0,
-                    end_row_height_override,
+                    super::physical_rows::StoredFragmentEnd {
+                        row: end_row,
+                        complete_cut: split_end_cut.is_empty() && split_end_limit <= 0.0,
+                        block_start: split_block_start,
+                        last_height: end_row_height_override,
+                    },
                 );
                 st.append_item(PageItem::PartialTable {
                     para_index: para_idx,
@@ -1103,9 +1106,14 @@ impl TypesetEngine {
             st,
             continuation,
             input,
-            end_row,
-            (split_end_cut.is_empty() && split_end_limit <= 0.0) || complete_physical_end_cut,
-            end_row_height_override,
+            super::physical_rows::StoredFragmentEnd {
+                row: end_row,
+                // Content completion does not certify the whole physical row:
+                // a spanning owner can still resume inside the same row.
+                complete_cut: split_end_cut.is_empty() && split_end_limit <= 0.0,
+                block_start: split_block_start,
+                last_height: end_row_height_override,
+            },
         );
         st.append_item(PageItem::PartialTable {
             para_index: para_idx,
