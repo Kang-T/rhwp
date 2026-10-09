@@ -1461,8 +1461,9 @@ pub(crate) fn stored_empty_control_table_frame(
     })
 }
 
-/// 행분할 표의 셀 캐시가 원본 어느 글줄 상자도 담지 못하면 전체 물리 높이가 아니다.
-/// 측정에서 이미 필요로 하는 글줄과 안 여백의 하한을 컷·paint도 같은 근거로 사용한다.
+/// 셀 캐시보다 큰 저장 글줄 상자는 여백 판정 높이의 독립적인 하한이다.
+/// 판정할 여백 자체를 하한에 더하면 과도한 여백도 항상 정상으로 판정된다.
+/// 측정·컷·paint는 여백을 제외한 같은 글줄 높이로 기존 방어 가드를 판단한다.
 pub(crate) fn stored_text_cell_padding_height_hu(
     cell: &crate::model::table::Cell,
     table: &Table,
@@ -1504,8 +1505,7 @@ pub(crate) fn stored_text_cell_padding_height_hu(
     if minimum_line <= i32::try_from(cell.height).ok()? {
         return None;
     }
-    let pad = cell.effective_padding(&table.padding);
-    minimum_line.checked_add(i32::from(pad.top) + i32::from(pad.bottom))
+    Some(minimum_line)
 }
 
 /// 작은 자식 표가 두 부모 viewport를 소유함을 닫힌 원본 상자로 확인한 결과.
