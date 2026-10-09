@@ -33,6 +33,9 @@ pub(crate) fn stored_rowbreak_outer_frame_host(host: &Paragraph, table: &Table) 
             })
 }
 
+/// 가로 원점은 문단 또는 단에 속할 수 있지만 반복 제목행이 여는
+/// 세로 프레임의 바깥 여백 소유는 그 가로 기준으로 바뀌지 않는다.
+/// 예산·수용한 물리 행·최종 배치는 같은 저장 프레임 판정을 소비한다.
 pub(crate) fn stored_repeated_header_rowbreak_outer_frame(
     profile: LayoutCompatibilityProfile,
     para: &Paragraph,
@@ -51,7 +54,10 @@ pub(crate) fn stored_repeated_header_rowbreak_outer_frame(
         && !table.common.treat_as_char
         && super::is_para_topbottom_float(&table.common)
         && table.common.vert_rel_to == VertRelTo::Para
-        && table.common.horz_rel_to == HorzRelTo::Column
+        && matches!(
+            table.common.horz_rel_to,
+            HorzRelTo::Para | HorzRelTo::Column
+        )
         && table.page_break == TablePageBreak::RowBreak
         && table.repeat_header
         && !table.leading_header_rows().is_empty()
