@@ -3,6 +3,7 @@
 mod row_block_cut;
 mod stored_complete_block_cut;
 mod stored_intra_paragraph_frame;
+mod stored_plain_cell_minimum;
 mod stored_plain_row_frame;
 mod stored_shared_cell_frame;
 mod stored_span_content;
@@ -5206,9 +5207,10 @@ impl LayoutEngine {
                                     + hwpunit_to_px(cell.padding.bottom as i32, self.dpi)
                             };
                             let pad_v = (pad_top + pad_bottom).max(raw_pad_v);
-                            crate::renderer::float_placement::stored_text_cell_required_height(
-                                line_based, decl_h, pad_v,
-                            )
+                            self.stored_plain_cell_content_minimum(cell, line_based, effective_pad_v)
+                                .unwrap_or_else(|| crate::renderer::float_placement::stored_text_cell_required_height(
+                                    line_based, decl_h, pad_v,
+                                ))
                         } else {
                             line_based + pad_top + pad_bottom
                         };
@@ -5360,9 +5362,10 @@ impl LayoutEngine {
                     let raw_pad_v =
                         hwpunit_to_px(cell.effective_vertical_padding_hu(&table.padding), self.dpi);
                     let pad_v = (pad_top + pad_bottom).max(raw_pad_v);
-                    crate::renderer::float_placement::stored_text_cell_required_height(
-                        line_based, decl_h, pad_v,
-                    )
+                    self.stored_plain_cell_content_minimum(cell, line_based, raw_pad_v)
+                        .unwrap_or_else(|| crate::renderer::float_placement::stored_text_cell_required_height(
+                            line_based, decl_h, pad_v,
+                        ))
                 } else {
                     line_based + pad_top + pad_bottom
                 };
@@ -6224,17 +6227,23 @@ impl LayoutEngine {
                     HorzAlign::Right | HorzAlign::Outside => area_x + area_w - table_width - offset,
                 };
             }
-            // 문단 기준 자리차지 표는 선언한 가로 앵커를 셀 안쪽 영역에서 해석한다.
-            // 좁은 단 기준 표의 가운데 배치로 바꾸면 안내문 표와 글줄이 함께 밀린다.
-            // 나란한 무리도 이 결과로 원점을 확정해 실제 배치에 전달한다.
+            // 문단/단 기준 자리차지 표의 가로 앵커는 같은 셀 안쪽 영역을 쓴다.
+            // 저장 LEFT/offset을 부모 문단 정렬이나 표 폭으로 대체하지 않는다.
+            // 넓은 안내문과 좁은 직인 표의 실제 한컴 경계가 이 원점을 공유한다.
             if !table.common.treat_as_char
                 && matches!(table.common.text_wrap, TextWrap::TopAndBottom)
-                && table.common.horz_rel_to == HorzRelTo::Para
+                && matches!(
+                    table.common.horz_rel_to,
+                    HorzRelTo::Para | HorzRelTo::Column
+                )
             {
                 // Paragraph-relative objects use the paragraph box, not its
                 // first-line (possibly hanging) indent or the whole cell box.
-                let area_x = area_x + host_margin_left;
-                let area_w = (area_w - host_margin_left - host_margin_right).max(0.0);
+                let (area_x, area_w) = if table.common.horz_rel_to == HorzRelTo::Para {
+                    (area_x + host_margin_left, (area_w - host_margin_left - host_margin_right).max(0.0))
+                } else {
+                    (area_x, area_w)
+                };
                 let offset =
                     hwpunit_to_px(signed_hwpunit(table.common.horizontal_offset), self.dpi);
                 return match table.common.horz_align {
@@ -6246,11 +6255,8 @@ impl LayoutEngine {
             // [#5787] 칸 안 **어울림(SQUARE)** 중첩 표가 양의 horzOffset 을 선언하고
             // 그 자리로 표가 셀 안에 온전히 들어가면 한글은 저장 오프셋을 그대로
             // 쓴다 (2025571 당직근무 일지: 칸 왼끝+안여백+7975HU = 576.19 ↔ 한글
-            // 실측 576.17, 0.02px). 종전 가운데 배치(#3308)는 이 표를 49.9px
-            // 왼쪽으로 밀었다. 자리차지(TOP_AND_BOTTOM) 중첩 표는 반대 실측 —
-            // #3308 직인 표(h_offset 6226HU)는 한글도 오프셋을 무시하고 가운데
-            // 놓는다(정답지 0.6px 정합) — 이므로 SQUARE 한정. 오프셋 0 표도 종전
-            // 계약(가운데) 그대로다.
+            // 실측 576.17, 0.02px). TopAndBottom의 명시 앵커는 위 공통 경로가
+            // 소비한다. 이 분기는 어울림의 기존 셀 내부 수용 계약이다.
             let h_offset = hwpunit_to_px(table.common.horizontal_offset as i32, self.dpi);
             if !table.common.treat_as_char
                 && matches!(table.common.text_wrap, TextWrap::Square)
