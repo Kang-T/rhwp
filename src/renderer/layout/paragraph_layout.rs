@@ -3605,7 +3605,7 @@ impl LayoutEngine {
                         );
                         let ch_w = estimate_text_width(&ch.to_string(), &ts);
 
-                        // char_shape 변경 또는 줄바꿈 시 누적된 run을 출력
+                        // 글자모양·언어 슬롯의 실제 메트릭 변경 또는 줄바꿈 시 run을 출력
                         // [Task #518] LINE_SEG 기반 줄 나눔: ls[1..] 의 text_start 위치 모두 사용.
                         // break 가 모두 소진되거나 미존재 시 right_margin 동적 reflow 로 fallback.
                         // [#6181] 저장 나눔으로 넘어간 줄은 그 줄을 소유한 `line_segs`
@@ -3637,8 +3637,23 @@ impl LayoutEngine {
                                 && inline_x + ch_w > right_margin + 0.5
                                 && inline_x > line_start_x + 1.0
                         };
+                        // 같은 char-shape도 언어별 face/크기/장평/자간을 가진다.
+                        // 폭을 측정한 style과 첫 문자의 paint style이 다른 경우만
+                        // 나눈다. 슬롯이 달라도 실제 style이 같으면 기존 run을 유지한다.
+                        let slot_metrics_changed = ch_idx > line_run_start && {
+                            let run_lang = super::super::style_resolver::detect_lang_category(
+                                text_chars[line_run_start],
+                            );
+                            let run_style =
+                                metric_scope.style(styles, current_cs_id, run_lang, line_run_start);
+                            ts.font_family != run_style.font_family
+                                || ts.font_size != run_style.font_size
+                                || ts.ratio != run_style.ratio
+                                || ts.letter_spacing != run_style.letter_spacing
+                        };
                         let cs_changed = cs_id != current_cs_id
-                            || metric_scope.allows(ch_idx) != metric_scope.allows(line_run_start);
+                            || metric_scope.allows(ch_idx) != metric_scope.allows(line_run_start)
+                            || slot_metrics_changed;
 
                         // 줄바꿈된 텍스트의 BoundingBox 높이: 표 줄 vs 텍스트 줄
                         let run_bbox_h = stored_line_baseline_at(line_run_start).unwrap_or(

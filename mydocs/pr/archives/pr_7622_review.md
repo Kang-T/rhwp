@@ -50,3 +50,9 @@ last_verified: 2026-10-08
 source `711f7f92ee63279754d80e1be9529ae24905f5ad`의 실제 새 Native와 fresh WASM에서 이1쪽은 각각98.93360%지만, Native SVG의 두 부호는 굴림체/GulimChe 체인으로 나왔다. 이미 확보한 Print와 실제 family를 대조해 legacy TAC run의 측정/paint 슬롯 불일치를 실행으로 확인했다. 사용한 WASM 조판 generation은2022이며 Print service engine2020과 구별한다. 잘못 지정한 compat2020은 exporter가 거부했고 output 없는 orchestration 오류로 보존·교정했다. source/입력/PDF/package hash·전체1쪽 TSV·원시 WASM 출력은 `quotes-native-v3-before-711f7f92e/` 및 `quotes-wasm-v3-compat2022-before-711f7f92e/`에 있다. 90% 점수만으로 잘못된 family를 면제하지 않는다.
 
 남은 보완은 언어 슬롯으로 측정한 문자들이 같은 char-shape ID라는 이유로 첫 문자의 family로 함께 paint되지 않게 하는 것이다. 같은 face·장평·자간을 공유하는 슬롯은 기존 run을 유지하며 실제 글꼴/메트릭이 달라지는 경계를 분리해야 한다. 정상 저장본의 before/after·정식 의미 검사·최신 원본 대조와 필수 검증이 아직 미완료이므로 머지 보류를 유지한다.
+
+### 실제 측정 style과 run 소유의 보완 후보
+
+legacy TAC 텍스트 경로에서 `ParagraphMetricScope::style`이 문자별로 생산한 family/크기/장평/자간과 현재 누적 run 첫 문자의 같은 생산 결과를 비교한다. 값이 달라지면 기존 flush와 마지막 run paint가 같은 시작 문자·style을 소유하도록 run을 끊는다. Unicode category만 다른 경우나 char-shape ID만 같은 경우를 글꼴 동일성으로 대신하지 않는다. `with_stored_tabs`의 소비 위치별 tab extension 변화는 font/메트릭 차이와 구별하며, 기존 char-shape·supplemental metric scope·저장 줄 바꿈·제어문자·실제 빈 run의 경계는 유지한다.
+
+실제 연결은 문자 폭의 `metric_scope.style(styles, cs_id, lang, ch_idx)` → 축적 run 경계의 같은 style 비교 → 중간 flush/마지막 flush의 `metric_scope.style(..., first_lang, line_run_start)` → TextRun backend 소비다. 첫 문자의 속성을 모든 뒤 문자에 적용하던 가정을 제거하고 특정 인용부호·입력 ID 예외를 추가하지 않는다. 같은 글꼴/크기/장평/자간을 공유하는 다른 슬롯은 기존 run을 유지한다. source 후보를 수정했으며 새 Native/fresh WASM·직접 판독·정식 before FAIL/after PASS·원본 대조·회귀/lint는 아직 미검증이다. 원래 source의 전쪽 및 실제 backend 검증 없이 이 후보를 승인·통합하지 않는다.
