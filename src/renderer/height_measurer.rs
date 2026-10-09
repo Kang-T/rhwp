@@ -3,6 +3,8 @@
 //! 페이지네이션 전에 각 콘텐츠의 실제 렌더링 높이를 측정한다.
 //! LayoutEngine과 동일한 계산 로직을 사용하여 정확한 높이를 산출한다.
 
+mod rowspan_block;
+
 use super::composer::{compose_paragraph, ComposedParagraph, SingleLineOverflowCache};
 use super::float_placement::signed_hwpunit;
 use super::style_resolver::ResolvedStyleSet;

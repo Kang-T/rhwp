@@ -133,7 +133,8 @@ impl TypesetEngine {
             // 페이지 중간에서 분할한다. fresh 페이지엔 들어가면(잔여 공간만
             // 부족) 통째로 다음 페이지로 미뤄 잔여 overflow 를 피한다(기존 동작).
             // 페이지 시작 행(r==cursor_row)은 더 미룰 수 없으므로 무조건 분할.
-            let genuinely_page_larger = block_h > st.base_available_height();
+            let genuinely_page_larger =
+                block_h > (st.base_available_height() - header_overhead).max(0.0);
             // [#2097 진단] 블록 컷/이월 결정 입력 — 동작 불변.
             if std::env::var("RHWP_DIAG_SCAN").is_ok() {
                 eprintln!(

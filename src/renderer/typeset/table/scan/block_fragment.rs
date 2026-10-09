@@ -41,7 +41,7 @@ impl<'a> SelectedBlockCut<'a> {
         if use_offsets {
             let mut render_end = b_start + 1;
             for (idx, row_top) in cut_offsets.iter().enumerate() {
-                if *row_top < cut_res.consumed_height - 0.1 {
+                if *row_top < cut_res.occupied_height() - 0.1 {
                     render_end = b_start + idx + 1;
                 }
             }
@@ -195,7 +195,9 @@ impl<'a> SelectedBlockCut<'a> {
         let RowBlockCandidate { b_start, b_end, .. } = *block;
         if use_offsets {
             // [#2287] 오프셋(밴드) 컷의 페이지 소비 권위는 컷 워크의
-            // consumed_height(예산 내 가시 밴드)다. per-row 합산
+            // physical_height다. 부분 컷 최소 높이는 consumed_height로
+            // 별도 판정하며, per-row 합산은 여기서 대체하지 않는다.
+            // per-row 합산
             // (block_fragment_height)은 rowspan 걸침 셀의 유닛을 행
             // 단위로 배분하지 못해 양방향으로 발산한다:
             // - 연속분(start_cut)에서 row_span==1 필터로 **0 평가**
@@ -204,14 +206,8 @@ impl<'a> SelectedBlockCut<'a> {
             //   과대** (교육부 47×9 r2..4: frag 2354.6 vs 컷 450.7 —
             //   p25 가 2396px 로 만재되어 p26 sliver + p30 tail
             //   overflow, PR #2290 P1 리뷰).
-            // frag_total 은 렌더 조각 표시용 참고값으로만 두고, 소비는
-            // 컷 워크와 발산할 때 consumed_height 로 정정한다.
-            let frag_total = rows.fragment_height(block, end_row, blk_start_cut, &cut_res.end_cut);
-            if (frag_total - cut_res.consumed_height).abs() <= 0.5 {
-                frag_total
-            } else {
-                cut_res.consumed_height
-            }
+            // 같은 컷의 유닛별 물리 상자를 그대로 예약한다.
+            cut_res.occupied_height()
         } else {
             let content_height = layout_engine.row_block_content_height(
                 table,

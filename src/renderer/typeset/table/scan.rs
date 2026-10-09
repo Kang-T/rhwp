@@ -58,8 +58,8 @@ impl RowBlockQuery<'_> {
         let block_size = b_end.saturating_sub(b_start);
         let block_has_any_rowspan = block_size >= 2
             && (b_start..b_end).any(|x| rowspan_touched.get(x).copied().unwrap_or(false));
-        let block_has_protectable_rowspan = block_has_any_rowspan
-            && block_size <= crate::renderer::height_measurer::BLOCK_UNIT_MAX_ROWS;
+        let block_has_protectable_rowspan =
+            block_has_any_rowspan && mt.rowspan_block_uses_whole_unit(b_start, b_end);
         let rowbreak_hard_break_row =
             if mt.allows_row_break_split() && b_start == r && block_has_protectable_rowspan {
                 layout_engine.row_block_first_internal_hard_break_row(table, b_start, b_end, styles)

@@ -598,8 +598,8 @@ impl TypesetEngine {
         };
         let first_block_size = first_block_end.saturating_sub(first_block_start);
         let first_block_is_single_row = first_block_size == 1;
-        let first_block_has_protectable_rowspan = first_block_size >= 2
-            && first_block_size <= crate::renderer::height_measurer::BLOCK_UNIT_MAX_ROWS
+        let first_block_has_protectable_rowspan = mt
+            .rowspan_block_uses_whole_unit(first_block_start, first_block_end)
             && (first_block_start..first_block_end)
                 .any(|r| rowspan_touched.get(r).copied().unwrap_or(false));
         let first_rowbreak_block_has_hard_break =
@@ -617,7 +617,8 @@ impl TypesetEngine {
         // 없으면 중간 행에서 자르지 않는다. 일반 RowBreak 행 경계 분할은 유지한다.
         let first_block_protected = first_block_has_protectable_rowspan
             && (!mt.allows_row_break_split() || !first_rowbreak_block_has_hard_break);
-        // Task #398 v2: 보호 블록(2~3 rows)만 블록 전체 높이로 판정. 큰 rowspan(>3)은 행 단위 분할.
+        // CellBreak는 병합 셀 그룹 전체를 단위로 판정한다. 실제 page-larger는
+        // 아래 fresh-page fit과 scan의 블록 컷으로 구분한다.
         // [#2097] 이월 게이트는 스캔과 같은 측정 공간을 본다: 스캔은 cut_row_h
         // (콘텐츠)로 배치를 판정하는데 게이트가 선언(mt.row_heights)만 보면,
         // 내용이 선언을 크게 웃도는 첫 행(82802 pi67: 선언 40.3px vs 컷

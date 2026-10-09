@@ -183,7 +183,17 @@ impl TypesetEngine {
                     .prepared
                     .layout_engine
                     .row_complete_cut_content_height(source.row_geometry_table, row, source.styles);
-                if complete_owners && content <= remaining {
+                // 저장 HU에서 정확히 닫히는 상자도 내용+안여백과 앞 행 차감의
+                // f64 합산 순서가 다르면 끝자리만 초과할 수 있다. 실제 공간
+                // 초과를 수용하지 않고, 같은 프레임 산술의 roundoff만 구분한다.
+                let roundoff = f64::EPSILON
+                    * (content.abs() + height.abs() + before.abs()).max(1.0)
+                    * (row + active.len() + 3) as f64;
+                let fits = content <= remaining
+                    || (content.is_finite()
+                        && remaining.is_finite()
+                        && content - remaining <= roundoff);
+                if complete_owners && fits {
                     complete_last_row = Some((row, remaining));
                 }
                 break;
