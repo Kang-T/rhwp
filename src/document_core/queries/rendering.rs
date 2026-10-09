@@ -5564,31 +5564,23 @@ impl DocumentCore {
             if idx > 0 {
                 let section_has_header = result.pages.iter().any(|p| p.active_header.is_some());
                 if !section_has_header {
-                    for (pi, page) in result.pages.iter_mut().enumerate() {
+                    for page in &mut result.pages {
                         let is_odd = page.page_number % 2 == 1;
                         page.active_header = if is_odd {
-                            carry_header_odd
-                                .clone()
-                                .or_else(|| carry_header_even.clone())
+                            carry_header_odd.clone()
                         } else {
-                            carry_header_even
-                                .clone()
-                                .or_else(|| carry_header_odd.clone())
+                            carry_header_even.clone()
                         };
                     }
                 }
                 let section_has_footer = result.pages.iter().any(|p| p.active_footer.is_some());
                 if !section_has_footer {
-                    for (pi, page) in result.pages.iter_mut().enumerate() {
+                    for page in &mut result.pages {
                         let is_odd = page.page_number % 2 == 1;
                         page.active_footer = if is_odd {
-                            carry_footer_odd
-                                .clone()
-                                .or_else(|| carry_footer_even.clone())
+                            carry_footer_odd.clone()
                         } else {
-                            carry_footer_even
-                                .clone()
-                                .or_else(|| carry_footer_odd.clone())
+                            carry_footer_even.clone()
                         };
                     }
                 }
