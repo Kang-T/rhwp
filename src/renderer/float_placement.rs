@@ -3775,6 +3775,8 @@ pub fn stored_cellbreak_fragment_row_end(
 impl ParagraphFloatPlacement {
     /// 실제 앞 글줄 끝에 도착한 빈 저장 호스트의 바깥 상자를 확정한다.
     /// 호스트 앞 간격은 글줄 사다리의 간격이며, 괘선 위 바깥 여백과 다르다.
+    /// 오프셋0도 바깥 상자의 원점이다. 앞 글줄·저장 사다리·실제 흐름 끝이
+    /// 닫히면 위 여백을 한 번 소비하며, 음수 오프셋은 별도 배치 계약을 유지한다.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_stored_empty_host_after_line(
         previous: &Paragraph,
@@ -3797,7 +3799,7 @@ impl ParagraphFloatPlacement {
             || !matches!(host.controls.first(), Some(Control::Table(_)))
             || !is_para_topbottom_float(&table.common)
             || table.common.vert_align != VertAlign::Top
-            || signed_hwpunit(table.common.vertical_offset) <= 0
+            || signed_hwpunit(table.common.vertical_offset) < 0
             || table.outer_margin_top == 0
             || table.caption.is_some()
             || previous.stored_text_partition_is_dirty()
