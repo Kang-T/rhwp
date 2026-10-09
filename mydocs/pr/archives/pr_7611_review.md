@@ -379,3 +379,16 @@ ignored 증적은 `output/pr-review/planet6897-20261008/`의 `child6712-transfer
 이 head의 Native 새 빌드와 전21쪽 비교가 종료 코드0으로 완료됐습니다. 최저93.33917%,90% 미만·누락0쪽이며5쪽95.86278%·8쪽95.61665%입니다. `candidate-2f47e9649-map-panels/review/`의1/5/8/17/20쪽을 직접 열어5·8쪽의 부족했던 물리 행 밴드, 그 뒤 본문·다음 표의 원점 및 지도/캡션 소속을 확인했습니다. 작은 글꼴 획·농도, 이어받기 경계의 추가 가로 괘선과 bitmap 가장자리 차이는 남습니다.17쪽 지도·캡션은 base보다 약2.8px 아래이며 완전한 좌표 일치로 보고하지 않습니다. Native 전쪽90% 조건 충족과 직접 판독을 fresh WASM 또는 전체 회귀 완료로 승격하지 않습니다.
 
 같은 바이너리의 독립 진단에서 지방공기업 개혁은 textOverlap2건으로 base의2건과 같아졌고, 편람 HWP/HWPX는 각각383쪽을 유지했습니다. 시장구조조사의 offCanvas도 이전 실패1건에서0건으로 줄었습니다. 이들은 CLI 진단이며 해당 corpus partition의 정식 회귀 PASS를 대신하지 않습니다. 현재 head의 integration manifest·source-side unit-tier 정책은 고정 base5168에 대해 모두 통과했습니다. 명령·입력/바이너리 해시는 `candidate-2f47e9649-probes.json`, 정책 로그는 `candidate-2f47e9649-{manifest,unit-tiers}-precheck.log`에 있습니다. 같은 head의 fresh WASM을 별도 package로 빌드 중이며 이후 정식 회귀와 Rust lint를 확인합니다.
+
+
+### 최신 source f971 — 소비된 span과 저장 행의 물리 높이
+
+`f9714465180585f3ed6eb56d9b3df4e17793f4c6`에서 이미 소비한 병합 셀의 전체 측정 제약과 남은 자기 행의 저장 상자를 분리했다. 원본 편람 section7/paragraph405의 남은 자기 셀은 높이6766HU이며 마지막 저장 줄 끝6200HU와 유효 위·아래 여백283HU씩이 그 상자를 정확히 닫는다. 뒤 빈 문단의 저장 vpos14818HU도 반복 머리행·남은 두 행·셀 간격의 합으로 독립적으로 확인했다. 구현에는 이 문서 식별자나 수치를 넣지 않았다. 온전한 자기 셀의 저장 줄 끝·유효 여백이 가장 높은 선언 상자를 실제로 닫고 앞 조각에서 rowspan 내용이 전부 소비된 경우만 저장 물리 높이를 재사용한다. 편집·재조판·dirty 저장 정보·개체·일부 소비·의도적 빈 밴드는 기존 측정/내용 컷 경로를 유지한다.
+
+생산자 `layout/table_layout.rs::row_block_cut_physical_height`의 공통 결과를 수용 높이 `typeset/table/scan.rs::fragment_height`와 실제 배치 `layout/table_partial.rs`가 소비한다. HWP/HWPX의 적용 경로를 함께 두었지만 호출 경로·반례의 최종 회귀 충족은 아직 판정하지 않았다. Native 빌드 잡8, 고정 공유 target에서 release-test CLI 빌드가 exit0(592.38초), fmt check가 exit0이었다. source/binary/hash/명령은 ignored `candidate-f97144651-map-check.json`에 있다.
+
+동일 원본·Print PDF의 Native 영향241쪽은 2f47의84.41953%에서 **98.56607%**로 개선됐다. 새 compare·overlay·review를 직접 열어 첫 표의 이어받은 행 높이, 뒤 제목과 두 번째 표 위치를 확인했다. 글꼴 획/농도 차이는 남는다. 어구 금지 원본은 Native **전21쪽 최저93.33917%, 미달/누락0쪽**이며 새1/5/8/17/20쪽 panel을 모두 직접 판독했다. 5/8쪽의 큰 밀림은 제거했고,17쪽 지도·캡션의 약2.8px 차이 및 이어받은 표 외곽선 차이는 남는 차이로 보존한다. `candidate-f97144651-native-book241/`, `candidate-f97144651-book241-panels/`, `candidate-f97144651-native-map/`, `candidate-f97144651-map-panels/`에 source와 raster hash를 연결했다. 이는 Native 일부 진전이며 최종 fresh WASM·편람 전쪽·전체 회귀·세 Clippy 통과로 보고하지 않는다.
+
+2026-10-09 원격 fetch 뒤 `upstream/devel`은 계속 `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`이다. 실제 실행 base74의 원본 read/export 소스와5168의 동등성 추론은 새5168 실행과 구별한다. base 편람241쪽에서 영문 파일명 공급은 잘못된 Noto face로 임베딩됐으므로 기존72.72455%를 이관 근거로 사용하지 않는다. 검증된 원래 KoPub 바이트의 한글 파일명 사본을 공급하고 실제 임베딩 face별 SHA를 확인한 새 base Native241쪽은72.23273%였다. 표 높이·뒤 표·줄바꿈의 차이를 직접 판독했으나 단일 페이지 진단일 뿐이며, 이 결과로 새로운 실패 검사를 이관하지 않았다. `base-handbook-korean-font-aliases.json`, `native-handbook241-correct-fonts/execution.json`, `base-handbook241-correct-fonts-panels/`를 보존한다. 사용자 기준은 계속 **base에서 엄격히90% 미만인 실패 사례만 기존#7445 이관,90% 이상은 현재 branch 개선, 미측정/실행 실패는 이관하지 않음**이다.
+
+대형 fresh WASM SVG의231MB 중복 base64 글꼴 때문에 Chrome 로딩이 실패한 것은 피델리티 미달과 구별했다. 임베딩 원본 SVG를 보존하고 동일 글꼴 바이트를 SHA 고정 local file URI로 전달하는 진단 wrapper를 준비했다. 과거 reform 원본126049370bytes를140832bytes의 전달 사본으로 캡처했을 때 원 PNG와 **전 픽셀 동일**했고 exit0/3.59초였다. 이는 렌더링·폰트 정책·글리프·좌표·관용 거리 변경이 아닌 전달 방식 대조이며, `exact-font-transport-control/record.json`에 원본/사본/글꼴/raster hash와 범위를 기록했다. 과거 대조군 결과를 최신 source WASM 검증으로 보고하지 않는다.
