@@ -16299,18 +16299,16 @@ impl LayoutEngine {
                                     result_y = saved_y_offset;
                                 }
                             }
-                            // [Task #683] 빈 paragraph (텍스트 없음) + Para-relative TopAndBottom
-                            // 그림 (caption 없음) 의 layout 진행량 보정. 한컴 한글 2022 PDF 는
-                            // 그림 다음에 paragraph 의 line baseline 1줄(line_height + line_spacing)
-                            // 을 추가 진행하나 rhwp 기본 layout 은 image_height 만 진행하여
-                            // cluster 거리가 1 line 부족 (pr-149.hwp 18864 HU vs 17280 HU 결함).
+                            // 빈 호스트 문단의 저장 줄은 그림 캡션 문단과 별도로 진행한다.
+                            // 조판에서 흡수하지 않은 호스트 줄을 그림 배치 반환값에도 보존한다.
+                            // 캡션이 있어도 호스트 줄이 사라지면 뒤 문단이 한 줄 위로 올라간다.
                             if matches!(
                                 pic.common.text_wrap,
                                 crate::model::shape::TextWrap::TopAndBottom
                             ) && matches!(
                                 pic.common.vert_rel_to,
                                 crate::model::shape::VertRelTo::Para
-                            ) && pic.caption.is_none()
+                            )
                                 // 확정된 뒤 줄 원점은 호스트 점유를 이미 포함한다.
                                 && stored_picture
                                     .and_then(|placement| placement.stored_successor_line_origin)
@@ -16344,7 +16342,7 @@ impl LayoutEngine {
                                     result_y = stored_y;
                                 } else if !has_visible_text
                                     // [#7470] host 줄이 그림 띠에 흡수된 빈 host(`sw=0`)는 더하지 않는다.
-                                    && (self.column_is_endnote_flow.get()
+                                    && (pic.caption.is_some() || self.column_is_endnote_flow.get()
                                         || !crate::renderer::empty_host_line_absorbed_by_topbottom_float(
                                             para,
                                             &pic.common,

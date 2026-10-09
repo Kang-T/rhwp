@@ -1879,6 +1879,7 @@ fn parse_hwp3_object_dispatch(
 
         let caption_pos = (&info_buf[70..72]).read_u16::<LittleEndian>().unwrap_or(0);
         let caption_width = (&info_buf[46..48]).read_u16::<LittleEndian>().unwrap_or(0) as u32 * 4;
+        let caption_height = (&info_buf[48..50]).read_u16::<LittleEndian>().unwrap_or(0) as i32 * 4;
         let caption_paras = parse_paragraph_list(
             body_cursor,
             doc_char_shapes,
@@ -1900,9 +1901,32 @@ fn parse_hwp3_object_dispatch(
         };
 
         let caption = hwp3_paragraphs_have_renderable_content(&caption_paras).then(|| {
+            // 그림 정보의 캡션 세로 띠는 텍스트와 그림 사이의 간격도 소유한다.
+            // 저장 줄의 실제 하단을 제외한 값만 IR 간격으로 전달한다.
+            let text_height = caption_paras
+                .iter()
+                .filter_map(|para| {
+                    para.line_segs
+                        .last()
+                        .map(|line| line.vertical_pos.saturating_add(line.line_height))
+                })
+                .max()
+                .unwrap_or(0);
+            let spacing = if matches!(
+                caption_direction,
+                crate::model::shape::CaptionDirection::Top
+                    | crate::model::shape::CaptionDirection::Bottom
+            ) {
+                caption_height
+                    .saturating_sub(text_height)
+                    .clamp(0, i16::MAX as i32) as i16
+            } else {
+                0
+            };
             crate::model::shape::Caption {
                 direction: caption_direction,
                 width: caption_width as _,
+                spacing,
                 paragraphs: caption_paras,
                 ..Default::default()
             }

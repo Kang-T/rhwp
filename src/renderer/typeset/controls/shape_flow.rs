@@ -67,7 +67,7 @@ pub(super) fn prepare(
                     && matches!(p.common.text_wrap, TextWrap::TopAndBottom)
                     && matches!(p.common.vert_rel_to, VertRelTo::Para) =>
             {
-                let h = hwpunit_to_px(p.common.height as i32, dpi);
+                let h = crate::renderer::composer::captioned_picture_height_px(p, dpi);
                 let mt = hwpunit_to_px(p.common.margin.top as i32, dpi);
                 let mb = hwpunit_to_px(p.common.margin.bottom as i32, dpi);
                 Some(mt + h + mb)

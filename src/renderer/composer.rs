@@ -978,6 +978,13 @@ pub(crate) fn captioned_shape_height_px(
     }
 }
 
+/// 실제 표시 프레임과 캡션이 함께 점유하는 그림 높이.
+/// 본문 예약·표 호스트 예약·paint가 같은 크기와 캡션 메트릭을 소비한다.
+pub(crate) fn captioned_picture_height_px(picture: &crate::model::image::Picture, dpi: f64) -> f64 {
+    let (_, height) = super::layout::picture_flow_frame_size_hu(picture);
+    captioned_shape_height_px(hwpunit_to_px(height, dpi), &picture.caption, dpi)
+}
+
 /// Hanyang-PUA 옛한글 코드포인트·한컴 PUA와 legacy 제품명을 렌더링용 텍스트로 변환한다.
 ///
 /// 한컴 자체 폰트 (함초롬바탕 LVT 등) 는 PUA 영역에 옛한글 글리프를 직접

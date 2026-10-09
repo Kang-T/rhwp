@@ -464,7 +464,10 @@ impl TypesetEngine {
                                     && matches!(pic.common.text_wrap, TextWrap::TopAndBottom)
                                     && matches!(pic.common.vert_rel_to, VertRelTo::Para) =>
                             {
-                                let h = hwpunit_to_px(pic.common.height as i32, self.dpi);
+                                let h = crate::renderer::composer::captioned_picture_height_px(
+                                    pic, self.dpi,
+                                );
+                                let mt = hwpunit_to_px(pic.common.margin.top as i32, self.dpi);
                                 let mb = hwpunit_to_px(pic.common.margin.bottom as i32, self.dpi);
                                 let hl =
                                     hwpunit_to_px(pic.common.horizontal_offset as i32, self.dpi);
@@ -488,7 +491,7 @@ impl TypesetEngine {
                                 } else {
                                     0.0
                                 };
-                                Some((h, (h + mb - absorbed_host_line).max(0.0), hl, hr))
+                                Some((h, (mt + h + mb - absorbed_host_line).max(0.0), hl, hr))
                             }
                             Control::Shape(s)
                                 if !s.common().treat_as_char
