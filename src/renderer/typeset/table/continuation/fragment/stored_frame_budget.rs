@@ -22,9 +22,6 @@ impl TypesetEngine {
             || !input.start.start_cut.is_empty()
             || scan.end_row == 0
             || scan.end_row >= input.prepared.row_count
-            || scan.split_block_start.is_some()
-            || !scan.split_end_cut.is_empty()
-            || scan.split_end_limit > 0.0
             || height <= scan.consumed + budget.header_overhead + 0.5
         {
             return None;
@@ -32,12 +29,72 @@ impl TypesetEngine {
         // Content ownership is already final. The authenticated object box
         // also owns its unused band; preserve the selected row minimum rather
         // than inferring another row or shortening an accepted line advance.
-        let selected_last = scan
-            .end_row_height_override
-            .unwrap_or(*input.prepared.whole_row_fit_heights.get(scan.end_row - 1)?);
-        let before_last = scan.consumed - selected_last;
+        let (before_last, selected_last) = if let Some(block_start) = scan.split_block_start {
+            self.stored_complete_block_prefix(input, scan, block_start, height)?
+        } else {
+            if !scan.split_end_cut.is_empty() || scan.split_end_limit > 0.0 {
+                return None;
+            }
+            let selected_last = scan
+                .end_row_height_override
+                .unwrap_or(*input.prepared.whole_row_fit_heights.get(scan.end_row - 1)?);
+            (scan.consumed - selected_last, selected_last)
+        };
         let last_height = height - budget.header_overhead - before_last;
         (before_last >= 0.0 && last_height >= selected_last).then_some((height, last_height))
+    }
+
+    fn stored_complete_block_prefix(
+        &self,
+        input: FragmentInput<'_>,
+        scan: &BlockTableRowScan,
+        block_start: usize,
+        height: f64,
+    ) -> Option<(f64, f64)> {
+        let table = input.source.row_geometry_table;
+        let styles = input.source.styles;
+        let engine = &input.prepared.layout_engine;
+        let measured = input.source.measured_table;
+        let (first, end, _) = measured.row_block_for(block_start);
+        if first != block_start || scan.end_row <= first || scan.end_row >= end {
+            return None;
+        }
+        let source_height = engine.stored_complete_block_opening_frame_height(
+            table,
+            input.source.paragraph,
+            scan.end_row,
+            &scan.split_end_cut,
+            styles,
+        )?;
+        if height != source_height {
+            return None;
+        }
+        // A block cut can encode a complete physical row without an empty
+        // vector. Verify the exact measured-row owner used by paint; the unit
+        // walk's consumed height alone does not include this row's blank band.
+        if !(0..scan.end_row).all(|row| {
+            if row < first {
+                engine.whole_fragment_row_uses_measured_height(table, row)
+            } else {
+                engine.row_block_cut_uses_measured_height(
+                    table,
+                    (first, end),
+                    row,
+                    &[],
+                    &scan.split_end_cut,
+                    styles,
+                )
+            }
+        }) {
+            return None;
+        }
+        let last = scan.end_row - 1;
+        let before = measured.row_heights.get(..last)?.iter().sum::<f64>()
+            + measured.cell_spacing * last as f64;
+        let selected = scan
+            .end_row_height_override
+            .unwrap_or(*measured.row_heights.get(last)?);
+        Some((before, selected))
     }
 
     pub(super) fn stored_partial_fragment_height(

@@ -1,5 +1,6 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
+mod stored_complete_block_cut;
 mod stored_plain_row_frame;
 mod stored_span_content;
 mod stored_span_reservation;

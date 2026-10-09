@@ -6240,10 +6240,26 @@ impl LayoutEngine {
                     )
                 })
             });
+        let complete_block_opening_height = (start_row == 0
+            && start_cut.is_empty()
+            && is_block_split
+            && end_row_height_override.is_some()
+            && resolved_table_top.is_some())
+        .then(|| {
+            paragraphs.get(para_index).and_then(|host| {
+                self.stored_complete_block_opening_frame_height(
+                    table, host, end_row, end_cut, styles,
+                )
+            })
+        })
+        .flatten();
+        // A selected complete block row also owns the declared opening box.
+        // Consume the same source-frame owner as reservation: its unused band
+        // is alignment space, not trailing line spacing to fold after paint.
         let align_saved_opening_frame = !is_continuation
-            && !is_block_split
             && enclosing_cell_ctx.is_none()
-            && saved_opening_alignment_height
+            && complete_block_opening_height
+                .or(saved_opening_alignment_height.filter(|_| !is_block_split))
                 .is_some_and(|frame_height| (partial_table_height - frame_height).abs() <= 0.5);
 
         // ── 6. 셀 렌더링 (render_rows 범위 내 셀만) ──
