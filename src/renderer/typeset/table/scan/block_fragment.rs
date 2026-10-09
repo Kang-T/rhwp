@@ -51,6 +51,42 @@ impl<'a> SelectedBlockCut<'a> {
         }
     }
 
+    /// A complete stored row boundary owns its natural physical box even when
+    /// the ink-only cut is below the partial-text orphan minimum. Produce the
+    /// occupied prefix and last row together for reservation and paint.
+    pub(in crate::renderer::typeset) fn complete_row_boundary_frame(
+        &self,
+        rows: &RowBlockQuery<'_>,
+        block: &RowBlockCandidate,
+        start: &[usize],
+        budget: f64,
+    ) -> Option<(f64, f64)> {
+        let end_row = self.end_row(block);
+        if !self.use_offsets
+            || !start.is_empty()
+            || self.cut_res.hit_hard_break
+            || !rows.layout_engine.row_block_cut_is_complete_row_boundary(
+                rows.table,
+                (block.b_start, block.b_end),
+                end_row,
+                &self.cut_res.end_cut,
+                rows.styles,
+            )
+        {
+            return None;
+        }
+        let height = rows.fragment_height(block, end_row, start, &self.cut_res.end_cut);
+        let before_last = rows.fragment_height(block, end_row - 1, start, &self.cut_res.end_cut)
+            + if end_row > block.b_start + 1 {
+                rows.cs
+            } else {
+                0.0
+            };
+        let last = height - before_last;
+        (height.is_finite() && height > 0.0 && height <= budget && last > 0.0)
+            .then_some((height, last))
+    }
+
     /// 내용이 완전 행에서 닫힐 때만 남은 쪽 밴드를 마지막 행의 물리 높이로 쓴다.
     /// 실제 내용은 밴드 안에 들어가야 하며 남는 빈 공간은 다음 행으로 이어진다.
     pub(in crate::renderer::typeset) fn complete_row_boundary_band(

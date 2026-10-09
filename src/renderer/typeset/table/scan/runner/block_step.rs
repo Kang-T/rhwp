@@ -184,6 +184,7 @@ impl TypesetEngine {
             // PDF p2 는 rows 8..9 수용 실측) — fully 오판 여부와 무관하게
             // 기각 경계 전체로 오프셋 재시도를 확장한다.
             let mut band_fill = None;
+            let mut complete_row_frame = None;
             if cut_query.retries_band(allow_block_split, can_intra_split, block_h, budget) {
                 let mut offsets = Vec::with_capacity(block_size);
                 let mut top = 0.0;
@@ -212,8 +213,27 @@ impl TypesetEngine {
                     res2.end_cut
                 );
                 }
-                if !res2.fully_consumed && res2.consumed_height >= MIN_TOP_KEEP_PX {
-                    band_fill = Some((res2, offsets));
+                if !res2.fully_consumed {
+                    let candidate = Some((res2, offsets));
+                    let selected = table::scan::block_fragment::SelectedBlockCut::select(
+                        rowbreak_use_row_offsets,
+                        &res,
+                        &block_row_offsets,
+                        &candidate,
+                    );
+                    if selected.cut_res.consumed_height < MIN_TOP_KEEP_PX {
+                        complete_row_frame = selected.complete_row_boundary_frame(
+                            &block_query,
+                            &block,
+                            blk_start_cut,
+                            budget,
+                        );
+                    }
+                    if selected.cut_res.consumed_height >= MIN_TOP_KEEP_PX
+                        || complete_row_frame.is_some()
+                    {
+                        band_fill = candidate;
+                    }
                 }
             }
             if can_intra_split
@@ -226,6 +246,14 @@ impl TypesetEngine {
                     &band_fill,
                 );
                 end_row = selected.end_row(&block);
+                if let Some((height, last)) = complete_row_frame {
+                    split_block_start = Some(b_start);
+                    split_end_cut = selected.cut_res.end_cut.clone();
+                    split_end_limit = selected.cut_res.consumed_height;
+                    end_row_height_override = Some(last);
+                    consumed += cs_before + height;
+                    return false;
+                }
                 if let Some(band) = selected.complete_row_boundary_band(
                     &block_query,
                     &block,

@@ -149,11 +149,24 @@ impl TypesetEngine {
                     && active
                         .iter()
                         .all(|cell| usize::from(cell.row) == row && cell.row_span == 1);
-                // Ordinary rows already have a complete measured content box,
-                // including pictures. The plain-line certificate is only for
-                // earlier merged owners whose unit window must finish here.
-                let complete_owners = ordinary_owners
-                    || (!active.is_empty()
+                // A Top-aligned plain row still owns its declared blank tail.
+                // Keep its original box so the normal RowCut can carry that
+                // space after all content is consumed. Pictures and aligned
+                // source boxes retain their complete measured-frame contract.
+                let ordinary_blank_tail = ordinary_owners
+                    && crate::renderer::typeset::table::scan::row::ordinary_band_row_shape(
+                        source.row_geometry_table,
+                        row,
+                        *row_height,
+                        self.dpi,
+                    )
+                    && active
+                        .iter()
+                        .all(|cell| cell.vertical_align == crate::model::table::VerticalAlign::Top);
+                let complete_owners = if ordinary_owners {
+                    !ordinary_blank_tail
+                } else {
+                    !active.is_empty()
                         && input
                             .prepared
                             .layout_engine
@@ -164,7 +177,8 @@ impl TypesetEngine {
                                 &input.prepared.cut_row_heights,
                                 remaining,
                                 source.styles,
-                            ));
+                            )
+                };
                 let content = input
                     .prepared
                     .layout_engine
