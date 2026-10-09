@@ -1,5 +1,5 @@
-//! #7084 A: controlled provider contracts, not a Hancom visual oracle.
-//! Advances below are independent provider inputs; no universal emoji width.
+//! #7084 A: 측정 공급자의 합성 계약 검사다. 실물 한컴 출력 수용을 주장하지 않는다.
+//! 전진 폭은 독립 공급자 입력값이며 이모지의 보편적인 폭을 가정하지 않는다.
 use std::sync::Arc;
 
 use rhwp::renderer::canvas_text_font::CanvasTextFont;
@@ -56,13 +56,17 @@ fn canvas_font_setup_preserves_positioned_painter_contract() {
     };
     let font = CanvasTextFont::for_positioned_text(&s, 100.0);
     let family = rhwp::renderer::canvas_font_family_chain("HCR Batang");
-    assert_eq!(font.descriptor(), format!("italic bold 12.600px {family}"));
+    let script_size = s.font_size * 0.7;
+    assert_eq!(
+        font.descriptor(),
+        format!("italic bold {script_size:.3}px {family}")
+    );
     assert_eq!(
         font.old_hangul_descriptor(),
-        format!("italic bold 12.600px 'Source Han Serif K Old Hangul', {family}")
+        format!("italic bold {script_size:.3}px 'Source Han Serif K Old Hangul', {family}")
     );
-    near(font.draw_size(), 12.6);
-    near(font.horizontal_scale(), 0.9);
+    near(font.draw_size(), script_size);
+    near(font.horizontal_scale(), s.ratio);
     near(font.baseline(), 94.0);
     let sub = CanvasTextFont::for_positioned_text(
         &TextStyle {
@@ -78,17 +82,10 @@ fn canvas_font_setup_preserves_positioned_painter_contract() {
 
 #[test]
 fn measured_canvas_advance_matches_paint_after_ratio_exactly_once() {
-    // Actual measureText outputs, not assumed 1em squares. Include the legacy
-    // condensation threshold and nonpositive-ratio default on both sides.
-    for (ratio, paint_scale) in [
-        (0.64, 0.8),
-        (0.81, 0.9),
-        (0.999, 0.999),
-        (1.0, 1.0),
-        (1.2, 1.2),
-        (0.0, 1.0),
-        (-1.0, 1.0),
-    ] {
+    // 공급자의 실제 측정 입력을 보존하고 가로 장평만 한 번 소비한다.
+    // 장평이 세로 크기까지 줄이거나 측정 폭에서 두 번 적용되면 실패해야 한다.
+    for ratio in [0.64, 0.81, 0.999, 1.0, 1.2, 0.0, -1.0] {
+        let paint_scale = if ratio > 0.0 { ratio } else { 1.0 };
         for script in [false, true] {
             let mut s = TextStyle {
                 ratio,
@@ -96,6 +93,10 @@ fn measured_canvas_advance_matches_paint_after_ratio_exactly_once() {
                 ..style()
             };
             let font = CanvasTextFont::for_positioned_text(&s, 0.0);
+            near(
+                font.draw_size(),
+                s.font_size * if script { 0.7 } else { 1.0 },
+            );
             let entry = SupplementalMetric::from_canvas_measurement(
                 &s,
                 "😀",
@@ -118,19 +119,20 @@ fn canvas_css_rounding_is_not_undone_by_advance_conversion() {
         ..style()
     };
     let font = CanvasTextFont::for_positioned_text(&s, 0.0);
-    assert!(font.descriptor().starts_with("11.926px "));
-    // The provider may have nonlinear optical metrics at this CSS size. Keep
-    // its measured result; do not infer it from nominal or unrounded font size.
+    let css_size = format!("{:.3}", s.font_size);
+    assert!(font.descriptor().starts_with(&format!("{css_size}px ")));
+    // CSS 크기에서 얻은 광학 메트릭은 선형 비례를 보장하지 않는다.
+    // 원래 크기/CSS 반올림 크기로 역보정하지 않고 공급자가 준 실제 폭을 보존한다.
     let entry = SupplementalMetric::from_canvas_measurement(
         &s,
         "😀",
         font.descriptor(),
-        "11.926px resolved-face".into(),
+        format!("{css_size}px resolved-face"),
         16.731,
     )
     .unwrap();
     let _store = bound(&mut s, vec![entry]);
-    near(positions("😀", &s)[1], 16.731 * 0.8_f64.sqrt());
+    near(positions("😀", &s)[1], 16.731 * s.ratio);
 }
 
 #[test]
