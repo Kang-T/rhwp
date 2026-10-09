@@ -420,3 +420,13 @@ rebase 전후 Rust source 차이는 위 source 보완의2파일뿐이며 기존 
 충돌0건이며132개 커밋 각각의 원저자·메일·작성 시각·전체 메시지·상대 순서를 대조해 보존했다. 모든 contributor commit이 첫 메인터너 보정 앞에 있고 기존053 보완의 상대 순서도 유지된다. 기존7개 리뷰 기록은 rebase 전과 바이트가 같고, 최신 base의 #7697 기록과 오늘할일은 보존했다. 오늘할일의 기존 로컬 항목과 새 base 항목은 모두 원래 순서대로 남는다. clean tree, 새 base ancestor, 공백 검사와 실제 merge tree가 HEAD tree와 같음도 확인했다. 정확한132개 전후 SHA mapping과 검사는 ignored `batch4-latest-base-rebase.json`에 있다. 백업 `backup/planet6897-before-sync-b7d676498`과 공유 target은 유지한다.
 
 이번 upstream 변경에는 수식·crop·화살촉·CanvasKit 글꼴 소비 source와 [출력 백엔드 소비 경로 검증](../../manual/verification/renderer_backend_verification.md)이 포함됐다. 이전 Native/fresh WASM 결과는 이전 source의 증거로 보존하며 새 head의 시각 통과로 승격하지 않는다. 새 source·필수 게이트·최신 base 정책 검사와 해당 실제 backend 검증은 아직 미완료다. 다음 보완은 이미 실행으로 확인한154쪽 partial-table paint의 공통 밴드 원점 소비 누락이며, 전체 회귀 전에 영향 원본을 다시 출력해 확인한다.
+
+### 전체 쪽 비교에서 검출한242쪽 이월 오류 — 2026-10-10
+
+제품 source `0a8ac9f82e3123637b5f3741feb9f5d56dd735b7`의 기존 문제16쪽은 Native/fresh WASM 모두90% 이상이지만, 원본 HWPX 전체383쪽 비교에서는 **242쪽43.99893%로 보류**다. Native와 fresh WASM 각각383쪽을 빠짐없이 비교했고 미달은242쪽 하나다. HWP Native 전체383쪽도 **242쪽44.16228%**이며 다른 쪽의 미달·누락은 없다. HWP fresh WASM은 실행 중이므로 완료로 기록하지 않는다. 결과는 ignored `candidate-0a8ac9f82-native-handbook-{hwp,hwpx}-full-recovered.json`과 `candidate-0a8ac9f82-wasm-handbook-hwpx-full/provenance.json` 및 각 전체 TSV에 보존했다. 영향 쪽 통과를 문서 전수 통과로 승격하지 않았다.
+
+242쪽 Native/fresh WASM과 같은 원문 Print를 직접 열었다. 이전 후보 `f97144651`의 같은242쪽은98.37935%지만, 새 출력에서는 원래241쪽에 있어야 할 `정책연구 과제 공개` 행들이242쪽으로 넘어와 뒤 본문을 밀어낸다. 같은 내용의 전역 중복 검출을 주장하지 않는다. 이전 `7c9f55a69`의 두 쪽 직접 비교에서도242쪽43.99893%를 재현했다. `3483c17f4`의 실제242쪽 render tree에는 현재와 같은 host408/13행 표의173.7px 상자와 같은 글줄 원점이 있어 최근 partial 원점 보완·홀짝 상속·최신 base보다 앞서 존재한다. 해당 Source의 Chrome 환경 변수 누락으로 실패한 래스터 시도는 시각 측정으로 인정하지 않고 구조 출력만 사용한다. source 차이가 있는 구간을 더 좁히며, 특정 문서·행 ID 예외나 baseline 완화로 해결하지 않는다.
+
+전쪽 실행 중의 Chrome timeout과 Windows 진행 기록 파일의 원자적 교체 실패는 위 배치 결함과 분리했다. 원래 실패 로그·JSON을 보존하고 실제 소유 프로세스 종료를 확인한 뒤 누락 쪽만 캡처했다. HWPX137쪽, HWP247쪽 및 기록 실패로 제출되지 않은372~383쪽을 복구했고, 원래 성공한 PNG는 덮어쓰지 않았다. 브라우저 재사용은 같은 canonical SVG/font 준비·완료 조건으로6쪽의 PNG 픽셀·바이트 동일성을 먼저 확인한 로컬 orchestration이며 source·조판·점수 계산은 바꾸지 않았다. 복구 후 원문 전체383쪽을 canonical PNG-pair로 다시 집계했고 시각 exit1을 성공으로 바꾸지 않았다.
+
+쪽 나눔 영향 원장의48개 입력·기준 PDF도 현재 파일로 재확인했다. 누락0개, 기준 PDF 총3,631쪽이며 입력/PDF hash·쪽수는 `batch5-pagination-reference-inventory.json`에 고정했다. 이 기록은 현재 자료의 확보 증거로서 원문 대응·글꼴·Native/fresh WASM 시각 검증의 완료 증거와 구별한다. 실제242쪽 이월 원인 확인과 보완, 새 source의 영향 재검증·정식 회귀·최종 lint·각 PR 검토가 남아 있다. 새 회귀·baseline 추가와 원격 push·통합 PR은 계속 보류한다.
