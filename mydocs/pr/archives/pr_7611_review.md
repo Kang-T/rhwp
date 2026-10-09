@@ -412,3 +412,11 @@ Native140쪽의 새 compare/review를 직접 읽어 내용 소유·빈 줄·마�
 새 렌더링 검사는 원본·독립 Print의 Native/fresh WASM90% 선행 조건을 먼저 충족해야 한다.561d의 새 spacer 검사와 baseline9행 삭제, `53eebaec891fd35524ce7063c0ecbdea3e776353`의 절대 픽셀 위치 검사는 source 적용과 분리해 보류했다. 기존 원장은 그대로 두고 영향 원본의 전쪽 비교·관계 기반 검사·수정 전 FAIL/후 PASS를 확인한 뒤 검사 포함 여부를 판정한다.31f의 대표 PNG는 원저자 head의 증거로만 보존하고 실행 중간 JSON은 ignored `pr7611-author-31f5628-sweep-summary.json`에 둔다. 이 보류를 소스 보완 누락이나 회귀 통과로 보고하지 않는다.
 
 rebase 전후 Rust source 차이는 위 source 보완의2파일뿐이며 기존 text-overlap baseline은 바이트 변경이 없다. `git diff --check upstream/devel...HEAD`도 통과했다. 정확한 순서·118개 커밋 메타데이터 대조·제외 범위는 ignored `pr7611-before-ordered-rebase.tsv`, `pr7611-ordered-additions.json`, `pr7611-ordered-rebase-result.json`에 보존했다. 공유 target은 보존하고, 남은 원인을 분석·수정한 묶음에 대해 새 head Native/fresh WASM 및 필수 검증을 수행한다.
+
+### 실행 종료 뒤 최신 base 재정렬 — 2026-10-09
+
+사용자 지시에 따라 제품 후보 `7c9f55a69`의 Native·fresh WASM 실행을 먼저 종료하고, 그 실제 실패·성공 범위를 [#7617 후보 실행 결과](pr_7617_review.md#후보-7c9f55a69의-실행-결과와-실제-배치-경로-누락)에 기록한 `b7d676498`을 백업했다. 이후 `git fetch upstream devel`과 `git rebase --onto upstream/devel 79abd9e49675f4286eaed38197f7e837afb744e7`를 완료했다. 새 base는 `21ed64071f81f35f37618717693bd30f727392c9`, rebase 직후 head는 `f51968b3b78467566d61f65890c6638379a08a69`다.
+
+충돌0건이며132개 커밋 각각의 원저자·메일·작성 시각·전체 메시지·상대 순서를 대조해 보존했다. 모든 contributor commit이 첫 메인터너 보정 앞에 있고 기존053 보완의 상대 순서도 유지된다. 기존7개 리뷰 기록은 rebase 전과 바이트가 같고, 최신 base의 #7697 기록과 오늘할일은 보존했다. 오늘할일의 기존 로컬 항목과 새 base 항목은 모두 원래 순서대로 남는다. clean tree, 새 base ancestor, 공백 검사와 실제 merge tree가 HEAD tree와 같음도 확인했다. 정확한132개 전후 SHA mapping과 검사는 ignored `batch4-latest-base-rebase.json`에 있다. 백업 `backup/planet6897-before-sync-b7d676498`과 공유 target은 유지한다.
+
+이번 upstream 변경에는 수식·crop·화살촉·CanvasKit 글꼴 소비 source와 [출력 백엔드 소비 경로 검증](../../manual/verification/renderer_backend_verification.md)이 포함됐다. 이전 Native/fresh WASM 결과는 이전 source의 증거로 보존하며 새 head의 시각 통과로 승격하지 않는다. 새 source·필수 게이트·최신 base 정책 검사와 해당 실제 backend 검증은 아직 미완료다. 다음 보완은 이미 실행으로 확인한154쪽 partial-table paint의 공통 밴드 원점 소비 누락이며, 전체 회귀 전에 영향 원본을 다시 출력해 확인한다.
