@@ -408,8 +408,15 @@ fn stored_empty_square_picture_cell_frame(
     let [line] = para.line_segs.as_slice() else {
         return None;
     };
+    // HWPX colPr also sets MultiColumn in the HWP5-compatible IR header.
+    // It configures this stored anchor; explicit page/column/section breaks
+    // still prevent one uninterrupted picture frame.
     if !para.text.is_empty()
-        || para.column_type != crate::model::paragraph::ColumnBreakType::None
+        || !matches!(
+            para.column_type,
+            crate::model::paragraph::ColumnBreakType::None
+                | crate::model::paragraph::ColumnBreakType::MultiColumn
+        )
         || para.stored_text_partition_is_dirty()
         || para.cell_format_vpos_dirty
         || para.controls.is_empty()
