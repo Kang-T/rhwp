@@ -220,3 +220,13 @@ WASM 비교는 첫 원본 export에서 `setHangul2024Compat` 부재로 중단됐
 후속 후보는 `float_placement.rs:stored_paragraph_successor_flow`에서 genuine·비편집·비dirty의 저장 줄과 후속 비TAC 문단 상대 흐름 표가 닫는 콘텐츠 하단/흐름 끝 HU를 함께 만든다. 문서 ID·행 번호·고정 픽셀 보정·clamp를 사용하지 않는다. 재조판 줄 수가 달라진 경로와 다단·합성·저장 줄 리셋은 이 전체 문단 계약 밖이다. page base는 column anchor, lazy base는 body origin, unbased partial-table 저장 사다리는 기존 배치처럼 body-relative 축을 쓴다.
 
 측정 소비는 전체 fitted/atomic-overflow 문단의 공통 끝점 사영 → 실제 cursor 차이 전진 → 다음 표의 budget/cut이며, 콘텐츠 하단도 같은 결과를 기록한다. 절대 끝점과 전체 문단 높이의 차이를 spacing trim 또는 underrun으로 재해석하지 않는다. 실제 배치는 `layout.rs`의 FullParagraph 최종 항목 완료에서 같은 끝점을 같은 축으로 소비하고, 그 뒤 다음 항목 커서를 갱신한다. 빈/partial 문단은 이 전체 문단 계약으로 덮어쓰지 않는다. 이 source 변경의 fresh Native/WASM·전체 페이지 gate·정상 대조군·필수 회귀/lint는 아직 미검증이다. 새 회귀나 baseline은 아직 추가하지 않으며 보류 판정을 유지한다.
+
+#### 공통 끝점 후보의 실행 결과 — 2026-10-10
+
+보완 source는 `711f7f92ee63279754d80e1be9529ae24905f5ad`다. commit 후 upstream/devel을 fetch한 결과 base `21ed64071f81f35f37618717693bd30f727392c9`는 같았고 rebase는 up to date로 종료했다. owned review의 포맷·manifest 준비를 완료하고 공유 target에서 jobs8로 Native CLI635초 exit0, fresh WASM338초 exit0을 확인했다. Native binary SHA-256은 `1bdcf8abb96004b10bb2b0f7086cccc8f558430e05c5bbf7d6d5bd34e7b9c037`다. 소스·입력·독립 PDF·WASM package hash와 실제 명령/로그는 `candidate-711f7f92e-{native,wasm}-check.json`에 있다. 첫 checkout/검증 진입이 보존된 source 복사본 때문에 거부된 경우는 build FAIL이 아니며, 해당 복사본이 commit blob과 같음을 확인한 뒤 owned checkout만 정리하고 검증했다.
+
+HWP/HWPX의 실제 Native page plan은 모두383쪽이다.241쪽 host408은0..11,242쪽은11..13으로 복구됐으며 제목407의 전진은49.3px 고정 가산 대신 실제 끝점까지42.5px다. 다음 표의 진입268.2px·가용465.8px·소비460.1px·endRow11을 실제 로그로 확인했다.152쪽 host47의 시작/끝 컷과153~156쪽의 이어받기 소유도 유지했다(`batch6-711f7f92e-cut-diagnostic/`). 이 진단의 쪽수·컷 복구를 HWP 전쪽 시각 통과로 대신하지 않는다.
+
+원본 결재문서5개 전7쪽은 Native/fresh WASM 모두 최저99.61781%다. 편람 HWPX 영향·정상 대조20쪽은 두 backend 모두 최저92.77642%, 미달·누락0쪽이다.152쪽99.43126%,241쪽98.56603%,242쪽98.37935%,243쪽99.15390%,281쪽99.92654%,375쪽92.77642%다.242쪽의 이전43.99893% 실패와 같은 원본·Print에서 비교했다. 두 backend는 실제 새 Native와 fresh WASM 출력이며 이전 capture를 바꾸어 이름 붙인 것이 아니다. 브라우저 재사용은 canonical 준비·font byte·PNG parity가 확인된 실행 orchestration만 재사용하며 점수·원시 WASM geometry를 바꾸지 않았다.
+
+152/241/242/281/375쪽의 Native/fresh WASM compare·standalone overlay·review10개를 산출하고 모두 직접 열었다(`candidate-711f7f92e-handbook-boundary-panels/`).241쪽의 공개 단계 두 행이 본래 쪽에 남고242쪽은 결과 활용 행으로 시작하며 뒤 본문·표 외곽·하단 번호가 보존된다.152쪽의 제목과 뒤 표는 겹치지 않으며281쪽의 목차 쪽번호와 아래 테두리도 유지한다.375쪽의 왼쪽 서식 약1.9px 차이, 글꼴 획·농도·AA·일부 괘선 두께 차이는 남는다. 선택20쪽을 원본383쪽 전수 통과로 보고하지 않는다. 최신 전체 회귀·lint·다른 PR 경계와 전쪽 시각 검증을 마친 뒤 최종 판정하며 새 rendering test/baseline·원격 push·통합 PR은 아직 보류한다.

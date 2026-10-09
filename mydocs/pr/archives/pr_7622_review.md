@@ -40,3 +40,13 @@ last_verified: 2026-10-08
 ![native quotes-retry p3 비교](../assets/planet6897_20261008/native_quotes-retry_p003_review.png)
 
 ![wasm quotes-retry p3 비교](../assets/planet6897_20261008/wasm_quotes-retry_p003_review.png)
+
+## 한컴 저장본·Print로 확인한 legacy 인라인 소비 오류 — 2026-10-10
+
+앞선 수동 LineSeg 진단을 그대로 정상 저장본 증거로 사용하지 않았다. 같은 공개 원본의 명시적 진단 derivative를 Windows 한컴에서 열고, 실제 본문 선택에 인용부호가 포함된464문자를 확인한 뒤 Latin face를 Arial→Times New Roman으로 두 번 바꾸고 매번 parameter readback을 확인하여 HWPX로 저장했다. [공식 Automation action 목록](https://raw.githubusercontent.com/hancom-io/devcenter-archive/main/hwp-automation/ActionObject.pdf)의 `SelectAll`과 HAction 경로를 사용했다. 초기 선택 호출 실패와 PowerShell5의 UTF-8 regex 해석 실패는 수정 전 제품 FAIL로 세지 않으며 별도 실행 실패로 보존한다. `quotes-native-save-v3.json`에 실제 edit/readback·입력 hash를 기록했다.
+
+저장 제품은 hancom-office-2020이며 대응 Print는 명시적 engine2020, 한컴11.0.0.9136, `pdf_print_method:0`, `hancom2020_pdf_driver_one_up`으로 산출했다. PDF signature/EOF·byte 수·다운로드 hash를 확인했고 전체1쪽이다(`quotes-native-print-v3.json`). 실제 source의 `가‘나’` host는 Latin face Times New Roman과 새 저장 LineSeg를 가지며 독립 PDF의 두 인용부호는 TimesNewRomanPSMT다(`quotes-native-source-print-check.json`). 원래 공개 입력의 개선·일치나 source 생성 출처의 동일성을 이 derivative의 결과로 바꾸어 주장하지 않는다.
+
+source `711f7f92ee63279754d80e1be9529ae24905f5ad`의 실제 새 Native와 fresh WASM에서 이1쪽은 각각98.93360%지만, Native SVG의 두 부호는 굴림체/GulimChe 체인으로 나왔다. 이미 확보한 Print와 실제 family를 대조해 legacy TAC run의 측정/paint 슬롯 불일치를 실행으로 확인했다. 사용한 WASM 조판 generation은2022이며 Print service engine2020과 구별한다. 잘못 지정한 compat2020은 exporter가 거부했고 output 없는 orchestration 오류로 보존·교정했다. source/입력/PDF/package hash·전체1쪽 TSV·원시 WASM 출력은 `quotes-native-v3-before-711f7f92e/` 및 `quotes-wasm-v3-compat2022-before-711f7f92e/`에 있다. 90% 점수만으로 잘못된 family를 면제하지 않는다.
+
+남은 보완은 언어 슬롯으로 측정한 문자들이 같은 char-shape ID라는 이유로 첫 문자의 family로 함께 paint되지 않게 하는 것이다. 같은 face·장평·자간을 공유하는 슬롯은 기존 run을 유지하며 실제 글꼴/메트릭이 달라지는 경계를 분리해야 한다. 정상 저장본의 before/after·정식 의미 검사·최신 원본 대조와 필수 검증이 아직 미완료이므로 머지 보류를 유지한다.
