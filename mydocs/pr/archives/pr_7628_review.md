@@ -105,3 +105,35 @@ base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도�
 테스트 추가 head `a3761ba6f30ae3919943de0bef6be6ac753d3502`의 집중 실행을 완료했다. fmt exit0, `run-rust-test.mjs issue_7628_original_approval_frame`으로 nextest를 build-jobs8/test-threads10에서 실행하여2 PASS/227 skipped, 실행0.946초, build 포함644.94초였다. 정확한 nextest metadata로 같은 컴파일된 `regression_suite_028`을 식별해 같은 Rust 검사를 직접 실행했다. f971 실행 파일은2 FAIL(exit101, 선언 행 공간 손실과 사진의 셀 밖 이탈),2c는1 PASS/1 FAIL(exit101, 마지막 사진 이탈),983은2 PASS(exit0), 마지막 정상 재실행도2 PASS(exit0)다. 입력·소스 기대값·harness는 같고 실제 출력을 생성하는 CLI만 바꿨다. Nextest가 Cargo 실행 파일 환경을 공급해 처음의 이전 CLI 지정은 적용되지 않고 PASS였으므로 그 실행은 음성 대조 증거로 세지 않는다. `candidate-a3761ba6f-focused-approval.json`, `candidate-a3761ba6f-approval-direct-controls.json`과 각 로그에 보존했다. 후속 편람 HWPX source 수정 `02de253c1`의 검증에 이 통과를 전용하지 않는다.
 
 제품 source `8f5cf20efe4439ed477259873ad7f02ebdf6bf50`의 Native와 fresh WASM 빌드 및 원본5개 전7쪽 비교가 완료됐다. 각 문서의 양 경로 최저값은99.61781/99.91520/99.70523/99.73514/99.99166%이고 미달은 없다. 실행 파일과 package, source/입력/PDF 해시는 ignored `candidate-8f5cf20ef-native-check.json`, `candidate-8f5cf20ef-wasm-check.json`에 고정했다. 앞서983/a376에서 실행한 의미 검사의 수정 전후 결과와 이번 source의 시각 결과를 구별한다. 이번 제품 source의 정식 전체 회귀·최종 lint·누적 PR 전체 승인을 완료했다는 뜻은 아니다.
+### 2026-10-10 PrEP 실패 원본의 base 판정과 저장 프레임 보완
+
+사용자가 지정한 고정 upstream/devel `21ed64071f81f35f37618717693bd30f727392c9`에서
+같은 `samples/issue2006/1790387_prep_final_report.hwpx`와 대응 독립2024 Print를 전140쪽
+Native로 비교했다. 최저91.84847%, 미달0이며105쪽 예산 표20행과 마지막 합계,
+108쪽 참고문헌13개를 대표 review에서 직접 확인했다. 최저27쪽의 차트 색·스타일 차이는
+기존 차이로 기록하며 점수를 모든 모양의 일치로 승격하지 않는다. base fresh WASM2024는
+setter 부재로 미검증이다. PrEP 관련 기존 실패5건은 #7445 이관 대상이 아니며 현재 통합
+branch에서 수정한다. 근거는 ignored `upstream-21ed64071-rowbreak-prep-native-fidelity.json`,
+`upstream-21ed64071-prep-base-boundary-panels/provenance.json`에 있다.
+
+불변 중간 CLI의 동일 원본 출력에서 `02de253c1`은140쪽, `5e31d6db0` 이후141쪽이다.
+첫 구조 차이는105쪽 section3 host336의 온전한20행이19행 조각이 되는 경계다.
+직전 제목335의 원본 저장 원점7841HU + 줄1300 + 간격1040 + 문단 뒤1000 =
+다음 표 원점11181HU다. Print 표 윗변243.2533px와 base243.5px도 같은 원점을 확인한다.
+유효한 제목의 공유 끝점을 되돌리지 않는다.
+
+`query_whole_table_fit`의 `saved_rowbreak_object_frame`은 원래 다행·비TAC·빈 단일
+host·각주 없음·비양수 앵커·다음 문단의 새 쪽·실측 한 쪽 이내·셀 저장 원점 reset 없음·
+단일 실제 저장 줄 조건으로 닫힌 source frame을 검증한다. HWPX 수용 조건만
+`source_top < current_height`에서 `<=`로 바꿔, 바로 앞 내용이 표의 저장 원점에서 끝나는
+정상 경계도 같은 frame으로 수용한다. 프레임 자체의 높이·컷·행별 요구량은 완화하지 않는다.
+
+소비 경로는 `whole_fit.rs`의 frame → `entry.rs`의 `align_flow_to(source_top)`와
+`whole_placement_height = source_bottom - source_top` → `legacy_whole_fits`와 최종
+`resolved_host_placement.occupied_bottom` 예산 → `place_table_with_text`다.
+source frame을 거부하던 실행에서는790.2px 일반 요구량을 검사하고, 행 스캐너가 실제
+19행733px만 수용한 뒤 마지막54.8px 행을 이월했다. 이번 수용 조건은 선언 frame이
+첫 조각만 뜻하는 다쪽 표·내부 reset·각주 예산을 그대로 제외하며,
+`samples/issue7336/stored_frame_page_larger_rowbreak.hwpx`를 정상 비적용 대조로 재확인한다.
+실제 새 Native/fresh WASM의105쪽 행 소속·표 외곽·뒤 내용·전체 쪽수와 focused 검사는
+아직 실행 전이다. 이 분석과 코드 보완을 최종 회귀 통과로 보고하지 않는다.
