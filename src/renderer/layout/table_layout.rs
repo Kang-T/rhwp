@@ -2399,6 +2399,29 @@ impl LayoutEngine {
             })
     }
 
+    /// Physical source row frames own their blank bottom band as well as text
+    /// cuts. Both input formats reserve the same fragment bottom which paint
+    /// consumes; a paragraph-local or configuration reset cannot certify it.
+    pub(crate) fn stored_table_has_physical_text_frames(
+        &self,
+        table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        self.native_stored_table_has_text_frame_boundaries(table, styles)
+            || (self.profile.get().hwpx_stored_layout()
+                && !self.profile.get().session_edited()
+                && !self
+                    .render_normalization
+                    .borrow()
+                    .table_text_reflowed(table)
+                && Self::stored_row_boxes_exceed_object_frame(table)
+                && table.cells.iter().any(|cell| {
+                    cell.row_span == 1
+                        && self.direct_hwpx_cell_has_declared_stored_frame(cell, table)
+                        && self.direct_hwpx_cell_has_progressing_source_frames(cell)
+                }))
+    }
+
     pub(crate) fn row_cut_units_exhausted(
         &self,
         table: &crate::model::table::Table,
@@ -5278,7 +5301,7 @@ impl LayoutEngine {
         cell: &crate::model::table::Cell,
         table: &crate::model::table::Table,
     ) -> Option<crate::renderer::float_placement::StoredInlineContentFrame> {
-        if !self.profile.get().native_hwp5_layout()
+        if !(self.profile.get().native_hwp5_layout() || self.profile.get().hwpx_stored_layout())
             || self.profile.get().session_edited()
             || self
                 .render_normalization
@@ -6996,16 +7019,26 @@ impl LayoutEngine {
                                     }
                                 }
 
-                                // A validated complete cell owns physical source rows.
-                                // Consume the already emitted row geometry for fallback
-                                // pictures too: its origin includes paragraph leading
-                                // space and horizontal margins exactly once. Siblings
-                                // retain their source owner and preceding inline width.
-                                if stored_inline_frame.is_some() {
+                                // Complete cell frames and certified picture-guide rows
+                                // both consume the emitted line box. Reconstructing its
+                                // origin from vpos loses paragraph leading space and
+                                // horizontal margins which composition already applied.
+                                let picture_guide_owner = target_line
+                                    .checked_sub(1)
+                                    .filter(|&guide| {
+                                        !self.profile.get().session_edited()
+                                            && crate::renderer::stored_picture_guide_line_height_px(
+                                                para, composed, guide, self.dpi,
+                                            )
+                                            .is_some()
+                                    })
+                                    .map(|_| target_line);
+                                if stored_inline_frame.is_some() || picture_guide_owner.is_some() {
                                     let owner = stored_control_lines
                                         .as_ref()
                                         .and_then(|lines| lines.get(ctrl_idx))
-                                        .copied();
+                                        .copied()
+                                        .or(picture_guide_owner);
                                     if let Some(owner) = owner {
                                         if let Some(row_box) =
                                             cell_node.children.iter().rev().find_map(|node| {
@@ -12278,7 +12311,11 @@ impl LayoutEngine {
             .first()
             .and_then(|p| p.line_segs.first().map(|s| s.vertical_pos))
             .unwrap_or(-1);
-        let cell_has_local_vpos_origin = cell_first_vpos == 0
+        // A certified shared source frame can begin at positive inner padding.
+        // Its reset ownership is independent of the local-zero compatibility
+        // rule; all reset/cut consumers below must receive that same decision.
+        let cell_has_local_vpos_origin = direct_hwpx_stored_frame_cell
+            || cell_first_vpos == 0
             || (is_block_rowbreak_table && (0..=500).contains(&cell_first_vpos));
         // [#5995] 셀 내부 vpos 사다리는 셀 콘텐츠 기준 좌표라 표 자신의 세로
         // 오프셋과 무관하다. 저자가 남긴 미세 오프셋(30269 문단 0.136: -98HU =
@@ -17641,6 +17678,17 @@ impl LayoutEngine {
                 let end = origin + i64::from(line.line_height);
                 if let Some((previous_paragraph, previous_origin, previous_end)) = previous {
                     if line.vertical_pos < previous_origin {
+                        // A column-definition change starts a new local axis,
+                        // even when it defines one column. Its origin rewind
+                        // is not evidence of a physical page-fragment boundary.
+                        if previous_paragraph != paragraph_index
+                            && paragraph
+                                .controls
+                                .iter()
+                                .any(|control| matches!(control, Control::ColumnDef(_)))
+                        {
+                            return false;
+                        }
                         completed_span += frame_end;
                         frame_end = 0;
                         resets += 1;

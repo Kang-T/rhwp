@@ -3651,7 +3651,7 @@ impl HeightMeasurer {
                     }
                 };
 
-                let stored_inline_frame = (self.is_native_hwp5
+                let stored_inline_frame = ((self.is_native_hwp5 || self.hwpx_stored_layout)
                     && !self.session_edited
                     && !self.render_normalization.table_text_reflowed(table))
                 .then(|| crate::renderer::float_placement::stored_inline_content_frame(cell, table))

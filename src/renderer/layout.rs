@@ -7824,7 +7824,8 @@ impl LayoutEngine {
                         }
                     }
                     PageItem::Shape { para_index, .. }
-                        if self.profile.get().hwp5_stored_pagination_layout()
+                        if (self.profile.get().hwp5_stored_pagination_layout()
+                            || self.profile.get().hwpx_stored_layout())
                             && !self.profile.get().session_edited() =>
                     {
                         let para = paragraphs.get(*para_index)?;
@@ -10043,7 +10044,8 @@ impl LayoutEngine {
                     self.dpi,
                 );
             let stored_overlay_host_keeps_page_base =
-                self.profile.get().hwp5_stored_pagination_layout()
+                (self.profile.get().hwp5_stored_pagination_layout()
+                    || self.profile.get().hwpx_stored_layout())
                     && !self.profile.get().session_edited()
                     && !hcursor.uniform_filler_ladder
                     && paragraphs.get(item_para).is_some_and(|para| {

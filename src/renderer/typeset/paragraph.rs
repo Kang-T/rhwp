@@ -52,7 +52,7 @@ fn stored_overlay_guide_advance(
     paragraphs: &[Paragraph],
     index: usize,
 ) -> Option<f64> {
-    (st.profile.hwp5_stored_pagination_layout()
+    ((st.profile.hwp5_stored_pagination_layout() || st.profile.hwpx_stored_layout())
         && !st.profile.session_edited()
         && !st.vpos_ladder_dirty
         && crate::renderer::float_placement::stored_overlay_guide_owns_flow(paragraphs, index))

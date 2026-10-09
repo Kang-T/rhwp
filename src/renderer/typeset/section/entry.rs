@@ -82,7 +82,8 @@ impl TypesetEngine {
                 })
                 .and_then(|idx| paragraphs.get(idx))
                 .is_some_and(para_is_non_tac_overlay_table_anchor);
-        let original_overlay_guide_owns_flow = profile.hwp5_stored_pagination_layout()
+        let original_overlay_guide_owns_flow = (profile.hwp5_stored_pagination_layout()
+            || profile.hwpx_stored_layout())
             && !profile.session_edited()
             && !self.uniform_filler_ladder.get()
             && !st.vpos_ladder_dirty

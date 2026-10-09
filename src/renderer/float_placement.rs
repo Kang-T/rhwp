@@ -2480,7 +2480,22 @@ impl ParagraphFloatPlacement {
     pub fn paragraph_end(self, text_flow_end: f64, spacing_after: f64) -> f64 {
         match self.flow {
             ParagraphFloatFlow::Exclusion => text_flow_end,
-            ParagraphFloatFlow::NextLine => text_flow_end.max(self.occupied_bottom + spacing_after),
+            ParagraphFloatFlow::NextLine => {
+                // A certified successor at the accepted frame bottom already
+                // closes this paragraph. Adding the host's trailing space
+                // again would move that same successor beyond its source box.
+                let source_closes_paragraph = self
+                    .stored_successor_line_origin
+                    .is_some_and(|origin| (origin - self.occupied_bottom).abs() <= 0.5);
+                text_flow_end.max(
+                    self.occupied_bottom
+                        + if source_closes_paragraph {
+                            0.0
+                        } else {
+                            spacing_after
+                        },
+                )
+            }
             ParagraphFloatFlow::StoredPicture { next_flow_y } => next_flow_y,
         }
     }
