@@ -150,20 +150,6 @@ impl TypesetEngine {
         if let Some((height, last_height)) = stored_complete_extent {
             partial_height = height;
             end_row_height_override = Some(last_height);
-            if fragment_placement.is_none() {
-                let top =
-                    st.current_height + caption_extra + host_before_overhead + vert_offset_overhead;
-                fragment_placement =
-                    Some(crate::renderer::float_placement::ParagraphFloatPlacement {
-                        flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
-                        anchor_y: st.current_height,
-                        stored_host_origin: None,
-                        stored_successor_line_origin: None,
-                        table_left: None,
-                        table_top: top,
-                        occupied_bottom: top,
-                    });
-            }
         }
         if let Some((_, _, height, current_content)) = stored_row_frame {
             if height > current_content + 0.5 {
@@ -432,6 +418,11 @@ impl TypesetEngine {
                 start_cut,
                 &split_end_cut,
                 styles,
+            ) || layout_engine.row_cut_starts_intra_paragraph_stored_frame(
+                table,
+                end_row.saturating_sub(1),
+                &split_end_cut,
+                styles,
             ) || input
                 .source
                 .paragraphs_all
@@ -470,17 +461,15 @@ impl TypesetEngine {
             ) || body_filling_source_frame
                 || saved_closing_frame.is_some()
                 || saved_block_opening_frame.is_some()
-                || (input.source.paragraph.text.is_empty()
-                    && matches!(
-                        input.source.paragraph.controls.as_slice(),
-                        [crate::renderer::typeset::Control::Table(_)]
-                    )
-                    && layout_engine.row_cut_starts_intra_paragraph_stored_frame(
-                        table,
-                        end_row - 1,
-                        &split_end_cut,
-                        styles,
-                    )))
+                || (crate::renderer::float_placement::stored_rowbreak_outer_frame_host(
+                    input.source.paragraph,
+                    table,
+                ) && layout_engine.row_cut_starts_intra_paragraph_stored_frame(
+                    table,
+                    end_row - 1,
+                    &split_end_cut,
+                    styles,
+                )))
             && saved_opening_frame.is_some_and(|frame_height| {
                 (frame_height > partial_height + 0.5
                     || (body_filling_source_frame && frame_height >= partial_height)
@@ -586,6 +575,23 @@ impl TypesetEngine {
                     }
                 }
             }
+        }
+        if (stored_complete_extent.is_some() || first_fragment_blank_band)
+            && fragment_placement.is_none()
+        {
+            // The authenticated first object box owns its origin and unused
+            // band together, including when a title line preceded the table.
+            let top =
+                st.current_height + caption_extra + host_before_overhead + vert_offset_overhead;
+            fragment_placement = Some(crate::renderer::float_placement::ParagraphFloatPlacement {
+                flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+                anchor_y: st.current_height,
+                stored_host_origin: None,
+                stored_successor_line_origin: None,
+                table_left: None,
+                table_top: top,
+                occupied_bottom: top,
+            });
         }
         // 종료 조각의 실제 프레임과 뒤 저장 줄이 아래 여백을 닫으면 동일한
         // 배치 계획으로 예약과 paint 흐름을 함께 전진시킨다.

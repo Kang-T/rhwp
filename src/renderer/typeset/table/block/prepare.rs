@@ -486,7 +486,13 @@ impl TypesetEngine {
                     ) || crate::renderer::float_placement::empty_host_cellbreak_fragment_repeats_outer_margin(
                         st.profile.hwpx_stored_layout() || self.profile.get().hwp5_stored_pagination_layout(),
                         para, table,
-                    )) {
+                    ) || ((st.profile.hwp5_stored_pagination_layout()
+                        || st.profile.hwpx_stored_layout())
+                        && !st.profile.session_edited()
+                        && matches!(table.page_break, crate::model::table::TablePageBreak::RowBreak)
+                        && crate::renderer::float_placement::ParagraphFloatPlacement::stored_head_host_lines_are_valid(
+                            para, table, ctrl_idx,
+                        ))) {
                         let top_margin = hwpunit_to_px(table.outer_margin_top as i32, self.dpi);
                         fragment.table_top += top_margin;
                         fragment.occupied_bottom += top_margin;

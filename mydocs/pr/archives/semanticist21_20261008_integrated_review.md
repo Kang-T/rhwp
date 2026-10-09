@@ -13,7 +13,7 @@ last_verified: 2026-10-09
 
 - 브랜치: `review/semanticist21-20261008`
 - 현재 통합 base: `6f66932a73ee6fd05a74a83bdc438c9499a89a12` (진행42의fetch/rebase 확인; 원격최신상태는제출직전재조회). 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
-- 이전 메인터너 검증 체크포인트: `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae`; 후속v61후보의소스·빌드·검증과새base재동기화는진행42에기록한다.
+- 현재 메인터너 체크포인트: `8f3c1e0db94f38195b192a216817a3ea6e8a54c9`; 후속 v64 retry1의 원본 표제/첫 조각 보정과 검증은 진행44에 기록한다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
@@ -844,3 +844,24 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 같은v63 pin의 빠른 원본9개는 Main HWP/HWPX52쪽, #1133 HWP/HWPX3쪽, #6935=3/#6803=5/#6024=105/교육과정415/#6761=103쪽이다(`pages-original-countercheck-v63.json`). #6024의 Print103과 actual105는 미해결이며 기존검사105PASS를 fidelity 승인으로 사용하지 않는다. Main47–52 두형식과 #1133 전쪽 새Native 경계검사는 진행중이다. 이전v62의Main 전쪽 TSV도 별도pin으로 진행하며 현v63 결과로 바꾸어 쓰지 않는다.
 - 최신GitHub read-only snapshot은 non-draft23/draft6이며 v61 대비 새PR/닫힘/head·draft변경 모두0이다(`github-open-pr-snapshot-v63.json`, `-delta.json`). 최초18개 적용이력/현재열린17개와 유보6개 후속검토 순서를 유지한다. 이 스레드의 원격 push/PR/merge/close는 미수행이다.
 - #6761 39쪽 직접 판독 후 `native-issue6761-p39-drift-v63.log`에서 첫 상자 `source_frame=185.28`, 예산185.3, 실제내용174.7, row3종료컷과 40쪽 `start_cut=[1,1]`를 확인했다. 원본Common13896HU=185.28px의 빈 하단 밴드가 보존되지 않는다. 기존 `saved_multirow_opening_frame_height`의 원본 내용컷·선언상자 인증과 `first_fragment_blank_band`의 object-only/빈host 선택을 대조한다. visible-title host에도 새 in-paragraph stored frame 컷과 실제 원본host line 인증이 있으면 같은 빈 밴드 소유를 적용하고, 마지막행 override→수용원장→예약→paint가 함께 소비하도록 후속 보정한다. 유닛 소유는 바꾸지 않으며, 원본39–40와 기존negative/정상 경계를 다시 검증한다. 현재8개 source의 체크포인트 후 다음 단계에서 구현한다.
+
+
+### 진행44 — 표제 호스트의 첫 저장 상자 원점과 빈 밴드
+
+- 체크포인트 `8f3c1e0db94f38195b192a216817a3ea6e8a54c9`에 v63의8개Rust source와 통합기록을 고정했다. 컴파일한8개 SHA와 commit blob의 SHA가 모두 같다(`v63-build-to-commit-proof.json`). generated Studio JS는 포함하지 않았다. 이 커밋의 focused71PASS/기존2FAIL 및 Native 선택scope는 최종수용 판정이 아니다.
+- #6761 원본39쪽 독립Print vector는 table top836.682292/bottom1021.760416px, 높이185.078124px다(`issue6761-independent-first-frame-v63.json`). 원본Common13896HU=185.28px와 대응하며 v63 실제174.9px의 하단 차이를 입증한다. Native 첫 원점833.8px에도 차이가 있다. TABLE_SPLIT_AVAIL의 동일 예약 원점은 cur702.7+outer.top3.773333+vert_offset_overhead−1.106667px인데 확정placement가 없어 paint가 outer.top을 잃는다.
+- 기존 `saved_multirow_opening_frame_height`가 인증한 첫 상자와 `row_cut_starts_intra_paragraph_stored_frame`의 실제 새프레임 컷을 연결한다. 호스트는 `stored_rowbreak_outer_frame_host`의 원본제어슬롯/유효LineSeg 근거로 수용한다. 별도empty-text 추측은 제거한다. 기존 `first_fragment_blank_band`는 독립선언/원본컷/요구높이·가용예산을 그대로 검사하며, 인증된 완전prefix 또는 내용컷있는 첫상자 모두 같은 tableTop/occupiedBottom placement를 생산한다. 실제 내용유닛을 늘리지 않고 마지막행 물리override/원장/예약/paint/뒤흐름으로 전달한다. 기존placement가 있으면 보존한다.
+- v64후보는 `fragment/emit.rs`만 후속변경하며 fmt check 통과 뒤 같은target/pr-review Native build 중이다. v63의기존검사·페이지수·시각을 새후보 통과로 재사용하지 않는다. 원본39–40/73개사다리negative와 Main/#1133/기타원본 경계를 새pin으로 재실행하고 fresh WASM을 이어간다. 검사·fixture·baseline 변경은 없다.
+
+- 최초v64 Native buildはexit0/269.637초/binarye3d878a747addcb2f084ce06bde109777e8189884b00cb21ecdf9242d3b1a42e다. 빠른9개원본쪽수는v63와같고39쪽height185.5px로복구됐다. 다만top833.8px가남는다(`native-issue6761-p39-drift-v64/`,log). 예산에이미prepared.host_placement가있어emit fallback origin은미사용이며, `block/prepare.rs`의`unconstrained_host_placement → for_first_fragment`가originalouter.top을빼는실제생산지점을확인했다. 기존margin복구는body-filling/column-anchor만소비해valid원본head-title Para anchor를놓친다. v64 retry1은그생산지점에서기존`stored_head_host_lines_are_valid`로인증된원본RowBreak title anchor의outertop을보존한다. dirty/reflow session/합성줄은확장하지않는다. 행예산은같은준비placement를읽고paint는ctx의확정tableTop을읽으며뒤에`resolved_table_top`이선택되는것까지대조한다. 단순origin clamp나문서전용수치는추가하지않는다. 검사와freshWASM은retry1소스에서처음실행한다.
+
+- v63 pin의두Native 경계작업은최종exit0으로종료됐다(`native-original-boundaries-v63-exit.json`): Main47–52두형식12쪽은최저99.79842%, 단계456.333초; #1133전쪽두형식6쪽은최저96.19594%, 단계160.815초다. source_unchanged=false는작업시작후v64소스를편집한관측값이며, 작업은불변v63실행파일만사용했다. 재검사한binary SHA와8f3c1e0db commit의8개source hash가build metadata와같다. 해당결과를v64후보에귀속하지않는다.
+- v62별도pin의Main HWP전체52쪽TSV는누락0/최저93.25821%(10쪽)/90%미만0이다. HWPX전쪽작업은진행중이며v63/v64전체scope의최종승인근거로재사용하지않는다.
+- 후속freshWASM/전쪽검증의공간확보를위해실행중인작업이없고summary가있는v49/v50의종료된4개검토폴더에서동일파일명·size·SHA의SVG296개만hardlink공유했다. 경로/bytes/증적을모두보존했고physical8,777,682,944bytes를확보했다(`space-recovery-identical-closed-svg-v64.jsonl`, 최종232.105초). 첫안전검사의self-shell오탐으로mutation전멈춘뒤actualscript argv를검사하도록고쳐재실행했으며다른경로/cache/source는정리하지않았다.
+
+- v62 전쪽원본작업은timeout1800초에서최종exit124로종료됐다. HWP52쪽TSV는완결됐으나HWPX는38쪽raster만있고나머지는미측정이다. 종료handle/실제process종료를확인한뒤동일v62불변pin의39–52나머지14쪽만별도tail TSV로진행한다(`native-stored-partial-frame-physical-extent-tail-v62-exit.json`). 시간제한종료를제품FAIL로집계하거나미완료scope를90%승인으로표시하지않는다. 현v64 retry1 전쪽은별도3600초의새출력으로처음부터104쪽을실행한다.
+- v64 retry1 Native build는최종exit0/263.203초/9개sourcehash불변,binary `4428c9fdbd4e24f5f3b59386f612aedf0572f3128fe1f8ac9158d214b8f4bf3c`다. 빠른9개원본쪽수는이전과같고#6761원본39쪽bbox는top837.6/height185.5px로독립Print836.682292/185.078124와같은영역에서대조한다. 생산된준비placement의outer.top보존이최종resolved_table_top까지전달됐음을확인했다(`native-issue6761-p39-drift-v64-retry1/`). 아직새PNG직접판독/점수와73개최종결과는미완료다. 새39–40Native,Main전체104쪽Native TSV(두형식각52쪽),같은73개nextest를실행중이며freshWASM은Cargo순차게이트이후다.
+
+- v64 retry1 #6761원본39–40 Native sweep는최종exit0/55.513초/9개source hash불변이며39쪽98.94265/40쪽97.45412%다. canonical 두review를직접표시해첫표하단과마지막행/뒤쪽반복머리행·이어받는‘함유혼합물’줄소유/괘선·후속본문을같은영역에서대조했다. 40쪽bbox는136.1/599.7px로유지되면서첫행글줄의원점도개선됐다. `native-issue6761-stored-title-host-opening-frame-v64-retry1/` 및exit/log에보존했다. freshWASM은아직없으므로최종승인아니다.
+- 사용자가처음지적한Main3쪽도현v64 retry1로새캡처했다: HWP99.89467/HWPX99.84971%. HWPcanonical `native-stored-title-host-opening-frame-p3-review-v64-retry1/scattered-hwp/review/review_003.png`를직접표시해‘인장시험’/첫표전체행·다음표/뒤문단과Print의원점을대조했다. 이전v41의56.53%이미지를현결과로재사용하지않았다. 나머지Main전쪽TSV/#1133전쪽은진행중이다.
+- 동일v64 retry1 기존73개nextest는최종exit100/406.611초/실행22.003초,71PASS/기존2FAIL/2767skip이고9개소스해시불변이다(`nextest-stored-title-host-opening-frame-v64-retry1-exit.json`,log). #6761negative두계약포함새FAIL없다. 남은#6981종료소유/#7226쪽수의원본교육과정415쪽전수Native/freshWASM90%선행증거는아직없어검사·기대값·baseline을변경하지않았다. 현재두Rust파일과통합기록을체크포인트커밋하고rootfreshWASM으로다음출력경로를검증한다.
