@@ -1083,7 +1083,8 @@ pub(super) fn prepare_forced_page_boundary(
     // 유효 저장 앵커를 확인하고 실제 재조판으로 사라진 reset은 재사용하지 않는다.
     // 같은 원본 줄 사다리와 실제 흐름은 컨테이너 형식과 무관하게 같은 쪽을 소유한다.
     let anchored_stored_body_reset_line = ((st.profile.hwpx_stored_layout()
-        || st.profile.hwp5_stored_pagination_layout())
+        || st.profile.hwp5_stored_pagination_layout()
+        || st.profile.hwp3_layout())
         && !st.profile.session_edited()
         && para_has_visible_text(para)
         && fmt.line_heights.len() == para.line_segs.len())
