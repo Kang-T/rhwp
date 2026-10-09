@@ -1129,7 +1129,12 @@ pub(super) fn prepare_forced_page_boundary(
                 dpi,
             )
     });
-    let forced_page_break_line = anchored_stored_body_reset_line
+    let native_hwp3_stored_break_line = (st.profile.hwp3_native_layout()
+        && !st.profile.session_edited())
+    .then(|| boundary::native_hwp3_stored_page_break_line(para, fmt.line_heights.len()))
+    .flatten();
+    let forced_page_break_line = native_hwp3_stored_break_line
+        .or(anchored_stored_body_reset_line)
         .or(internal_forced_page_break_line)
         .or_else(|| {
             st.profile.hwpx_stored_layout().then(|| {
