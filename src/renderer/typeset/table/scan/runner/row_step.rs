@@ -1265,6 +1265,19 @@ impl TypesetEngine {
                     consumed += cs_before + split_total;
                 }
             }
+            // 같은 원본 컷에서 수용한 물리 상자를 continuation ledger에
+            // 넘긴다. 내용 높이를 이미 수용한 빈 공간의 대용으로 쓰지 않는다.
+            if end_row == r + 1 && split_end_limit > 0.0 && split_block_start.is_none() {
+                if let Some(height) = layout_engine.saved_single_cell_opening_frame_height(
+                    table,
+                    r,
+                    row_start_cut,
+                    &split_end_cut,
+                    styles,
+                ) {
+                    end_row_height_override = Some(height);
+                }
+            }
             false
         })();
         if start_row_height_override.is_some()

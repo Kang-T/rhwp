@@ -1087,6 +1087,34 @@ impl TypesetEngine {
             // while the saved first object frame owns this page's physical box.
             // Reserve that same box before selecting units; spare page capacity
             // must not enlarge the first box and reduce the carried remainder.
+            let base = if !is_continuation
+                && cursor_row == 0
+                && start_cut.is_empty()
+                && row_count == 1
+                && prepared
+                    .layout_engine
+                    .stored_full_width_row_declared_height(
+                        table,
+                        0,
+                        input.source.styles,
+                        st.layout.body_area.height,
+                    )
+                    .is_some()
+            {
+                prepared
+                    .layout_engine
+                    .saved_single_cell_opening_frame_cut(table, input.source.styles)
+                    .map_or(base, |(_, height)| {
+                        base.min(
+                            (height
+                                - header_overhead
+                                - hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi))
+                            .max(0.0),
+                        )
+                    })
+            } else {
+                base
+            };
             let base = if st.profile.hwpx_stored_layout()
                 && !is_continuation
                 && cursor_row == 0

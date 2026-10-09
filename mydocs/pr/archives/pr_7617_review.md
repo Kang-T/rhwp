@@ -123,3 +123,7 @@ HWPX CENTER/양수 원점 프레임은 선언 span과 문단 사이 좌표 진�
 도형의 기존 폭 fit·자동 높이·호스트 투영은 HWPX에도 같은 인증을 거쳐 적용한다. 본문 빈 원본 글줄은 format 결과의 전량 전진을 사용해 다단의 후행 간격 손실을 막는다.152쪽 제목처럼 다음 비TAC 흐름 표의 원점이 원본 줄 끝·줄간격·현재 뒤 간격·후속 앞 간격을 정확히 닫는 경우에도 같은 전량 전진을 소비한다. `FormattedParagraph`에 흐름 전진 보존 상태를 분리했으며 fit 높이나 paint 원점을 위장해 바꾸지 않았다. 기존 unit test 생성 helper에는 새 상태의 기본값만 넣었고 새 회귀/fixture/golden은 추가하지 않았다.
 
 이 후보는 수정 파일의 rustfmt와 `git diff --check`만 통과했다. 제품 빌드·집중 회귀·Native/fresh WASM·최종 lint는 아직 수행하지 않았다.140쪽의 내용 컷과 별개인 선언 물리 상자 잔여,126쪽 장식 표의 실제 발행 경로를 더 연결한 뒤 동일 묶음의 Native/WASM 산출물로 경계와 대조군을 함께 검증한다. 같은 작업의 수정마다 빌드를 다시 시작하지 않는다.
+
+140쪽의 추가 연결은 기존 `saved_single_cell_opening_frame_height`를 사용한다. 원본 전체 셀의 진행·되감김·선언 span이 인증되고, 실제 첫 컷의 끝과 다음 프레임이 일치할 때 선언 첫 상자의 빈 하단도 예약한다. 마지막 슬롯이 빈 원본 줄이어도 글자 소유와 물리 공간을 구별한다. 기존 정확한 잉크 끝+안 여백 계약은 유지한다. 같은 생산 결과를 `fragment/budget`의 선행 예산, `row_step`의 실제 수용 높이와 row override, `emit`의 기존 `stored_row_box_sum` 및 다음 `start_row_height_override`, `row`의 후속 요구 높이와 부분 표 paint가 소비한다. 이미 소비한 내용 컷으로 과거의 물리 높이를 재추정하지 않는다. 단일 셀에 새 그림·줄·baseline을 추가하지 않았다. 첫 상자보다 원문 잉크가 크거나 dirty/재조판/로컬 리셋·중첩 셀이면 새 인증을 쓰지 않는다.
+
+126쪽의 비TAC 장식 표는 flowWithText=false·글 앞/뒤·caption/각주 없음일 때 유일한 TAC 표와 구분한다. `prepare_computed`의 저장 원점·실측 높이·후속 줄 닫힘 인증을 유지하며, 장식은 일반 `place_decoration_table`에서 원래 순서로 발행한다. 그 경로의 포맷·continuation 조회도 확정된 host pen을 쓴다. 실제 deferred shape paint는 원본 한 줄의 유일한 inline 소유자가 전달한 같은 pen을 소비하므로, 장식이 뒤에 있다고 흐름 끝점으로 앵커를 바꾸지 않는다. 재조판·다줄·복수 inline 소유자는 기존 경로를 쓴다. 남은 경계와 결재 원본 대조군은 이 묶음의 고정된 실행 파일과 fresh WASM으로 함께 비교한다. 현재 기록은 구현 연결이며 실행 통과나 전체383쪽 승인으로 세지 않는다.

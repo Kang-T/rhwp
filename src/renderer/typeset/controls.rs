@@ -94,21 +94,18 @@ pub(super) fn place_decoration_table(
     table: &Table,
     next_para: Option<&Paragraph>,
     dpi: f64,
+    anchor_origin: Option<f64>,
     format: impl FnOnce(bool) -> FormattedTable,
 ) {
     st.emit_decoration_table(para_idx, ctrl_idx);
     // [#4568] 현재 쪽을 넘는 잔여 행만 다음 쪽 대기열에 남긴다.
     // 포맷은 Shape 발행 뒤, 앵커/가용 영역 조회 전에 수행한다.
-    let ft = format(st.decoration_table_flow_height() < 1.0);
-    let continuation = decoration_table::continuation(
-        para,
-        table,
-        next_para,
-        &ft,
-        st.decoration_table_flow_height(),
-        dpi,
-        || st.base_available_height(),
-    );
+    let origin = anchor_origin.unwrap_or_else(|| st.decoration_table_flow_height());
+    let ft = format(origin < 1.0);
+    let continuation =
+        decoration_table::continuation(para, table, next_para, &ft, origin, dpi, || {
+            st.base_available_height()
+        });
     if let Some(ref continuation) = continuation {
         if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
             eprintln!(
@@ -420,10 +417,12 @@ pub(super) fn try_place_stored_tac_paragraph(
     para: &Paragraph,
     fmt: &FormattedParagraph,
     measured_tables: &[MeasuredTable],
-    dpi: f64,
+    engine: &super::TypesetEngine,
     paragraphs: &[Paragraph],
     styles: &crate::renderer::style_resolver::ResolvedStyleSet,
+    composed: Option<&ComposedParagraph>,
 ) -> bool {
+    let dpi = engine.dpi;
     if let Some(placement) = stored_tac::prepare_computed(
         para_idx,
         para,
@@ -448,12 +447,50 @@ pub(super) fn try_place_stored_tac_paragraph(
         // paint 소유권은 남는다. 표의 저장 pen을 같은 문단 앵커로 전달한다.
         let owner = placement.control_index;
         let host_origin = placement.inline.y;
+        let emit_decoration = |st: &mut TypesetState, index: usize, control: &Control| {
+            if let Control::Table(table) = control {
+                place_decoration_table(
+                    st,
+                    para_idx,
+                    index,
+                    para,
+                    table,
+                    paragraphs.get(para_idx + 1),
+                    dpi,
+                    Some(host_origin),
+                    |is_column_top| {
+                        engine.format_table(
+                            para,
+                            para_idx,
+                            index,
+                            table,
+                            measured_tables,
+                            styles,
+                            composed,
+                            paragraphs.get(para_idx + 1),
+                            is_column_top,
+                        )
+                    },
+                );
+            } else {
+                place_table_host_shape(
+                    st,
+                    para_idx,
+                    index,
+                    control,
+                    para,
+                    host_origin,
+                    styles,
+                    dpi,
+                );
+            }
+        };
         for (index, control) in para.controls.iter().enumerate().take(owner) {
-            place_table_host_shape(st, para_idx, index, control, para, host_origin, styles, dpi);
+            emit_decoration(st, index, control);
         }
         st.commit_stored_tac_control(para_idx, placement);
         for (index, control) in para.controls.iter().enumerate().skip(owner + 1) {
-            place_table_host_shape(st, para_idx, index, control, para, host_origin, styles, dpi);
+            emit_decoration(st, index, control);
         }
         // 원본 저장 줄의 좌표축은 이미 확립돼 있다. 합성 줄의 확정 끝만
         // lazy 원점으로 역산하며, 실제 저장 표 뒤 사다리는 유지한다.

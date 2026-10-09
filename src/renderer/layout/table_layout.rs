@@ -17117,6 +17117,21 @@ impl LayoutEngine {
         row: usize,
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
+        // 단일 원본 셀도 전체 행 상자와 첫 물리 조각을 따로 선언한다.
+        // 같은 인증·컷 조회를 사용해 빈 꼬리 공간을 내용 컷으로 재소비하지 않는다.
+        if table.row_count == 1 {
+            let [cell] = table.cells.as_slice() else {
+                return None;
+            };
+            return (row == 0
+                && table.col_count == 1
+                && cell.height > table.common.height
+                && self.direct_hwpx_cell_preserves_stored_frame(cell, table)
+                && self
+                    .saved_single_cell_opening_frame_cut(table, styles)
+                    .is_some())
+            .then(|| hwpunit_to_px(cell.height as i32, self.dpi));
+        }
         let native_row_source = self.profile.get().hwp5_stored_pagination_layout()
             && matches!(
                 table.page_break,
@@ -17249,8 +17264,21 @@ impl LayoutEngine {
         }
         let closing = &units[end - 1];
         let next = &units[end];
+        let declared_source_boxes = cell.height > table.common.height
+            && next.stored_frame_break_before
+            && self.direct_hwpx_cell_preserves_stored_frame(cell, table);
+        let closing_empty_source_line = declared_source_boxes
+            && closing.empty_spacer
+            && cell
+                .paragraphs
+                .get(closing.para_idx)
+                .is_some_and(|paragraph| {
+                    paragraph.text.is_empty()
+                        && paragraph.controls.is_empty()
+                        && paragraph.line_segs.len() == 1
+                });
         if closing.para_idx + 1 != next.para_idx
-            || closing.vis_start >= closing.vis_end
+            || (closing.vis_start >= closing.vis_end && !closing_empty_source_line)
             || next.vis_start >= next.vis_end
         {
             return None;
@@ -17268,14 +17296,16 @@ impl LayoutEngine {
         };
         if !only_inline_notes(closing_para)
             || !only_inline_notes(next_para)
-            || closing.vis_end != closing_para.line_segs.len()
+            || (closing.vis_end != closing_para.line_segs.len() && !closing_empty_source_line)
         {
             return None;
         }
         let before = closing_para.line_segs.last()?;
         let after = next_para.line_segs.first()?;
         if before.vertical_pos <= 0
-            || after.vertical_pos != 0
+            || (after.vertical_pos != 0 && !declared_source_boxes)
+            || after.vertical_pos < 0
+            || after.vertical_pos >= before.vertical_pos
             || before.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
             || after.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
         {
@@ -17286,7 +17316,11 @@ impl LayoutEngine {
             + i64::from(before.line_height)
             + i64::from(pad.top)
             + i64::from(pad.bottom);
-        if saved_frame_bottom != i64::from(table.common.height) {
+        // 선언 셀 전체와 저장 되감김이 인증한 첫 상자는 마지막 잉크 뒤
+        // 빈 밴드까지 소유할 수 있다. 정확한 기존 각주 계약은 그대로 남긴다.
+        if saved_frame_bottom != i64::from(table.common.height)
+            && !(declared_source_boxes && saved_frame_bottom < i64::from(table.common.height))
+        {
             return None;
         }
         Some(hwpunit_to_px(table.common.height as i32, self.dpi))

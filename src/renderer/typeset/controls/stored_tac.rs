@@ -147,9 +147,19 @@ pub(super) fn prepare_computed(
     let mut owned_table = None;
     for (index, control) in para.controls.iter().enumerate() {
         match control {
-            Control::Table(table) if owned_table.is_none() => {
+            Control::Table(table) if table.common.treat_as_char && owned_table.is_none() => {
                 owned_table = Some((index, table));
             }
+            Control::Table(table)
+                if !table.common.treat_as_char
+                    && !table.common.flow_with_text
+                    && table.caption.is_none()
+                    && !table_has_notes(table)
+                    && matches!(
+                        table.common.text_wrap,
+                        crate::model::shape::TextWrap::InFrontOfText
+                            | crate::model::shape::TextWrap::BehindText
+                    ) => {}
             Control::Shape(shape)
                 if !shape.common().treat_as_char
                     && matches!(

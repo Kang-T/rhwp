@@ -16585,7 +16585,51 @@ impl LayoutEngine {
                 control_index,
             } = item
             {
-                let para_y = para_start_y.get(para_index).copied().unwrap_or(col_area.y);
+                let ordinary_para_y = para_start_y.get(para_index).copied().unwrap_or(col_area.y);
+                // 원본 한 줄의 장식 표는 앞/뒤 컨트롤 순서와 무관하게 같은
+                // 확정 inline pen을 앵커로 쓴다. 진행 끝으로 갱신된 문단 y는
+                // 해당 줄의 장식 원점이 아니다. 재조판·다줄·복수 소유자는 제외한다.
+                let shared_inline_origin = (!self.profile.get().session_edited())
+                    .then(|| {
+                        let para = paragraphs.get(*para_index)?;
+                        let [line] = para.line_segs.as_slice() else {
+                            return None;
+                        };
+                        let Control::Table(decoration) = para.controls.get(*control_index)? else {
+                            return None;
+                        };
+                        if line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                            != 0
+                            || para.stored_text_partition_is_dirty()
+                            || para.cell_format_vpos_dirty
+                            || decoration.common.treat_as_char
+                            || decoration.common.flow_with_text
+                            || !matches!(
+                                decoration.common.text_wrap,
+                                crate::model::shape::TextWrap::InFrontOfText
+                                    | crate::model::shape::TextWrap::BehindText
+                            )
+                        {
+                            return None;
+                        }
+                        let mut owners =
+                            para.controls
+                                .iter()
+                                .enumerate()
+                                .filter_map(|(index, control)| {
+                                    let Control::Table(table) = control else {
+                                        return None;
+                                    };
+                                    if !table.common.treat_as_char {
+                                        return None;
+                                    }
+                                    col_content.inline_placements.get(&(*para_index, index))
+                                });
+                        let pen = owners.next()?;
+                        owners.next().is_none().then_some(col_area.y + pen.y)
+                    })
+                    .flatten();
+                let para_y = shared_inline_origin.unwrap_or(ordinary_para_y);
                 // [#6134] 같은 문단에 앞선 자리차지(TopAndBottom) 개체가 있으면 문단의
                 // 글줄은 그 밴드 **아래**로 내려간다. "문단 기준" 세로 오프셋을 가진
                 // 뒤 개체의 기준점도 문단 상단(=밴드 상단)이 아니라 그 글줄이다.
