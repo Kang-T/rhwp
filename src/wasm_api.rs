@@ -1068,6 +1068,13 @@ impl HwpDocument {
         self.core.rebuild_derived_state();
     }
 
+    /// Select the same Hangul layout compatibility mode as the Native API.
+    /// DocumentCore invalidates page trees and repaginates when the mode changes.
+    #[wasm_bindgen(js_name = setHangul2024Compat)]
+    pub fn set_hangul2024_compat(&mut self, enabled: bool) {
+        self.core.set_hangul2024_compat(enabled);
+    }
+
     /// Set an explicit layout/paint font environment. None restores the default.
     #[wasm_bindgen(js_name = setFontEnvironment)]
     pub fn set_font_environment_json(&mut self, json: Option<String>) -> Result<bool, JsValue> {

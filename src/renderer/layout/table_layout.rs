@@ -2455,7 +2455,7 @@ impl LayoutEngine {
         column: &LayoutRect,
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
-        if !self.native_stored_table_has_text_frame_boundaries(table, styles)
+        if !self.stored_table_has_physical_text_frames(table, styles)
             || para_has_visible_text(host)
             || !matches!(host.controls.as_slice(), [Control::Table(_)])
             || host.stored_text_partition_is_dirty()
@@ -2513,7 +2513,7 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
         if !fragment_bottom.is_finite()
-            || !self.native_stored_table_has_text_frame_boundaries(table, styles)
+            || !self.stored_table_has_physical_text_frames(table, styles)
             || para_has_visible_text(host)
             || !matches!(host.controls.as_slice(), [Control::Table(_)])
             || !matches!(table.common.text_wrap, TextWrap::TopAndBottom)
@@ -15560,11 +15560,21 @@ impl LayoutEngine {
         let stored = |seg: &crate::model::paragraph::LineSeg| {
             seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
         };
+        // A physical source frame may restart at its positive paragraph-before
+        // origin. Authenticate the complete progressing cell ladder and its
+        // declared span; a local configuration reset is not a page boundary.
+        let positive_source_frame_restart = first.vertical_pos > 0
+            && first.vertical_pos < last.vertical_pos
+            && next.stored_frame_break_before
+            && cell.paragraphs.iter().all(|para| para.controls.is_empty())
+            && self.direct_hwpx_cell_has_declared_stored_frame(cell, table)
+            && self.direct_hwpx_cell_has_progressing_source_frames(cell)
+            && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi);
         if !stored(last)
             || !stored(first)
             || !closing_para.controls.is_empty()
             || last.vertical_pos < 0
-            || first.vertical_pos != 0
+            || (first.vertical_pos != 0 && !positive_source_frame_restart)
             || last.line_height <= 0
             || !stored_zero_restart_is_confirmed(
                 cell,
