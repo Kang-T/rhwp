@@ -98,3 +98,18 @@ f971 제품 source의 HWP 편람 전383쪽은 Native/fresh WASM 최저90.08363%�
 다음 후보는 확정된 단일 저장 TAC 표 앞뒤의 흐름 비점유 장식을 원래 컨트롤 순서대로 같은 `place_table_host_shape`에서 발행한다. 별도 줄 예약을 추가하지 않고 표 계획의 pen을 host 앵커로 전달한다.140쪽의 빈 줄은 기존 source frame 인증과 편집·dirty 제외를 공유하고, 빈 줄의 저장 높이·후행 간격·다음 원점이 정확히 닫힐 때만 물리 전진량을 보존한다. 측정은 그 값을 같은 `CellUnit`에 기록하고 실제 부분 표 배치는 현재 컷이 소유한 그 유닛의 높이를 소비한다. 글자가 없는 compositor 결과를 공간이 없다는 뜻으로 쓰지 않으며, 다른 조각의 빈 줄은 현재 쪽에 다시 소비하지 않는다. 일반 합성·로컬 리셋·중첩 표의 기존 계약은 유지한다. 새 후보의 전체 쪽수·빈 줄 앞뒤 내용·장식·외곽선·정상 대조군 및 Native/fresh WASM은 아직 미검증이며, 새 회귀나 기준값을 추가하지 않는다.
 
 빈 줄 후보 `0ddbb2b420d73390eef068473840e2090be86d68`의 첫 컴파일은 CellUnit 내부 소유 필드를 sibling 모듈에서 직접 읽은 E0616 세 건으로 exit101(100.08초)이었다. 조판 결함의 수정 전 FAIL이나 회귀 실패로 세지 않는다. 후속 `8f5cf20efe4439ed477259873ad7f02ebdf6bf50`은 소유·컷 조회를 생산자 모듈의 `stored_empty_line_advances_for_cut`로 캡슐화했고, 해당 저장 프레임의 가로 글줄만 같은 측정·배치 계약으로 소비한다. 새 컴파일·실제 출력은 진행 중이며 결과를 선행 PASS로 표시하지 않는다. 실패 로그와 새 실행 기록은 `candidate-0ddbb2b42-cli-build.log` 및 `candidate-8f5cf20ef-native-check.json`에 보존한다.
+
+8f의 Native 빌드는567.33초 exit0으로 끝났다. 편람 HWPX는 실제383쪽이며, 기존 미달 경계16쪽을 새로 출력해 비교했다.116쪽98.54465%,140쪽96.66997%,370쪽96.40865%,373쪽98.59779%이고, 나머지12쪽(126/135/152–156/223/287/289/290/375)은90% 미만이다. 선택16쪽의 결과를 전체383쪽 통과나 편람 fresh WASM 통과로 보고하지 않는다. 직접 읽은116쪽에서 화살표 장식은 복원됐으나 선·화살촉 차이가 남고,140쪽에서는 빈 줄과 본문 순서가 맞아졌지만 표의 마지막 하단이 여전히 짧다. 높은 점수로 실제 외곽선 차이를 면제하지 않는다. 정확한 실행·TSV·대표 패널은 ignored `candidate-8f5cf20ef-handbook-boundaries.json` 및 같은 head의 경계 폴더에 보존한다.
+
+사용자가 개별 수정마다 빌드를 반복하지 않도록 요청했으므로, 다음 제품 빌드 전에 남은 원인을 묶어 분석한다. 현재 원문/실행 대조는 다음과 같으며 아직 구현·수용 완료 판정이 아니다.
+
+| 경계 | 독립 원문·출력과 실제 경로 | 현재 판정 |
+| --- | --- | --- |
+| 135쪽 | section3/문단47의 전체 표다. 앞 안내 줄은vpos4000, textheight1000, spacing600이고 다음 그림 줄은vpos5600이다. 두 줄의 저장 line_height는21126HU로 같다. 문단 전체 그림 높이로 줄 소유를 추측하는 renderer/mod.rs와 table_layout.rs corrected_h, paragraph/format.rs의 같은 높이 두 줄 처리 및 실제 paragraph_layout.rs 배치를 함께 추적한다. | continuation으로 분류하지 않는다. 안내 줄의 실제 슬롯과 그림 소유를 공통 결과로 만들 경계이며 새 코드 검증은 미검증. |
+| 152–156쪽 | section4/문단47의 같은 표다. 실제 Print보다 시작이 앞서 제목과 겹치고, 다음 쪽들도 내용 소속이 앞당겨진다. CENTER 셀의 저장 프레임이 여러 문단에 걸쳐 진행하다 되감기지만 direct_hwpx_cell_has_declared_stored_frame의 CENTER 단일-reset 조건이 일부 프레임을 제외한다. | 로컬 vpos=0 문단인 #6035 대조군과 실제 문단 간 좌표 진행을 구별해야 한다. 원점을 숫자로 당기거나 행 높이만 줄이지 않는다. |
+| 223쪽 | section7/문단239의 실제 본문 셀은vpos1000에서 시작하고 두 후속 페이지 프레임은vpos200으로 돌아간다. 이 셀의 세 프레임 원문 끝과 선언 높이를 기록했다. 현재 인증의vpos<=0 조건은 양수의 실제 쪽 되감김을 세지 못한다. | 양수 원점의 저장 경계와 문단 로컬 좌표를 구별하는 인증·컷·paint 연결이 필요하다. 임의 reset 허용은 보정 근거가 아니다. |
+| 289–290쪽 | section10/문단26 제목 도형은 원문 저장 줄부터2줄이며 curSz.height4066HU다. Print에서는 같은 원문이1줄로 출력된다. 기존 normalized_single_line_inline_textbox_host는 폭 fit과 호스트 높이를 함께 투영하지만 queries/rendering.rs에서 HWP5 프로필만 호출한다. | HWPX의 해당 경로 적용과 같은 폭·높이 인증을 검토한다. 단순 paint collapse로 뒤 표 원점을 남겨두지 않는다. 문단28 바깥 표는6×5이며4×4는 내부 표다. |
+| 126쪽 | section2/문단991·994의 TAC 표 앞 장식은 Shape가 아니라 비TAC InFrontOfText 표다. 저장 host 높이는 본체와 위아래 여백의 합이고 첫 host의 다음 저장 원점은 후행880HU까지 닫힌다. | 유일한 흐름 표와 장식 표를 구분하는 경로와 실제 장식 발행을 함께 확인한다.116쪽에서 발견한 장식 누락을 반복하지 않는다. |
+| 375쪽 | section12/문단18의 왼쪽 양식은 비TAC InFrontOfText 표이며 메모는 별도 본문41·42다. 표 내부 메모로 분류하지 않는다. 원문에는 그 사이 빈 문단의 양수 저장 슬롯과 간격이 있다. | 본문 빈 줄 점유·실제 후행 원점의 소비를 추가 확인한다. 가시 글자가 없다는 이유로 원문 공간을 없애지 않는다. |
+
+ignored `batch-original-source-native-audit.json`, `batch-original-stored-frame-rewinds.json` 및 `batch-8f-source-diagnostic/provenance.json`에 원문 입력/PDF/실행 파일 해시와 현재 컷 로그를 보존했다. 진단은 기존8f 실행 파일을 사용하며 새 빌드를 하지 않았다. render tree의 기본 진단 프로필을 Print 시각 증거와 구별한다. 같은 미달12쪽의 새 Native raster가 ca98의 raster와 바이트 단위로 같은지도 `batch-8f-ca98-native-raster-identity.json`에서 확인했다. 이전 라벨의 패널을 새로 생성한8f 패널이라고 바꾸어 부르지 않는다. source/회귀/golden 변경이나 새로운 #7445 이관은 이 분석 단계에서 수행하지 않았다.
