@@ -2649,11 +2649,17 @@ impl LayoutEngine {
                                 .get(para.para_shape_id as usize)
                                 .map(|s| s.spacing_before)
                                 .unwrap_or(0.0);
-                            // 실제 위 정렬의 callee가 앞 여백을 소비한다. 선언 정렬과
-                            // 임시 조각 정렬이 다르더라도 저장 원점에 두 번 더하지 않는다.
+                            // 원본 가운데/아래 정렬의 첫 저장 띠는 컷 때문에 임시로
+                            // 위 정렬해도 그 조각이 소유한다. 정렬을 바꾸지 않은 셀은
+                            // 저장 스냅과 글줄 callee가 앞 간격을 한 번만 소비한다.
+                            let keep_source_band = cp_idx == 0
+                                && first_source_lead > 0.0
+                                && matches!(effective_align, VerticalAlign::Top)
+                                && !matches!(cell.vertical_align, VerticalAlign::Top);
                             if cp_idx > 0
-                                || ((matches!(effective_align, VerticalAlign::Top)
-                                    || first_source_lead > 0.0)
+                                || (!keep_source_band
+                                    && (matches!(effective_align, VerticalAlign::Top)
+                                        || first_source_lead > 0.0)
                                     && spacing > 0.0
                                     && hwpunit_to_px(seg.vertical_pos - vpos_origin, self.dpi)
                                         >= spacing)
