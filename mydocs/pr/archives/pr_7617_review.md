@@ -390,3 +390,46 @@ base18/140쪽 전수와 대표 직접 판독은
 `upstream-21ed64071-{rowbreak-below90-panels,prep-base-boundary-panels}/`에 있다.
 실패22건의 원본별 판정은 `bea45e807-terminal-failure-inventory.json`에서 갱신했다.
 최종 전체 회귀·lint·남은 원본의 base 판정·개별 PR 검토와 통합은 계속 보류한다.
+
+### 2026-10-10 최신 보완 source의 경계 비교와 원 PR 추가 입력
+
+제품 source `f4853740ecc9f7cd3f7350d191d727cb7b240856`의 Native와 fresh WASM
+빌드는 실제 exit0이다. 최초 WASM 빌드의 ENOSPC 실패 로그를 보존하고, 소스가 동일함을
+확인한 뒤 WASM 단계만 재실행했다. 공유 `target/pr-review`와 Native 빌드는 재사용했다.
+
+| 입력과 비교 범위 | Native 최저 | fresh WASM 최저 | 미달 쪽 |
+| --- | ---: | ---: | --- |
+| 편람 HWPX 93/130/273쪽 | 94.75915% | 94.75915% | 없음 |
+| PrEP HWPX 40/105/108쪽 | 91.80848% | 91.80848% | 없음 |
+| 원 PR 추가 경계 HWP 전4쪽 | 99.43997% | 99.43997% | 없음 |
+| 원 PR 추가 경계 HWPX 전4쪽 | 96.45793% | 96.45793% | 없음 |
+
+실제 생성된14쪽의 Native/fresh WASM raster bytes가 각각 동일함을 확인했다.
+Native14개 review를 직접 열었다. 편람93/130쪽은 이전에 빠진 그림 외곽선이 나타나고
+원점·내부 여백·후속 캡션이 기준 프레임을 유지한다.273쪽의 두 그림과 캡션 순서도 유지한다.
+PrEP105쪽은20행과 마지막 연구비 총액을 모두 같은 쪽에 표시하며,108쪽은 원문의
+중복 번호8을 포함한 참고문헌13개를 보존한다. 테두리 AA·그림 안 글자 raster 차이는 남는다.
+이 결과는 편람383쪽·PrEP140쪽 전체의 최종 head 검증을 대신하지 않는다.
+
+원 PR의 추가 commit `1ed091daf421f92a9e2536645f9178877d54be40`에서 원본 HWP,
+생성기 출력 HWPX, 기존 대응 Print PDF, 생성기와 Rust 검사를 읽기 전용으로 확보했다.
+HWP는 한컴2020 저장 LineSeg 경로이며 HWPX는 LineSeg 없는 재조판 경로다.
+HWPX 자체도 한컴2020 비동기 Print로 새 PDF를 생성했고 실제 `engine=2020`,
+`pdf_print_method=0`, `hancom2020_pdf_driver_one_up`,4쪽을 확인했다.
+HWP4쪽은 기여자의 대응 HWP Print와, HWPX4쪽은 이 새 같은 입력의 Print와 비교했다.
+M의 앞 간격·대조군, T의 쪽 상단 표와 채움1..39/다음 쪽40..42, L의 다중 줄 host와
+뒤 문단을 Native review에서 직접 확인했다. 추가 Rust 검사의 누적 적용·정식 실행·
+수정 전 FAIL 증거는 아직 완료하지 않았다. 합성 입력의 통과를 실물 편람의 통과로 바꾸지 않는다.
+
+PrEP40쪽은 점수와 별개로 종료 셀의 아래 밴드가 짧고 뒤 본문이 높다는 결함이 남는다.
+실제 진단은 조판 예약106.6667px, 배치의 논리 높이92.0px, 최종 Table bbox95.3px를
+구분해 보존했다. 단순 여백 상수 추가로 처리하지 않고 동일 컷의 유닛·점유 높이 소비를
+추적한다. base 전140쪽이90% 이상이므로 이 결함은 현재 branch에서 수정하며 #7445로 이관하지 않는다.
+
+ignored 증적은 `candidate-f4853740e-build/build.json`,
+`candidate-f4853740e-{native,wasm}-boundary-fidelity.json`,
+`candidate-f4853740e-boundary-raster-identity.json`,
+`candidate-f4853740e-{native,wasm}-correction-panels/provenance.json`,
+`batch10-pr7617-boundary-print.json`, `pr7617-latest-original-head-intake/provenance.json`,
+`candidate-f4853740e-prep40-path-diagnostic/`에 있다. WASM 패널의 실제 직접 판독은
+해당 provenance에 별도로 남긴다. 전체 회귀·lint·추가 기여 commit 순서 검토와 최종 승인은 보류한다.

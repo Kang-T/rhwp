@@ -135,5 +135,18 @@ source frame을 거부하던 실행에서는790.2px 일반 요구량을 검사�
 19행733px만 수용한 뒤 마지막54.8px 행을 이월했다. 이번 수용 조건은 선언 frame이
 첫 조각만 뜻하는 다쪽 표·내부 reset·각주 예산을 그대로 제외하며,
 `samples/issue7336/stored_frame_page_larger_rowbreak.hwpx`를 정상 비적용 대조로 재확인한다.
-실제 새 Native/fresh WASM의105쪽 행 소속·표 외곽·뒤 내용·전체 쪽수와 focused 검사는
-아직 실행 전이다. 이 분석과 코드 보완을 최종 회귀 통과로 보고하지 않는다.
+제품 source `f4853740ecc9f7cd3f7350d191d727cb7b240856`의 실제 Native 쪽 수는
+140쪽으로 복구됐다. Native/fresh WASM의40/105/108쪽 비교는 양 경로 모두
+최저91.80848%, 미달0이며 실제 raster bytes도 각각 같다. Native105쪽 review에서
+20행의 본문과 마지막 연구비 총액, 표 외곽과 쪽번호를 직접 확인했고108쪽에서 원본
+참고문헌13개의 소속·순서를 확인했다. 증적은 ignored
+`candidate-f4853740e-native-geometry-controls/provenance.json`,
+`candidate-f4853740e-{native,wasm}-boundary-fidelity.json`,
+`candidate-f4853740e-native-correction-panels/provenance.json`에 있다.
+이3쪽 비교는 전140쪽 최종 검증·정식 focused 검사·최종 회귀 통과를 대신하지 않는다.
+
+40쪽 종료 조각은 실제 조판에서106.6667px를 예약하나 paint가92.0px로 다시 계산해
+최종 Table bbox95.3px와 짧은 아래 밴드가 나타난다. 원본 셀의 유효 여백과 저장 종료
+원점8000HU를 보존하면서 컷·점유 높이의 측정/배치 소비를 추적하고 있다.
+독립 Print와 Native review의 같은 아래 밴드를 직접 대조했으며, 점수91.80848%로
+이 결함을 면제하지 않는다. base90% 이상인 원본이므로 #7445로 이관하지 않는다.
