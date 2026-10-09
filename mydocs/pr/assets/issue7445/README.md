@@ -725,3 +725,11 @@ Native는 immutable base 실행 파일로 같은 원문에서 산출했던 전22
 - pic-table PDF SHA-256: `0e55f13ff078d5238e022a450c94d04728ca8f49f500fb5f10b08b988e455e85`.
 
 [pic 두 원문 재판정 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6065865468)과 앞선 PDF 설명 정정을 API로 확인했습니다.
+
+## 추가: 고정 devel의 KTX 27쪽 목차 기존 미달 재검증
+
+[기존 등록 댓글](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6063592661)의 동일
+문서를 새 Print 정본·전체27쪽으로 확인했습니다. [원문·PDF·이관 기록](ktx-toc27/README.md)을
+보존하며 현재 실패한 전체 SVG 고정 한 함수와 해당 자동 렌더 corpus 두 행을 제거했습니다.
+같은 문서의 정상 계약은 이관 자산을 사용해 유지합니다. 별도 기본 KTX 1쪽 입력·정본은 그대로입니다.
+시각 미달은 해결되지 않았고 해당 문서를 현재 PR의 완료·종료 범위로 포함하지 않습니다.
