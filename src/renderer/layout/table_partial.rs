@@ -2111,6 +2111,25 @@ impl LayoutEngine {
                         .enumerate()
                         .any(|(ci, _)| stored_square_picture_has_adjacent_text(cell, pi, ci))
                 });
+            let single_column_flow = self.stored_single_column_cell_flow(&cell.paragraphs);
+            // 같은 저장 밴드 원점을 전체 셀과 현재 컷이 소유한 줄에 사용한다.
+            // 첫 조각은 원래 leading band를 보존하고, 이어받기는 첫 소유 줄을
+            // 현재 정렬 상자의 원점으로 삼는다. 이전 조각의 밴드를 재소비하지 않는다.
+            let single_column_frame_origin_hu = single_column_flow.as_ref().map_or(0, |flow| {
+                if !cut_units.is_some_and(|(start, _)| start > 0) {
+                    return 0;
+                }
+                line_ranges
+                    .as_deref()
+                    .and_then(|ranges| {
+                        ranges.iter().enumerate().find_map(|(pi, &(start, end))| {
+                            (start < end)
+                                .then(|| flow.line_origins_hu.get(pi)?.get(start).copied())
+                                .flatten()
+                        })
+                    })
+                    .unwrap_or(0)
+            });
             let mut para_y = text_y_start;
             let mut has_preceding_text = false;
             // [#3637] 이 조각에서 **실제로 그려지는 첫 문단**의 vpos. 아래 중첩 표
@@ -2372,7 +2391,25 @@ impl LayoutEngine {
                 );
 
                 let mut table_host_has_stored_origin = false;
-                if preserve_linear_single_cell_vpos {
+                let mut single_column_snap_spacing_before = false;
+                if let Some(origin) = single_column_flow
+                    .as_ref()
+                    .and_then(|flow| flow.line_origins_hu.get(cp_idx))
+                    .and_then(|lines| lines.get(start_line))
+                {
+                    let spacing_before = if start_line == 0 {
+                        styles
+                            .para_styles
+                            .get(para.para_shape_id as usize)
+                            .map_or(0.0, |style| style.spacing_before)
+                    } else {
+                        0.0
+                    };
+                    para_y = text_y_start
+                        + hwpunit_to_px(*origin - single_column_frame_origin_hu, self.dpi)
+                        - spacing_before;
+                    single_column_snap_spacing_before = spacing_before > 0.0;
+                } else if preserve_linear_single_cell_vpos {
                     let target_seg = para
                         .line_segs
                         .get(start_line)
@@ -2626,6 +2663,9 @@ impl LayoutEngine {
                         self.keep_continuation_column_top_spacing_before.get();
                     self.keep_continuation_column_top_spacing_before
                         .set(keep_spacing);
+                    if single_column_snap_spacing_before {
+                        self.reapply_snap_anchored_spacing_before.set(true);
+                    }
                     let wrap_anchor = stored_square_picture_wrap_anchor_for_para(cell, cp_idx);
                     para_y = self.layout_composed_paragraph(
                         tree,

@@ -5125,7 +5125,7 @@ impl LayoutEngine {
             .sum()
     }
 
-    fn stored_single_column_cell_flow(
+    pub(super) fn stored_single_column_cell_flow(
         &self,
         paragraphs: &[Paragraph],
     ) -> Option<crate::renderer::float_placement::StoredSingleColumnCellFlow> {
