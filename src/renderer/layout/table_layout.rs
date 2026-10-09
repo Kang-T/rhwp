@@ -17038,7 +17038,7 @@ impl LayoutEngine {
         ((declared - full_prefix).abs() <= 0.5).then_some(declared)
     }
 
-    /// A full-width source cell in a multi-row table owns its declared minimum
+    /// Aligned source owners in a multi-row table share a declared minimum
     /// physical height across continuation fragments, just as a standalone cell.
     /// Return no frame for edited/projected content or rows with competing owners.
     pub(crate) fn stored_full_width_row_declared_height(
@@ -17052,8 +17052,42 @@ impl LayoutEngine {
             return None;
         }
         let height = self.stored_full_width_row_source_height(table, row, styles)?;
-        (height > body_height || self.native_stored_row_has_text_frame_boundary(table, row, styles))
-            .then_some(height)
+        (height > body_height
+            || self.stored_minimum_row_has_text_frame_boundary(table, row, styles))
+        .then_some(height)
+    }
+
+    /// A CellBreak source stream can reset inside one owning row. The row's
+    /// declared box is independent of how many content units each page accepts.
+    /// Native RowBreak authentication keeps its existing object-frame contract.
+    fn stored_minimum_row_has_text_frame_boundary(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        self.native_stored_row_has_text_frame_boundary(table, row, styles)
+            || (self.profile.get().hwpx_stored_layout()
+                && !self.profile.get().session_edited()
+                && !self
+                    .render_normalization
+                    .borrow()
+                    .table_text_reflowed(table)
+                && !table.common.treat_as_char
+                && matches!(
+                    table.page_break,
+                    crate::model::table::TablePageBreak::CellBreak
+                )
+                && table.cells.iter().any(|cell| {
+                    usize::from(cell.row) == row
+                        && cell.row_span == 1
+                        && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi)
+                        && cell.paragraphs.windows(2).any(|pair| {
+                            stored_plain_text_paragraph_frame_reset(
+                                &pair[0], &pair[1], styles, self.dpi,
+                            )
+                        })
+                }))
     }
 
     /// Source-owned minimum space, independent of a consumer's page budget.
@@ -17064,7 +17098,17 @@ impl LayoutEngine {
         row: usize,
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
-        if !self.profile.get().hwp5_stored_pagination_layout()
+        let native_row_source = self.profile.get().hwp5_stored_pagination_layout()
+            && matches!(
+                table.page_break,
+                crate::model::table::TablePageBreak::RowBreak
+            );
+        let hwpx_cell_source = self.profile.get().hwpx_stored_layout()
+            && matches!(
+                table.page_break,
+                crate::model::table::TablePageBreak::CellBreak
+            );
+        if !(native_row_source || hwpx_cell_source)
             || self.profile.get().session_edited()
             || self
                 .render_normalization
@@ -17072,10 +17116,6 @@ impl LayoutEngine {
                 .table_text_reflowed(table)
             || table.common.treat_as_char
             || table.row_count <= 1
-            || !matches!(
-                table.page_break,
-                crate::model::table::TablePageBreak::RowBreak
-            )
         {
             return None;
         }
@@ -17093,7 +17133,7 @@ impl LayoutEngine {
         // A Top-aligned source height alone does not authenticate that minimum
         // across fragments; keep the existing alignment-frame precondition.
         if owners.len() > 1 {
-            if !self.native_stored_row_has_text_frame_boundary(table, row, styles)
+            if !self.stored_minimum_row_has_text_frame_boundary(table, row, styles)
                 || cell.height == 0
                 || cell.height >= 0x8000_0000
             {
@@ -17116,6 +17156,12 @@ impl LayoutEngine {
                     })
                 {
                     return None;
+                }
+                if hwpx_cell_source {
+                    let units = self.cell_units(owner, table, styles);
+                    if self.cell_cut_has_projected_lines(owner, table, styles, 0, units.len()) {
+                        return None;
+                    }
                 }
                 next_col = next_col.checked_add(owner.col_span)?;
             }

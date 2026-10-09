@@ -1385,6 +1385,19 @@ impl LayoutEngine {
                                             && self.cell_unit_opens_stored_page_frame(
                                                 cell, table, styles, start,
                                             ))
+                                        || (self.profile.get().hwpx_stored_layout()
+                                            && !self.profile.get().session_edited()
+                                            && self
+                                                .stored_full_width_row_declared_height(
+                                                    table,
+                                                    cell_row,
+                                                    styles,
+                                                    self.current_body_area.get().3,
+                                                )
+                                                .is_some()
+                                            && self.cell_unit_opens_stored_page_frame(
+                                                cell, table, styles, start,
+                                            ))
                                         || self.stored_paragraph_allows_orphan_split(
                                             table, cell, &units, start, styles,
                                         ))
