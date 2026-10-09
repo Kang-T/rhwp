@@ -128,6 +128,22 @@ impl TypesetEngine {
                 } = row_query.band_shape();
                 let rest = (avail_for_rows - consumed - cs_before).max(0.0);
                 let row_start_cut: &[usize] = if r == cursor_row { start_cut } else { &[] };
+                if start_cut.is_empty() && start_row_height_override.is_none() {
+                    if let Some(height) = layout_engine.stored_complete_terminal_row_frame(
+                        table,
+                        r,
+                        cursor_row,
+                        whole_row_fit_h,
+                        rest,
+                        styles,
+                    ) {
+                        consumed += cs_before + height;
+                        r += 1;
+                        end_row = r;
+                        end_row_height_override = Some(height);
+                        return true;
+                    }
+                }
                 if mt.allows_row_break_split()
                     && can_intra_split
                     && r > cursor_row

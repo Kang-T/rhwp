@@ -1308,6 +1308,18 @@ impl TypesetEngine {
                 let remaining = (full - used - height).max(0.0);
                 (remaining > 0.5).then_some(remaining)
             })
+            .or_else(|| {
+                let row = end_row.checked_sub(1)?;
+                if split_block_start.is_some()
+                    || split_end_limit <= 0.0
+                    || (row == cursor_row && !start_cut.is_empty())
+                {
+                    return None;
+                }
+                layout_engine.stored_shared_frame_row_remainder(
+                    table, row, &next_cut, &mt.row_heights, end_row_height_override, styles,
+                )
+            })
             .or(saved_closing_frame.filter(|_| first_fragment_blank_band))
             .or_else(|| {
                 let row = end_row.checked_sub(1)?;

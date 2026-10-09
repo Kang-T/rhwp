@@ -81,6 +81,7 @@ impl TypesetEngine {
         // 행 컷 측정도 같은 렌더링의 일부이므로 조판기와 동일한 표 출처를 사용한다.
         layout_engine
             .set_render_normalization_overlay(std::sync::Arc::clone(&self.render_normalization));
+        layout_engine.remember_stored_frame_rows(row_geometry_table, &mt.row_heights);
         // [Task #993] rowspan(row_span>1) 셀이 걸친 행 — 컷 모델(advance_row_cut)은
         // row_span==1 셀만 다루므로 rowspan 셀 높이를 측정하지 못한다. 구현계획서
         // §4대로 rowspan 행은 MeasuredTable 행 높이를 권위로 쓴다(렌더러도 동일).
@@ -205,8 +206,13 @@ impl TypesetEngine {
                     // 온전한 행은 실제 배치가 소유한 측정 높이를 함께 예약한다.
                     // 재조판에서는 원본 저장 프레임이나 저장 안전 여유를 재사용하지 않는다.
                     cut.max(mt.row_heights[row])
-                } else if declared_whole_table_matches_paint
-                    && padding_explains_drift
+                } else if (declared_whole_table_matches_paint && padding_explains_drift
+                    || layout_engine.stored_whole_row_padding_frame(
+                        row_geometry_table,
+                        row,
+                        *cut,
+                        *painted,
+                    ))
                     && layout_engine
                         .whole_fragment_row_uses_measured_height(row_geometry_table, row)
                 {

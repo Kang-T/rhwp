@@ -3711,6 +3711,9 @@ pub struct LayoutEngine {
     cell_units_cache: std::cell::RefCell<
         std::collections::HashMap<usize, std::sync::Arc<Vec<table_layout::CellUnit>>>,
     >,
+    /// Actual row origins supplied by measurement, before fragment overrides.
+    /// Saved cell frames use these origins rather than raw row minima.
+    stored_frame_row_plans: std::cell::RefCell<std::collections::HashMap<usize, Vec<f64>>>,
     /// [Issue #2063] 표 단위 불변량 `has_visible_text_with_nested_table` 를 표 포인터로
     /// 캐시한다. 이 값은 (측정 대상 셀과 무관한) 표 전체 스캔 결과인데 셀별
     /// `cell_units_uncached` 안에서 계산되어 52,694 셀 표에서 O(셀²)(≈28억) 로 폭증했다.
@@ -3848,6 +3851,7 @@ impl LayoutEngine {
             declared_trust_allowed: std::cell::Cell::new(true),
             cell_units_cache: std::cell::RefCell::new(std::collections::HashMap::new()),
             nested_table_ptrs: std::cell::RefCell::new(std::collections::HashSet::new()),
+            stored_frame_row_plans: std::cell::RefCell::new(std::collections::HashMap::new()),
             table_nested_text_flag_cache: std::cell::RefCell::new(std::collections::HashMap::new()),
             cursor_probe_block_cache: std::cell::RefCell::new(std::collections::HashMap::new()),
             single_line_overflow_cache: Default::default(),
@@ -3861,6 +3865,7 @@ impl LayoutEngine {
     pub fn clear_layout_caches(&self) {
         self.cell_units_cache.borrow_mut().clear();
         self.nested_table_ptrs.borrow_mut().clear();
+        self.stored_frame_row_plans.borrow_mut().clear();
         self.table_nested_text_flag_cache.borrow_mut().clear();
         self.cursor_probe_block_cache.borrow_mut().clear();
         self.single_line_overflow_cache.clear();

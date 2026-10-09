@@ -287,6 +287,8 @@ struct DeferredStoredFrameControl {
     para_index: usize,
     control_index: usize,
     placement: crate::renderer::float_placement::ParagraphFloatPlacement,
+    /// This original zero-origin body starts after the deferred object's page.
+    following_body_para_index: Option<usize>,
 }
 
 /// 호스트 문단의 spacing (표 전/후)

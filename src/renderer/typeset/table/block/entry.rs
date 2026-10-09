@@ -114,7 +114,7 @@ impl TypesetEngine {
             && !self.render_normalization.table_text_reflowed(table)
             && !(para_has_visible_text(para) && rowbreak_table_has_internal_saved_vpos_reset(table))
         {
-            if let Some(placement) =
+            if let Some((placement, following_body)) =
                 crate::renderer::float_placement::stored_table_next_page_placement(
                     para,
                     &paragraphs_all[para_idx + 1..],
@@ -126,6 +126,19 @@ impl TypesetEngine {
                     st.available_height(),
                     self.dpi,
                 )
+                .map(|placement| (placement, None))
+                .or_else(|| {
+                    crate::renderer::float_placement::stored_whole_header_next_page_placement(
+                        para,
+                        &paragraphs_all[para_idx + 1..],
+                        table,
+                        ft.effective_height,
+                        st.vpos_page_base.unwrap_or(0),
+                        para_start_height,
+                        st.available_height(),
+                        self.dpi,
+                    )
+                })
             {
                 // 가시 호스트는 현재 쪽에서 한 번 소비하고 표만 다음 쪽으로 넘긴다.
                 // 기존 소비 표시를 사용해 출력 단계의 호스트 중복을 막는다.
@@ -143,6 +156,7 @@ impl TypesetEngine {
                         para_index: para_idx,
                         control_index: ctrl_idx,
                         placement,
+                        following_body_para_index: following_body.map(|index| para_idx + 1 + index),
                     });
                     return None;
                 }

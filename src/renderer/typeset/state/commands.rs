@@ -135,7 +135,22 @@ impl TypesetState {
         &mut self,
         picture: crate::renderer::typeset::DeferredStoredFrameControl,
     ) {
+        if let Some(index) = picture.following_body_para_index {
+            self.data
+                .deferred_source_frame_body_pages
+                .insert(index, self.data.pages.len() + 2);
+        }
         self.data.deferred_next_page_stored_frames.push(picture);
+    }
+    pub(in crate::renderer::typeset) fn apply_deferred_source_frame_body_page(
+        &mut self,
+        index: usize,
+    ) {
+        if let Some(page) = self.data.deferred_source_frame_body_pages.remove(&index) {
+            while self.data.pages.len() < page {
+                self.advance_column_or_new_page();
+            }
+        }
     }
     pub(in crate::renderer::typeset) fn mark_pre_emitted_host(&mut self, index: usize) {
         self.data.pre_emitted_host_paras.insert(index);

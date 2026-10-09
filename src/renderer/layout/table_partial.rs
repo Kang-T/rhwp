@@ -5528,6 +5528,18 @@ impl LayoutEngine {
                     } else {
                         !end_cut.is_empty() && r == split_last_row
                     };
+                    if !in_start
+                        && !in_end
+                        && measured_table.is_some()
+                        && self.stored_whole_row_padding_frame(
+                            table,
+                            r,
+                            self.row_cut_content_height(table, r, &[], &[], styles),
+                            resolved_row_heights[r],
+                        )
+                    {
+                        continue;
+                    }
                     // 분할 블록 밖 rowspan 행은 컷 모델 밖 — resolve_row_heights 유지.
                     if rowspan_touched && !in_start && !in_end {
                         continue;
@@ -6479,6 +6491,18 @@ impl LayoutEngine {
         {
             if let Some(first_edge) = h_edges.first_mut() {
                 first_edge.fill(None);
+            }
+        }
+
+        // An interior Square-flow cut owns a page fragment, not the cell's
+        // bottom border. The next fragment retains the original closing edge.
+        if !is_last_part
+            && !end_cut.is_empty()
+            && table.page_break == crate::model::table::TablePageBreak::RowBreak
+            && table.common.text_wrap == crate::model::shape::TextWrap::Square
+        {
+            if let Some(last_edge) = h_edges.last_mut() {
+                last_edge.fill(None);
             }
         }
 

@@ -164,6 +164,7 @@ impl TypesetEngine {
             if st.prefilled_paras.contains(&para_idx) {
                 continue;
             }
+            st.apply_deferred_source_frame_body_page(para_idx);
             st.consume_pending_table_terminal_gap(para_idx, paragraphs, styles, self.dpi);
             // 후속 본문이 사이에 없는 새 표 문단은 이전 묶음의 일부가 아니다.
             // 이전 문단의 후행 표를 먼저 완료한다. 새 문단의 명시적 쪽/단 나눔과

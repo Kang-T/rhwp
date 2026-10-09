@@ -26,26 +26,51 @@ impl LayoutEngine {
         let rows = table.get_raw_row_heights();
         let row = usize::from(cell.row);
         let prefix = rows.get(..row)?;
-        let &current = rows.get(row)?;
+        let span_end = row.checked_add(usize::from(cell.row_span))?;
+        let source_span = rows.get(row..span_end)?;
         if prefix
             .iter()
-            .chain(std::iter::once(&current))
+            .chain(source_span)
             .any(|&height| height == 0 || height > i32::MAX as u32)
         {
             return None;
         }
-        let origin = prefix.iter().map(|&height| i64::from(height)).sum::<i64>()
-            + i64::from(table.cell_spacing) * row as i64;
-        let end = i64::from(table.common.height);
+        let (origin, current) = self
+            .stored_frame_row_plans
+            .borrow()
+            .get(&(table as *const Table as usize))
+            .and_then(|rows| {
+                Some((
+                    rows.get(..row)?.iter().sum::<f64>(),
+                    rows.get(row..span_end)?.iter().sum::<f64>(),
+                ))
+            })
+            .unwrap_or_else(|| {
+                (
+                    prefix
+                        .iter()
+                        .map(|&height| hwpunit_to_px(height as i32, self.dpi))
+                        .sum(),
+                    source_span
+                        .iter()
+                        .map(|&height| hwpunit_to_px(height as i32, self.dpi))
+                        .sum(),
+                )
+            });
+        let origin = origin + hwpunit_to_px(table.cell_spacing as i32, self.dpi) * row as f64;
+        let current = current
+            + hwpunit_to_px(table.cell_spacing as i32, self.dpi)
+                * usize::from(cell.row_span).saturating_sub(1) as f64;
+        let end = hwpunit_to_px(table.common.height as i32, self.dpi);
         // A completed opening row or a later frame cannot authenticate this
         // partial source row. Unknown zero-height rows are not a physical origin.
-        if end <= origin || end >= origin + i64::from(current) {
+        if !origin.is_finite() || !current.is_finite() || end <= origin || end >= origin + current {
             return None;
         }
-        Some(hwpunit_to_px(i32::try_from(end - origin).ok()?, self.dpi))
+        Some(end - origin)
     }
 
-    fn first_source_frame_owner(
+    pub(super) fn first_source_frame_owner(
         &self,
         table: &Table,
         cell: &Cell,
@@ -75,7 +100,23 @@ impl LayoutEngine {
                     ) + padding;
                     // A stored empty line owns the same line box and following
                     // advance as text. The opening box ends in that final gap.
-                    return (opening + epsilon >= ink && opening < advance + padding)
+                    // A span can cross complete rows before the first partial
+                    // row. Its source restart still owns the same Common frame
+                    // when an independent ordinary cell closes that frame.
+                    let independently_closed_span = cell.row_span > 1
+                        && unit.stored_frame_break_before
+                        && unit.page_frame_reset_before
+                        && opening <= hwpunit_to_px(cell.height as i32, self.dpi)
+                        && table.cells.iter().any(|peer| {
+                            peer.row_span == 1
+                                && peer.row >= cell.row
+                                && usize::from(peer.row)
+                                    < usize::from(cell.row) + usize::from(cell.row_span)
+                                && peer.col != cell.col
+                                && self.first_source_frame_owner(table, peer, styles).is_some()
+                        });
+                    return (opening + epsilon >= ink
+                        && (opening < advance + padding || independently_closed_span))
                         .then_some((index, opening));
                 }
                 if i64::from(line.vertical_pos)
@@ -171,6 +212,7 @@ impl LayoutEngine {
                 end,
                 before,
                 units[end - 1].height,
+                styles,
             ) <= 0.0
                 || opening.is_some_and(|other| (other - height).abs() > epsilon)
             {

@@ -3,9 +3,11 @@
 mod stored_complete_block_cut;
 mod stored_intra_paragraph_frame;
 mod stored_plain_row_frame;
+mod stored_shared_cell_frame;
 mod stored_span_content;
 mod stored_span_reservation;
 mod stored_span_row_owner;
+mod stored_terminal_row_frame;
 mod stored_zero_origin;
 mod unit_diagnostics;
 
@@ -4643,6 +4645,7 @@ impl LayoutEngine {
             false,
         );
         self.declared_trust_allowed.set(true);
+        self.remember_stored_frame_rows(table, &out);
         out
     }
 
@@ -18134,6 +18137,7 @@ impl LayoutEngine {
             })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn native_intra_para_saved_reset_trailing_trim(
         &self,
         table: &crate::model::table::Table,
@@ -18153,10 +18157,6 @@ impl LayoutEngine {
             || !matches!(
                 table.page_break,
                 crate::model::table::TablePageBreak::RowBreak
-            )
-            || !matches!(
-                table.common.text_wrap,
-                crate::model::shape::TextWrap::TopAndBottom
             )
             || end_cut == 0
             || end_cut >= units.len()
@@ -18198,6 +18198,27 @@ impl LayoutEngine {
         let trim = hwpunit_to_px(previous_seg.line_spacing.max(0), self.dpi)
             .min(previous_unit.height.max(0.0));
         if trim <= 0.0 {
+            return 0.0;
+        }
+
+        // The original object closes this first source frame in actual measured
+        // row coordinates. This contract also applies to Square tables.
+        if let Some((owner, opening)) = self.first_source_frame_owner(table, cell, styles) {
+            if owner == end_cut {
+                let padding = cell.effective_padding(&table.padding);
+                let padding =
+                    hwpunit_to_px(i32::from(padding.top) + i32::from(padding.bottom), self.dpi);
+                return (consumed_before_px + last_unit_height_px + padding - opening)
+                    .max(0.0)
+                    .min(trim);
+            }
+        }
+        // A later, short restart requires an independent overlapping source
+        // owner. Its final advance cannot be charged to both physical frames.
+        if self.stored_shared_cell_frame(table, cell, end_cut, styles) {
+            return trim;
+        }
+        if table.common.text_wrap != crate::model::shape::TextWrap::TopAndBottom {
             return 0.0;
         }
 
@@ -20923,7 +20944,9 @@ impl LayoutEngine {
                 let strict_saved_frame_break = strict_saved_frame_break
                     || hwpx_page_scale_cross_para_reset
                     || hwp5_page_scale_cross_para_reset
-                    || shared_empty_frame;
+                    || shared_empty_frame
+                    || (u.page_frame_reset_before
+                        && self.stored_shared_cell_frame(table, cell, j, styles));
                 if j > start
                     && (u.hard_break_before
                         || body_frame_reset
@@ -21813,7 +21836,11 @@ impl LayoutEngine {
             && crate::renderer::float_placement::stored_rowbreak_outer_frame_host(host, table)
             && !host.stored_text_partition_is_dirty()
             && host.line_segs.first().is_some_and(|line| {
-                line.vertical_pos >= line.line_height
+                (line.vertical_pos >= line.line_height
+                    || (host.text.is_empty()
+                        && matches!(host.controls.as_slice(), [Control::Table(_)])
+                        && line.vertical_pos == 0
+                        && self.row_cut_has_original_shared_frame(table, row, cut, styles)))
                     && line.line_height > 0
                     && line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
             })
@@ -24839,6 +24866,13 @@ impl LayoutEngine {
                         )
                     })
                     .flatten()
+            })
+            .or_else(|| {
+                (!start_cut_is_block)
+                    .then(|| {
+                        self.stored_shared_span_cut_owner(table, cell, start_row, start_cut, styles)
+                    })
+                    .flatten()
             });
         if straddles_start {
             if let Some(index) = table
@@ -24902,6 +24936,19 @@ impl LayoutEngine {
                                 end_row.saturating_sub(1),
                                 end_cut,
                                 resolved_row_heights,
+                                styles,
+                            )
+                        })
+                        .flatten()
+                })
+                .or_else(|| {
+                    (!end_cut_is_block)
+                        .then(|| {
+                            self.stored_shared_span_cut_owner(
+                                table,
+                                cell,
+                                end_row.saturating_sub(1),
+                                end_cut,
                                 styles,
                             )
                         })

@@ -157,6 +157,7 @@ impl TypesetEngine {
                                         para_index: para_idx,
                                         control_index: ctrl_idx,
                                         placement,
+                                        following_body_para_index: None,
                                     },
                                 );
                                 continue;

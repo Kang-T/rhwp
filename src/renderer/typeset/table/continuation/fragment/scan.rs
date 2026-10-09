@@ -560,6 +560,50 @@ impl TypesetEngine {
             }
         }
 
+        if split_block_start.is_none()
+            && !split_end_cut.is_empty()
+            && split_end_limit > 0.0
+            && end_row_height_override.is_none()
+            && end_row > cursor_row
+        {
+            // split_end_limit counts units only. Padding already belongs to the
+            // accepted last-row box and cannot also belong to the prefix.
+            let row = end_row - 1;
+            let row_start = if row == cursor_row {
+                start_cut.as_slice()
+            } else {
+                &[]
+            };
+            let selected = layout_engine.row_cut_content_height(
+                row_geometry_table,
+                row,
+                row_start,
+                &split_end_cut,
+                styles,
+            );
+            let before_last = consumed - selected;
+            let source_frame_available =
+                crate::renderer::float_placement::single_cell_page_fragment_bottom(
+                    table,
+                    st.available_height(),
+                    self.dpi,
+                ) - st.current_height
+                    - budget.host_before_overhead
+                    - budget.vert_offset_overhead
+                    - budget.caption_extra
+                    - header_overhead;
+            if let Some(height) = layout_engine.stored_shared_row_end_frame(
+                row_geometry_table,
+                row,
+                &split_end_cut,
+                avail_for_rows.min(source_frame_available) - before_last,
+                styles,
+            ) {
+                consumed += height - selected;
+                end_row_height_override = Some(height);
+            }
+        }
+
         BlockTableRowScan {
             source_frame_band,
             consumed,
