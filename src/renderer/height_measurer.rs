@@ -4729,7 +4729,7 @@ impl HeightMeasurer {
                                     continue;
                                 }
                                 let guide_height = if !self.session_edited && !self.is_hwp3_variant {
-                                    crate::renderer::stored_picture_guide_line_height_px(p, &comp, i, self.dpi)
+                                    crate::renderer::stored_picture_guide_line_height_px(p, &comp, li, self.dpi)
                                 } else {
                                     None
                                 };
