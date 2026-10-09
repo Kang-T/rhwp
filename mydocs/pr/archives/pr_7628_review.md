@@ -170,3 +170,16 @@ source frame을 거부하던 실행에서는790.2px 일반 요구량을 검사�
 포함하지 않는다. ignored `candidate-f4853740e-prep40-instrumented-path/`에 patch·
 실행파일/source 해시·명령·실제 로그를 보존한다. 제품 보정의 원본39→40쪽, 첫/끝 컷·
 빈 밴드·재분할 대조군·뒤 본문·최신 전쪽 Native/fresh WASM과 정식 회귀는 아직 미검증이다.
+
+제품 `6fc92ab335d02efd8b5c3707d97c7e7b1cf68ec9`의 Native 빌드exit0에서
+40쪽 표 높이106.7px, 마지막 셀 줄 뒤 여백11.4px, 뒤 본문220.2px를 확인했다.
+원문 하단850HU 여백과 뒤 본문의 표 밖 배치는 복구됐으나, 이 관측은 전쪽 시각 통과가 아니다.
+동시에 실물 정상 대조군 `samples/issue6929/148776468_search_ad_terms_press_release.hwp`
+15쪽에서 이미 소비한 행의 빈 밴드가17.4px에서196.3px로 커지는 추가 회귀를 검출했다.
+명시적 per-row 컷의 내용 높이가0일 때 paint의 생산 단계가 선언 행 높이를 남기던 것이 원인이다.
+컷이 있으면0도 현재 내용 높이로 반영하고, 그 뒤 같은 물리 최소 높이 비교를 적용하도록 보완한다.
+소비가 끝난 행의 내용을 다시 예약하거나 새 행에 남은 밴드를 넘기지 않는 계약이며,
+마지막 컷 높이를 소유하는 `end_row_height_override`는 그대로 적용한다. 두 실행의 실제
+render tree와 입력·실행파일 해시는 ignored `candidate-{f4853740e,6fc92ab33}-empty-band-control/`
+및 `candidate-6fc92ab33-build/build.json`에 보존했다. 보완 후 재실행·재분할·시각·정식 검사는
+아직 미검증이다. 이 추가 회귀를 #7445에 이관하거나 기존 기대값을 완화하지 않는다.

@@ -5159,7 +5159,10 @@ impl LayoutEngine {
                     } else {
                         self.row_cut_content_height(table, r, su, eu, styles)
                     };
-                    if h > 0.0 {
+                    // 명시적 컷이 내용을 모두 소비했으면 현재 내용 높이는 0이다.
+                    // 원래 행 높이를 남기면 아래의 이어받기 최소 높이 비교가
+                    // 이미 소비한 행 전체를 빈 밴드에 다시 예약한다.
+                    if h > 0.0 || !su.is_empty() || !eu.is_empty() {
                         row_heights[r] = h;
                     }
                 }
