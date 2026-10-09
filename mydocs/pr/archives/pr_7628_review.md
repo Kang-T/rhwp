@@ -183,3 +183,18 @@ source frame을 거부하던 실행에서는790.2px 일반 요구량을 검사�
 render tree와 입력·실행파일 해시는 ignored `candidate-{f4853740e,6fc92ab33}-empty-band-control/`
 및 `candidate-6fc92ab33-build/build.json`에 보존했다. 보완 후 재실행·재분할·시각·정식 검사는
 아직 미검증이다. 이 추가 회귀를 #7445에 이관하거나 기존 기대값을 완화하지 않는다.
+
+보완 제품 `e4087c00a8d5b78534e27cb79f01cdd4bf2b6917`의 Native/fresh WASM 빌드는
+각각 exit0이다. 최신 Native에서 40쪽의 106.7px 표·11.4px 하단 여백·뒤 본문 220.2px를
+유지하고, 위 15쪽 대조군의 빈 밴드 17.4px와 표 높이 905.0px를 복구했다. 소비한 행의
+글자는 재출력되지 않는다. 진단 증적은 ignored `candidate-e4087c00a-build/build.json`에 있다.
+
+변경되지 않은 승인 원본 검사 2개도 실제 이 CLI로 실행해 2 PASS를 확인했다. 이전에
+컴파일된 assertion harness의 저장 메타데이터 파서를 사용했으며, 최신 라이브러리의
+전체 nextest 통과로 보고하지 않는다. source·실행파일·harness 해시와 정확한 선택 검사·
+실행 로그는 `candidate-e4087c00a-approval-existing-cli-tests.json`에 있다. 과거 suite028은
+해시와 선택 검사가 바뀌어 실행하지 않았고, 실제 해당 검사 2개가 있는 suite027을 확인했다.
+
+편람 281쪽을 포함한 Native 40쪽 비교는 진행 중이고, 같은 범위의 fresh WASM 및
+전383/140쪽 최종 시각·전체 회귀·lint는 아직 미검증이다. 빌드나 이 2개 검사로 누적
+7개 PR의 통합 승인을 선언하지 않는다.
