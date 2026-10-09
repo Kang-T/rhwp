@@ -828,7 +828,12 @@ fn uses_hwp3_origin_page_tolerance(document: &Document) -> bool {
 }
 
 pub(crate) fn uses_hwp3_origin_flow_spacing_before(document: &Document) -> bool {
-    document.layout_profile().hwp3_origin_flow_spacing_before()
+    // HWP5 parser는 저장 간격과 vpos를 그대로 보존한다. 저장 vpos에 담긴
+    // 앞 간격은 HeightCursor가 사전 차감하고 실제 문단 배치가 한 번 더한다.
+    // 역사적 계보 때문에 그 차감을 생략하면 저장 간격을 다시 소비한다.
+    // 기존 HWP5-origin HWPX의 좌표 계약은 별도로 유지한다.
+    let profile = document.layout_profile();
+    profile.hwp3_origin_flow_spacing_before() && profile.hwpx_container()
 }
 
 fn should_insert_hwp3_title_filler_page(
@@ -2972,7 +2977,6 @@ impl DocumentCore {
     pub fn get_page_info_native(&self, page_num: u32) -> Result<String, HwpError> {
         use crate::model::page::PageBorderBasis;
         use crate::renderer::hwpunit_to_px;
-        use crate::renderer::layout::body_page_border_outset;
         let (page_content, _, _) = self.find_page(page_num)?;
         let sec_idx = page_content.section_index;
         let section_def = &self.document.sections[sec_idx].section_def;
@@ -3011,33 +3015,14 @@ impl DocumentCore {
         let pbf_bottom = hwpunit_to_px(page_border_fill.spacing_bottom as i32, self.dpi);
         let body_top = mt + mh;
         let body_bottom_margin = mb + mf;
-        let visual_outsets = if matches!(page_border_fill.basis, PageBorderBasis::BodyBased)
-            && page_border_fill.border_fill_id > 0
-        {
-            self.document
-                .doc_info
-                .border_fills
-                .get((page_border_fill.border_fill_id - 1) as usize)
-                .map(|bf| {
-                    (
-                        body_page_border_outset(&bf.borders[0]),
-                        body_page_border_outset(&bf.borders[1]),
-                        body_page_border_outset(&bf.borders[2]),
-                        body_page_border_outset(&bf.borders[3]),
-                    )
-                })
-                .unwrap_or((0.0, 0.0, 0.0, 0.0))
-        } else {
-            (0.0, 0.0, 0.0, 0.0)
-        };
-        let (out_l, out_r, out_t, _out_b) = visual_outsets;
+        // 공개 페이지 정보도 배치와 같은 저장 간격의 기준선을 반환한다.
         let (page_border_left, page_border_right, page_border_top, page_border_bottom) =
             match page_border_fill.basis {
                 PageBorderBasis::PaperBased => (pbf_left, pbf_right, pbf_top, pbf_bottom),
                 PageBorderBasis::BodyBased => (
-                    (ml - pbf_left - out_l).max(0.0),
-                    (mr - pbf_right - out_r).max(0.0),
-                    (body_top - pbf_top - out_t).max(0.0),
+                    (ml - pbf_left).max(0.0),
+                    (mr - pbf_right).max(0.0),
+                    (body_top - pbf_top).max(0.0),
                     (body_bottom_margin - pbf_bottom).max(0.0),
                 ),
             };
@@ -9234,6 +9219,8 @@ mod tests {
 
         // "page 2" 단: para 1 만 포함.
         let cc = ColumnContent {
+            paragraph_origins: Default::default(),
+            computed_paragraphs: Default::default(),
             column_index: 0,
             start_height: 0.0,
             endnote_flow: false,

@@ -10,6 +10,9 @@ use crate::model::{paragraph::Paragraph, provenance::LayoutCompatibilityProfile}
 /// 문단 format() 결과: 문단의 실제 렌더링 높이 정보
 #[derive(Debug, Clone)]
 pub(in crate::renderer::typeset) struct FormattedParagraph {
+    /// 같은 폭에서 재구성하고 줄 메트릭까지 확인한 일반 본문 결과.
+    pub(in crate::renderer::typeset) computed_paragraph:
+        Option<crate::renderer::composer::ComposedParagraph>,
     /// Measured remaining inline space on the composed tail line. None means
     /// that this path has no reliable width result (not an implicit overflow).
     pub(in crate::renderer::typeset) tail_line_remaining_width: Option<f64>,
@@ -173,7 +176,8 @@ impl FormattedParagraph {
         let has_authoritative_seg_for_multicolumn = para.line_segs.iter().any(|seg| {
             seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
         });
-        if col_count > 1 && has_authoritative_seg_for_multicolumn {
+        // 다단도 다음 앵커가 트림을 복원할 수 있을 때만 저장 간격을 제외한다.
+        if col_count > 1 && has_authoritative_seg_for_multicolumn && !ladder_dirty {
             return self.height_for_fit;
         }
         // [#2279 ①] spacing 트림은 **비합성(authoritative) 저장 lineseg** 문단에만.

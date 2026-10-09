@@ -64,9 +64,10 @@ pub struct ResolvedCharStyle {
     ///   HYGothic-Medium                           중앙 오차 0.1324 em
     /// ```
     ///
-    /// 선언 face 의 표가 없으면 `None` 이라 종전 치환 대상의 표를 그대로 쓴다.
-    /// `HCI Poppy` 가 그 경우이며, 그 치환(`Palatino Linotype`)은 정본 ASCII 24,662자
-    /// 대조에서 중앙 오차 0.0040 em 으로 이미 맞다 — 건드리지 않는다.
+    /// 전체 표가 없더라도 독립적으로 확인한 원본 HFT의 부분 메트릭은 보존한다.
+    /// `HCI Poppy`의 표시 치환은 Palatino이며 보통 ASCII 폭은 가깝지만 슬래시는
+    /// 원본 0.605em / Palatino 0.3203125em으로 다르다. 미확인 글리프는 종전
+    /// 표시 폴백의 메트릭을 유지하며 부분 표를 전체 face의 증거로 사용하지 않는다.
     pub font_families_metric_face: Vec<Option<String>>,
     /// [#7387] 처음에는 `CharShape.use_font_space`가 켜진 run의 **영문 슬롯**(1)
     /// 공백 글리프 폭이다. 저장 문서 프로필에서 독립 출력에 맞게 보정할 수 있다.
@@ -470,8 +471,51 @@ pub fn resolve_styles(doc_info: &DocInfo, dpi: f64) -> ResolvedStyleSet {
 /// Layout provenance itself remains owned by `LayoutCompatibilityProfile` and
 /// is passed separately to consumers that need it.
 pub(crate) fn resolve_styles_for_document(document: &Document, dpi: f64) -> ResolvedStyleSet {
+    resolve_styles_with_environment(document, dpi, None)
+}
+
+fn collect_paragraph_space_styles(
+    para: &crate::model::paragraph::Paragraph,
+    ids: &mut std::collections::HashSet<u32>,
+) {
+    for (index, ch) in para.text.chars().enumerate() {
+        if ch == ' ' {
+            if let Some(id) = para.char_shape_id_at(index) {
+                ids.insert(id);
+            }
+        }
+    }
+}
+
+fn collect_table_space_styles(
+    table: &crate::model::table::Table,
+    ids: &mut std::collections::HashSet<u32>,
+) {
+    for cell in &table.cells {
+        for para in &cell.paragraphs {
+            collect_paragraph_space_styles(para, ids);
+            for control in &para.controls {
+                if let crate::model::control::Control::Table(nested) = control {
+                    collect_table_space_styles(nested, ids);
+                }
+            }
+        }
+    }
+}
+
+/// The environment selects the same final face for measurement and every painter.
+pub(crate) fn resolve_styles_with_environment(
+    document: &Document,
+    dpi: f64,
+    environment: Option<&super::font_environment::FontEnvironment>,
+) -> ResolvedStyleSet {
     let profile = document.layout_profile();
-    let mut styles = resolve_styles_with_variant(&document.doc_info, dpi, profile.hwp3_layout());
+    let mut styles = resolve_styles_with_variant_environment(
+        &document.doc_info,
+        dpi,
+        profile.hwp3_layout(),
+        environment,
+    );
     // [#7051] 계보 신호가 없는 저장본의 HFT ASCII 반각 판정은 로드 시 한 번 내려 출처에 둔다.
     styles.hft_ascii_halfwidth |= document.provenance.hft_ascii_halfwidth_witnessed;
     if profile.hwpx_stored_layout() {
@@ -511,87 +555,6 @@ pub(crate) fn resolve_styles_for_document(document: &Document, dpi: f64) -> Reso
     styles
 }
 
-fn collect_paragraph_space_styles(
-    para: &crate::model::paragraph::Paragraph,
-    ids: &mut std::collections::HashSet<u32>,
-) {
-    for (index, ch) in para.text.chars().enumerate() {
-        if ch == ' ' {
-            if let Some(id) = para.char_shape_id_at(index) {
-                ids.insert(id);
-            }
-        }
-    }
-}
-
-fn collect_table_space_styles(
-    table: &crate::model::table::Table,
-    ids: &mut std::collections::HashSet<u32>,
-) {
-    for cell in &table.cells {
-        for para in &cell.paragraphs {
-            collect_paragraph_space_styles(para, ids);
-            for control in &para.controls {
-                if let crate::model::control::Control::Table(nested) = control {
-                    collect_table_space_styles(nested, ids);
-                }
-            }
-        }
-    }
-}
-
-/// The environment selects the same final face for measurement and every painter.
-pub(crate) fn resolve_styles_with_environment(
-    document: &Document,
-    dpi: f64,
-    environment: Option<&super::font_environment::FontEnvironment>,
-) -> ResolvedStyleSet {
-    let mut styles = resolve_styles_for_document(document, dpi);
-    if environment.is_some() {
-        for (style, shape) in styles
-            .char_styles
-            .iter_mut()
-            .zip(&document.doc_info.char_shapes)
-        {
-            for lang in 0..LANG_COUNT {
-                let decision = lookup_font_name_in_environment(
-                    &document.doc_info,
-                    lang,
-                    shape.font_ids[lang],
-                    environment,
-                );
-                if decision.environment_profile_id.is_some() {
-                    style.font_families[lang] = decision.css_family_chain.join(",");
-                    // 명시적 프로그램 선택과 독립적으로 검증한 글리프 표가 모두 있어야
-                    // TrueType 폭을 사용한다. 선언만으로 임의 face의 표를 신뢰하지 않는다.
-                    let target = primary_font_name(&style.font_families[lang]);
-                    let explicit_true_type =
-                        environment.is_some_and(|env| env.selects_true_type(target));
-                    let explicit_replacement = environment.is_some_and(|env| {
-                        decision
-                            .requested_face
-                            .as_deref()
-                            .is_some_and(|face| env.replacement(face).is_some())
-                    });
-                    // 결측 글리프 체인만 추가한 세션은 원 face의 TTF/HFT 신뢰를 바꾸지 않는다.
-                    if explicit_true_type || explicit_replacement {
-                        style.font_families_metric_trusted[lang] = explicit_true_type
-                            && (metric_widths_verified_face(target)
-                                || matches!(target, "휴먼명조" | "HumanMyeongJo"));
-                    }
-                    if explicit_true_type {
-                        style.font_families_hft_hangul[lang] = false;
-                        style.font_families_hft_fullwidth_dot[lang] = false;
-                        style.font_families_metric_face[lang] = None;
-                    }
-                }
-            }
-            style.font_family = style.font_families[0].clone();
-        }
-    }
-    styles
-}
-
 /// [Task #1001] HWP3 → HWP5 변환본 인지하여 ParaShape spacing/margin 추가 보정.
 /// 변환본의 ParaShape 단위는 일반 HWP5 의 2배 (HwpUnitChar / HWPUNIT 의 2배 스케일)
 /// 이므로 추가 1/2 보정 적용. 호출자가 Document::is_hwp3_variant 를 전달.
@@ -600,7 +563,16 @@ pub fn resolve_styles_with_variant(
     dpi: f64,
     is_hwp3_variant: bool,
 ) -> ResolvedStyleSet {
-    let char_styles = resolve_char_styles(doc_info, dpi);
+    resolve_styles_with_variant_environment(doc_info, dpi, is_hwp3_variant, None)
+}
+
+fn resolve_styles_with_variant_environment(
+    doc_info: &DocInfo,
+    dpi: f64,
+    is_hwp3_variant: bool,
+    environment: Option<&super::font_environment::FontEnvironment>,
+) -> ResolvedStyleSet {
+    let char_styles = resolve_char_styles(doc_info, dpi, environment);
     let para_styles = resolve_para_styles_with_variant(doc_info, dpi, is_hwp3_variant);
     let border_styles = resolve_border_styles(doc_info);
     let numberings = doc_info.numberings.clone();
@@ -668,16 +640,25 @@ fn declared_space_advance_em(css_family_chain: &str, bold: bool, italic: bool) -
 }
 
 /// CharShape + FontFace → ResolvedCharStyle 목록
-fn resolve_char_styles(doc_info: &DocInfo, dpi: f64) -> Vec<ResolvedCharStyle> {
+fn resolve_char_styles(
+    doc_info: &DocInfo,
+    dpi: f64,
+    environment: Option<&super::font_environment::FontEnvironment>,
+) -> Vec<ResolvedCharStyle> {
     doc_info
         .char_shapes
         .iter()
-        .map(|cs| resolve_single_char_style(cs, doc_info, dpi))
+        .map(|cs| resolve_single_char_style(cs, doc_info, dpi, environment))
         .collect()
 }
 
 /// 개별 CharShape 해소
-fn resolve_single_char_style(cs: &CharShape, doc_info: &DocInfo, dpi: f64) -> ResolvedCharStyle {
+fn resolve_single_char_style(
+    cs: &CharShape,
+    doc_info: &DocInfo,
+    dpi: f64,
+    environment: Option<&super::font_environment::FontEnvironment>,
+) -> ResolvedCharStyle {
     // base_size는 HWPUNIT 단위
     let font_size = hwpunit_to_px(cs.base_size, dpi);
 
@@ -694,41 +675,66 @@ fn resolve_single_char_style(cs: &CharShape, doc_info: &DocInfo, dpi: f64) -> Re
 
     for lang in 0..LANG_COUNT {
         let font_id = cs.font_ids[lang];
-        let decision = lookup_font_name_decision(doc_info, lang, font_id);
+        // 최종 face를 먼저 확정해 공백폭·언어 메트릭도 같은 결과에서 만든다.
+        let decision = lookup_font_name_in_environment(doc_info, lang, font_id, environment);
+        let original_decision = decision
+            .environment_profile_id
+            .is_some()
+            .then(|| lookup_font_name_decision(doc_info, lang, font_id));
+        let original = original_decision.as_ref().unwrap_or(&decision);
+        let explicit_true_type = decision.environment_profile_id.is_some()
+            && environment.is_some_and(|env| {
+                decision
+                    .normalized_face
+                    .as_deref()
+                    .is_some_and(|face| env.selects_true_type(face))
+            });
         if lang == 1 {
             latin_slot_legacy =
                 decision.substitution_boundary == Some(FontSubstitutionBoundary::LegacyLatin);
         }
-        let substituted = decision.substitution_boundary.is_some()
-            && decision.normalized_face != decision.requested_face;
-        font_families_metric_trusted.push(
-            decision.alt_type == Some(1)
+        let substituted = original.substitution_boundary.is_some()
+            && original.normalized_face != original.requested_face;
+        font_families_metric_trusted.push(if decision.environment_profile_id.is_some() {
+            explicit_true_type
+                && decision.normalized_face.as_deref().is_some_and(|face| {
+                    metric_widths_verified_face(face)
+                        || matches!(face, "휴먼명조" | "HumanMyeongJo")
+                })
+        } else {
+            original.alt_type == Some(1)
                 && !substituted
                 && decision
                     .requested_face
                     .as_deref()
-                    .is_some_and(metric_widths_verified_face),
+                    .is_some_and(metric_widths_verified_face)
+        });
+        font_families_hft_hangul.push(
+            !explicit_true_type
+                && original.substitution_boundary == Some(FontSubstitutionBoundary::Hft),
         );
-        font_families_hft_hangul
-            .push(decision.substitution_boundary == Some(FontSubstitutionBoundary::Hft));
-        font_families_hft_fullwidth_dot.push(decision.alt_type == Some(2) && !substituted);
+        font_families_hft_fullwidth_dot
+            .push(!explicit_true_type && original.alt_type == Some(2) && !substituted);
         // [#7391] legacy-latin 폴백이 선언 face 를 한글 face 로 보내면서, 우리가 이미 가진
         // 그 face 자신의 폭 표를 버리는 경우만 되돌린다. HFT/TTF 경계는 손대지 않는다 —
         // HFT 한글 전용 face 의 반각 ASCII 회계(#7051)가 치환된 이름에 걸려 있다.
-        let singraphic_hft = decision.substitution_boundary == Some(FontSubstitutionBoundary::Hft)
-            && decision.requested_face.as_deref() == Some("신명 신그래픽");
-        font_families_metric_face.push(if singraphic_hft {
+        let singraphic_hft = !explicit_true_type
+            && original.substitution_boundary == Some(FontSubstitutionBoundary::Hft)
+            && original.requested_face.as_deref() == Some("신명 신그래픽");
+        font_families_metric_face.push(if explicit_true_type {
+            None
+        } else if singraphic_hft {
             // exam_kor 한컴 PDF 17쪽의 T16: 괄호는 한글 전진폭의 절반이다.
             // 굴림 대체 글꼴의 0.375em 괄호를 폭 기준으로 쓰면 가운데 정렬한
             // 그림과 제목 전체가 오른쪽으로 밀린다. 표시 글꼴은 그대로 둔다.
             Some("HY신명조".to_string())
         } else {
-            (decision.substitution_boundary == Some(FontSubstitutionBoundary::LegacyLatin))
+            (original.substitution_boundary == Some(FontSubstitutionBoundary::LegacyLatin))
                 .then(|| {
-                    decision
-                        .requested_face
-                        .as_deref()
-                        .filter(has_own_metric_table)
+                    decision.requested_face.as_deref().filter(|face| {
+                        has_own_metric_table(face)
+                            || crate::renderer::font_metrics_data::has_original_glyph_metrics(face)
+                    })
                 })
                 .flatten()
                 .map(str::to_string)
@@ -1295,9 +1301,9 @@ fn resolve_single_para_style(
     // spacing_before/after: pyhwpx 확인 결과 동일하게 2배 스케일 저장
     // 실제 렌더링 시 2로 나누어야 올바른 값이 된다.
     //
-    // [Task #1037] HWP5 변환본 의 추가 2배 스케일 (총 4배) 은 parser 단계 (parser/mod.rs)
-    // 에서 normalize (halve) 되어 본 단계에서는 normal HWP5 동등 (2배 스케일) — uniform
-    // variant_div=2 적용. 종전 variant_div=4 는 raw 값 normalize 전 보정 패턴이었음.
+    // HWP5는 계보와 관계없이 원시 저장 필드를 유지한다. 같은 IR 단위의 간격을
+    // 여기서 물리 값으로 한 번 해소하며 typeset·측정·paint가 추가 반감/배율 없이 쓴다.
+    // 저장 LineSeg는 이미 정해진 원점이므로 문단 간격을 차감해 다시 쓰지 않는다.
     let _ = is_hwp3_variant;
     let variant_div = 2.0;
     ResolvedParaStyle {

@@ -99,6 +99,9 @@ pub enum LayoutKind {
         left: String,
         right: String,
         body: Box<LayoutBox>,
+        /// 측정 단계가 정한 실제 괄호 paint 폭. 출력 backend가 다시 추정하지 않는다.
+        left_width: f64,
+        right_width: f64,
     },
     /// 장식
     Decoration {
@@ -124,6 +127,7 @@ pub struct EqLayout {
     pub font_size: f64,
     dpi: f64,
     hancom_cjk_advance: bool,
+    legacy_hft_metrics: bool,
 }
 
 /// 비율 상수
@@ -201,6 +205,7 @@ impl EqLayout {
             font_size,
             dpi: super::super::DEFAULT_DPI,
             hancom_cjk_advance: false,
+            legacy_hft_metrics: false,
         }
     }
 
@@ -211,12 +216,61 @@ impl EqLayout {
             font_size: super::super::hwpunit_to_px(equation.font_size.max(1) as i32, dpi),
             dpi,
             hancom_cjk_advance: equation.font_name.eq_ignore_ascii_case("HYhwpEQ"),
+            legacy_hft_metrics: super::uses_legacy_hft_metrics(equation),
         }
     }
 
     /// AST를 레이아웃 박스로 변환
     pub fn layout(&self, node: &EqNode) -> LayoutBox {
-        self.layout_node(node, self.font_size)
+        let mut body = self.layout_node(node, self.font_size);
+        if !self.legacy_hft_metrics || body.width <= 0.0 {
+            return body;
+        }
+        // 구형 수식의 내용 프레임은 첫 글자 앞에도 전진 여백을 가진다.
+        // 이 여백을 AST 폭에 포함해 흐름과 모든 출력이 같은 원점을 소비한다.
+        let inset = self.font_size * 0.22;
+        body.x = inset;
+        LayoutBox {
+            x: 0.0,
+            y: 0.0,
+            width: body.width + inset,
+            height: body.height,
+            baseline: body.baseline,
+            kind: LayoutKind::Row(vec![body]),
+        }
+    }
+
+    fn text_width(&self, text: &str, fs: f64, italic: bool) -> f64 {
+        if !self.legacy_hft_metrics {
+            return estimate_text_width(text, fs, italic);
+        }
+        text.chars()
+            .map(|ch| match ch {
+                '0'..='9' => fs * 0.5,
+                '=' | '+' | '-' | '%' => fs,
+                '×' => fs * 0.68,
+                _ => estimate_text_width(&ch.to_string(), fs, italic),
+            })
+            .sum()
+    }
+
+    fn layout_fraction_operand(&self, node: &EqNode, fs: f64) -> LayoutBox {
+        let mut body = self.layout_node(node, fs);
+        if !self.legacy_hft_metrics || !operand_starts_cjk(node) {
+            return body;
+        }
+        // 구형 수식의 한글 대체 face가 피연산자 프레임을 시작할 때의 전진이다.
+        // 숫자 피연산자나 같은 줄의 뒤 한글 run에는 반복해서 넣지 않는다.
+        let inset = fs * 0.22;
+        body.x = inset;
+        LayoutBox {
+            x: 0.0,
+            y: 0.0,
+            width: body.width + inset,
+            height: body.height,
+            baseline: body.baseline,
+            kind: LayoutKind::Row(vec![body]),
+        }
     }
 
     fn layout_node(&self, node: &EqNode, fs: f64) -> LayoutBox {
@@ -303,7 +357,11 @@ impl EqLayout {
         let total_height = max_ascent + max_descent;
 
         let mut x = 0.0;
-        for b in &mut boxes {
+        for index in 0..boxes.len() {
+            if self.legacy_hft_metrics && index > 0 {
+                x += legacy_operator_gap(&boxes[index - 1], &boxes[index], fs);
+            }
+            let b = &mut boxes[index];
             b.x = x;
             b.y = max_ascent - b.baseline;
             x += b.width;
@@ -338,7 +396,7 @@ impl EqLayout {
                 })
                 .sum()
         } else {
-            estimate_text_width(text, fs, !has_cjk)
+            self.text_width(text, fs, !has_cjk)
         };
         LayoutBox {
             x: 0.0,
@@ -351,7 +409,7 @@ impl EqLayout {
     }
 
     fn layout_number(&self, text: &str, fs: f64) -> LayoutBox {
-        let w = estimate_text_width(text, fs, false);
+        let w = self.text_width(text, fs, false);
         LayoutBox {
             x: 0.0,
             y: 0.0,
@@ -363,9 +421,12 @@ impl EqLayout {
     }
 
     fn layout_symbol(&self, text: &str, fs: f64) -> LayoutBox {
-        let w = estimate_text_width(text, fs, false);
+        let w = self.text_width(text, fs, false);
         // 연산자 좌우 여백
-        let pad = if matches!(text, "+" | "-" | "=" | "<" | ">" | "×" | "÷") {
+        let pad = if self.legacy_hft_metrics && matches!(text, "+" | "-" | "=") {
+            // 구형 수식은 단항/이항 문맥에 따라 layout_row에서 여백을 소유한다.
+            0.0
+        } else if matches!(text, "+" | "-" | "=" | "<" | ">" | "×" | "÷") {
             fs * 0.15
         } else {
             fs * 0.05
@@ -396,7 +457,7 @@ impl EqLayout {
                 kind: LayoutKind::MathSymbol(text.to_string()),
             };
         }
-        let w = estimate_text_width(text, fs, false);
+        let w = self.text_width(text, fs, false);
         LayoutBox {
             x: 0.0,
             y: 0.0,
@@ -420,13 +481,18 @@ impl EqLayout {
     }
 
     fn layout_fraction(&self, numer: &EqNode, denom: &EqNode, fs: f64) -> LayoutBox {
-        let n = self.layout_node(numer, fs);
-        let d = self.layout_node(denom, fs);
+        let n = self.layout_fraction_operand(numer, fs);
+        let d = self.layout_fraction_operand(denom, fs);
 
         let pad = fs * FRAC_LINE_PAD;
+        let side_pad = if self.legacy_hft_metrics {
+            fs * 0.24
+        } else {
+            pad
+        };
         let line_thick = fs * FRAC_LINE_THICK;
         let axis = fs * AXIS_HEIGHT;
-        let w = n.width.max(d.width) + pad * 2.0;
+        let w = n.width.max(d.width) + side_pad * 2.0;
 
         let numer_h = n.height + pad;
         let denom_h = d.height + pad;
@@ -1002,6 +1068,12 @@ impl EqLayout {
                 left: "{".to_string(),
                 right: String::new(),
                 body: Box::new(inner),
+                left_width: if total_h <= fs * 1.2 {
+                    fs * 0.333
+                } else {
+                    fs * 0.27
+                },
+                right_width: 0.0,
             },
         }
     }
@@ -1140,7 +1212,12 @@ impl EqLayout {
     fn layout_paren(&self, left: &str, right: &str, body: &EqNode, fs: f64) -> LayoutBox {
         let b = self.layout_node(body, fs);
         let use_stretch_round = b.height > fs * 1.2 && matches!((left, right), ("(", ")"));
-        let pad = if use_stretch_round {
+        let legacy_delimiters = self.legacy_hft_metrics
+            && legacy_delimiter_width(left, fs).is_some()
+            && legacy_delimiter_width(right, fs).is_some();
+        let pad = if legacy_delimiters {
+            fs * 0.115
+        } else if use_stretch_round {
             fs * 0.03
         } else {
             fs * PAREN_PAD
@@ -1153,8 +1230,35 @@ impl EqLayout {
             fs * 0.333
         };
 
-        let left_w = if left.is_empty() { 0.0 } else { paren_w };
-        let right_w = if right.is_empty() { 0.0 } else { paren_w };
+        let left_w = if left.is_empty() {
+            0.0
+        } else if legacy_delimiters {
+            legacy_delimiter_width(left, fs).unwrap_or(paren_w)
+        } else {
+            paren_w
+        };
+        let right_w = if right.is_empty() {
+            0.0
+        } else if legacy_delimiters {
+            legacy_delimiter_width(right, fs).unwrap_or(paren_w)
+        } else {
+            paren_w
+        };
+        let paint_width = if b.height <= fs * 1.2 {
+            fs * 0.333
+        } else {
+            fs * 0.27
+        };
+        let left_width = if legacy_delimiters {
+            left_w
+        } else {
+            paint_width
+        };
+        let right_width = if legacy_delimiters {
+            right_w
+        } else {
+            paint_width
+        };
 
         let mut body_box = b;
         body_box.x = left_w + pad;
@@ -1172,6 +1276,8 @@ impl EqLayout {
                 left: left.to_string(),
                 right: right.to_string(),
                 body: Box::new(body_box),
+                left_width,
+                right_width,
             },
         }
     }
@@ -1241,6 +1347,54 @@ impl EqLayout {
 /// 적분 기호 여부 판별
 pub(crate) fn is_integral_symbol(symbol: &str) -> bool {
     matches!(symbol, "∫" | "∬" | "∭" | "∮" | "∯" | "∰")
+}
+
+fn operand_starts_cjk(node: &EqNode) -> bool {
+    match node {
+        EqNode::Text(text) => text
+            .chars()
+            .next()
+            .is_some_and(|ch| super::text_has_cjk(&ch.to_string())),
+        EqNode::Row(children) => children.first().is_some_and(operand_starts_cjk),
+        EqNode::FontStyle { body, .. } | EqNode::Color { body, .. } => operand_starts_cjk(body),
+        _ => false,
+    }
+}
+
+fn legacy_operator(box_: &LayoutBox) -> Option<&str> {
+    match &box_.kind {
+        LayoutKind::Symbol(symbol) if matches!(symbol.as_str(), "=" | "+" | "-") => Some(symbol),
+        LayoutKind::FontStyle { body, .. } => legacy_operator(body),
+        _ => None,
+    }
+}
+
+fn legacy_operator_gap(previous: &LayoutBox, current: &LayoutBox, fs: f64) -> f64 {
+    let before = if legacy_operator(previous).is_none() {
+        match legacy_operator(current) {
+            Some("=") => 0.14,
+            Some("-") => 0.11,
+            Some("+") => 0.10,
+            _ => 0.0,
+        }
+    } else {
+        0.0
+    };
+    let after = match legacy_operator(previous) {
+        Some("=") => 0.17,
+        Some("-") => 0.11,
+        Some("+") => 0.10,
+        _ => 0.0,
+    };
+    fs * (before + after)
+}
+
+fn legacy_delimiter_width(delimiter: &str, fs: f64) -> Option<f64> {
+    match delimiter {
+        "(" | ")" => Some(fs * 0.375),
+        "[" | "]" => Some(fs * 0.387),
+        _ => None,
+    }
 }
 
 /// 텍스트 폭 추정

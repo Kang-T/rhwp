@@ -30,6 +30,8 @@ struct FragmentStart {
     /// 덜기를 적용한 scan 용 행 높이. 덜기가 없으면 준비 상태의 값을 그대로 쓴다.
     relieved_cut_row_heights: Option<Vec<f64>>,
     relieved_whole_row_fit_heights: Option<Vec<f64>>,
+    fragment_starts_intra_row: bool,
+    rowspan_physical_space: Vec<(usize, f64)>,
 }
 
 #[derive(Clone, Copy)]
@@ -48,6 +50,8 @@ struct FragmentBudget {
     fragment_outer_bottom_overhead: f64,
     vert_offset_overhead: f64,
     page_avail: f64,
+    /// 새 본문 조각의 물리 예산. 실제 이어받기와 종료 유닛 이월 판정이 공유한다.
+    fresh_page_avail: f64,
     fragment_placement: Option<crate::renderer::float_placement::ParagraphFloatPlacement>,
     scan_row_count: usize,
     saved_first_fragment_source_frame: Option<(f64, f64)>,
@@ -57,6 +61,8 @@ struct FragmentBudget {
     source_first_fragment_overflow_allowance: f64,
     header_overhead: f64,
     avail_for_rows: f64,
+    /// 첫 원본 상자의 본문 닫힘이 확인된 다행 표의 비끝 이어받기 예산.
+    source_closed_body_frame: bool,
     /// [#7095] 본문을 통째로 담은 1×1 RowBreak 쪽 조각 형상인지.
     single_cell_fragment_shape: bool,
     /// [#7095] 저장 host 원점이 있는 조각이 칠하는 상자 높이(px). 원점이 없는 조각은
@@ -76,6 +82,31 @@ impl TypesetEngine {
         profile: &mut FragmentProfile,
     ) -> TableContinuationIteration {
         profile.iterations += 1;
+        if !continuation.physical_space_initialized {
+            let closes_source_frame = prepared
+                .layout_engine
+                .native_stored_multirow_closes_body_frame(
+                    source.paragraph,
+                    source.table,
+                    st.layout.body_area.height,
+                    source.styles,
+                );
+            continuation.rowspan_physical_space = source
+                .row_geometry_table
+                .cells
+                .iter()
+                .enumerate()
+                .filter(|(_, cell)| {
+                    closes_source_frame
+                        && cell.row_span > 1
+                        && prepared
+                            .layout_engine
+                            .cell_has_original_physical_minimum(cell)
+                })
+                .map(|(index, _)| (index, 0.0))
+                .collect();
+            continuation.physical_space_initialized = true;
+        }
         // 소스 컷은 앞 조각의 끝과 연속이어야 한다. 저장 프레임의 꼬리 spacer는
         // 그 연속 범위 안에서 소비하되, 다음 물리 프레임의 높이/원점에는 싣지 않는다.
         // 예약·선택은 paint와 같은 helper로 구한 물리 시작점을 소비한다.
@@ -130,6 +161,7 @@ impl TypesetEngine {
             start_cut_is_block: continuation.start_cut_is_block,
             start_row_height_override: continuation.start_row_height_override,
             start_cut,
+            rowspan_physical_space: continuation.rowspan_physical_space.clone(),
         };
         let input = FragmentInput {
             source,
@@ -165,6 +197,19 @@ impl TypesetEngine {
         }
 
         let budget = self.prepare_table_fragment_budget(st, input);
+        // 현재 쪽의 앞 내용과 캡션·여백을 예약한 뒤 양수 행 공간이 남지 않으면
+        // 첫 행 강제 전진으로 내용 컷을 소비하지 않는다. 같은 커서와 캡션을
+        // 새 쪽에서 재시도하며, 빈 새 쪽의 거대 행 전진은 기존 스캔이 맡는다.
+        if budget.avail_for_rows <= 0.0
+            && st.current_height > 0.0
+            && prepared
+                .whole_row_fit_heights
+                .get(cursor_row)
+                .is_some_and(|height| *height > 0.0)
+        {
+            st.advance_column_or_new_page();
+            return TableContinuationIteration::Skipped;
+        }
         let scan = self.scan_table_fragment(st, input, &budget, profile);
         if scan.end_row == cursor_row && scan.consumed == 0.0 {
             // 캡션 종료 예산 때문에 마지막 유닛 전체를 이월했다.

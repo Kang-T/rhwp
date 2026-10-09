@@ -40,9 +40,9 @@ pub(in crate::renderer::typeset) fn format_paragraph_for_flow(
         known_square_band,
     );
     let composed = recomposed.as_ref().or(composed);
-    // Reflow has no saved vertical ladder which could restore omitted spacing.
-    // Reserve the same paragraph before-space consumed by the composed paint
-    // path; otherwise the next object's shared origin rewinds into prior text.
+    // 재구성 본문에는 빠진 간격을 복원할 원본 세로 사다리가 없다.
+    // 공통 paint 결과가 소비하는 문단 위 간격을 측정에도 예약한다.
+    // 그렇지 않으면 다음 개체의 공통 원점이 앞 본문으로 되감긴다.
     let spacing_before = para_style.map(|s| s.spacing_before).unwrap_or(0.0);
     let spacing_after = para_style.map(|s| s.spacing_after).unwrap_or(0.0);
     // [Task #874 Case 3] `<...>` 단독 paragraph 의 paragraph-level extra spacing 제거.
@@ -95,35 +95,38 @@ pub(in crate::renderer::typeset) fn format_paragraph_for_flow(
     let trailing_ls = line_spacings.last().copied().unwrap_or(0.0);
     let height_for_fit = {
         let metric = (total_height - trailing_ls).max(0.0);
-        let vpos_metric = if para.controls.is_empty() {
-            para.line_segs
-                .first()
-                .zip(para.line_segs.last())
-                .and_then(|(first, last)| {
-                    // 끝점만 비교하면 **문단 중간에서 리셋되는 사다리**를 놓친다.
-                    // 쪽을 넘나드는 문단은 vpos 가 0 으로 돌아갔다가 다시 오르므로
-                    // 첫↔끝은 증가로 보이지만 span 은 무의미하다 (#3751 · 1170000 입법역량
-                    // pi=1265: 48000 →[line7 리셋]→ 62400, span 208px 인데 실제
-                    // 34줄 1088px — fit 이 208 로 판정해 쪽을 863.9px 넘겼다).
-                    // 사다리 전체가 단조 증가일 때만 span 을 쓴다.
-                    let monotonic = para
-                        .line_segs
-                        .windows(2)
-                        .all(|w| w[1].vertical_pos >= w[0].vertical_pos);
-                    let has_progressing_vpos = para.line_segs.len() <= 1
-                        || (monotonic && last.vertical_pos > first.vertical_pos);
-                    if !has_progressing_vpos {
-                        return None;
-                    }
-                    let span = last
-                        .vertical_pos
-                        .saturating_add(last.line_height)
-                        .saturating_sub(first.vertical_pos);
-                    (span > 0).then_some(hwpunit_to_px(span, ctx.dpi()))
-                })
-        } else {
-            None
-        };
+        // 원본 권위 없는 줄은 이미 현재 frame의 구성 메트릭을 소비한다.
+        // loader 합성 span으로 다시 줄이면 앞 간격을 빼고 전량 수용하게 된다.
+        let vpos_metric =
+            if para.controls.is_empty() && !crate::renderer::para_has_no_stored_line_segs(para) {
+                para.line_segs
+                    .first()
+                    .zip(para.line_segs.last())
+                    .and_then(|(first, last)| {
+                        // 끝점만 비교하면 **문단 중간에서 리셋되는 사다리**를 놓친다.
+                        // 쪽을 넘나드는 문단은 vpos 가 0 으로 돌아갔다가 다시 오르므로
+                        // 첫↔끝은 증가로 보이지만 span 은 무의미하다 (#3751 · 1170000 입법역량
+                        // pi=1265: 48000 →[line7 리셋]→ 62400, span 208px 인데 실제
+                        // 34줄 1088px — fit 이 208 로 판정해 쪽을 863.9px 넘겼다).
+                        // 사다리 전체가 단조 증가일 때만 span 을 쓴다.
+                        let monotonic = para
+                            .line_segs
+                            .windows(2)
+                            .all(|w| w[1].vertical_pos >= w[0].vertical_pos);
+                        let has_progressing_vpos = para.line_segs.len() <= 1
+                            || (monotonic && last.vertical_pos > first.vertical_pos);
+                        if !has_progressing_vpos {
+                            return None;
+                        }
+                        let span = last
+                            .vertical_pos
+                            .saturating_add(last.line_height)
+                            .saturating_sub(first.vertical_pos);
+                        (span > 0).then_some(hwpunit_to_px(span, ctx.dpi()))
+                    })
+            } else {
+                None
+            };
         vpos_metric.map(|v| metric.min(v)).unwrap_or(metric)
     };
 
@@ -187,7 +190,32 @@ pub(in crate::renderer::typeset) fn format_paragraph_for_flow(
         let remaining = available - text_width - inline_width;
         (available.is_finite() && available > 0.0 && remaining.is_finite()).then_some(remaining)
     })();
+    // 원본 줄/개체의 별도 점유가 없는 재조판 본문은 실제 줄 결과를 전달한다.
+    // 측정 메트릭과 다른 구성에는 추정 여백을 제거할 근거가 없다.
+    let computed_paragraph = recomposed
+        .as_ref()
+        .filter(|comp| {
+            crate::renderer::para_has_no_stored_line_segs(para)
+                && para.controls.is_empty()
+                && !para.stored_text_partition_is_dirty()
+                && !para.cell_format_vpos_dirty
+                && !comp.lines.is_empty()
+                && comp.lines.len() == line_heights.len()
+                && comp.lines.len() == line_spacings.len()
+                && comp
+                    .lines
+                    .iter()
+                    .zip(line_heights.iter().zip(&line_spacings))
+                    .all(|(line, (&height, &spacing))| {
+                        (hwpunit_to_px(line.line_height, ctx.dpi()) - height).abs()
+                            <= ctx.dpi() / 7200.0
+                            && (hwpunit_to_px(line.line_spacing, ctx.dpi()) - spacing).abs()
+                                <= ctx.dpi() / 7200.0
+                    })
+        })
+        .cloned();
     FormattedParagraph {
+        computed_paragraph,
         tail_line_remaining_width,
         computed_host_lines,
         square_host_plan: None,

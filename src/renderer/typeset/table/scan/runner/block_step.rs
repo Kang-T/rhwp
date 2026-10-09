@@ -26,6 +26,7 @@ impl TypesetEngine {
             start_cut,
             v,
             table_storage_declares_splits,
+            ..
         } = input;
         let BlockRowScanVars {
             cursor_row,
@@ -42,6 +43,7 @@ impl TypesetEngine {
             strict_painted_bottom_fit,
             source_first_fragment_overflow_allowance,
             source_first_fragment_row_end,
+            source_first_fragment_height: _,
             start_row_height_override,
         } = v;
         let ScanProgress {
@@ -56,6 +58,8 @@ impl TypesetEngine {
             mut split_end_cut,
             mut split_end_limit,
             mut end_row_height_override,
+            physical_rows,
+            completed_source_frame_end,
         } = scan;
         let block_query = table::scan::RowBlockQuery {
             layout_engine,
@@ -261,6 +265,8 @@ impl TypesetEngine {
             split_end_cut,
             split_end_limit,
             end_row_height_override,
+            physical_rows,
+            completed_source_frame_end,
         };
         ScanStep {
             progress: ScanProgress {

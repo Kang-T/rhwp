@@ -12,7 +12,23 @@ impl TypesetEngine {
         paragraphs: &[Paragraph],
         page_def: &PageDef,
     ) {
+        st.finish_deferred_column_shapes();
         st.flush_column();
+        let trailing_spacing = st
+            .pages
+            .last()
+            .and_then(|page| page.column_contents.last())
+            .map_or(0.0, |column| {
+                crate::renderer::solo_zone_trailing_spacing_px(
+                    &column.items,
+                    paragraphs,
+                    usize::from(st.col_count),
+                    self.dpi,
+                )
+            });
+        // 마지막 줄 상자까지만 닫고 다음 구간 간격은 아래에서 한 번 예약한다.
+        // 저장 끝점과 대조하기 전에 빼야 max가 후행 간격을 다시 포함하지 않는다.
+        let closed_zone_height = (st.current_height - trailing_spacing).max(0.0);
 
         // [Task #874 Case 5] leaving zone 의 height 계산 시 마지막 라인의 trailing
         // line_spacing 을 제외한다. zone 간 gap 은 design_spacing/2 + solo_zone_pad 가
@@ -56,12 +72,12 @@ impl TypesetEngine {
                 // vs 실소비 867.4px — zone 두 개가 1657.3px 로 본문 876.9px 에 겹쳐
                 // 745.7px 이 쪽 밖으로 나갔다). 흐름 누적은 이 쪽에 실제로 놓인 양이므로
                 // 둘 중 큰 값이 이 쪽의 소비량이다.
-                max_vpos_px.max(st.current_height)
+                max_vpos_px.max(closed_zone_height)
             } else {
-                st.current_height
+                closed_zone_height
             }
         } else {
-            st.current_height
+            closed_zone_height
         };
         // [Task #853] zone 전환 시 디자인 spacing(1단 ColumnDef 의 `간격`)을 세로 간격으로:
         // (이전 zone 디자인 spacing /2) + (새 zone 디자인 spacing /2) 를 더한다.
@@ -293,6 +309,7 @@ impl TypesetEngine {
         para_idx: usize,
         paragraphs: &[Paragraph],
     ) {
+        st.finish_deferred_column_shapes();
         st.flush_column();
 
         // 새 밴드로 들어갈 콘텐츠에 떠다니는(글자처럼 취급이 아닌) 개체가 있으면

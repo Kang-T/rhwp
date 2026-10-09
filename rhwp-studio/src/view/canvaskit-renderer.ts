@@ -3479,11 +3479,11 @@ export class CanvasKitLayerRenderer {
         return layout.kind.rows.every((row) => child(row.left) && child(row.right));
       case 'paren':
         return (layout.kind.left
-          ? this.drawEquationBracket(canvas, layout.kind.left, x, y, layout.height, color, fontSize)
+          ? this.drawEquationBracket(canvas, layout.kind.left, x + (layout.kind.leftWidth ?? 0) / 2, y, layout.height, color, fontSize, layout.kind.leftWidth)
           : true)
           && child(layout.kind.body)
           && (layout.kind.right
-            ? this.drawEquationBracket(canvas, layout.kind.right, x + layout.width, y, layout.height, color, fontSize)
+            ? this.drawEquationBracket(canvas, layout.kind.right, x + layout.width - (layout.kind.rightWidth ?? 0) / 2, y, layout.height, color, fontSize, layout.kind.rightWidth)
             : true);
       case 'decoration':
         return child(layout.kind.body)
@@ -3605,8 +3605,9 @@ export class CanvasKitLayerRenderer {
     height: number,
     color: string,
     fontSize: number,
+    measuredWidth?: number,
   ): boolean {
-    const width = Math.max(fontSize * 0.3, 1);
+    const width = measuredWidth ?? Math.max(fontSize * 0.3, 1);
     if (bracket === '|') {
       return this.drawEquationLine(canvas, x, y, x, y + height, color, fontSize * 0.04);
     }

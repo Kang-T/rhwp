@@ -100,6 +100,20 @@ impl TypesetEngine {
         // 시작 조각은 유닛을 소비하지 않는다. 양수 물리 전진과 0 컷을 함께
         // 반환해 다음 조각이 같은 그림·캡션을 처음부터 소유하게 한다.
         if !is_continuation && cursor_row == 0 && start_cut.is_empty() {
+            if let Some(frame) = input.prepared.complete_prefix_frame.as_ref() {
+                if frame.opening_height <= avail_for_rows {
+                    return BlockTableRowScan {
+                        consumed: frame.opening_height,
+                        end_row: frame.end_row,
+                        split_block_start: None,
+                        split_end_cut: frame.end_cut.clone(),
+                        split_end_limit: frame.last_row_height,
+                        end_row_height_override: Some(frame.last_row_height),
+                        physical_rows: Vec::new(),
+                        completed_source_frame_end: None,
+                    };
+                }
+            }
             if let Some(frame) = input.prepared.empty_opening_row_frame {
                 if frame.opening_height <= avail_for_rows + 0.5 {
                     return BlockTableRowScan {
@@ -109,6 +123,8 @@ impl TypesetEngine {
                         split_end_cut: vec![0],
                         split_end_limit: frame.opening_height,
                         end_row_height_override: Some(frame.opening_height),
+                        physical_rows: Vec::new(),
+                        completed_source_frame_end: None,
                     };
                 }
             }
@@ -198,6 +214,8 @@ impl TypesetEngine {
             strict_painted_bottom_fit: strict_following_plain_text_fit,
             source_first_fragment_overflow_allowance,
             source_first_fragment_row_end,
+            source_first_fragment_height: saved_first_fragment_source_frame
+                .map(|(height, _)| height),
             start_row_height_override,
         };
         let run_scan = |vars| {
@@ -219,7 +237,10 @@ impl TypesetEngine {
                     split_end_cut: Vec::new(),
                     split_end_limit: 0.0,
                     end_row_height_override: None,
+                    physical_rows: Vec::new(),
+                    completed_source_frame_end: None,
                 },
+                &input.start.rowspan_physical_space,
             )
         };
         let BlockTableRowScan {
@@ -229,6 +250,8 @@ impl TypesetEngine {
             mut split_end_cut,
             mut split_end_limit,
             mut end_row_height_override,
+            mut physical_rows,
+            mut completed_source_frame_end,
         } = run_scan(scan_vars);
         if let Some(started) = issue2424_scan_started {
             profile.scan.0 += started.elapsed();
@@ -374,10 +397,56 @@ impl TypesetEngine {
                         split_block_start = refit.split_block_start;
                         split_end_cut = refit.split_end_cut;
                         split_end_limit = refit.split_end_limit;
+                        physical_rows = refit.physical_rows;
                         end_row_height_override = refit.end_row_height_override;
+                        completed_source_frame_end = refit.completed_source_frame_end;
                         if end_row <= cursor_row {
                             end_row = cursor_row + 1;
                         }
+                    }
+                }
+            }
+        }
+
+        let closing_overhead = if input.prepared.caption_is_top {
+            0.0
+        } else {
+            input.prepared.caption_overhead
+        } + (budget.terminal_outer_bottom_overhead
+            - budget.fragment_outer_bottom_overhead)
+            .max(0.0);
+        // 보호 블록의 일부를 소비한 후보도 종료 캡션 예산을 확인한다.
+        // 마지막 블록과 캡션이 새 본문에 함께 들어가면 앞 행만 다시 스캔해
+        // 블록의 내용 컷과 물리 공간을 같은 조각으로 이월한다.
+        if closing_overhead > 0.0
+            && (end_row < row_count || split_end_limit > 0.0)
+            && end_row > cursor_row
+        {
+            let rows = table::scan::RowBlockQuery {
+                layout_engine,
+                mt,
+                table: row_geometry_table,
+                styles,
+                cut_row_h,
+                rowspan_touched,
+                cs,
+            };
+            let last_range = rows.candidate(row_count - 1);
+            let last = rows.candidate(last_range.b_start);
+            if last.protected && last.b_start > cursor_row && end_row > last.b_start {
+                let terminal_height = rows.required_height(&last, &[]);
+                if terminal_height + header_overhead + closing_overhead <= budget.fresh_page_avail {
+                    let prefix = run_scan(BlockRowScanVars {
+                        row_count: last.b_start,
+                        ..scan_vars
+                    });
+                    if prefix.end_row == last.b_start
+                        && prefix.split_end_cut.is_empty()
+                        && prefix.consumed > 0.0
+                        && prefix.consumed + terminal_height + header_overhead + closing_overhead
+                            > budget.page_avail
+                    {
+                        return prefix;
                     }
                 }
             }
@@ -392,14 +461,6 @@ impl TypesetEngine {
             && (input.prepared.caption_overhead > 0.0
                 || budget.terminal_outer_bottom_overhead > budget.fragment_outer_bottom_overhead)
         {
-            let closing_overhead = if input.prepared.caption_is_top {
-                // 시작 캡션은 이미 page_avail에서 뺐다.
-                0.0
-            } else {
-                input.prepared.caption_overhead
-            } + (budget.terminal_outer_bottom_overhead
-                - budget.fragment_outer_bottom_overhead)
-                .max(0.0);
             let closing_height = consumed + header_overhead + closing_overhead;
             if closing_height > budget.page_avail {
                 let rows = table::scan::RowBlockQuery {
@@ -434,6 +495,8 @@ impl TypesetEngine {
                         split_end_cut: Vec::new(),
                         split_end_limit: 0.0,
                         end_row_height_override: None,
+                        physical_rows: Vec::new(),
+                        completed_source_frame_end: None,
                     };
                 }
                 let refit = run_scan(if terminal_start > cursor_row {
@@ -453,7 +516,9 @@ impl TypesetEngine {
                     split_block_start = refit.split_block_start;
                     split_end_cut = refit.split_end_cut;
                     split_end_limit = refit.split_end_limit;
+                    physical_rows = refit.physical_rows;
                     end_row_height_override = refit.end_row_height_override;
+                    completed_source_frame_end = refit.completed_source_frame_end;
                 }
             }
         }
@@ -465,6 +530,8 @@ impl TypesetEngine {
             split_end_cut,
             split_end_limit,
             end_row_height_override,
+            physical_rows,
+            completed_source_frame_end,
         }
     }
 }

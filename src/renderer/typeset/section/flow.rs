@@ -119,7 +119,7 @@ impl TypesetEngine {
             }
             // [#6175] devel 의 known-square-band 인자를 그대로 전달한다 —
             // 위에서 좁힌 col_w(합성 어울림 감폭)와 함께 쓴다.
-            let formatted = self.format_paragraph_with_known_square_band(
+            let mut formatted = self.format_paragraph_with_known_square_band(
                 para,
                 composed.get(para_idx),
                 styles,
@@ -127,6 +127,17 @@ impl TypesetEngine {
                 st.wrap_around_derived_band
                     || st.current_column_wrap_anchors.contains_key(&para_idx),
             );
+            if let Some(line) = crate::renderer::layout::stored_textless_square_host_line(
+                paragraphs, styles, self.dpi, para_idx,
+            ) {
+                // 실제 빈 저장 줄은 안내 줄과 다르다. 배치와 같은 인증 결과로 예약한다.
+                formatted.line_heights = vec![line.line_height];
+                formatted.line_spacings = vec![line.line_spacing];
+                formatted.spacing_before = line.spacing_before;
+                formatted.spacing_after = line.spacing_after;
+                formatted.total_height = line.advance();
+                formatted.height_for_fit = line.advance() - line.line_spacing;
+            }
             // 줄 단위 어울림 배제: 문단 시작은 개체 위이지만 뒷줄이 개체 사각형과
             // 교차하는 형상(출석부) — 문단 전체 감폭 대신 교차 y 밴드를 anchor 에
             // 실어 layout 이 교차하는 줄만 감폭한다.

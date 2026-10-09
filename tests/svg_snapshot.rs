@@ -178,8 +178,41 @@ fn form_002_page_0() {
 
 #[test]
 fn table_text_page_0() {
+    use rhwp::renderer::layout::{EmbeddedTextMeasurer, TextMeasurer};
+    use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
     use serde_json::Value;
 
+    fn collect_nodes<'a>(node: &'a RenderNode, output: &mut Vec<&'a RenderNode>) {
+        output.push(node);
+        for child in &node.children {
+            collect_nodes(child, output);
+        }
+    }
+
+    fn visible_end(node: &RenderNode) -> f64 {
+        let RenderNodeType::TextRun(run) = &node.node_type else {
+            panic!("글자 런이어야 한다");
+        };
+        let last = run
+            .display_or_text()
+            .chars()
+            .last()
+            .expect("빈 런이 아니다");
+        let glyph = last.to_string();
+        let mut natural = run.style.clone();
+        natural.letter_spacing = 0.0;
+        natural.extra_char_spacing = 0.0;
+        // bbox의 전진 폭에는 마지막 글자 뒤의 자간도 들어간다.
+        // 음수 자간의 cursor 끝과 마지막 가시 글자의 끝을 구분한다.
+        let positions = |text: &str, style: &rhwp::renderer::TextStyle| {
+            EmbeddedTextMeasurer.compute_char_positions(text, style)
+        };
+        let overhang = (positions(&glyph, &natural)[1] - positions(&glyph, &run.style)[1]).max(0.0);
+        node.bbox.x + node.bbox.width + overhang
+    }
+
+    // 한컴2020 정본의 전1쪽 Native·WASM 시각 검증을 마친 표다.
+    // 글자 간격의 정당한 변화가 표의 내용·셀 소유 검사를 깨지 않게 한다.
     // 한컴 Print 전1쪽과 현재 Native/fresh WASM을 대조한 기부 통계 표다.
     // 전진 상자와 실제 글자 점유를 구분해 내용·셀 소유·정렬 관계를 검사한다.
     fn collect<'a>(node: &'a Value, kind: &str, output: &mut Vec<&'a Value>) {
@@ -210,6 +243,11 @@ fn table_text_page_0() {
         .expect("원문의 기부 통계 표");
     let tree: Value = serde_json::from_str(&doc.get_page_render_tree(0).expect("1쪽 렌더 트리"))
         .expect("렌더 트리 JSON");
+    let full_tree = doc
+        .build_page_render_tree(0)
+        .expect("스타일을 포함한 원본 트리");
+    let mut full_nodes = Vec::new();
+    collect_nodes(&full_tree.root, &mut full_nodes);
     let mut tables = Vec::new();
     collect(&tree, "Table", &mut tables);
     assert_eq!(tables.len(), 1, "기부 통계 표 하나");
@@ -249,6 +287,32 @@ fn table_text_page_0() {
         let cell = owners[0];
         let mut runs = Vec::new();
         collect(cell, "TextRun", &mut runs);
+        let full_cell = full_nodes
+            .iter()
+            .copied()
+            .find(|node| matches!(&node.node_type, RenderNodeType::TableCell(c) if c.row == row && c.col == col))
+            .expect("가시 폭을 검사할 소유 칸");
+        let mut cell_nodes = Vec::new();
+        collect_nodes(full_cell, &mut cell_nodes);
+        let paint_runs: Vec<_> = cell_nodes
+            .into_iter()
+            .filter(|node| matches!(node.node_type, RenderNodeType::TextRun(_)))
+            .collect();
+        assert_eq!(
+            paint_runs.len(),
+            runs.len(),
+            "두 트리의 글자 런 소유가 같다"
+        );
+        for (run, paint) in runs.iter().zip(&paint_runs) {
+            let RenderNodeType::TextRun(paint) = &paint.node_type else {
+                unreachable!()
+            };
+            assert_eq!(
+                run["text"].as_str(),
+                Some(paint.text.as_str()),
+                "런 순서가 같다"
+            );
+        }
         let content: String = runs
             .iter()
             .map(|run| run["text"].as_str().expect("글자"))
@@ -264,6 +328,12 @@ fn table_text_page_0() {
                     "({row},{col}) 글자가 소유 칸 내부에 표시된다: {run}"
                 );
             }
+        }
+        for run in &paint_runs {
+            assert!(
+                visible_end(run) <= metric(cell, "x") + metric(cell, "w") + tolerance,
+                "({row},{col}) 마지막 글자의 가시 끝도 소유 칸 내부다"
+            );
         }
         if row == 2 || (row == 1 && (col == 3 || col == 7)) {
             let left = runs

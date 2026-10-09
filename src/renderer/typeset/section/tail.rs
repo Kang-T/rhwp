@@ -19,6 +19,15 @@ impl TypesetEngine {
         para_style_break: bool,
         force_page_break: bool,
     ) -> bool {
+        // 이어받기 컷이 이미 다음 쪽을 열었다면 빈 줄도 그 쪽의 점유다.
+        // 뒤의 같은 저장 리셋을 앞 쪽 꼬리로 해석해 줄 상자를 숨기지 않는다.
+        if para.text.is_empty()
+            && para.controls.is_empty()
+            && para_idx + 1 < paragraphs.len()
+            && st.stored_paragraph_boundary_already_open(paragraphs, para_idx + 1)
+        {
+            return false;
+        }
         // [Task #359] 단독 항목 페이지 차단:
         // 다음 pi 가 vpos-reset 가드를 발동할 예정이고 현재 pi 가 잔여 공간 부족으로
         // 새 페이지를 시작하면 단독 항목 페이지가 발생.

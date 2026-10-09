@@ -1131,7 +1131,7 @@ impl WebCanvasRenderer {
                 img.fill_mode,
                 img.original_size,
                 img.crop,
-                img.original_size_hu,
+                crate::renderer::image_resolver::resolved_image_crop_reference_size(img),
             );
             if combined_opacity < 1.0 {
                 self.ctx.set_global_alpha(1.0);
@@ -1496,17 +1496,6 @@ impl WebCanvasRenderer {
         let _ = self.ctx.set_line_dash(&pattern);
     }
 
-    /// HWP 각도(도) → Canvas linearGradient 좌표 변환
-    /// 사각형 (x, y, w, h) 기준으로 (x0, y0, x1, y1) 반환
-    /// [#6845] 그러데이션 축은 SVG 와 **같은 계산**을 쓴다.
-    ///
-    /// 종전에는 방향을 `(sin·w/2, cos·h/2)` 로 축별 배율해 가로세로비만큼 각도가 눕고
-    /// (SVG 의 `objectBoundingBox` 와 같은 왜곡), `cos` 부호가 뒤집혀 `angle=0` 의
-    /// 위아래가 반대였다. 두 렌더러가 규칙을 두 벌로 갖고 있던 것도 함께 없앤다.
-    fn angle_to_canvas_coords(angle: i16, x: f64, y: f64, w: f64, h: f64) -> (f64, f64, f64, f64) {
-        crate::renderer::linear_gradient_axis(angle, x, y, w, h)
-    }
-
     /// PatternFillInfo → Canvas createPattern으로 패턴 채우기 적용
     /// 오프스크린 캔버스에 6×6 타일 생성 후 반복 패턴으로 설정
     /// 반환값: true이면 패턴이 적용됨
@@ -1630,10 +1619,16 @@ impl WebCanvasRenderer {
 
         let canvas_grad = match grad.gradient_type {
             2..=4 => {
-                // Radial / Conical / Square → radialGradient
-                let cx = x + w * (grad.center_x as f64 / 100.0);
-                let cy = y + h * (grad.center_y as f64 / 100.0);
-                let r = w.max(h) / 2.0;
+                // 원형은 SVG와 같은 원을 사용한다. 원뿔/사각의 기존 근사는 유지한다.
+                let (cx, cy, r) = if grad.gradient_type == 2 {
+                    crate::renderer::radial_gradient_geometry(grad, x, y, w, h)
+                } else {
+                    (
+                        x + w * (grad.center_x as f64 / 100.0),
+                        y + h * (grad.center_y as f64 / 100.0),
+                        w.max(h) / 2.0,
+                    )
+                };
                 match self.ctx.create_radial_gradient(cx, cy, 0.0, cx, cy, r) {
                     Ok(g) => g,
                     Err(_) => return false,
@@ -1641,7 +1636,8 @@ impl WebCanvasRenderer {
             }
             _ => {
                 // Linear (1 또는 기본값)
-                let (x0, y0, x1, y1) = Self::angle_to_canvas_coords(grad.angle, x, y, w, h);
+                let (x0, y0, x1, y1) =
+                    crate::renderer::linear_gradient_axis_for_fill(grad, x, y, w, h);
                 self.ctx.create_linear_gradient(x0, y0, x1, y1)
             }
         };
@@ -3320,13 +3316,14 @@ impl WebCanvasRenderer {
         match mode {
             // [#7235] 채우기 유형 15(NONE)도 종횡비를 지켜 영역에 맞춘다.
             ImageFillMode::Zoom | ImageFillMode::None => {
-                let (img_w, img_h) = match parse_image_dimensions_canvas(data) {
-                    Some((w, h)) if w > 0 && h > 0 => (w as f64, h as f64),
-                    _ => {
-                        self.draw_image(data, bbox.x, bbox.y, bbox.width, bbox.height);
-                        return;
-                    }
-                };
+                let (img_w, img_h) =
+                    match crate::renderer::image_resolver::render_image_dimensions(data) {
+                        Some((w, h)) => (w, h),
+                        _ => {
+                            self.draw_image(data, bbox.x, bbox.y, bbox.width, bbox.height);
+                            return;
+                        }
+                    };
                 let (sx, sy, sw, sh) = crop
                     .map(|rect| {
                         crate::renderer::svg::compute_image_crop_src(
@@ -3352,9 +3349,9 @@ impl WebCanvasRenderer {
             ImageFillMode::FitToSize | ImageFillMode::Total => {
                 // crop이 있으면 source rect 기반 drawImage 사용
                 if let Some(crop_rect) = crop {
-                    if let Some((img_w, img_h)) = parse_image_dimensions_canvas(data) {
-                        let img_w = img_w as f64;
-                        let img_h = img_h as f64;
+                    if let Some((img_w, img_h)) =
+                        crate::renderer::image_resolver::render_image_dimensions(data)
+                    {
                         let (src_x, src_y, src_w, src_h) =
                             crate::renderer::svg::compute_image_crop_src(
                                 crop_rect,

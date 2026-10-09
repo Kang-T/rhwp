@@ -88,8 +88,57 @@ pub(in crate::renderer::typeset) fn place(
         return;
     }
 
+    // 뒤 호스트의 절대 프레임이 저장 본문 재시작을 닫으면 분할 전에 소유를 예약한다.
+    // 현재 글줄 앵커까지 맞아야 로컬 되감김을 새 쪽으로 승격하지 않는다.
+    if st.col_count == 1
+        && (st.profile.hwp5_stored_pagination_layout() || st.profile.hwpx_stored_layout())
+        && !st.profile.session_edited()
+        && fmt.line_heights.len() == para.line_segs.len()
+    {
+        for break_line in 1..para.line_segs.len() {
+            let line = &para.line_segs[break_line];
+            if line.vertical_pos >= para.line_segs[break_line - 1].vertical_pos {
+                continue;
+            }
+            let Some((owner, ci, placement)) =
+                crate::renderer::float_placement::stored_future_paper_shape_frame(
+                    &paragraphs[para_idx + 1..],
+                    line,
+                    &st.layout.body_area,
+                    st.layout.page_width,
+                    dpi,
+                )
+            else {
+                continue;
+            };
+            let owner = para_idx + 1 + owner;
+            if st.has_spilled_page_tail_float(owner, ci) {
+                continue;
+            }
+            let mut page = st.paragraph_line_scan_page();
+            page.next_page_stored_body_origin = Some(placement.occupied_bottom);
+            let base = st.vpos_page_base.or(st.vpos_lazy_base).unwrap_or(0);
+            if paragraph::scan::stored_body_reset_fragment_matches_current_flow(
+                &page,
+                para,
+                0,
+                break_line,
+                base,
+                fmt.spacing_before,
+                dpi,
+            ) {
+                st.defer_stored_frame(crate::renderer::typeset::DeferredStoredFrameControl {
+                    kind: crate::renderer::typeset::DeferredStoredFrameKind::AbsoluteShape,
+                    para_index: owner,
+                    control_index: ci,
+                    placement,
+                });
+                break;
+            }
+        }
+    }
     let paragraph::ForcedPageBoundary {
-        native_hwp5_existing_footnote_reset_line,
+        native_hwp5_existing_footnote_boundary,
         current_page_vpos_base,
         forced_page_break_line,
     } = paragraph::prepare_forced_page_boundary(
@@ -106,7 +155,7 @@ pub(in crate::renderer::typeset) fn place(
     );
     if st.prefilled_line_prefixes.contains_key(&para_idx) {
         // 앞 쪽의 선행 조각이 소유한 줄을 whole-fit으로 다시 배치하지 않는다.
-        let base_available = (st.base_available_height() - layout_drift_safety_px).max(0.0);
+        let base_available = st.base_available_height();
         paragraph::place_split_paragraph(
             st,
             para_idx,
@@ -117,7 +166,7 @@ pub(in crate::renderer::typeset) fn place(
             base_available,
             layout_drift_safety_px,
             forced_page_break_line,
-            native_hwp5_existing_footnote_reset_line,
+            native_hwp5_existing_footnote_boundary,
             current_page_vpos_base,
             false,
             dpi,
@@ -169,19 +218,25 @@ pub(in crate::renderer::typeset) fn place(
         return;
     }
 
-    if paragraph::try_place_overflow_paragraph(
-        st,
-        para_idx,
-        para,
-        fmt,
-        paragraphs,
-        styles,
-        trim_spacing_before_for_flow,
-        body_bottom_vpos,
-        available,
-        forced_page_break_line,
-        dpi,
-    ) {
+    // 저장 경계가 통째 fit을 거부했으면 atomic 그림·꼬리 spill도 같은 쪽 소속을
+    // 존중한다. 넘침 허용은 저장 원점의 새 쪽을 현재 쪽 하단으로 옮기는 근거가 아니다.
+    if !stored_vpos_rewind_break
+        && !stored_vpos_rewind_overflow_break
+        && paragraph::try_place_overflow_paragraph(
+            st,
+            para_idx,
+            para,
+            fmt,
+            paragraphs,
+            styles,
+            trim_spacing_before_for_flow,
+            body_bottom_vpos,
+            available,
+            forced_page_break_line,
+            current_page_vpos_base,
+            dpi,
+        )
+    {
         return;
     }
 
@@ -200,7 +255,7 @@ pub(in crate::renderer::typeset) fn place(
         stored_vpos_rewind_break,
         stored_vpos_rewind_overflow_break,
         forced_page_break_line,
-        native_hwp5_existing_footnote_reset_line,
+        native_hwp5_existing_footnote_boundary,
         current_page_vpos_base,
         dpi,
     );

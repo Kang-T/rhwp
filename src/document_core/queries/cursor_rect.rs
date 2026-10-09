@@ -3148,6 +3148,7 @@ impl DocumentCore {
             row_cursor_is_nested,
             end_row_height_override,
             start_row_height_override,
+            row_height_overrides,
             straddle_row_relief,
         }) = col.items.first()
         else {
@@ -3412,6 +3413,7 @@ impl DocumentCore {
             *row_cursor_is_nested,
             *end_row_height_override,
             *start_row_height_override,
+            row_height_overrides,
             straddle_row_relief,
             pt_margin_left,
             pt_margin_right,

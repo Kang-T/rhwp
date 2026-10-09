@@ -295,6 +295,8 @@ mod tests {
             section_index: 0,
             layout: mk_layout(),
             column_contents: vec![ColumnContent {
+                paragraph_origins: Default::default(),
+                computed_paragraphs: Default::default(),
                 column_index: 0,
                 start_height: 0.0,
                 endnote_flow: false,
@@ -421,6 +423,7 @@ mod tests {
             row_cursor_is_nested: false,
             end_row_height_override: None,
             start_row_height_override: None,
+            row_height_overrides: Vec::new(),
             straddle_row_relief: Vec::new(),
         }]);
         assert_eq!(a.assign(&p1), 1);
@@ -439,6 +442,7 @@ mod tests {
             row_cursor_is_nested: false,
             end_row_height_override: None,
             start_row_height_override: None,
+            row_height_overrides: Vec::new(),
             straddle_row_relief: Vec::new(),
         }]);
         assert_eq!(a.assign(&p2), 2);

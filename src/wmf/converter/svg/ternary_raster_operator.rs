@@ -23,7 +23,6 @@ struct BrushOnlyRopKey {
 pub struct BrushOnlyRopSequence {
     state: Option<BrushOnlyRopSequenceState>,
     suppressed_elements: Vec<usize>,
-    suppressed_definitions: Vec<usize>,
     vector_masks: Vec<(usize, Node, String, [i32; 4])>,
 }
 
@@ -35,7 +34,7 @@ enum BrushOnlyRopSequenceState {
     AwaitFinalPatInvert {
         key: BrushOnlyRopKey,
         expected_element_count: usize,
-        mask_definition_index: Option<usize>,
+        mask: Option<Node>,
     },
     AwaitFinalVectorInvert {
         key: BrushOnlyRopKey,
@@ -45,16 +44,15 @@ enum BrushOnlyRopSequenceState {
 }
 
 impl BrushOnlyRopSequence {
-    /// Keep the middle draw until the complete idiom is known. Mask bounds
-    /// must match, apart from the narrowly recognized halftone edge padding.
-    /// Only the final PATINVERT is suppressed immediately. Confirmed masks
-    /// and their owned definitions are removed when the SVG is finalized.
+    /// 삼중 연산이 확정될 때까지 가운데 칠을 보존한다. 흑백 마스크는
+    /// 흰 부분의 기존 배경과 검은 부분의 브러시 색을 구분하는 소유 정보다.
+    /// 최종 XOR만 즉시 생략하고 확정된 마스크는 SVG 마감 시 칠에 적용한다.
     fn observe(
         &mut self,
         operation: TernaryRasterOperation,
         key: BrushOnlyRopKey,
         element_count: usize,
-        mask_definition_index: Option<usize>,
+        has_monochrome_pattern: bool,
         allow_mask_edge_delta: bool,
     ) -> bool {
         let state = std::mem::take(&mut self.state);
@@ -88,16 +86,24 @@ impl BrushOnlyRopSequence {
                 && key.clip_id == previous_key.clip_id
                 && key.clip_rect == previous_key.clip_rect =>
             {
-                // Keep the existing outer XOR cancellation even when DPA has
-                // an overscan rectangle. Additional mask removal uses a
-                // separate, conservative geometry/halftone check.
-                let mask_definition_index = mask_definition_index.filter(|_| {
-                    Self::mask_rect_matches(key.rect, previous_key.rect, allow_mask_edge_delta)
+                // 같은 clip 안에서 확인한 흑백 패턴과 기존 경계 계약을 유지한다.
+                // 마스크를 지우면 반톤도 전면 단색이 되므로 실제 가운데 칠을
+                // 역흑백 마스크로 전달하고 그 패턴 정의도 보존한다.
+                let mask = (has_monochrome_pattern
+                    && Self::mask_rect_matches(key.rect, previous_key.rect, allow_mask_edge_delta))
+                .then(|| {
+                    let [x, y, width, height] = key.rect;
+                    Node::new("rect")
+                        .set("x", x)
+                        .set("y", y)
+                        .set("width", width)
+                        .set("height", height)
+                        .set("fill", key.fill)
                 });
                 self.state = Some(BrushOnlyRopSequenceState::AwaitFinalPatInvert {
                     key: previous_key,
                     expected_element_count: element_count + 1,
-                    mask_definition_index,
+                    mask,
                 });
                 false
             }
@@ -105,13 +111,18 @@ impl BrushOnlyRopSequence {
                 Some(BrushOnlyRopSequenceState::AwaitFinalPatInvert {
                     key: previous_key,
                     expected_element_count,
-                    mask_definition_index,
+                    mask,
                 }),
                 TernaryRasterOperation::PATINVERT,
             ) if key == previous_key && element_count == expected_element_count => {
-                if let Some(index) = mask_definition_index {
-                    self.suppressed_elements.push(element_count - 1);
-                    self.suppressed_definitions.push(index);
+                if let Some(mask) = mask {
+                    self.suppressed_elements.push(element_count - 2);
+                    self.vector_masks.push((
+                        element_count - 1,
+                        mask,
+                        previous_key.fill,
+                        previous_key.rect,
+                    ));
                 }
                 true
             }
@@ -271,18 +282,8 @@ impl BrushOnlyRopSequence {
                 .set("fill", color)
                 .set("mask", url_string(format!("#{mask_id}").as_str()));
         }
-        // Indices are recorded in emission order. Do not remove nodes while
-        // collecting: doing so would change IDs or invalidate later indices.
-        let definitions = definitions
-            .into_iter()
-            .enumerate()
-            .filter_map(|(index, node)| {
-                self.suppressed_definitions
-                    .binary_search(&index)
-                    .is_err()
-                    .then_some(node)
-            })
-            .collect();
+        // 수집 중 요소를 지우면 이후 소유 인덱스가 바뀌므로 마감 시에만 제거한다.
+        // 역마스크가 참조하는 패턴 정의는 같은 SVG 안에 남긴다.
         let elements = elements
             .into_iter()
             .enumerate()
@@ -501,28 +502,11 @@ impl TernaryRasterOperator {
                 .set("height", self.rect.height)
                 .set("stroke", "none")
                 .set("fill", "white"),
-            // [#6469] 미구현 ROP 을 **통째로 버리지 않는다.**
-            //
-            // 종전에는 여기서 `Ok(None)` 을 돌려주고 호출부가 레코드를 흔적 없이
-            // 지웠다 — 156627451 2쪽 도해의 옅은 회색 패널이 그렇게 사라졌다.
-            // 그 패널은 소스 없는 `DibBitBlt` 세 개가 `PATINVERT → DPa → PATINVERT`
-            // 로 그리는데, 흰 바탕에서 이 조합의 최종 결과는 **브러시 색 자체**다.
-            //
-            //   0xFFFFFF ⊕ 0xD9D9D9 = 0x262626
-            //   0x262626 ∧ 0xD9D9D9 = 0x000000
-            //   0x000000 ⊕ 0xD9D9D9 = 0xD9D9D9   ← 브러시 색
-            //
-            // 그래서 **소스를 쓰지 않고 브러시만 쓰는** ROP 은 `PATCOPY` 로 근사한다.
-            // 세 번 칠해도 결과가 같아 이 관용구를 정확히 재현하고, 진짜 XOR 하이라이트
-            // 처럼 목적이 다른 쓰임은 "아무것도 안 그림"에서 "브러시 색으로 그림"이
-            // 되므로 **정보가 줄지 않는다**.
-            //
-            // 소스를 쓰는 미구현 ROP(`SRCPAINT`·`SRCAND` 등, 투명 blit 관용구)은
-            // 원본 그림을 그린다 — 마스크 패스(`SRCAND`)는 겹쳐 그려도 같은 그림이라
-            // 시각 결과가 유지된다.
-            //
-            // **이 갈래는 종전에 아무것도 그리지 않던 경우에만 걸린다** — 이미 그려지던
-            // 출력은 하나도 바뀌지 않는다.
+            // 단독 미구현 브러시 ROP의 기존 PATCOPY 근사는 유지한다.
+            // 완전한 PATINVERT → DPa → PATINVERT의 흑백 마스크는 아래
+            // 상쇄기가 실제 칠 소속으로 전달한다. 흰 비트는 기존 배경을,
+            // 검은 비트는 바깥 브러시 색을 남기므로 패턴을 단색으로 대체하지 않는다.
+            // 색상 패턴·불완전한 연산은 이 흑백 마스크 계약으로 해석하지 않는다.
             operation if operation.use_selected_brush() && !operation.use_source() => {
                 info!(
                     ?operation,
@@ -531,12 +515,12 @@ impl TernaryRasterOperator {
                 let is_mask = BrushOnlyRopSequence::brush_is_monochrome_mask(self.brush.as_ref());
                 let allow_mask_edge_delta =
                     is_mask && BrushOnlyRopSequence::brush_is_8x8_halftone(self.brush.as_ref());
-                let mut mask_definition_index = None;
+                let mut has_monochrome_pattern = false;
                 let fill = match Fill::from(self.brush.clone().unwrap()) {
                     Fill::Pattern { pattern } => {
                         let id = Self::issue_id(definitions);
                         if is_mask {
-                            mask_definition_index = Some(definitions.len());
+                            has_monochrome_pattern = true;
                         }
                         definitions.push(pattern.set("id", id.as_str()));
                         url_string(format!("#{id}").as_str())
@@ -562,7 +546,7 @@ impl TernaryRasterOperator {
                     operation,
                     key,
                     element_count,
-                    mask_definition_index,
+                    has_monochrome_pattern,
                     allow_mask_edge_delta,
                 ) {
                     return Ok(None);

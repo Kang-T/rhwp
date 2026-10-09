@@ -16,7 +16,7 @@ use crate::model::document::{DocInfo, DocProperties, RawRecord};
 use crate::model::style::{
     Alignment, BorderFill, BorderLine, BorderLineType, Bullet, CenterLine, CharShape, DiagonalLine,
     Fill, FillType, Font, GradientFill, ImageFill, ImageFillMode, LineSpacingType, Numbering,
-    NumberingHead, ParaShape, SolidFill, Style, TabDef, TabItem, UnderlineType,
+    NumberingHead, ParaShape, SolidFill, Style, SubstFont, TabDef, TabItem, UnderlineType,
 };
 
 /// DocInfo 파싱 에러
@@ -294,11 +294,17 @@ pub(crate) fn parse_face_name(data: &[u8]) -> Result<Font, DocInfoError> {
         .read_hwp_string()
         .map_err(|e| DocInfoError::IoError(e.to_string()))?;
 
-    let alt_name = if attr & 0x80 != 0 {
-        let _alt_type = r.read_u8().unwrap_or(0);
-        r.read_hwp_string().ok()
+    let (alt_name, subst_font) = if attr & 0x80 != 0 {
+        let font_type = r.read_u8().unwrap_or(0);
+        let face = r.read_hwp_string().ok();
+        let substitute = face.as_ref().map(|face| SubstFont {
+            face: face.clone(),
+            font_type,
+            ..Default::default()
+        });
+        (face, substitute)
     } else {
-        None
+        (None, None)
     };
 
     let type_info = if attr & 0x40 != 0 {
@@ -333,8 +339,9 @@ pub(crate) fn parse_face_name(data: &[u8]) -> Result<Font, DocInfoError> {
         alt_name,
         type_info,
         default_name,
-        // HWP5 FACE_NAME 에는 HWPX substFont 개념이 없다.
-        subst_font: None,
+        // 두 형식의 명시 대체를 같은 계약으로 전달한다. HWP3의 원 이름
+        // 추적용 alt_name은 이 파서를 거치지 않아 대체 선언으로 바뀌지 않는다.
+        subst_font,
     })
 }
 
@@ -974,7 +981,7 @@ mod tests {
             alt_name: None,
             subst_font: Some(SubstFont {
                 face: "맑은 고딕".to_string(),
-                font_type: 1,
+                font_type: 2,
                 ..Default::default()
             }),
             ..Default::default()
@@ -993,6 +1000,10 @@ mod tests {
             Some("맑은 고딕"),
             "subst_font 의 대체 글꼴이 HWP5 왕복에서 보존돼야 함"
         );
+        let substitute = parsed.subst_font.expect("공통 대체 선언 보존");
+        assert_eq!(substitute.face, "맑은 고딕");
+        assert_eq!(substitute.font_type, 2, "별도 HFT 대체 유형 보존");
+        assert_eq!(parsed.alt_type, 0, "원 face의 유형을 덮어쓰지 않는다");
     }
 
     // 레코드 바이트 생성 헬퍼
@@ -1039,6 +1050,7 @@ mod tests {
         assert_eq!(font.name, "함초롬바탕");
         assert_eq!(font.alt_type, 0);
         assert!(font.alt_name.is_none());
+        assert!(font.subst_font.is_none());
     }
 
     #[test]
@@ -1046,12 +1058,15 @@ mod tests {
         let mut data = Vec::new();
         data.push(0x80); // attr: alt_name 있음
         data.extend(make_hwp_string("맑은 고딕"));
-        data.push(1); // alternate font type
+        data.push(1); // 별도 대체 글꼴 유형
         data.extend(make_hwp_string("Malgun Gothic"));
 
         let font = parse_face_name(&data).unwrap();
         assert_eq!(font.name, "맑은 고딕");
         assert_eq!(font.alt_name, Some("Malgun Gothic".to_string()));
+        let substitute = font.subst_font.expect("명시 대체 선언");
+        assert_eq!(substitute.face, "Malgun Gothic");
+        assert_eq!(substitute.font_type, 1);
     }
 
     #[test]

@@ -218,7 +218,63 @@ pub(super) fn prepare(
             .unwrap_or(flow_top)
     });
     let stored_single_topbottom_top = legacy_stored_top.or(outer_box_flow_top);
-    if is_topbottom_para_float && topbottom_float_count < 2 && stored_single_topbottom_top.is_none()
+    // 원본 후속 줄이 본체·캡션·양쪽 여백의 바깥 상자를 정확히 닫으면 그 원점·끝을
+    // lane 예약과 실제 출력에 공유한다. 일반 캡션 측정 원점은 증거가 없을 때 쓴다.
+    let closed_control_frame = (!page.profile.session_edited()
+        && (page.profile.hwp5_stored_pagination_layout() || page.profile.hwpx_stored_layout())
+        && page.layout.column_areas.len() == 1
+        && !table_reflowed)
+        .then(|| {
+            // 같은 쪽의 일반 표에서 저장 사다리는 점유량을 증명한다.
+            // 호스트 기준 상자를 현재 흐름에 옮기고 raw 페이지 원점으로 대체하지 않는다.
+            let uses_host_flow_origin = table.caption.is_none()
+                && para.column_type == crate::model::paragraph::ColumnBreakType::None;
+            let frame_vpos = if uses_host_flow_origin {
+                para.source_line_seg_vertical_pos
+                    .as_ref()
+                    .and_then(|source| source.first().copied())
+                    .or_else(|| para.line_segs.first().map(|line| line.vertical_pos))?
+            } else {
+                0
+            };
+            let mut frame = crate::renderer::float_placement::stored_empty_control_table_frame(
+                para,
+                next_para?,
+                table,
+                ft.effective_height,
+                para_style.map_or(0.0, |style| style.spacing_before),
+                frame_vpos,
+                dpi,
+            )?;
+            if uses_host_flow_origin {
+                frame.anchor_y += para_start_height;
+                frame.table_top += para_start_height;
+                frame.occupied_bottom += para_start_height;
+                frame.stored_successor_line_origin = frame
+                    .stored_successor_line_origin
+                    .map(|y| y + para_start_height);
+            }
+            Some(frame)
+        })
+        .flatten();
+    if closed_control_frame.is_some_and(|frame| frame.table_top + 0.5 < page.current_height) {
+        // 새 쪽의 닫힌 상자를 현재 쪽 위에 겹쳐 놓지 않는다. block의 기존
+        // 저장 프레임 이월·통째 fit 경로가 같은 상자로 쪽 전이를 확정한다.
+        return None;
+    }
+    let control_frame = closed_control_frame.or_else(|| {
+        crate::renderer::float_placement::captioned_para_table_frame(
+            table,
+            (para_start_height + v_offset_px).max(para_start_height),
+            ft.host_spacing.before,
+            ft.effective_height,
+            ft.host_spacing.after,
+        )
+    });
+    if is_topbottom_para_float
+        && topbottom_float_count < 2
+        && stored_single_topbottom_top.is_none()
+        && control_frame.is_none()
     {
         return None;
     }
@@ -251,7 +307,9 @@ pub(super) fn prepare(
             top
         }
     });
-    let raw_top = saved_page_top
+    let raw_top = control_frame
+        .map(|frame| frame.anchor_y)
+        .or(saved_page_top)
         .or(stored_single_topbottom_top)
         .unwrap_or_else(|| (para_start_height + v_offset_px).max(para_start_height));
     // [#6795] 같은 문단의 **앞 자리차지 표가 쪽에 걸쳐 쪼개져** 이 쪽을 이미 차지한
@@ -314,7 +372,9 @@ pub(super) fn prepare(
     // Square float의 native HWP LINE_SEG는 도형 선언 높이를 anchor와 함께 보존한다.
     // 셀 내용 재측정/host trailing spacing은 block flow에서만 쓰며, lane 예약에 더하면
     // p14처럼 실제로 들어가는 pair를 1~수십 px 초과로 오판한다.
-    let reserved_height = if is_square_sibling_float || stored_single_topbottom_top.is_some() {
+    let reserved_height = if let Some(frame) = control_frame {
+        frame.occupied_bottom - frame.anchor_y
+    } else if is_square_sibling_float || stored_single_topbottom_top.is_some() {
         hwpunit_to_px(table.common.height as i32, dpi).max(0.0)
     } else {
         ft.effective_height + ft.host_spacing.after_for_fit
@@ -364,29 +424,40 @@ pub(super) fn prepare(
                 occupied_bottom: anchor_y + hwpunit_to_px(occupied_height as i32, dpi),
             }
         });
-    let resolved = square_resolved.or(outer_box_resolved).or_else(|| {
-        (page.profile.hwpx_stored_layout()
-            && is_topbottom_para_float
-            && topbottom_float_count >= 2
-            && matches!(
-                table.common.vert_align,
-                crate::model::shape::VertAlign::Top | crate::model::shape::VertAlign::Inside
-            ))
-        .then(|| {
-            let top = lane_top + ft.host_spacing.before;
-            crate::renderer::float_placement::ParagraphFloatPlacement {
-                flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
-                anchor_y: para_start_height,
-                stored_host_origin: None,
-                stored_successor_line_origin: None,
-                table_left: None,
-                table_top: top,
-                occupied_bottom: top + ft.effective_height + ft.host_spacing.after,
-            }
-        })
+    let control_resolved = control_frame.map(|mut frame| {
+        let lane_shift = lane_top - frame.anchor_y;
+        frame.anchor_y = para_start_height;
+        frame.table_top += lane_shift;
+        frame.occupied_bottom += lane_shift;
+        frame
     });
+    // 같은 빈 호스트의 형제 자리차지 표는 파일 형식과 무관하게 각 표의
+    // 바깥여백을 점유한다. 측정한 앞·뒤 간격을 예약과 출력에 함께 전달한다.
+    let resolved = control_resolved
+        .or(square_resolved)
+        .or(outer_box_resolved)
+        .or_else(|| {
+            (is_topbottom_para_float
+                && topbottom_float_count >= 2
+                && matches!(
+                    table.common.vert_align,
+                    crate::model::shape::VertAlign::Top | crate::model::shape::VertAlign::Inside
+                ))
+            .then(|| {
+                let top = lane_top + ft.host_spacing.before;
+                crate::renderer::float_placement::ParagraphFloatPlacement {
+                    flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+                    anchor_y: para_start_height,
+                    stored_host_origin: None,
+                    stored_successor_line_origin: None,
+                    table_left: None,
+                    table_top: top,
+                    occupied_bottom: top + ft.effective_height + ft.host_spacing.after,
+                }
+            })
+        });
     let lane_bottom = resolved.map_or(lane_top + reserved_height, |p| {
-        if square_resolved.is_some() || outer_box_resolved.is_some() {
+        if control_resolved.is_some() || square_resolved.is_some() || outer_box_resolved.is_some() {
             p.occupied_bottom
         } else {
             p.table_top + ft.effective_height + ft.host_spacing.after_for_fit

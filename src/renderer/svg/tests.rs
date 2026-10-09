@@ -55,17 +55,16 @@ fn test_svg_draw_text_medium_weight() {
 
 #[test]
 fn legacy_hanyang_faces_have_portable_local_aliases() {
-    // HWPX가 저장한 legacy face와 한컴 2020 PDF가 실제로 대체해 출력한 family가
-    // 다르다. `--font-style` SVG가 이 순서를 잃으면 검증 host에서 무관한 폴백 또는
-    // 두부(□)로 rasterize되어 PDF 대조 증적이 무효해진다.
+    // 원본 outline을 먼저 찾고 실제로 없는 경우에만 대체한다.
+    // 한컴 버전만으로 원본 프로그램을 HCR로 덮어쓰지 않는다.
     assert_eq!(
         font_local_aliases("한양중고딕"),
         vec![
-            "HCR Dotum",
-            "함초롬돋움",
             "한양중고딕",
             "HY중고딕",
             "HYGothic-Medium",
+            "HCR Dotum",
+            "함초롬돋움",
         ]
     );
     assert_eq!(
@@ -102,8 +101,8 @@ fn legacy_hanyang_faces_have_portable_local_aliases() {
     );
     assert_eq!(
         known_font_filenames("한양중고딕").first(),
-        Some(&"HANDotum.ttf"),
-        "한컴 2020 PDF와 같은 HCR Dotum을 full embed에서 먼저 찾아야 함"
+        Some(&"H2GTRM.TTF"),
+        "Full embed도 같은 원본 outline 프로그램을 먼저 찾아야 함"
     );
     assert_eq!(
         known_font_filenames("휴먼명조").first(),
@@ -251,8 +250,13 @@ fn style_font_face_css_orders_broken_bitmap_faces_after_outline_fallbacks() {
         .find(|line| line.contains("font-family: \"한양중고딕\""))
         .expect("한양중고딕 style rule");
     assert!(
-        hanyang_jung.contains("local(\"HCR Dotum\"), local(\"함초롬돋움\"), local(\"한양중고딕\")"),
-        "한컴 PDF 대체 고딕이 legacy local face보다 앞서야 함"
+        hanyang_jung
+            .find("local(\"HY중고딕\")")
+            .expect("원본 outline 별칭")
+            < hanyang_jung
+                .find("local(\"HCR Dotum\")")
+                .expect("대체 outline 폴백"),
+        "실제 CSS에서도 정상 원본 outline이 대체 고딕보다 앞서야 함"
     );
     let human_gothic = css
         .lines()
@@ -732,25 +736,28 @@ fn test_svg_text_decoration() {
 fn test_svg_text_ratio() {
     let mut renderer = SvgRenderer::new();
     renderer.begin_page(800.0, 600.0);
-    // ratio 80%: 문자별 transform 적용
-    renderer.draw_text(
-        "장평",
-        50.0,
-        100.0,
-        &TextStyle {
-            font_size: 16.0,
-            ratio: 0.8,
-            ..Default::default()
-        },
-    );
+    let style = TextStyle {
+        font_size: 16.0,
+        ratio: 0.8,
+        ..Default::default()
+    };
+    renderer.draw_text("장평", 50.0, 100.0, &style);
+    renderer.end_page();
     let output = renderer.output();
-    // [#5821] 압축 장평은 세로 fs×√r + 가로 √r (총 폭 ×r 불변) — 한글 2022
-    // PDF 실측 계약. 첫 문자 '장': translate(50,100) scale(√0.8=0.8944,1).
-    assert!(output.contains("transform=\"translate(50,100) scale(0.8944,1)\""));
-    assert!(
-        output.contains("font-size=\"14.31"),
-        "글리프 크기가 16×√0.8=14.31 로 축소되어야 함"
-    );
+    let xml = roxmltree::Document::parse(&output).expect("장평 SVG");
+    for node in xml.descendants().filter(|node| node.has_tag_name("text")) {
+        let size: f64 = node.attribute("font-size").unwrap().parse().unwrap();
+        assert_eq!(
+            size, style.font_size,
+            "장평이 선언 세로 크기를 바꾸지 않는다"
+        );
+        assert!(
+            node.attribute("transform")
+                .unwrap()
+                .contains(&format!("scale({:.4},1)", style.ratio)),
+            "원점에 관계없이 가로 장평은 주어진 비율을 쓴다"
+        );
+    }
     // 문자별 렌더링이므로 각 문자가 개별 <text> 요소
     let text_count = output.matches("<text ").count();
     assert_eq!(text_count, 2, "2개 문자 = 2개 <text> 요소");

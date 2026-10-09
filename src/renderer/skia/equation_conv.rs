@@ -401,8 +401,13 @@ fn render_box(
                 render_box(canvas, fonts, right, x, y, color, fs, italic, bold);
             }
         }
-        LayoutKind::Paren { left, right, body } => {
-            let paren_w = fs * 0.333;
+        LayoutKind::Paren {
+            left,
+            right,
+            body,
+            left_width,
+            right_width,
+        } => {
             let use_glyph = lb.height <= fs * 1.2;
             if !left.is_empty() {
                 if use_glyph && (left == "(" || left == ")") {
@@ -419,12 +424,22 @@ fn render_box(
                         false,
                     );
                 } else {
-                    draw_stretch_bracket(canvas, fonts, left, x, y, paren_w, lb.height, color, fs);
+                    draw_stretch_bracket(
+                        canvas,
+                        fonts,
+                        left,
+                        x,
+                        y,
+                        *left_width,
+                        lb.height,
+                        color,
+                        fs,
+                    );
                 }
             }
             render_box(canvas, fonts, body, x, y, color, fs, italic, bold);
             if !right.is_empty() {
-                let right_x = x + lb.width - paren_w;
+                let right_x = x + lb.width - right_width;
                 if use_glyph && (right == "(" || right == ")") {
                     draw_text(
                         canvas,
@@ -440,7 +455,15 @@ fn render_box(
                     );
                 } else {
                     draw_stretch_bracket(
-                        canvas, fonts, right, right_x, y, paren_w, lb.height, color, fs,
+                        canvas,
+                        fonts,
+                        right,
+                        right_x,
+                        y,
+                        *right_width,
+                        lb.height,
+                        color,
+                        fs,
                     );
                 }
             }
@@ -512,7 +535,7 @@ fn draw_text(
             .map(str::to_owned),
         );
     }
-    for fallback in text_family_candidates("") {
+    for fallback in text_family_candidates("", bold) {
         if !families.contains(&fallback) {
             families.push(fallback);
         }

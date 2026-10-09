@@ -11,6 +11,11 @@ pub(in crate::renderer::typeset) struct BlockTableRowScan {
     /// 렌더 전용 높이 상한. continuation은 끝행의 full cut으로 빈 tail을
     /// 소비한 뒤 다음 행으로 전진한다.
     pub(in crate::renderer::typeset) end_row_height_override: Option<f64>,
+    /// 행별로 실제 수용한 물리 높이. 분해하지 않은 블록은 여기에 추측해서 넣지 않는다.
+    pub(in crate::renderer::typeset) physical_rows: Vec<(usize, f64)>,
+    /// 첫 저장 프레임에서 덮는 모든 셀의 내용이 끝난 행 경계.
+    /// paint 뒤 이월도 이 판정을 소비해 완료 행의 빈 tail을 새 행에 씌우지 않는다.
+    pub(in crate::renderer::typeset) completed_source_frame_end: Option<usize>,
 }
 
 /// [#2085] 표 행-스캔의 조각-스코프 읽기 스칼라 묶음.
@@ -32,5 +37,7 @@ pub(in crate::renderer::typeset) struct BlockRowScanVars {
     /// 저장된 첫 조각 프레임이 가장 가깝게 소유하는 행 끝. 프레임 여유로
     /// whole-row를 수용할 때 이 끝을 넘지 않도록 제한한다.
     pub(in crate::renderer::typeset) source_first_fragment_row_end: Option<usize>,
+    /// 같은 첫 저장 프레임의 실제 물리 높이. 내용 완료 행의 예약과 paint가 공유한다.
+    pub(in crate::renderer::typeset) source_first_fragment_height: Option<f64>,
     pub(in crate::renderer::typeset) start_row_height_override: Option<f64>,
 }

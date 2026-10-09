@@ -96,11 +96,6 @@ const DEFERRED_BODY_OVERFLOW_FIXTURES: &[&str] = &[
     // deferred_caption1853_validation.json의 전체 비교 근거를 따른다.
     "issue1853_caption_precedes_body_split.hwpx",
     "hwpctl_API_v2.4.hwp",
-    "hwp3-sample16-hwp5.hwp",
-    "hwp3-sample16-hwp5-2010.hwp",
-    "hwp3-sample16-hwp5-2022.hwp",
-    "issue3637/press_release_split_cell_nested_table.hwpx",
-    "issue6031/3249937_asset_management_rules.hwpx",
     "task2097/75544_pii_bunseok.hwpx",
     "issue6764/1613000-202200037-air-traffic-controller-cbta.hwp",
     "issue6023/30269_reform_recommendation.hwp",

@@ -319,6 +319,9 @@ impl TypesetEngine {
                 boundary.para_style_break,
                 boundary.force_page_break,
             ) {
+                // 빈 줄의 높이를 흡수해도 다음 문단의 저장 리셋은 이 원본 줄을
+                // 기준으로 판정해야 한다. 표시 여부와 저장 경계의 소유는 다르다.
+                variant_prev_para_idx = Some(para_idx);
                 continue;
             }
 
@@ -434,6 +437,7 @@ impl TypesetEngine {
             &mut issue2424_prof.deferred_flush,
             issue2424_final_flush_started,
         );
+        st.finish_deferred_column_shapes();
         if !st.current_items.is_empty() {
             st.flush_column_always();
         }

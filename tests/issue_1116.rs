@@ -396,57 +396,122 @@ fn sample16_hwp5_page3_bcp_tail_paragraph_stays_single_visual_line_for_pdf_oracl
     );
 }
 
-#[test]
-fn sample16_hwp5_2022_page3_bcp_tail_paragraph_folds_orphan_lineseg() {
-    let doc = load_doc("samples/hwp3-sample16-hwp5-2022.hwp");
-    let dump = doc.dump_page_items(Some(2));
-    let p83 = dump
-        .lines()
-        .find(|line| line.contains("FullParagraph  pi=83"))
-        .unwrap_or_else(|| panic!("2022 p3 pi=83 dump line not found:\n{dump}"));
-    let summary = dump
-        .lines()
-        .find(|line| line.contains("단 0 (items=19"))
-        .unwrap_or_else(|| panic!("2022 p3 단 요약을 찾을 수 없음:\n{dump}"));
+fn collect_sample16_2022_body_runs<'a>(
+    node: &'a rhwp::renderer::render_tree::RenderNode,
+    paragraph: usize,
+    out: &mut Vec<&'a rhwp::renderer::render_tree::RenderNode>,
+) {
+    if let rhwp::renderer::render_tree::RenderNodeType::TextRun(run) = &node.node_type {
+        if run.cell_context.is_none() && run.para_index == Some(paragraph) {
+            out.push(node);
+        }
+    }
+    for child in &node.children {
+        collect_sample16_2022_body_runs(child, paragraph, out);
+    }
+}
 
-    // dump-pages 는 #4628 이후 HeightMeasurer 합(31.5)이 아니라 프로덕션
-    // format_paragraph total(sb=1.9 + lines=27.7 + sa=0 → 29.6)을 말한다.
-    // 접힘 계약은 그대로: lh/ls 한 줄, 꼬리 LINE_SEG 를 별도 시각 줄로 세지 않는다.
+fn sample16_2022_original_bytes() -> Vec<u8> {
+    fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/hwp3-sample16-hwp5-2022.hwp"))
+        .expect("검증한 2022 원본이 있어야 한다")
+}
+
+fn sample16_2022_run_text(nodes: &[&rhwp::renderer::render_tree::RenderNode]) -> String {
+    nodes
+        .iter()
+        .filter_map(|node| {
+            if let rhwp::renderer::render_tree::RenderNodeType::TextRun(run) = &node.node_type {
+                Some(run.text.as_str())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn sample16_hwp5_2022_page3_bcp_preserves_stored_continuation() {
+    // 같은 원본의 한컴 Print는 마지막 립을 이어지는 저장 줄에 표시한다.
+    let bytes = sample16_2022_original_bytes();
+    let original = rhwp::parse_document(&bytes).unwrap();
+    let core = rhwp::DocumentCore::from_bytes(&bytes).unwrap();
+    assert_eq!(core.page_count(), 64, "독립 한컴 Print의 전체 쪽수");
+    let page = core.build_page_render_tree(2).unwrap();
+    let mut nodes = Vec::new();
+    collect_sample16_2022_body_runs(&page.root, 83, &mut nodes);
+    let first = nodes.first().expect("BCP 문단을 빠뜨리지 않는다");
+    let continuation = nodes
+        .iter()
+        .find(|node| {
+            matches!(&node.node_type, rhwp::renderer::render_tree::RenderNodeType::TextRun(run)
+            if run.text.trim() == "립")
+        })
+        .expect("독립 Print의 이어받는 마지막 글자를 보존한다");
     assert!(
-        p83.contains("h=29.6")
-            && p83.contains("lines=27.7")
-            && p83.contains("lh=17.3")
-            && p83.contains("ls=10.4"),
-        "2022 p83 BCP 문단의 마지막 LINE_SEG 꼬리는 한컴오피스처럼 앞 줄에 접혀야 함: {p83}"
+        continuation.bbox.y >= first.bbox.y + first.bbox.height,
+        "마지막 글자는 앞 줄 아래의 저장 줄이 소유한다"
     );
     assert!(
-        summary.contains("used=874.5px")
-            && summary.contains("hwp_used≈841.6px")
-            && summary.contains("diff=+32.9px"),
-        "2022 p3 단 요약은 p83 꼬리 LINE_SEG를 별도 시각 줄로 세지 않아야 함: {summary}"
+        nodes.iter().all(|node| page.root.bbox.contains(&node.bbox)),
+        "문단의 모든 조각은 소유 쪽 내부에 있다"
+    );
+    assert_eq!(
+        sample16_2022_run_text(&nodes).trim_end(),
+        original.sections[0].paragraphs[83].text.trim_end(),
+        "저장 줄을 이어받으면서 원문을 누락하거나 중복하지 않는다"
     );
 }
 
 #[test]
-fn sample16_hwp5_2022_page3_bcp_tail_glyph_stays_on_hancom_line() {
-    let svg = render_svg("samples/hwp3-sample16-hwp5-2022.hwp", 2);
-    let tail_glyphs = extract_text_positions(&svg, "립");
-
-    let folded_tail = tail_glyphs
-        .iter()
-        .find(|(x, y)| *x > 620.0 && (*y - 881.35).abs() < 1.0)
-        .copied();
+fn sample16_hwp5_2022_page3_bcp_tail_glyph_stays_on_hancom_continuation() {
+    let bytes = sample16_2022_original_bytes();
+    let core = rhwp::DocumentCore::from_bytes(&bytes).unwrap();
+    let page = core.build_page_render_tree(2).unwrap();
+    let mut body = Vec::new();
+    let mut successor = Vec::new();
+    collect_sample16_2022_body_runs(&page.root, 83, &mut body);
+    collect_sample16_2022_body_runs(&page.root, 84, &mut successor);
+    let text = sample16_2022_run_text(&body);
     assert!(
-        folded_tail.is_some(),
-        "2022 p83 BCP `수립`의 `립`은 한컴오피스처럼 p83 본문 줄 y≈881.35에 있어야 함: {tail_glyphs:?}"
+        text.trim_end().ends_with("수립"),
+        "BCP의 마지막 낱말을 보존한다"
     );
-
-    let orphan_tail = tail_glyphs
+    assert_eq!(
+        text.matches("수립").count(),
+        1,
+        "꼬리 낱말은 한 번만 표시한다"
+    );
+    let first = body.first().expect("BCP 본문을 보존한다");
+    let first_line: Vec<_> = body
         .iter()
-        .find(|(x, y)| (*x - 126.7).abs() < 2.0 && (*y - 909.1).abs() < 2.0)
-        .copied();
+        .copied()
+        .filter(|node| node.bbox.y == first.bbox.y)
+        .collect();
+    let continued: Vec<_> = body
+        .iter()
+        .copied()
+        .filter(|node| node.bbox.y > first.bbox.y)
+        .collect();
     assert!(
-        orphan_tail.is_none(),
-        "2022 p83 BCP `립`이 다음 줄 머리에 단독 배치되면 p84 이하가 한컴오피스보다 내려감: {tail_glyphs:?}"
+        sample16_2022_run_text(&first_line)
+            .trim_end()
+            .ends_with("수"),
+        "독립 Print의 앞 줄은 수에서 끝난다"
+    );
+    assert_eq!(
+        sample16_2022_run_text(&continued).trim(),
+        "립",
+        "뒤 저장 줄이 마지막 글자를 한 번 소유한다"
+    );
+    let next_top = successor
+        .iter()
+        .map(|node| node.bbox.y)
+        .reduce(f64::min)
+        .expect("뒤 아키텍쳐 문단을 보존한다");
+    assert!(!body.is_empty());
+    assert!(
+        body.iter()
+            .all(|node| node.bbox.y + node.bbox.height < next_top),
+        "BCP 꼬리는 뒤 문단보다 앞에 있고 겹치지 않는다"
     );
 }

@@ -193,7 +193,7 @@ fn stored_square_picture_adjacent_line(
 
 /// 저장 `Square` 그림의 anchor와 인접 텍스트를 연결하는 메타데이터를 반환한다.
 ///
-/// HWP5 원본은 그림 anchor와 텍스트를 별도 문단에 두거나, 한 문단의 텍스트와 그림을
+/// 원본은 그림 anchor와 텍스트를 별도 문단에 두거나, 한 문단의 텍스트와 그림을
 /// 함께 두면서 `LINE_SEG`의 좌우 경계를 저장한다. 두 형상 모두 그림의 물리 영역과
 /// 겹치는 텍스트 줄이 그림의 좌우 경계에서 끝나거나 시작한다는 증거를 요구한다.
 fn stored_square_picture_wrap_anchor_for_control(
@@ -211,7 +211,13 @@ fn stored_square_picture_wrap_anchor_for_control(
         || !common.flow_with_text
         || !matches!(common.text_wrap, TextWrap::Square)
         || !matches!(common.vert_rel_to, VertRelTo::Para)
-        || !matches!(common.horz_rel_to, HorzRelTo::Para)
+        // 셀 그림 배치는 문단/단 기준 모두 같은 셀 내부 영역을 받는다.
+        // 단 기준 Left/Top의 저장 좌우 경계도 같은 오프셋으로 대조한다.
+        // 다른 기준이나 정렬은 현재 경계 산식으로 판정하지 않는다.
+        || !(matches!(common.horz_rel_to, HorzRelTo::Para)
+            || (common.horz_rel_to == HorzRelTo::Column
+                && common.horz_align == HorzAlign::Left
+                && common.vert_align == VertAlign::Top))
         || common.width == 0
         || common.height == 0
     {
@@ -2599,13 +2605,22 @@ impl HeightMeasurer {
     ) -> f64 {
         paragraphs
             .iter()
-            .map(|p| self.unabsorbed_nested_table_paragraph_height(p, styles, depth))
+            .enumerate()
+            .map(|(index, p)| {
+                self.unabsorbed_nested_table_paragraph_height(
+                    p,
+                    paragraphs.get(index + 1),
+                    styles,
+                    depth,
+                )
+            })
             .sum()
     }
 
     fn unabsorbed_nested_table_paragraph_height(
         &self,
         p: &Paragraph,
+        successor: Option<&Paragraph>,
         styles: &ResolvedStyleSet,
         depth: usize,
     ) -> f64 {
@@ -2626,6 +2641,28 @@ impl HeightMeasurer {
                 }
                 let stretch = self.render_normalization.nested_table_width_scale(nested);
                 let mt = self.measure_table_impl(nested, 0, 0, styles, depth + 1, stretch);
+                // 후속 원본 줄이 실측 상자를 정확히 닫으면 그 사다리가 이미
+                // 표의 공간을 흡수했다. 짧은 호스트 줄높이로 다시 더하지 않는다.
+                if (self.is_native_hwp5 || self.hwpx_stored_layout)
+                    && !self.render_normalization.table_text_reflowed(nested)
+                    && successor.is_some_and(|next| {
+                        crate::renderer::float_placement::stored_empty_control_table_frame(
+                            p,
+                            next,
+                            nested,
+                            mt.total_height,
+                            styles
+                                .para_styles
+                                .get(p.para_shape_id as usize)
+                                .map_or(0.0, |style| style.spacing_before),
+                            0,
+                            self.dpi,
+                        )
+                        .is_some()
+                    })
+                {
+                    return None;
+                }
                 let declared = hwpunit_to_px(nested.common.height as i32, self.dpi);
                 let om = hwpunit_to_px(nested.outer_margin_top as i32, self.dpi)
                     + hwpunit_to_px(nested.outer_margin_bottom as i32, self.dpi);
@@ -2730,6 +2767,7 @@ impl HeightMeasurer {
                     p,
                     self.hwpx_stored_layout,
                 );
+                let mut closed_frame = None;
                 let heights: Vec<f64> = p
                     .controls
                     .iter()
@@ -2741,6 +2779,26 @@ impl HeightMeasurer {
                                 .get(&(nested.as_ref() as *const Table as usize))
                                 .copied()
                                 .unwrap_or_else(|| self.measure_table_impl(nested, 0, 0, styles, depth + 1, stretch).total_height);
+                            // 기존 한 번의 재귀 측정에서 닫힌 상자도 함께 생산한다.
+                            // 미수용 경로에서 자식을 다시 측정하지 않는다.
+                            if (self.is_native_hwp5 || self.hwpx_stored_layout)
+                                && !self.render_normalization.table_text_reflowed(nested)
+                            {
+                                closed_frame = paragraphs.get(pidx + 1).and_then(|next| {
+                                    crate::renderer::float_placement::stored_empty_control_table_frame(
+                                        p,
+                                        next,
+                                        nested,
+                                        body_height,
+                                        styles
+                                            .para_styles
+                                            .get(p.para_shape_id as usize)
+                                            .map_or(0.0, |style| style.spacing_before),
+                                        0,
+                                        self.dpi,
+                                    )
+                                });
+                            }
                             let outer_margin = hwpunit_to_px(
                                 i32::from(nested.outer_margin_top)
                                     + i32::from(nested.outer_margin_bottom),
@@ -2765,6 +2823,9 @@ impl HeightMeasurer {
                         }
                     })
                     .collect();
+                if let Some(frame) = closed_frame {
+                    return frame.occupied_bottom;
+                }
                 let para_top_hu = p.line_segs.first().map_or(0, |s| s.vertical_pos);
                 let stored_line_lead = crate::renderer::float_placement::nested_overlay_stored_line_lead(
                     p,
@@ -3075,7 +3136,7 @@ impl HeightMeasurer {
                             let reflow_nested_height = if cell.paragraphs.iter().all(
                                 crate::renderer::para_has_no_stored_line_segs,
                             ) && crate::renderer::float_placement::reflow_block_table_host_occupied_height(p, 0.0, 0.0).is_some() {
-                                self.unabsorbed_nested_table_paragraph_height(p, styles, depth)
+                                self.unabsorbed_nested_table_paragraph_height(p, None, styles, depth)
                             } else { 0.0 };
                             let para_style = styles.para_styles.get(p.para_shape_id as usize);
                             let is_last_para = pidx + 1 == cell_para_count;
@@ -3402,7 +3463,38 @@ impl HeightMeasurer {
                                 )
                                 > last_end_px * 1.15
                     };
-                let content_height = if let Some(flow) = stored_block_flow {
+                let source_nested_frames = (self.is_native_hwp5 || self.hwpx_stored_layout)
+                    .then(|| {
+                        cell.paragraphs
+                            .first()?
+                            .controls
+                            .iter()
+                            .find_map(|control| {
+                                let Control::Table(child) = control else {
+                                    return None;
+                                };
+                                if self.render_normalization.table_text_reflowed(table)
+                                    || self.render_normalization.table_text_reflowed(child)
+                                {
+                                    return None;
+                                }
+                                crate::renderer::float_placement::stored_nested_row_frames(
+                                    table, cell, child,
+                                )
+                            })
+                    })
+                    .flatten();
+                let content_height = if let Some(plan) = source_nested_frames {
+                    // 두 viewport의 여백과 마지막 빈 줄까지 원본 상자가 소유한다.
+                    // 아래 행 조합이 부모 안 여백을 한 번 더하므로 그 몫만 분리한다.
+                    let padding = cell.effective_padding(&table.padding);
+                    hwpunit_to_px(
+                        plan.parent_row_height_hu
+                            - i32::from(padding.top)
+                            - i32::from(padding.bottom),
+                        self.dpi,
+                    )
+                } else if let Some(flow) = stored_block_flow {
                     // A block and its saved anchor line share an origin. The
                     // same plan places both the table and its following lines;
                     // additive fallback must not prepend the anchor line again.
@@ -3740,12 +3832,26 @@ impl HeightMeasurer {
                 // (156505020 데이터 셀: pad 15.09px, h 21.09px) 측정만 행을 안 늘리고
                 // 렌더는 저장 여백을 그대로 써 글자가 아래 괘선을 넘겼다.
                 let total_pad = pad_top + pad_bottom;
+                let stored_text_guard_height = ((self.is_native_hwp5 || self.hwpx_stored_layout)
+                    && !self.session_edited
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| {
+                    crate::renderer::float_placement::stored_text_cell_padding_height_hu(
+                        cell, table,
+                    )
+                })
+                .flatten();
                 let padding_guard_height = cell.vertical_padding_guard_height_hu(table);
                 let cell_h_px = if padding_guard_height < 0x80000000 {
                     hwpunit_to_px(padding_guard_height as i32, self.dpi)
                 } else {
                     0.0
                 };
+                // 이 하한은 여백 판정만 소유한다. 후속 선언·간격 계약과 진단은
+                // 원래 셀 높이를 읽어 물리 상자와 저장 최소를 혼동하지 않는다.
+                let padding_reference_height = stored_text_guard_height
+                    .map(|height| hwpunit_to_px(height, self.dpi))
+                    .unwrap_or(cell_h_px);
                 // [Task #2221] layout resolve_row_heights 의 relaxed_pad 미러 —
                 // 중첩(depth>0)/TAC 표에서 저장 LINE_SEG 보유 텍스트 셀의 줄 흐름은
                 // pad 미가산 (#2211과 동일 규칙). layout 만 정정하고 측정을 남겨두면
@@ -3778,7 +3884,8 @@ impl HeightMeasurer {
                 } else if let Some(end) = stored_frame_end {
                     end
                 } else if crate::model::table::Cell::vertical_padding_is_abnormal(
-                    cell_h_px, total_pad,
+                    padding_reference_height,
+                    total_pad,
                 ) && content_height <= cell_h_px
                 {
                     cell_h_px
@@ -4111,7 +4218,7 @@ impl HeightMeasurer {
                             let reflow_nested_height = if cell.paragraphs.iter().all(
                                 crate::renderer::para_has_no_stored_line_segs,
                             ) && crate::renderer::float_placement::reflow_block_table_host_occupied_height(p, 0.0, 0.0).is_some() {
-                                self.unabsorbed_nested_table_paragraph_height(p, styles, depth)
+                                self.unabsorbed_nested_table_paragraph_height(p, None, styles, depth)
                             } else { 0.0 };
                             let para_style = styles.para_styles.get(p.para_shape_id as usize);
                             let is_last_para = pidx + 1 == cell_para_count;
@@ -4863,7 +4970,7 @@ impl HeightMeasurer {
                         }
                         if reflow_block_hosts {
                             let line_height: f64 = line_heights[line_start..].iter().sum();
-                            let nested_height = self.unabsorbed_nested_table_paragraph_height(p, styles, depth);
+                            let nested_height = self.unabsorbed_nested_table_paragraph_height(p, None, styles, depth);
                             if let Some(occupied) = crate::renderer::float_placement::reflow_block_table_host_occupied_height(
                                 p, line_height - spacing_before - spacing_after, nested_height,
                             ) {

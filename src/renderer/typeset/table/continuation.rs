@@ -39,6 +39,9 @@ pub(in crate::renderer::typeset) struct TableContinuationCursor {
     /// Actual physical space accepted for a source-owned full-width row.
     /// Content cuts do not encode the blank band used by vertical alignment.
     pub(in crate::renderer::typeset) stored_row_box_sum: Option<(usize, f64)>,
+    /// 원본 병합 셀별 앞 조각의 실제 물리 점유. 내용 유닛 합과 별개다.
+    pub(in crate::renderer::typeset) rowspan_physical_space: Vec<(usize, f64)>,
+    pub(in crate::renderer::typeset) physical_space_initialized: bool,
     /// [#7531] 행 경계를 넘는 걸침 칸(칸 색인)마다 앞 조각들이 남긴 쪽 끝 빈 띠의 합(px).
     /// 다음 조각의 scan 과 paint 가 같은 행 높이 덜기(`straddle_page_band_relief`)를 쓴다.
     pub(in crate::renderer::typeset) straddle_page_bands: Vec<(usize, f64)>,
@@ -113,6 +116,11 @@ pub(in crate::renderer::typeset) struct BlockTableContinuationPreparedState {
     /// 저장 첫 조각이 비가시 공간만 소비할 때의 공통 행 프레임.
     pub(in crate::renderer::typeset) empty_opening_row_frame:
         Option<crate::renderer::float_placement::StoredEmptyOpeningRowFrame>,
+    /// 완료된 첫 내용과 다음 빈 행 공간을 함께 소유하는 원본 두 프레임.
+    pub(in crate::renderer::typeset) complete_prefix_frame:
+        Option<crate::renderer::float_placement::StoredCompletePrefixFrame>,
+    /// 빈 저장 호스트의 첫 배치 계획이 위 바깥 여백까지 소유한다.
+    pub(in crate::renderer::typeset) host_outer_top_consumed: bool,
     pub(in crate::renderer::typeset) row_count: usize,
     pub(in crate::renderer::typeset) cell_spacing: f64,
     pub(in crate::renderer::typeset) can_intra_split: bool,
@@ -157,7 +165,8 @@ pub(in crate::renderer::typeset) struct BlockTableContinuationPreparedState {
     pub(in crate::renderer::typeset) source_text_first_frame_height: Option<f64>,
     pub(in crate::renderer::typeset) source_single_cell_row_frames:
         Option<crate::renderer::float_placement::StoredSingleCellRowFrames>,
-    /// Both stored fragment heights independently prove this whole-row boundary.
+    /// 원본 첫·뒤 조각의 높이 또는 유효 첫 프레임과 온전한 행 paint 합이
+    /// 같은 첫 조각 행 경계를 입증한다. 뒤 전체 행 geometry는 유지한다.
     pub(in crate::renderer::typeset) source_cellbreak_row_end: Option<usize>,
     /// [#7095] 표 host 다음 문단 첫 줄의 저장 vpos(HU)와 그 문단의 문단 위 간격(px).
     /// 한/글이 끝 조각 뒤에 그 문단을 놓은 자리이며, 끝 조각 상자를 늘리는 상한이다.

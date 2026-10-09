@@ -1,4 +1,4 @@
-//! Prepare the next fragment budget at its current host origin.
+//! 현재 호스트 원점에서 다음 조각의 예산을 준비한다.
 
 use crate::renderer::typeset::{
     controls, hwpunit_to_px, is_synthetic_line_seg, nearest_saved_rowbreak_frame_row_end,
@@ -72,6 +72,27 @@ impl TypesetEngine {
                 self.profile.get().hwp5_stored_pagination_layout(),
                 table,
             ) && (is_continuation || st.current_height < 0.5);
+        let source_closed_body_frame = (is_continuation
+            || (cursor_row == 0
+                && start_cut.is_empty()
+                && para
+                    .line_segs
+                    .first()
+                    .is_some_and(|line| line.vertical_pos == 0)
+                && crate::renderer::float_placement::signed_hwpunit(table.common.vertical_offset)
+                    == 0))
+            && st.current_height <= 0.5
+            && !input.row_cursor_is_nested
+            && std::ptr::eq(table, row_geometry_table)
+            && prepared
+                .layout_engine
+                .native_stored_multirow_closes_body_frame(
+                    para,
+                    table,
+                    st.layout.body_area.height,
+                    input.source.styles,
+                );
+        let repeats_nonterminal_body_frame = single_cell_page_fragment || source_closed_body_frame;
         // 저장된 첫 조각의 원점은 paint와 같은 값으로 예약한다.
         // trailing trim으로 얻은 컷만 공유하고 이전 flow 원점을 유지하면
         // 실제 표 상자와 페이지 예산이 서로 다른 높이를 소비한다.
@@ -102,7 +123,7 @@ impl TypesetEngine {
                 table,
                 host_spacing_before,
                 is_continuation,
-                strict_following_plain_text_fit || single_cell_page_fragment,
+                strict_following_plain_text_fit || repeats_nonterminal_body_frame,
                 crate::renderer::float_placement::native_empty_host_cellbreak_fragment_repeats_outer_margin(
                     self.profile.get().hwp5_stored_pagination_layout(),
                     para,
@@ -138,6 +159,11 @@ impl TypesetEngine {
                     start_cut,
                     input.source.styles,
                 );
+        let source_object_frame_opens_outer_top = st.current_height <= 0.5
+            && std::ptr::eq(row_geometry_table, table)
+            && prepared
+                .layout_engine
+                .stored_rowbreak_object_frame_opens_outer_top(para, table);
         let source_body_frame_opens_outer_top = st.current_height <= 0.5
             && crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
                 para,
@@ -175,9 +201,10 @@ impl TypesetEngine {
             + if is_continuation
                 && (fragment_opens_outer_top
                     || terminal_fragment_opens_outer_top
-                    || source_cut_opens_outer_top)
+                    || source_cut_opens_outer_top
+                    || source_object_frame_opens_outer_top)
                 && !strict_following_plain_text_fit
-                && !single_cell_page_fragment
+                && !repeats_nonterminal_body_frame
                 && !recursive_overlay_frame
             {
                 hwpunit_to_px(table.outer_margin_top as i32, self.dpi)
@@ -238,7 +265,7 @@ impl TypesetEngine {
                 self.dpi,
             )
         };
-        let mut terminal_outer_bottom_overhead = if single_cell_page_fragment {
+        let mut terminal_outer_bottom_overhead = if repeats_nonterminal_body_frame {
             partial_rowbreak_fragment_spacing_px(
                 table,
                 host_spacing_before,
@@ -259,7 +286,7 @@ impl TypesetEngine {
         } else {
             fragment_outer_bottom_overhead
         };
-        let single_cell_page_fragment_inset_px = if single_cell_page_fragment {
+        let nonterminal_body_frame_inset_px = if repeats_nonterminal_body_frame {
             hwpunit_to_px(
                 crate::renderer::float_placement::SINGLE_CELL_PAGE_FRAGMENT_BOTTOM_INSET_HU,
                 self.dpi,
@@ -268,7 +295,7 @@ impl TypesetEngine {
             0.0
         };
         let fragment_outer_bottom_overhead =
-            fragment_outer_bottom_overhead + single_cell_page_fragment_inset_px;
+            fragment_outer_bottom_overhead + nonterminal_body_frame_inset_px;
         // [#6143] 오프셋이 쪽 경계에서 이미 소진된 첫 조각은 예산에서도 빼지
         // 않는다. 앵커 문단이 이 쪽에 아무것도 내지 않았고(항목 0 · host 선방출 0)
         // 표가 쪽 최상단에서 시작하면 오프셋의 기준점(문단 자리)이 이 쪽에 없다 —
@@ -393,6 +420,12 @@ impl TypesetEngine {
         } else {
             st.current_height
         };
+        let fresh_page_avail = (base_available
+            - st.current_zone_y_offset
+            - st.layout.pagination_tolerance_px
+            - host_before_overhead
+            - fragment_outer_bottom_overhead)
+            .max(0.0);
         let page_avail = if is_continuation {
             // [Task #1937] 연속 페이지는 신선 full-page 를 기준으로 한다(레퍼런스
             // Paginator engine.rs:2502-2503 과 정합). table_available 은 표 *시작*
@@ -402,12 +435,7 @@ impl TypesetEngine {
             // 페이지당 ~1행으로 과분할된다(122행 → 188쪽). 표 각주는 첫 fragment fit
             // 판정에서만 보수적으로 예약하고, 연속 페이지는 신선 본문 가용을 쓴다.
             // zone offset·border tolerance 는 유지.
-            (base_available
-                - st.current_zone_y_offset
-                - st.layout.pagination_tolerance_px
-                - host_before_overhead
-                - fragment_outer_bottom_overhead)
-                .max(0.0)
+            fresh_page_avail
         } else if let Some(footnote_boundary) = first_fragment_actual_footnote_boundary {
             // 일반 RowBreak 표의 safety budget은 첫 fragment에서 보수적으로
             // 40px를 남긴다. 사전에 확인한 저장 표의 전체 수용 또는 빈 첫 물리
@@ -555,6 +583,8 @@ impl TypesetEngine {
             if single_cell_fragment_shape
                 && !is_continuation
                 && !crate::renderer::float_placement::reflow_empty_table_host(para, table)
+                // 빈 호스트 Query가 확정한 바깥 상자는 이 여백을 이미 소유한다.
+                && !prepared.host_outer_top_consumed
                 && prepared.host_frame
                     == (
                         st.pages.len(),
@@ -903,6 +933,15 @@ impl TypesetEngine {
             page_avail
         };
 
+        // 저장 LINE_SEG는 앞 간격 뒤의 글줄 원점이고 current_height는 그 앞의
+        // 논리 문단 원점이다. 기존 저장 경계 조회와 같은 좌표로 대조한다.
+        // 표 바깥여백은 행 높이가 아니므로 이 원점 변환에 포함하지 않는다.
+        let stored_host_spacing_before = input
+            .source
+            .styles
+            .para_styles
+            .get(para.para_shape_id as usize)
+            .map_or(0.0, |style| style.spacing_before.max(0.0));
         // RowBreak 표의 common.height가 전체 표가 아니라 첫 physical fragment를
         // 저장할 수 있다. 저장 anchor가 현재 flow와 같고 declared bottom이 이
         // fragment bound 안에 있을 때만 source frame을 행 경계 후보로 쓴다.
@@ -936,7 +975,7 @@ impl TypesetEngine {
                 .and_then(|seg| {
                     let base = st.vpos_page_base.unwrap_or(0);
                     let anchor_hu = seg.vertical_pos.saturating_sub(base);
-                    let anchor_px = hwpunit_to_px(anchor_hu, self.dpi);
+                    let anchor_px = hwpunit_to_px(anchor_hu, self.dpi) - stored_host_spacing_before;
                     let flow_bottom_hu =
                         anchor_hu.saturating_add(table.common.height.min(i32::MAX as u32) as i32);
                     let flow_bottom_px = hwpunit_to_px(flow_bottom_hu, self.dpi);
@@ -944,11 +983,15 @@ impl TypesetEngine {
                     // `current_height` 는 그만큼 전진해 있다 — 빼고 견준다(21298295: host
                     // `1. 편성기준` 36.8px 선방출로 프레임을 놓쳐 13행 첫 줄이 다음 쪽으로 가고
                     // 3쪽이 됐다. 한/글 2쪽).
-                    let para_start = st.current_height
-                        - st.pre_emitted_host_heights
-                            .get(&para_idx)
-                            .copied()
-                            .unwrap_or(0.0);
+                    let para_start = fragment_placement
+                        .and_then(|placement| placement.stored_host_origin)
+                        .unwrap_or_else(|| {
+                            st.current_height
+                                - st.pre_emitted_host_heights
+                                    .get(&para_idx)
+                                    .copied()
+                                    .unwrap_or(0.0)
+                        });
                     let frame_height =
                         hwpunit_to_px(table.common.height.min(i32::MAX as u32) as i32, self.dpi);
                     // 호스트 내용이 원점을 전진시켰다면 저장 앵커의 끝만으로
@@ -1010,11 +1053,17 @@ impl TypesetEngine {
                 .iter()
                 .find(|line| !is_synthetic_line_seg(line))?;
             let anchor =
-                hwpunit_to_px(line.vertical_pos - st.vpos_page_base.unwrap_or(0), self.dpi);
+                hwpunit_to_px(line.vertical_pos - st.vpos_page_base.unwrap_or(0), self.dpi)
+                    - stored_host_spacing_before;
             let frame = hwpunit_to_px(table.common.height as i32, self.dpi);
+            let placed_top = fragment_placement
+                .map_or(st.current_height + host_before_overhead, |placement| {
+                    placement.table_top
+                });
             if frame <= 0.0
                 || (anchor - st.current_height).abs() > 0.5
                 || anchor + frame > table_available + 0.5
+                || placed_top + frame > table_available + 0.5
             {
                 return None;
             }
@@ -1131,7 +1180,18 @@ impl TypesetEngine {
                 if hr.is_empty() {
                     0.0
                 } else {
-                    let h: f64 = hr.iter().map(|&r| cut_row_h[r]).sum();
+                    // 저장 첫 조각이 온전한 행의 paint 높이를 확정했다면 반복
+                    // 머리행도 그 같은 높이를 예약한다. 부분 내용 컷은 그대로다.
+                    let h: f64 = hr
+                        .iter()
+                        .map(|&r| {
+                            if prepared.source_cellbreak_row_end.is_some() {
+                                prepared.whole_row_fit_heights[r]
+                            } else {
+                                cut_row_h[r]
+                            }
+                        })
+                        .sum();
                     h + cs * hr.len() as f64
                 }
             } else {
@@ -1363,6 +1423,7 @@ impl TypesetEngine {
         }
 
         FragmentBudget {
+            fresh_page_avail,
             caption_extra,
             host_before_overhead,
             terminal_outer_bottom_overhead,
@@ -1377,6 +1438,7 @@ impl TypesetEngine {
             source_first_fragment_overflow_allowance,
             header_overhead,
             avail_for_rows,
+            source_closed_body_frame,
             single_cell_fragment_shape,
             single_cell_box_height,
         }

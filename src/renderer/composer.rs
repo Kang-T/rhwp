@@ -14,7 +14,7 @@ use crate::model::control::Control;
 use crate::model::document::Section;
 pub use crate::model::paragraph::SpaceMetric;
 use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
-use crate::model::shape::Caption;
+use crate::model::shape::{Caption, CaptionDirection, ShapeObject};
 use crate::renderer::layout_frame::LayoutFrame;
 pub use crate::renderer::layout_frame::ParagraphBox;
 
@@ -943,6 +943,41 @@ pub fn caption_height_px(caption: &Option<Caption>, dpi: f64) -> f64 {
     line_seg_height.max(composed_height)
 }
 
+/// 도형 캡션 선택은 실제 배치와 흐름 측정이 같은 속성을 소비한다.
+pub(crate) fn shape_caption_for_layout(shape: &ShapeObject) -> Option<Caption> {
+    match shape {
+        ShapeObject::Line(s) => s.drawing.caption.clone(),
+        ShapeObject::Rectangle(s) => s.drawing.caption.clone(),
+        ShapeObject::Ellipse(s) => s.drawing.caption.clone(),
+        ShapeObject::Arc(s) => s.drawing.caption.clone(),
+        ShapeObject::Polygon(s) => s.drawing.caption.clone(),
+        ShapeObject::Curve(s) => s.drawing.caption.clone(),
+        ShapeObject::Group(s) => s.caption.clone(),
+        ShapeObject::Picture(s) => s.caption.clone(),
+        ShapeObject::Chart(s) => s.caption.clone().or_else(|| s.drawing.caption.clone()),
+        ShapeObject::Ole(s) => s.caption.clone().or_else(|| s.drawing.caption.clone()),
+    }
+}
+
+/// 캡션 마지막 줄의 후행 간격을 제외한 도형·캡션의 세로 점유 상자.
+/// 위·아래 캡션은 틀과의 간격을 포함하고 옆 캡션은 같은 세로 띠를 공유한다.
+pub(crate) fn captioned_shape_height_px(
+    shape_height: f64,
+    caption: &Option<Caption>,
+    dpi: f64,
+) -> f64 {
+    let Some(cap) = caption.as_ref().filter(|cap| !cap.paragraphs.is_empty()) else {
+        return shape_height;
+    };
+    let caption_height = caption_height_px(caption, dpi);
+    match cap.direction {
+        CaptionDirection::Top | CaptionDirection::Bottom => {
+            shape_height + hwpunit_to_px(cap.spacing as i32, dpi) + caption_height
+        }
+        CaptionDirection::Left | CaptionDirection::Right => shape_height.max(caption_height),
+    }
+}
+
 /// Hanyang-PUA 옛한글 코드포인트·한컴 PUA와 legacy 제품명을 렌더링용 텍스트로 변환한다.
 ///
 /// 한컴 자체 폰트 (함초롬바탕 LVT 등) 는 PUA 영역에 옛한글 글리프를 직접
@@ -1276,7 +1311,7 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
     }
 
     let mut lines: Vec<ComposedLine> = Vec::new();
-    let line_seg_count = effective_line_seg_count(para);
+    let line_seg_count = para.line_segs.len();
 
     for line_idx in 0..line_seg_count {
         let line_seg = &para.line_segs[line_idx];
@@ -1470,55 +1505,6 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
     }
 
     lines
-}
-
-fn effective_line_seg_count(para: &Paragraph) -> usize {
-    if is_sample16_2022_bcp_orphan_tail_lineseg(para) {
-        para.line_segs.len().saturating_sub(1)
-    } else {
-        para.line_segs.len()
-    }
-}
-
-/// [#4384 조사] 이 문단 텍스트 리터럴을 IR 속성 판정으로 일반화할 수 있는지 조사했으나
-/// 안전하게 일반화할 신호를 찾지 못했다 — 아래는 기각한 가설과 근거다.
-///
-/// 1. **LINE_SEG tag bit 17/18(첫/마지막 세그먼트)**: `hwp3-sample16-hwp5-2022.hwp`
-///    p83 실측 — 두 LINE_SEG 모두 `tag=0x00060000`/`0x00160000`으로 bit17+18
-///    (`LineSeg::TAG_SINGLE_SEGMENT_LINE`)을 함께 켜고 있다. 즉 한컴 인코더 자신도
-///    이 둘을 "한 줄이 세그먼트 2개로 쪼개진 것"이 아니라 "완결된 줄 2개"로
-///    표시했다 — 세그먼트 비트로는 이 문서조차 구분되지 않는다.
-/// 2. **bit 20(indentation 적용) 차이**: 유일하게 다른 비트가 bit20(ls[1]에만 설정)
-///    이다. 그러나 이 문단의 ParaShape는 `indent=-5000`(내어쓰기, 번호/글머리
-///    스타일)이고, bit20은 내어쓰기 문단의 "이어지는 줄"에 일반적으로 켜지는
-///    비트라 — 이 신호로 판정하면 내어쓰기 문단의 정상적인 2번째 줄 전부가
-///    (합쳐지면 안 되는데도) 접혀버린다. 오탐 범위가 이 문서 하나가 아니라
-///    "내어쓰기 문단 + 짧은 마지막 줄" 전체로 넓어진다.
-/// 3. **"마지막 줄이 짧다"는 기하 조건 단독**: 문단이 줄바꿈 후 마지막 줄에 단어
-///    1~2개만 남는 것은 지극히 흔한 정상 조판 결과다(orphan/widow 자체가 아니라
-///    그냥 마지막 줄). 이 조건만으로 접으면 정상적으로 2줄이어야 하는 문단들을
-///    광범위하게 회귀시킨다.
-///
-/// 즉 이 오프셋/피치 조건은 이미 `hwp3-sample16-hwp5-2022.hwp` 문서 안에서도
-/// "정상적인 마지막 짧은 줄"과 "한컴이 인코딩은 2줄로 했지만 실제로는 1줄로
-/// 그리는 이 특정 문단"을 IR 필드만으로 구분하지 못한다 — 텍스트 리터럴이 사실상
-/// 유일하게 안전한 좁힘 조건이다. 회귀 fixture: `tests/issue_1116.rs`
-/// (`sample16_hwp5_2022_page3_bcp_tail_paragraph_folds_orphan_lineseg` 등).
-fn is_sample16_2022_bcp_orphan_tail_lineseg(para: &Paragraph) -> bool {
-    if para.line_segs.len() != 2 {
-        return false;
-    }
-    if !para.text.contains("BCP:Business Continuity Planning) 수립") {
-        return false;
-    }
-
-    let first = &para.line_segs[0];
-    let last = &para.line_segs[1];
-    // [#5961] `char_count` 는 HWP5 축이므로 `text_start` 도 올려서 견준다.
-    if para.line_seg_text_start(1) < para.char_count.saturating_sub(2) {
-        return false;
-    }
-    last.vertical_pos == first.vertical_pos + first.line_height + first.line_spacing
 }
 
 /// UTF-16 위치 범위를 텍스트 문자 인덱스 범위로 변환한다.
@@ -2980,9 +2966,20 @@ pub(crate) fn recompose_stored_lines_in_frame_with_known_square_band(
     known_square_band: bool,
     hwpx_stored_layout: bool,
 ) -> Option<ComposedParagraph> {
-    // A degenerate box, or controls with their own layout owner, means there is
-    // no frame to build. The composition stands as it is — there is no second
-    // owner to hand it to.
+    // 본문 합성 줄은 loader의 계산 결과이며 원본 저장 캐시가 아니다.
+    // 개체가 별도 줄 소유자가 아닌 본문은 같은 프레임으로 다시 채워,
+    // 측정과 paint가 함께 소비할 결과를 발행한다. 원본 IR은 보존한다.
+    let fresh_body = (!para.line_segs.is_empty()
+        && para.controls.is_empty()
+        && crate::renderer::para_has_no_stored_line_segs(para))
+    .then(|| {
+        let mut body = para.clone();
+        body.replace_line_segs(Vec::new());
+        body
+    });
+    let para = fresh_body.as_ref().unwrap_or(para);
+    // 유효한 상자가 없거나 컨트롤이 독립 배치를 소유하면 이 프레임을 만들지 않는다.
+    // 기존 구성 결과를 유지하며 다른 소유자에게 넘기지 않는다.
     //
     // NO_LS 문단은 예외적으로 picture-band 게이트(비-TAC 그림 1개)도 허용한다 —
     // 저장 행이 없어 fill 이 유일한 소유자인데, Square 그림 host 라는 이유로
@@ -4329,6 +4326,22 @@ fn hancom_symbol_display_key(ch: char) -> char {
     } else {
         ch
     }
+}
+
+/// 이미 확정한 단일 표시 기호를 원문 폭 측정에도 전달한다.
+/// 다문자 확장과 글자겹침 숫자는 각 구성 owner의 계약을 유지한다.
+pub(crate) fn single_scalar_display_char(ch: char) -> char {
+    let key = hancom_symbol_display_key(ch);
+    if let Some(display) = pua_plain_text_display(key) {
+        let mut chars = display.chars();
+        if let Some(first) = chars.next() {
+            if chars.next().is_none() {
+                return first;
+            }
+        }
+        return ch;
+    }
+    super::layout::map_pua_bullet_char(key)
 }
 
 /// 한글 방점(U+302E/U+302F)을 렌더용 spacing 가운데 점 글리프로 치환한다. (Task #1735)

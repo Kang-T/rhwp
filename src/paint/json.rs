@@ -1018,7 +1018,9 @@ impl PaintOp {
                         left, top, right, bottom
                     );
                 }
-                if let Some((width, height)) = image.original_size_hu {
+                if let Some((width, height)) =
+                    crate::renderer::image_resolver::resolved_image_crop_reference_size(image)
+                {
                     let _ = write!(buf, ",\"originalSizeHu\":[{},{}]", width, height);
                 }
                 let (effect, brightness, contrast) =
@@ -2977,10 +2979,16 @@ fn write_equation_layout_kind(buf: &mut String, kind: &LayoutKind) {
             }
             buf.push_str("]}");
         }
-        LayoutKind::Paren { left, right, body } => {
+        LayoutKind::Paren {
+            left,
+            right,
+            body,
+            left_width,
+            right_width,
+        } => {
             let _ = write!(
                 buf,
-                "{{\"type\":\"paren\",\"left\":{},\"right\":{},\"body\":",
+                "{{\"type\":\"paren\",\"left\":{},\"right\":{},\"leftWidth\":{left_width:.6},\"rightWidth\":{right_width:.6},\"body\":",
                 json_escape(left),
                 json_escape(right),
             );

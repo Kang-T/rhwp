@@ -9,6 +9,7 @@ pub(in crate::renderer::typeset) struct TableHostShapePage {
     pub current_height: f64,
 }
 
+#[derive(Clone, Copy)]
 pub(in crate::renderer::typeset) struct TableHostShapeFlow {
     pub tac_separate_line_h: Option<f64>,
     pub non_tac_pushdown_h: Option<f64>,
@@ -67,8 +68,9 @@ pub(super) fn prepare(
                     && matches!(p.common.vert_rel_to, VertRelTo::Para) =>
             {
                 let h = hwpunit_to_px(p.common.height as i32, dpi);
+                let mt = hwpunit_to_px(p.common.margin.top as i32, dpi);
                 let mb = hwpunit_to_px(p.common.margin.bottom as i32, dpi);
-                Some(h + mb)
+                Some(mt + h + mb)
             }
             Control::Shape(s)
                 if !s.common().treat_as_char
@@ -76,9 +78,17 @@ pub(super) fn prepare(
                     && matches!(s.common().vert_rel_to, VertRelTo::Para) =>
             {
                 let cm = s.common();
-                let h = hwpunit_to_px(cm.height as i32, dpi);
+                let h = crate::renderer::composer::captioned_shape_height_px(
+                    hwpunit_to_px(cm.height as i32, dpi),
+                    &crate::renderer::composer::shape_caption_for_layout(s),
+                    dpi,
+                );
+                let mt = hwpunit_to_px(
+                    crate::renderer::float_placement::topbottom_shape_top_margin_hu(cm),
+                    dpi,
+                );
                 let mb = hwpunit_to_px(cm.margin.bottom as i32, dpi);
-                Some(h + mb)
+                Some(mt + h + mb)
             }
             _ => None,
         }

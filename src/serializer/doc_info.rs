@@ -486,7 +486,14 @@ pub fn serialize_face_name(font: &Font) -> Vec<u8> {
     w.write_hwp_string(&font.name).unwrap();
 
     if let Some(alt_name) = alt_name {
-        w.write_u8(font.alt_type & 0x03).unwrap();
+        // 대체 유형은 FACE_NAME 속성의 원 face 유형과 별도 바이트다.
+        // 같은 대체 선언의 유형을 보존하고, 예전 직접 생성 모델만 호환한다.
+        let alternate_type = font
+            .subst_font
+            .as_ref()
+            .filter(|substitute| substitute.face == alt_name)
+            .map_or(font.alt_type & 0x03, |substitute| substitute.font_type);
+        w.write_u8(alternate_type).unwrap();
         w.write_hwp_string(alt_name).unwrap();
     }
     if let Some(type_info) = font.type_info {

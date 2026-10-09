@@ -18,6 +18,7 @@ struct ScanInput<'a> {
     start_cut: &'a [usize],
     v: BlockRowScanVars,
     table_storage_declares_splits: bool,
+    rowspan_physical_space: &'a [(usize, f64)],
 }
 
 struct ScanProgress {
@@ -52,6 +53,7 @@ impl TypesetEngine {
         start_cut: &[usize],
         v: BlockRowScanVars,
         scan: BlockTableRowScan,
+        rowspan_physical_space: &[(usize, f64)],
     ) -> BlockTableRowScan {
         let table_storage_declares_splits = rowbreak_table_has_internal_saved_vpos_reset(table);
         let input = ScanInput {
@@ -66,6 +68,7 @@ impl TypesetEngine {
             start_cut,
             v,
             table_storage_declares_splits,
+            rowspan_physical_space,
         };
         let mut progress = ScanProgress {
             r: v.cursor_row,
@@ -84,6 +87,7 @@ impl TypesetEngine {
                     progress.scan.consumed += height;
                     progress.r += 1;
                     progress.scan.end_row = progress.r;
+                    progress.scan.physical_rows.push((r, height));
                     continue;
                 }
             }
@@ -97,11 +101,19 @@ impl TypesetEngine {
                 cs: v.cs,
             };
             let block = block_query.candidate(r);
-            let step = if (block.protected || block.rowbreak_rowspan_block) && block.b_start == r {
+            let before = progress.scan.consumed;
+            let is_block = (block.protected || block.rowbreak_rowspan_block) && block.b_start == r;
+            let mut step = if is_block {
                 self.scan_rowspan_block_step(input, progress, block, cs_before)
             } else {
                 self.scan_ordinary_row_step(input, progress, cs_before)
             };
+            if !is_block && step.progress.scan.end_row == r + 1 {
+                let accepted = step.progress.scan.consumed - before - cs_before;
+                if accepted.is_finite() && accepted >= 0.0 {
+                    step.progress.scan.physical_rows.push((r, accepted));
+                }
+            }
             progress = step.progress;
             if !step.keep_scanning {
                 break;

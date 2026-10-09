@@ -305,7 +305,7 @@ impl SkiaTextReplay<'_> {
                     .copied()
                     .unwrap_or_else(|| *char_positions.last().unwrap_or(&0.0))
                     as f32;
-                // [#5821] 압축 장평은 세로도 √r — SSOT 는 condensed_ratio_draw_params.
+                // 장평은 가로에만 적용한다. 세로 크기와 공통 그리기 비율을 함께 소비한다.
                 let (font_size, ratio) = {
                     let (fs, r) =
                         crate::renderer::condensed_ratio_draw_params(font_size as f64, style.ratio);

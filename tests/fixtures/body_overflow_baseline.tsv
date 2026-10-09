@@ -25,6 +25,7 @@
 # 값으로 올려 적는다.
 #
 # 0 행은 그대로 둔다 — 값 0 과 행 삭제는 이 게이트에서 같은 판정(증가 / 신규 발생)이다.
+issue3637/press_release_split_cell_nested_table.hwpx	0
 issue6782/1480000-201900042-chemical-product-labeling-study.hwp	6
 issue6921/148733091-briefing-stenographic-record.hwp	0
 156636617_240617 2024년 5월 월간 수출입 현황(확정치).hwp	1
@@ -213,3 +214,5 @@ issue7336/stored_frame_page_larger_rowbreak.hwpx	1
 # 남는 초과 4.5px 은 rhwp 가 이 표를 선언 높이 916.5px(68736HU)보다 8.3px 큰 924.8px 로
 # 그리는 기존 결손이다. 수정 전에는 초과가 0.8px 이라 공차 2.0px 아래에 숨어 있었다.
 issue6465/press_release_footer_logos.hwpx	1
+issue6031/3249937_asset_management_rules.hwpx	0
+hwp3-sample16-hwp5-2022.hwp	0

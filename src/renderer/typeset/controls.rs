@@ -316,7 +316,21 @@ pub(super) fn place_table_host_shape(
         return;
     }
     let flow = shape_flow::prepare(ctrl, para, ctrl_idx, dpi);
-    if flow.needs_advance(st.table_host_shape_page(), || st.available_height()) {
+    while flow.needs_advance(st.table_host_shape_page(), || st.available_height()) {
+        // 단 기준 개체가 다음 단에 들어가면 개체만 이월한다. 뒤 본문은 남은
+        // 현재 단을 채우며, 저장 줄의 단 경계에서 예약 개체 뒤로 이어진다.
+        let common = match ctrl {
+            Control::Shape(shape) => Some(shape.common()),
+            Control::Picture(picture) => Some(&picture.common),
+            _ => None,
+        };
+        let column_frame = common.is_some_and(|common| {
+            matches!(common.horz_rel_to, crate::model::shape::HorzRelTo::Column)
+                && common.width as f64 <= st.layout.column_width_hu() as f64
+        });
+        if column_frame && st.defer_table_host_shape_to_next_column(para_idx, ctrl_idx, flow) {
+            return;
+        }
         st.advance_column_or_new_page();
     }
     st.commit_table_host_shape(para_idx, ctrl_idx, flow);

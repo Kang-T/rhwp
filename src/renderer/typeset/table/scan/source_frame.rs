@@ -185,6 +185,7 @@ impl SourceFrameQuery<'_> {
                 && (layout_engine.row_has_declared_stored_frame(table, r)
                     || layout_engine.native_saved_two_line_row_frame(table, r, styles)));
         let whole_row_fits = !declared_source_frame
+            && !(row_start_cut.is_empty() && terminal_zero_origin_cut)
             && ((!single_visible_source_frame
                 && consumed + cs_before + row_total <= avail_for_rows)
                 || strict_nonterminal_rounding_fit

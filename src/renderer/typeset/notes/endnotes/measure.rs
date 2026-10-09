@@ -273,6 +273,7 @@ impl TypesetEngine {
                     row_cursor_is_nested,
                     end_row_height_override,
                     start_row_height_override,
+                    row_height_overrides,
                     straddle_row_relief,
                 } => lookup_local(*para_index).map(|l| PageItem::PartialTable {
                     para_index: l + 1,
@@ -287,6 +288,7 @@ impl TypesetEngine {
                     row_cursor_is_nested: *row_cursor_is_nested,
                     end_row_height_override: *end_row_height_override,
                     start_row_height_override: *start_row_height_override,
+                    row_height_overrides: row_height_overrides.clone(),
                     straddle_row_relief: straddle_row_relief.clone(),
                 }),
                 PageItem::Shape {
@@ -903,6 +905,7 @@ impl TypesetEngine {
             None, // multi_col_width_hu: 렌더 미주 body-flow 경로와 동일(None)
             None, // bin_data_content: Stage 1 POC — None
             None, // wrap_anchor: 미주 단 내부 wrap-around 없음
+            None,
         );
         (y_after - y_start).max(0.0)
     }

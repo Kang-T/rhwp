@@ -36,14 +36,23 @@ pub(super) fn hide_rowbreak_guide(
         && para.line_segs.len() == 1
     {
         let curr_vpos = para.line_segs.first().map(|s| s.vertical_pos);
-        let next_anchor_vpos = paragraphs
+        let next_anchor = paragraphs
             .iter()
             .skip(para_idx + 1)
             .find(|p| para_has_visible_text(p) || !p.controls.is_empty())
-            .and_then(|p| p.line_segs.first().map(|s| s.vertical_pos));
-        if let (Some(curr), Some(next)) = (curr_vpos, next_anchor_vpos) {
+            .and_then(|p| p.line_segs.first().map(|line| (p, line)));
+        if let (Some(curr), Some((next_para, next_line))) = (curr_vpos, next_anchor) {
+            // 실제 표 앵커 또는 새 쪽 첫 줄 밴드로 향하는 빈 줄만 guide다.
+            // 최종 표 조각 아래의 본문 앞 빈 줄은 저장 줄 상자를 소비한다.
+            let next_owns_new_frame = next_para
+                .controls
+                .iter()
+                .any(|control| matches!(control, crate::model::control::Control::Table(_)))
+                || (next_line.vertical_pos >= 0
+                    && next_line.line_height > 0
+                    && next_line.vertical_pos <= next_line.line_height);
             const EMPTY_GUIDE_RESET_GAP_HU: i32 = 2000;
-            if curr > next + EMPTY_GUIDE_RESET_GAP_HU {
+            if next_owns_new_frame && curr > next_line.vertical_pos + EMPTY_GUIDE_RESET_GAP_HU {
                 return true;
             }
         }

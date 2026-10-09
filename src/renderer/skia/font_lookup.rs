@@ -31,22 +31,38 @@ pub(super) struct TypefaceCandidate {
     pub(super) source: &'static str,
 }
 
-pub(super) fn text_family_candidates(requested: &str) -> Vec<String> {
+pub(super) fn text_family_candidates(requested: &str, bold: bool) -> Vec<String> {
     let mut families = Vec::new();
-    for requested in requested
-        .split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        if !families.iter().any(|family| family == requested) {
-            families.push(requested.to_string());
+    // 원 face와 설치 별칭을 먼저 찾고 문서의 선언 대체를 같은 순서로 찾는다.
+    // 체인 전체를 한 개의 시스템 글꼴 이름으로 조회하지 않는다.
+    for face in crate::renderer::internal_font_family_members(requested) {
+        if !families.iter().any(|family| family == face) {
+            families.push(face.to_string());
         }
-        if let Some(base) = base_family_without_weight_suffix(requested) {
+        for alias in crate::renderer::installed_render_font_aliases(face) {
+            if !families.iter().any(|family| family == alias) {
+                families.push((*alias).to_string());
+            }
+        }
+        if let Some(base) = base_family_without_weight_suffix(face) {
             if !families.iter().any(|family| family == &base) {
                 families.push(base);
             }
         }
     }
+    // SVG·Canvas와 같은 계열/굵기별 순서로 없는 글리프를 찾는다.
+    // 선언 face와 문서의 명시 대체는 위에서 이미 우선 수집했다.
+    let primary = crate::renderer::internal_font_family_members(requested)
+        .first()
+        .copied()
+        .unwrap_or("");
+    let fallback = crate::renderer::generic_fallback_for_weight(primary, bold);
+    for family in fallback.split(',').map(|family| family.trim_matches('\'')) {
+        if !families.iter().any(|candidate| candidate == family) {
+            families.push(family.to_string());
+        }
+    }
+    // 공통 후보가 없는 환경에서는 기존 시스템 후보도 계속 사용할 수 있다.
     for family in TEXT_FALLBACK_FAMILIES {
         if !families.iter().any(|candidate| candidate == family) {
             families.push((*family).to_string());
@@ -63,7 +79,8 @@ pub(super) fn text_typeface_candidates(
     requested: &str,
     style: FontStyle,
 ) -> (Vec<String>, Vec<TypefaceCandidate>) {
-    let families = text_family_candidates(requested);
+    let families =
+        text_family_candidates(requested, *style.weight() >= *FontStyle::bold().weight());
     let chain = typeface_candidates_for_families(
         font_mgr,
         system_families,
@@ -75,7 +92,7 @@ pub(super) fn text_typeface_candidates(
     (families, chain)
 }
 
-/// Resolve an ordered family list through the same sources used by body text.
+/// 본문과 수식이 같은 글꼴 계열 순서와 공급 경로로 후보를 조회한다.
 pub(super) fn typeface_candidates_for_families(
     font_mgr: &FontMgr,
     system_families: &SystemFontFamilies,

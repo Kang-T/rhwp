@@ -23,22 +23,8 @@ pub(in crate::renderer::typeset) struct WholeFitPage<'a> {
     pub hangul2024_reclaimed: f64,
 }
 
-/// 저장 줄이 없는 제목 뒤에 번호 목록이 오면, 한/글은 제목과 첫 항목을 같은 쪽에서
-/// 시작시킨다. 페이지 꼬리의 `height_for_fit`은 제목의 마지막 line spacing을 빼므로,
-/// 그 값만으로는 제목이 layout에서 본문 밖으로 잘려 목록과 분리될 수 있다.
-fn no_lineseg_heading_precedes_ordered_list(para: &Paragraph, next: Option<&Paragraph>) -> bool {
-    if !para.line_segs.is_empty() || !para.controls.is_empty() || !para_has_visible_text(para) {
-        return false;
-    }
-    let Some(next) = next else {
-        return false;
-    };
-    let trimmed = next.text.trim_start();
-    let digits = trimmed.bytes().take_while(u8::is_ascii_digit).count();
-    digits > 0 && trimmed.as_bytes().get(digits) == Some(&b'.')
-}
-
 pub(super) struct WholeFitEvidence {
+    pub stored_first_line_bottom_outside_body: bool,
     pub saved_single_line_bottom_fits: bool,
     pub saved_list_tail_body_vpos_fits: bool,
     pub page_end_fit_height: f64,
@@ -62,6 +48,29 @@ pub(super) fn inspect(
     dpi: f64,
     available_height: impl Fn() -> f64,
 ) -> WholeFitEvidence {
+    // 일반 본문의 저장 span은 앞간격을 제외할 수 있다. 현재 배치 원점과
+    // 저장 첫 줄이 같은 상자로 닫히면 축소 fit으로 본문 밖 줄을 수용하지 않는다.
+    // 개체의 여백 spill과 편집 후 재조판은 별도 배치 계약을 유지한다.
+    let stored_first_line_bottom_outside_body = page.col_count == 1
+        && (page.profile.hwp5_stored_pagination_layout() || page.profile.hwpx_stored_layout())
+        && !page.profile.session_edited()
+        && para.controls.is_empty()
+        && !page.current_items.is_empty()
+        && current_page_vpos_base.is_some_and(|base| {
+            para.line_segs
+                .first()
+                .and_then(|line| line_seg_visible_bounds_px(line, base, dpi))
+                .is_some_and(|(top, _)| {
+                    (top - page.current_height - fmt.spacing_before).abs() <= dpi / 7200.0
+                })
+                && super::split_entry::stored_first_line_bottom_outside_body(
+                    para,
+                    base,
+                    page.current_height,
+                    page.body_height,
+                    dpi,
+                )
+        });
     // [#2279 OMIT-fit] spacing-누락 문서군에서 **저장 리셋 직전의 페이지말
     // 빈 문단**은 다음 쪽 상단 귀속이다 — 한글 fresh 는 누락 spacing 을
     // 재가산해 이 빈 문단을 다음 쪽으로 넘긴다(36392557 pi14: 저장 bottom
@@ -142,16 +151,12 @@ pub(super) fn inspect(
     // 위 omit_untrusted_empty(저장 리셋 직전 빈 문단)는 트림 혜택도 잃는다
     // — 전량(lh+ls) 부족 시 다음 쪽 상단으로 넘긴다(36392557 pi14 36px).
     // 텍스트 문단은 종전 h4f 트림 유지(36392757 pi19: 전량 요구 시 +1 실측).
-    // 저장 줄 없는 제목이 번호 목록 바로 앞에 있으면, 마지막 line spacing까지
-    // 현재 쪽 예산에 넣어 제목과 첫 항목의 소속을 함께 판정한다. 일반 무저장
-    // 본문까지 전량 요구하면 정상적으로 현재 쪽에 끝나는 문단을 다음 쪽으로 밀어
-    // 페이지 수가 늘어나므로 이 구조에만 한정한다.
+    // 다음 문단의 숫자 문자열로 현재 본문을 제목이라 추정하지 않는다.
+    // 현재 쪽의 콘텐츠 상자와 다음 흐름이 소비할 후행 간격은 구분한다.
     let page_end_fit_height = paragraph_page_end_fit_height(
         fmt.total_height,
         fmt.height_for_fit,
-        omit_untrusted_empty
-            || strict_after_empty_host_float
-            || no_lineseg_heading_precedes_ordered_list(para, paragraphs.get(para_idx + 1)),
+        omit_untrusted_empty || strict_after_empty_host_float,
     );
     // [#6855] "이 쪽이 찼는가"를 `current_height` 로만 물으면 **자리차지 밴드가
     // 차지한 쪽을 빈 쪽으로 읽는다.** 1613000-202200037 182쪽은 29×3 표가
@@ -169,6 +174,7 @@ pub(super) fn inspect(
     let stored_vpos_rewind_base = page.col_count == 1
         && !super::stored_lines::stored_page_boundary_invalidated_by_reflow(
             page.profile, page.col_count, page.current_items, paragraphs,
+            page.current_height, dpi,
         )
         && !page.current_items.is_empty()
         // 같은 문단이 이미 이 쪽에 놓였으면 걸지 않는다 — 되돌아감은 문단 시작 신호라
@@ -222,6 +228,7 @@ pub(super) fn inspect(
         };
     let stored_vpos_rewind_break = stored_vpos_rewind_break && !hangul2024_rewind_override;
     WholeFitEvidence {
+        stored_first_line_bottom_outside_body,
         saved_single_line_bottom_fits,
         saved_list_tail_body_vpos_fits,
         page_end_fit_height,

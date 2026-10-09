@@ -27,10 +27,10 @@ pub(super) mod split_entry;
 pub(super) mod stored_lines;
 pub(super) mod whole_fit;
 
+use super::notes::footnotes::boundary::NativeHwp5FootnoteBodyBoundary;
 use super::{
     is_synthetic_line_seg, missing_lineseg_trailing_line_break,
-    native_hwp5_existing_footnote_reset_overlap_break_line,
-    native_hwp5_first_footnote_overlap_break_line,
+    native_hwp5_existing_footnote_reset_boundary, native_hwp5_first_footnote_overlap_break_line,
     native_hwp5_text_reset_before_large_tac_topbottom_picture_break_line, page_item_vpos_base,
     para_has_non_whitespace_text, para_has_visible_text, para_is_treat_as_char_picture_only,
     preceding_stored_vpos, stored_body_reset_fragment_matches_current_flow, stored_vpos_rewinds,
@@ -72,7 +72,7 @@ pub(super) fn place_split_paragraph(
     base_available: f64,
     layout_drift_safety_px: f64,
     forced_page_break_line: Option<usize>,
-    native_hwp5_existing_footnote_reset_line: Option<usize>,
+    native_hwp5_existing_footnote_boundary: Option<NativeHwp5FootnoteBodyBoundary>,
     current_page_vpos_base: Option<i32>,
     is_tac_picture_stack: bool,
     dpi: f64,
@@ -129,7 +129,7 @@ pub(super) fn place_split_paragraph(
             line_count,
             avail_for_lines,
             forced_page_break_line,
-            native_hwp5_existing_footnote_reset_line,
+            native_hwp5_existing_footnote_boundary.filter(|_| on_entry_page),
             current_page_vpos_base,
             is_tac_picture_stack,
             &st.paragraph_line_scan_page(),
@@ -173,14 +173,144 @@ pub(super) fn place_split_paragraph(
             on_entry_page = false;
             continue;
         };
+        // 쪽 이동 뒤 전체가 들어간 원본 문단도 첫 줄의 저장 축을 소유한다.
+        // 실제 수용 전에는 기준을 만들지 않고, 저장 줄과 같은 포맷/조각의
+        // 소비 끝을 확인한 뒤에만 Source0과 새 단0의 원점을 공유한다.
+        let unit = dpi / 7200.0;
+        let first_full_source_span = (st.col_count == 1
+            && st.current_items.is_empty()
+            && st.vpos_page_base.is_none()
+            && st.vpos_lazy_base.is_none()
+            && !st.profile.session_edited()
+            && !st.current_endnote_flow
+            && st.current_zone_y_offset == 0.0
+            && st.page_start_square_pictures.is_empty()
+            && st.page_start_stored_frames.is_empty()
+            && st.current_height.abs() <= unit
+            && matches!(fragment.item, PageItem::FullParagraph { .. })
+            && para.controls.is_empty()
+            && !para.stored_text_partition_is_dirty()
+            && !para.cell_format_vpos_dirty
+            && fmt.computed_paragraph.is_none()
+            && fmt.spacing_before == 0.0
+            && fmt.spacing_after == 0.0
+            && !para.line_segs.is_empty()
+            && para.line_segs.len() == fmt.line_heights.len()
+            && para.line_segs.len() == fmt.line_spacings.len())
+        .then(|| {
+            let mut source_end = 0i32;
+            for (index, line) in para.line_segs.iter().enumerate() {
+                if is_synthetic_line_seg(line)
+                    || line.vertical_pos != source_end
+                    || line.line_height <= 0
+                    || line.line_spacing < 0
+                    || (fmt.line_heights[index] - hwpunit_to_px(line.line_height, dpi)).abs() > unit
+                    || (fmt.line_spacings[index] - hwpunit_to_px(line.line_spacing, dpi)).abs()
+                        > unit
+                {
+                    return None;
+                }
+                source_end = source_end
+                    .checked_add(line.line_height)?
+                    .checked_add(line.line_spacing)?;
+            }
+            let advance = hwpunit_to_px(source_end, dpi);
+            ((fragment.height - advance).abs() <= unit).then_some((st.current_height, advance))
+        })
+        .flatten();
+        // 새 단에 전량 수용한 재구성 본문도 측정한 앞 간격을 paint에 전달한다.
+        // 원본 캐시 축을 새로 주장하지 않고 이 frame의 실제 단 시작을 사용한다.
+        let first_full_computed_span = (st.col_count == 1
+            && st.current_items.is_empty()
+            && st.vpos_page_base.is_none()
+            && st.vpos_lazy_base.is_none()
+            && !st.profile.session_edited()
+            && !st.current_endnote_flow
+            && st.current_zone_y_offset == 0.0
+            && st.page_start_square_pictures.is_empty()
+            && st.page_start_stored_frames.is_empty()
+            && st.current_height.abs() <= unit
+            && matches!(fragment.item, PageItem::FullParagraph { .. })
+            && para.controls.is_empty()
+            && crate::renderer::para_has_no_stored_line_segs(para)
+            && !para.stored_text_partition_is_dirty()
+            && !para.cell_format_vpos_dirty
+            && fmt.computed_paragraph.as_ref().is_some_and(|computed| {
+                computed
+                    .lines
+                    .first()
+                    .is_some_and(|line| line.char_start == 0)
+            })
+            && (fragment.height - fmt.total_height).abs() <= unit)
+            .then_some((st.current_height, fragment.height));
+        // 첫 이어받기 조각의 저장 원점은 배치와 같은 확정 항목에서 읽는다.
+        // 이를 비워 두면 뒤 문단의 간격 트림을 쪽 원점으로 역산한다.
+        if st.col_count == 1
+            && st.current_items.is_empty()
+            && st.vpos_page_base.is_none()
+            && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
+            && !st.profile.session_edited()
+            && !para.stored_text_partition_is_dirty()
+            && !para.cell_format_vpos_dirty
+            && fmt.line_count() == para.line_segs.len()
+            && matches!(fragment.item, PageItem::PartialParagraph { .. })
+            && para
+                .line_segs
+                .get(cursor_line)
+                .is_some_and(|line| !is_synthetic_line_seg(line) && line.line_height > 0)
+        {
+            st.record_vpos_column_anchor(st.current_height);
+            st.record_vpos_page_origin(page_item_vpos_base(&fragment.item, paragraphs));
+            st.record_vpos_lazy_origin(None);
+            st.record_vpos_origin_provenance(true);
+            st.record_vpos_ladder_validity(false);
+        }
+        if !st.profile.session_edited() && !st.current_endnote_flow {
+            if let Some(composed) = &fmt.computed_paragraph {
+                st.record_computed_paragraph(para_idx, composed);
+            }
+        }
         st.commit_split_paragraph_fragment(fragment);
+        if let Some((flow_start, source_advance)) =
+            first_full_source_span.or(first_full_computed_span)
+        {
+            if (st.current_height - flow_start - source_advance).abs() <= unit {
+                st.record_paragraph_origin(crate::renderer::pagination::ParagraphOrigin {
+                    paragraph_index: para_idx,
+                    spacing_before: fmt.spacing_before,
+                    source_vpos_base: 0,
+                    flow_start,
+                    flow_end: st.current_height,
+                });
+            }
+        }
 
         if end_line >= line_count {
             break;
         }
 
         // move: 나머지 줄 → 다음 단/페이지
+        // 저장 상자부터 이전 본문을 넘긴 줄의 확정 컷이 새 쪽 경계를 소유한다.
+        // 뒤 문단의 저장 리셋이 이 경계를 중복 발행하지 않도록 실제 이동 후 기록한다.
+        let stored_boundary_carry = st.col_count == 1
+            && !st.profile.session_edited()
+            && para.controls.is_empty()
+            && !para.stored_text_partition_is_dirty()
+            && !para.cell_format_vpos_dirty
+            && para
+                .line_segs
+                .iter()
+                .all(|line| !is_synthetic_line_seg(line))
+            && current_page_vpos_base.is_some_and(|base| {
+                para.line_segs
+                    .get(end_line)
+                    .and_then(|line| super::line_seg_visible_bounds_px(line, base, dpi))
+                    .is_some_and(|(_, bottom)| bottom > st.base_available_height())
+            });
         st.advance_column_or_new_page();
+        if stored_boundary_carry {
+            st.record_stored_paragraph_boundary_carry(para_idx, end_line);
+        }
         cursor_line = end_line;
         on_entry_page = false;
     }
@@ -298,6 +428,11 @@ pub(super) fn place_fitted_paragraph(
     let defer_preceding_float =
         placement::defer_preceding_float(&st.current_items, paragraphs, para_idx, para);
     st.insert_fitted_paragraph(para_idx, defer_preceding_float);
+    if !st.profile.session_edited() && !st.current_endnote_flow {
+        if let Some(composed) = &fmt.computed_paragraph {
+            st.record_computed_paragraph(para_idx, composed);
+        }
+    }
     let stored_successor_flow =
         stored_successor_flow(st, para, fmt, paragraphs, styles, para_idx, dpi);
     if let Some((_, end)) = stored_successor_flow {
@@ -362,6 +497,17 @@ pub(super) fn place_fitted_paragraph(
                     st.vpos_page_base.is_none() && st.vpos_lazy_base.is_some(),
                 )
         };
+    record_computed_paragraph_run_origin(
+        st,
+        para_idx,
+        para,
+        fmt,
+        paragraphs,
+        styles,
+        advance,
+        trimmed_spacing_before,
+        dpi,
+    );
     // 다음 저장 표가 이 문단의 후행 간격을 사용할 수는 있어도
     // 실제 글줄 안으로 들어오면 안 된다. 수용에 쓴 구성 높이를 공유한다.
     if para.controls.is_empty()
@@ -442,9 +588,10 @@ pub(super) fn try_place_overflow_paragraph(
     body_bottom_vpos: Option<i32>,
     available: f64,
     forced_page_break_line: Option<usize>,
+    current_page_vpos_base: Option<i32>,
     dpi: f64,
 ) -> bool {
-    let page = st.paragraph_overflow_page();
+    let page = st.paragraph_overflow_page(current_page_vpos_base);
     if overflow::atomic_overflow_fits(para, fmt, paragraphs, para_idx, &page, available, dpi) {
         st.begin_atomic_overflow_paragraph(para_idx);
         let stored_flow = stored_successor_flow(st, para, fmt, paragraphs, styles, para_idx, dpi);
@@ -536,7 +683,7 @@ pub(super) fn place_after_failed_fit(
     stored_vpos_rewind_break: bool,
     stored_vpos_rewind_overflow_break: bool,
     forced_page_break_line: Option<usize>,
-    native_hwp5_existing_footnote_reset_line: Option<usize>,
+    native_hwp5_existing_footnote_boundary: Option<NativeHwp5FootnoteBodyBoundary>,
     current_page_vpos_base: Option<i32>,
     dpi: f64,
 ) {
@@ -602,7 +749,8 @@ pub(super) fn place_after_failed_fit(
     }
 
     // Task #332 Stage 4a: partial split 시에도 동일 마진 적용
-    let base_available = (st.base_available_height() - layout_drift_safety_px).max(0.0);
+    // 줄 스캔이 안전 여백을 한 번 소비한다. 여기서는 물리 본문 예산을 넘긴다.
+    let base_available = st.base_available_height();
 
     let entry_fit = split_entry::inspect_entry(
         para,
@@ -619,15 +767,20 @@ pub(super) fn place_after_failed_fit(
     {
         st.mark_blank_paragraph_spill(para_idx);
     }
-    if split_entry::should_advance(
-        para,
-        &entry_fit,
-        available,
-        stored_vpos_rewind_break,
-        stored_vpos_rewind_overflow_break,
-        &st.paragraph_split_entry_page(),
-        dpi,
-    ) {
+    // 각주 원장이 저장 좌표와 현재 흐름으로 확정한 앞조각은 이 쪽의 소유다.
+    // 진입의 안전 여백 추정으로 다시 이월하면 같은 컷을 쓰는 줄 스캔 전에
+    // 불필요한 꼬리 전용 쪽을 만든다. 미확정 문단은 기존 진입 검사를 유지한다.
+    if native_hwp5_existing_footnote_boundary.is_none()
+        && split_entry::should_advance(
+            para,
+            &entry_fit,
+            available,
+            stored_vpos_rewind_break,
+            stored_vpos_rewind_overflow_break,
+            &st.paragraph_split_entry_page(),
+            dpi,
+        )
+    {
         st.advance_column_or_new_page();
     }
 
@@ -641,7 +794,7 @@ pub(super) fn place_after_failed_fit(
         base_available,
         layout_drift_safety_px,
         forced_page_break_line,
-        native_hwp5_existing_footnote_reset_line,
+        native_hwp5_existing_footnote_boundary,
         current_page_vpos_base,
         is_tac_picture_stack,
         dpi,
@@ -703,7 +856,15 @@ pub(super) fn prepare_fit_budget(
     }
 
     let strict_after_empty_host_float = st.take_strict_paragraph_fit(para);
-    let layout_drift_safety_px = fit::layout_drift_safety_px(paragraphs);
+    let layout_drift_safety_px = if fmt.computed_paragraph.is_some()
+        && !st.profile.session_edited()
+        && !st.current_endnote_flow
+    {
+        // 같은 구성 결과를 배치에 보내므로 실제 콘텐츠 상자로 fit을 판정한다.
+        0.0
+    } else {
+        fit::layout_drift_safety_px(paragraphs)
+    };
     let prev_is_partial_table =
         matches!(st.current_items.last(), Some(PageItem::PartialTable { .. }));
     let safety = st.take_paragraph_safety_margin(
@@ -823,6 +984,7 @@ pub(super) fn decide_whole_fit(
     dpi: f64,
 ) -> WholeFitDecision {
     let whole_fit::WholeFitEvidence {
+        stored_first_line_bottom_outside_body,
         saved_single_line_bottom_fits,
         saved_list_tail_body_vpos_fits,
         page_end_fit_height,
@@ -874,6 +1036,7 @@ pub(super) fn decide_whole_fit(
     }
     WholeFitDecision {
         fits: forced_page_break_line.is_none()
+            && !stored_first_line_bottom_outside_body
             && !stored_vpos_rewind_break
             && (hangul2024_blank_spill
                 || st.current_height + page_end_fit_height <= available
@@ -886,7 +1049,7 @@ pub(super) fn decide_whole_fit(
 
 /// 기존 각주 경계는 선택된 강제 경계와 별도로 후속 줄 스캔에서도 소비한다.
 pub(super) struct ForcedPageBoundary {
-    pub native_hwp5_existing_footnote_reset_line: Option<usize>,
+    pub native_hwp5_existing_footnote_boundary: Option<NativeHwp5FootnoteBodyBoundary>,
     pub current_page_vpos_base: Option<i32>,
     pub forced_page_break_line: Option<usize>,
 }
@@ -906,14 +1069,8 @@ pub(super) fn prepare_forced_page_boundary(
     // native HWP5 본문은 기존 각주가 있는 page tail에서도 `vpos=0` reset으로
     // 다음 physical page를 기록할 수 있다. 일반 reset은 과분할 위험이 있으므로,
     // 실제 FootnoteArea 경계와 source/flow가 함께 맞을 때만 강제 경계로 쓴다.
-    let native_hwp5_existing_footnote_reset_line =
-        native_hwp5_existing_footnote_reset_overlap_break_line(
-            st,
-            para,
-            fmt,
-            paragraphs,
-            note_measure,
-        );
+    let native_hwp5_existing_footnote_boundary =
+        native_hwp5_existing_footnote_reset_boundary(st, para, fmt, paragraphs, note_measure);
     // 흐름 스냅이 이미 확정한 지연 기준은 마지막 줄·내부 쪽 경계도 함께 소비한다.
     // 첫 빈 개체 호스트의 저장 위치는 표 밴드 뒤의 줄일 수 있어 쪽 원점으로 다시 쓰지 않는다.
     let current_page_vpos_base = st.vpos_page_base.or(st.vpos_lazy_base).or_else(|| {
@@ -1007,9 +1164,9 @@ pub(super) fn prepare_forced_page_boundary(
         })
         // full-fit early return보다 앞의 같은 chain에 넣어야 reset tail을 통째로
         // 배치해 separator와 겹치는 우회가 없다.
-        .or(native_hwp5_existing_footnote_reset_line);
+        .or(native_hwp5_existing_footnote_boundary.map(|boundary| boundary.break_line));
     ForcedPageBoundary {
-        native_hwp5_existing_footnote_reset_line,
+        native_hwp5_existing_footnote_boundary,
         current_page_vpos_base,
         forced_page_break_line,
     }
@@ -1054,4 +1211,94 @@ pub(super) fn try_place_multicolumn_paragraph(
         }
     }
     true
+}
+
+/// 실제 구성/소비가 후속 원본 줄로 닫힐 때 연속 문단의 원점을 함께 확정한다.
+#[allow(clippy::too_many_arguments)]
+fn record_computed_paragraph_run_origin(
+    st: &mut TypesetState,
+    para_idx: usize,
+    para: &Paragraph,
+    fmt: &FormattedParagraph,
+    paragraphs: &[Paragraph],
+    styles: &ResolvedStyleSet,
+    advance: f64,
+    trimmed_spacing_before: f64,
+    dpi: f64,
+) {
+    let tolerance = dpi / 7200.0;
+    if st.profile.session_edited()
+        || st.col_count != 1
+        || st.current_endnote_flow
+        || st.current_zone_y_offset != 0.0
+        || !st.current_height.is_finite()
+        || st.current_height < 0.0
+        || !st.page_start_square_pictures.is_empty()
+        || !st.page_start_stored_frames.is_empty()
+        || !matches!(st.current_items.last(), Some(PageItem::FullParagraph { para_index }) if *para_index == para_idx)
+        || !crate::renderer::para_has_no_stored_line_segs(para)
+        || (!para.line_segs.is_empty() && fmt.computed_paragraph.is_none())
+        || !para.controls.is_empty()
+        || para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+        || fmt.line_count() == 0
+        || !fmt.spacing_before.is_finite()
+        || fmt.spacing_before < 0.0
+        || !advance.is_finite()
+        || advance <= 0.0
+        || trimmed_spacing_before != 0.0
+        || (advance - fmt.total_height).abs() > tolerance
+    {
+        st.discard_pending_paragraph_origins();
+        return;
+    }
+    st.queue_paragraph_origin(para_idx, fmt.spacing_before, advance, tolerance);
+    let Some(next) = paragraphs.get(para_idx + 1) else {
+        return;
+    };
+    // 빈 문단도 아래에서 확인하는 양의 원본 줄을 소유한다. 가시 글자 유무로
+    // 실제 줄 점유를 대신 판정하지 않는다. TAC 호스트도 자체 흐름 줄을 소유한다.
+    // 비TAC/절대/배경 개체는 현재 본문 소비를 입증하는 기준점이 아니다.
+    let next_has_flow_owner = if next.controls.is_empty() {
+        true
+    } else {
+        next.controls.iter().all(|control| {
+            matches!(control, crate::model::control::Control::Table(table)
+                if table.common.treat_as_char)
+        })
+    };
+    if !next_has_flow_owner
+        || next.column_type != crate::model::paragraph::ColumnBreakType::None
+        || next.stored_text_partition_is_dirty()
+        || next.cell_format_vpos_dirty
+        || !next
+            .line_segs
+            .iter()
+            .all(|line| !is_synthetic_line_seg(line) && line.line_height > 0)
+    {
+        return;
+    }
+    let (Some(line), Some(style)) = (
+        next.line_segs.first(),
+        styles.para_styles.get(next.para_shape_id as usize),
+    ) else {
+        return;
+    };
+    let source = next
+        .source_line_seg_vertical_pos
+        .as_ref()
+        .and_then(|positions| positions.first())
+        .copied()
+        .unwrap_or(line.vertical_pos);
+    let expected =
+        crate::renderer::px_to_hwpunit(st.current_height + advance + style.spacing_before, dpi);
+    if source > 0
+        && source.saturating_add(line.line_height)
+            <= crate::renderer::px_to_hwpunit(st.layout.body_area.height, dpi)
+        && (i64::from(source) - i64::from(expected)).abs() <= 1
+    {
+        if let Some(base) = line.vertical_pos.checked_sub(source) {
+            st.confirm_pending_paragraph_origins(base);
+        }
+    }
 }
