@@ -16538,7 +16538,12 @@ impl LayoutEngine {
                                 .first()
                                 .map(|ls| hwpunit_to_px(ls.line_height + ls.line_spacing, self.dpi))
                                 .unwrap_or(0.0);
-                            result_y = result_y.max(y_offset + line_advance);
+                            // 빈 호스트 줄은 FullParagraph가 이미 소비할 수 있다.
+                            // 개체 항목의 현재 커서에서 다시 더하지 않고 같은 호스트
+                            // 원점의 줄 끝을 공유한다. 줄이 생략됐어도 한 번은 진행한다.
+                            let host_origin =
+                                para_start_y.get(&para_index).copied().unwrap_or(y_offset);
+                            result_y = result_y.max(host_origin + line_advance);
                         }
                     } else if !common.treat_as_char
                         && matches!(
