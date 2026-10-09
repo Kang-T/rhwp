@@ -290,27 +290,89 @@ fn sample16_hwp3_page3_latin_font_matches_legacy_hancom_mapping() {
 
 #[test]
 fn sample16_hwp5_page3_heading_positions_follow_lineseg_vpos() {
-    let svg = render_svg("samples/hwp3-sample16-hwp5.hwp", 2);
-    let twos = extract_text_positions(&svg, "2");
-    let threes = extract_text_positions(&svg, "3");
+    // 독립 Print 3쪽의 제목 순서와 문단 소속을 지킨다.
+    // PDF 잉크 상단을 SVG 기준선의 절대 좌표로 고정하지 않는다.
+    let doc = load_doc("samples/hwp3-sample16-hwp5.hwp");
+    let page = doc.build_page_render_tree(2).expect("3쪽 렌더 트리");
+    let mut preceding_bottom = None;
+    for title in ["1. 추진목적", "2. 추진방향", "3. 주요 추진내용"] {
+        let index = sample16_paragraph_index(&doc, title);
+        let lines = sample16_body_lines(&page.root, index);
+        assert_eq!(lines.len(), 1, "3쪽 제목을 한 번만 표시해야 한다: {title}");
+        let line = lines[0];
+        assert_eq!(compact_text(&sample16_line_text(line)), compact_text(title));
+        if let Some(bottom) = preceding_bottom {
+            assert!(
+                line.bbox.y >= bottom,
+                "제목의 순서·점유가 겹치면 안 된다: {title}"
+            );
+        }
+        preceding_bottom = Some(line.bbox.y + line.bbox.height);
+    }
+}
 
-    let heading2 = twos
-        .iter()
-        .find(|(x, y)| (*x - 83.36).abs() < 1.0 && (*y - 337.2).abs() < 2.0)
-        .copied();
-    assert!(
-        heading2.is_some(),
-        "p3 `2. 추진방향` heading digit must match the 3mm-grid Hancom PDF y≈337.2: {twos:?}"
-    );
+fn compact_text(text: &str) -> String {
+    text.chars().filter(|ch| !ch.is_whitespace()).collect()
+}
 
-    let heading3 = threes
+fn sample16_paragraph_index(doc: &rhwp::wasm_api::HwpDocument, text: &str) -> usize {
+    let paragraphs = &doc.document().sections[0].paragraphs;
+    // 목차와 뒤 장의 반복 문구를 본문 첫 장의 소유 문단으로 오인하지 않는다.
+    let chapter_start = paragraphs
         .iter()
-        .find(|(x, y)| (*x - 83.36).abs() < 1.0 && (*y - 749.3).abs() < 2.0)
-        .copied();
-    assert!(
-        heading3.is_some(),
-        "p3 `3. 주요 추진내용` heading digit must match the 3mm-grid Hancom PDF y≈749.3: {threes:?}"
-    );
+        .rposition(|para| compact_text(&para.text) == compact_text("Ⅰ. 사업개요"))
+        .expect("원본 첫 장 제목");
+    let chapter_end = paragraphs
+        .iter()
+        .enumerate()
+        .skip(chapter_start + 1)
+        .find(|(_, para)| compact_text(&para.text).starts_with("Ⅱ."))
+        .map(|(index, _)| index)
+        .expect("원본 다음 장 제목");
+    paragraphs
+        .iter()
+        .enumerate()
+        .take(chapter_end)
+        .skip(chapter_start + 1)
+        .find(|(_, para)| compact_text(&para.text).contains(&compact_text(text)))
+        .map(|(index, _)| index)
+        .unwrap_or_else(|| panic!("원본 본문에서 처음 등장하는 문단: {text}"))
+}
+
+fn sample16_body_lines(
+    root: &rhwp::renderer::render_tree::RenderNode,
+    index: usize,
+) -> Vec<&rhwp::renderer::render_tree::RenderNode> {
+    use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
+    fn visit<'a>(node: &'a RenderNode, index: usize, out: &mut Vec<&'a RenderNode>) {
+        if !node.visible || node.editor_only {
+            return;
+        }
+        if let RenderNodeType::TextLine(line) = &node.node_type {
+            if line.section_index == Some(0) && line.para_index == Some(index) {
+                out.push(node);
+                return;
+            }
+        }
+        for child in &node.children {
+            visit(child, index, out);
+        }
+    }
+    let mut lines = Vec::new();
+    visit(root, index, &mut lines);
+    lines
+}
+
+fn sample16_line_text(node: &rhwp::renderer::render_tree::RenderNode) -> String {
+    use rhwp::renderer::render_tree::RenderNodeType;
+    let mut text = String::new();
+    if let RenderNodeType::TextRun(run) = &node.node_type {
+        text.push_str(run.display_or_text());
+    }
+    for child in &node.children {
+        text.push_str(&sample16_line_text(child));
+    }
+    text
 }
 
 #[test]
@@ -359,40 +421,61 @@ fn sample16_hwp5_page3_dump_pages_reports_line_spacing_in_height() {
 #[test]
 fn sample16_hwp5_page3_dump_pages_summary_uses_lineseg_spacing() {
     let doc = load_doc("samples/hwp3-sample16-hwp5.hwp");
-    let dump = doc.dump_page_items(Some(2));
-    // #1648 수정으로 페이지 하단 빈 문단(pi=87)이 한컴처럼 page3 에 배치(items 19→20).
-    // 단, pi=87은 가시 내용이 없는 trailing 빈 문단이므로 시각 사용 높이 used는
-    // 2022 변환본(items=19)과 같은 경계를 유지해야 한다.
-    let summary = dump
-        .lines()
-        .find(|line| line.contains("단 0 (items=20"))
-        .unwrap_or_else(|| panic!("p3 단 요약을 찾을 수 없음:\n{dump}"));
-
+    let last_visible = sample16_paragraph_index(&doc, "활용방안 수립");
+    let empty_tail = last_visible + 1;
+    let source = &doc.document().sections[0].paragraphs[empty_tail];
     assert!(
-        summary.contains("used=874.5px")
-            && summary.contains("hwp_used≈841.6px")
-            && summary.contains("diff=+32.9px"),
-        "p3 단 요약은 trailing 빈 문단을 items에 유지하되 시각 사용 높이는 2022 기준과 같은 경계를 유지해야 함: {summary}"
+        source.text.trim().is_empty(),
+        "원본의 마지막 빈 문단을 검사한다"
+    );
+    assert!(source.line_segs.iter().any(|line| line.line_spacing > 0));
+    let dump = doc.dump_page_items_json(Some(2));
+    let items = dump[0]["columns"][0]["items"].as_array().expect("3쪽 항목");
+    let tail = items
+        .iter()
+        .find(|item| item["paraIndex"].as_u64() == Some(empty_tail as u64))
+        .expect("빈 문단도 3쪽 항목 소유를 유지해야 한다");
+    assert_eq!(tail["kind"], "fullParagraph");
+    assert!(
+        tail["height"]["lineSpacingSum"]
+            .as_f64()
+            .expect("빈 문단 줄 간격")
+            > 0.0
+    );
+    let page = doc.build_page_render_tree(2).expect("3쪽 렌더 트리");
+    let preceding = sample16_body_lines(&page.root, last_visible);
+    let blank = sample16_body_lines(&page.root, empty_tail);
+    assert_eq!(blank.len(), 1, "빈 문단의 줄 소유를 유지해야 한다");
+    assert!(
+        sample16_line_text(blank[0]).trim().is_empty(),
+        "빈 줄에 글자를 복제하지 않는다"
+    );
+    let bottom = preceding
+        .iter()
+        .map(|line| line.bbox.y + line.bbox.height)
+        .reduce(f64::max)
+        .expect("마지막 가시 문단");
+    assert!(
+        blank[0].bbox.y >= bottom,
+        "빈 줄 점유가 마지막 가시 줄과 겹치면 안 된다"
     );
 }
 
 #[test]
 fn sample16_hwp5_page3_bcp_tail_paragraph_stays_single_visual_line_for_pdf_oracle() {
     let doc = load_doc("samples/hwp3-sample16-hwp5.hwp");
-    let dump = doc.dump_page_items(Some(2));
-    let p83 = dump
-        .lines()
-        .find(|line| line.contains("FullParagraph  pi=83"))
-        .unwrap_or_else(|| panic!("p3 pi=83 dump line not found:\n{dump}"));
-
-    // #4628: 프로덕션 format_paragraph total(sb + lines + sa). 2022 표본과
-    // 같이 HeightMeasurer 합 31.5 가 아니라 29.6 이다. 한 줄 접힘은 유지.
-    assert!(
-        p83.contains("h=29.6")
-            && p83.contains("lines=27.7")
-            && p83.contains("lh=17.3")
-            && p83.contains("ls=10.4"),
-        "p83 BCP 문단은 한컴 PDF 정답지처럼 단일 시각 줄로 유지되어야 함: {p83}"
+    let index = sample16_paragraph_index(&doc, "공사 정보처리 연속성 확보");
+    let page = doc.build_page_render_tree(2).expect("3쪽 렌더 트리");
+    let lines = sample16_body_lines(&page.root, index);
+    assert_eq!(lines.len(), 1, "독립 PDF의 BCP 문단은 3쪽 한 줄에 속한다");
+    let original = &doc.document().sections[0].paragraphs[index].text;
+    let expected = &original[original.find("공사 정보처리").expect("원본 BCP 시작")..];
+    let painted = sample16_line_text(lines[0]);
+    let actual = &painted[painted.find("공사 정보처리").expect("출력 BCP 시작")..];
+    assert_eq!(
+        compact_text(actual),
+        compact_text(expected),
+        "BCP 문단의 꼬리·내용을 빠뜨리거나 복제하지 않는다"
     );
 }
 
