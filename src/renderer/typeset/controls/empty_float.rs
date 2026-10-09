@@ -46,6 +46,7 @@ pub(super) fn prepare(
     table: &crate::model::table::Table,
     ft: &FormattedTable,
     composed: Option<&ComposedParagraph>,
+    prev_para: Option<&Paragraph>,
     next_para: Option<&Paragraph>,
     styles: &ResolvedStyleSet,
     para_start_height: f64,
@@ -220,6 +221,20 @@ pub(super) fn prepare(
     let stored_single_topbottom_top = legacy_stored_top.or(outer_box_flow_top);
     // 원본 후속 줄이 본체·캡션·양쪽 여백의 바깥 상자를 정확히 닫으면 그 원점·끝을
     // lane 예약과 실제 출력에 공유한다. 일반 캡션 측정 원점은 증거가 없을 때 쓴다.
+    // 직전 문단의 저장 위치보다 되감긴 호스트는 새 쪽의 저장 원점을 가진다.
+    // 닫힌 바깥 상자가 확인된 경우에만 같은 원점을 예약과 출력에 전달한다.
+    let rewound_host_origin =
+        crate::renderer::float_placement::native_empty_topbottom_rewind_anchor_saved_para_y(
+            page.profile.hwp5_stored_pagination_layout(),
+            prev_para,
+            para,
+            next_para,
+            table,
+            column_area.y + para_start_height,
+            &column_area,
+            dpi,
+        )
+        .map(|origin| origin - column_area.y);
     let closed_control_frame = (!page.profile.session_edited()
         && (page.profile.hwp5_stored_pagination_layout() || page.profile.hwpx_stored_layout())
         && page.layout.column_areas.len() == 1
@@ -247,12 +262,12 @@ pub(super) fn prepare(
                 dpi,
             )?;
             if uses_host_flow_origin {
-                frame.anchor_y += para_start_height;
-                frame.table_top += para_start_height;
-                frame.occupied_bottom += para_start_height;
-                frame.stored_successor_line_origin = frame
-                    .stored_successor_line_origin
-                    .map(|y| y + para_start_height);
+                let host_origin = rewound_host_origin.unwrap_or(para_start_height);
+                frame.anchor_y += host_origin;
+                frame.table_top += host_origin;
+                frame.occupied_bottom += host_origin;
+                frame.stored_successor_line_origin =
+                    frame.stored_successor_line_origin.map(|y| y + host_origin);
             }
             Some(frame)
         })
@@ -426,7 +441,11 @@ pub(super) fn prepare(
         });
     let control_resolved = control_frame.map(|mut frame| {
         let lane_shift = lane_top - frame.anchor_y;
-        frame.anchor_y = para_start_height;
+        frame.anchor_y = if closed_control_frame.is_some() {
+            rewound_host_origin.unwrap_or(para_start_height)
+        } else {
+            para_start_height
+        };
         frame.table_top += lane_shift;
         frame.occupied_bottom += lane_shift;
         frame

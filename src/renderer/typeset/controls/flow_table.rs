@@ -128,6 +128,9 @@ pub(in crate::renderer::typeset) fn place(
         table,
         &ft,
         composed,
+        para_idx
+            .checked_sub(1)
+            .and_then(|index| paragraphs_all.get(index)),
         next_para,
         styles,
         para_start_height,

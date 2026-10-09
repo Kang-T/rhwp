@@ -17,6 +17,68 @@ use super::layout::picture_flow_frame_size_hu;
 use super::layout_frame::{FrameExclusion, FrameExclusionPolicy, LayoutFrame};
 use super::page_layout::LayoutRect;
 
+/// [#6032] 직전 문단에서 저장 vpos가 **되감기면** 이 빈-host 자리차지 표는 한글이
+/// 새 쪽 첫 흐름 anchor로 배치한 개체다 (직전 쪽 말미 anchor의 표가 다음 쪽으로
+/// 흘러넘친 뒤). 한글은 넘친 표 아래 흐름을 outer margin만큼만 전진시키는 반면
+/// rhwp 흐름은 host 줄 간격까지 계상해 소폭 아래로 표류하고, 그 위에
+/// `vertical_offset`이 다시 얹혀 표 하단 괘선이 다음 문단 글줄을 관통한다
+/// (2912695 p2 "작성요령" 표 +6.1pt). 흐름이 저장 anchor 근방일 때만 저장 vpos로
+/// host y를 되감는다 — 큰 격차는 pagination 자체가 다른 경우라 손대지 않는다.
+pub(crate) fn native_empty_topbottom_rewind_anchor_saved_para_y(
+    native_hwp5_layout: bool,
+    prev_para: Option<&Paragraph>,
+    para: &Paragraph,
+    next_para: Option<&Paragraph>,
+    table: &crate::model::table::Table,
+    flow_para_y: f64,
+    col_area: &LayoutRect,
+    dpi: f64,
+) -> Option<f64> {
+    const MAX_REWIND_DRIFT_PX: f64 = 24.0;
+    if !native_hwp5_layout
+        || para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}')
+        || !is_para_topbottom_float(&table.common)
+        || !matches!(
+            table.common.vert_rel_to,
+            crate::model::shape::VertRelTo::Para
+        )
+        || para
+            .controls
+            .iter()
+            .filter(|control| matches!(control, Control::Table(_)))
+            .count()
+            != 1
+    {
+        return None;
+    }
+    let stored_vpos = |paragraph: &Paragraph| {
+        paragraph
+            .line_segs
+            .iter()
+            .rev()
+            .find(|seg| {
+                seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+            })
+            .map(|seg| seg.vertical_pos)
+    };
+    let host_vpos = stored_vpos(para)?;
+    let prev_vpos = stored_vpos(prev_para?)?;
+    let next_vpos = stored_vpos(next_para?)?;
+    // 되감김(쪽 경계 신호) + 다음 문단이 같은 쪽에서 host 아래로 이어지는지 확인 —
+    // 이 두 조건이 host vpos가 새 쪽의 page-relative 좌표임을 뒷받침한다.
+    if host_vpos <= 0 || host_vpos >= prev_vpos || next_vpos <= host_vpos {
+        return None;
+    }
+    let saved_para_y = col_area.y + hwpunit_to_px(host_vpos, dpi);
+    let drift = flow_para_y - saved_para_y;
+    if !(0.0 < drift && drift <= MAX_REWIND_DRIFT_PX) {
+        return None;
+    }
+    let v_off = hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), dpi).max(0.0);
+    let bottom = saved_para_y + v_off + hwpunit_to_px(table.common.height as i32, dpi);
+    (bottom <= col_area.y + col_area.height + 0.5).then_some(saved_para_y)
+}
+
 /// 글자 없는 셀 문단의 흐름 그림과 오버레이 도형은 하나의 문단 원점을 공유한다.
 /// 셀 콘텐츠 측정은 이미 이 개체들의 끝점을 함께 사용한다. 그림 하나만 다시
 /// 셀 가운데/아래로 정렬하면 함께 저장된 그림 틀에서 분리된다.
