@@ -115,8 +115,16 @@ impl LayoutEngine {
                                 && peer.col != cell.col
                                 && self.first_source_frame_owner(table, peer, styles).is_some()
                         });
+                    // An ordinary row's authenticated object frame can retain
+                    // blank space after the line advance. The following local
+                    // restart still belongs to the next physical fragment.
+                    let ordinary_source_restart = cell.row_span == 1
+                        && unit.page_frame_reset_before
+                        && units[index - 1].para_idx == unit.para_idx;
                     return (opening + epsilon >= ink
-                        && (opening < advance + padding || independently_closed_span))
+                        && (opening < advance + padding
+                            || independently_closed_span
+                            || ordinary_source_restart))
                         .then_some((index, opening));
                 }
                 if i64::from(line.vertical_pos)
@@ -126,11 +134,26 @@ impl LayoutEngine {
                 {
                     return None;
                 }
-            } else if line.vertical_pos != 0 {
-                return None;
+            } else {
+                // A real paragraph's leading spacing is part of its first
+                // line origin. Authenticate it against the independent style
+                // instead of treating every positive origin as stale alignment.
+                let before = styles
+                    .para_styles
+                    .get(cell.paragraphs.get(unit.para_idx)?.para_shape_id as usize)?
+                    .spacing_before;
+                let origin = hwpunit_to_px(line.vertical_pos, self.dpi);
+                if origin < 0.0 || (origin != 0.0 && (origin - before).abs() > epsilon) {
+                    return None;
+                }
             }
             let source_advance =
-                hwpunit_to_px(line.line_height.checked_add(line.line_spacing)?, self.dpi);
+                hwpunit_to_px(line.line_height.checked_add(line.line_spacing)?, self.dpi)
+                    + if previous.is_none() {
+                        hwpunit_to_px(line.vertical_pos, self.dpi)
+                    } else {
+                        0.0
+                    };
             if (unit.height - source_advance).abs() > epsilon {
                 return None;
             }
@@ -138,6 +161,51 @@ impl LayoutEngine {
             previous = Some(line);
         }
         None
+    }
+
+    /// A partial opening row has one physical height even when a sibling has
+    /// finished. Every unfinished owner must restart at this same source cut.
+    pub(crate) fn row_cut_first_source_frame_height(
+        &self,
+        table: &Table,
+        row: usize,
+        start_cut: &[usize],
+        end_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> Option<f64> {
+        if !start_cut.is_empty() || end_cut.is_empty() {
+            return None;
+        }
+        let cells = Self::row_cut_cell_order(table, row);
+        if cells.len() != end_cut.len() {
+            return None;
+        }
+        let epsilon = hwpunit_to_px(2, self.dpi);
+        let mut frame: Option<f64> = None;
+        let mut completed_height = 0.0f64;
+        for (&index, &end) in cells.iter().zip(end_cut) {
+            let cell = &table.cells[index];
+            if !self.stored_plain_text_cell_frame(table, cell) {
+                return None;
+            }
+            let units = self.cell_units(cell, table, styles);
+            if units.is_empty() || end == 0 || end > units.len() {
+                return None;
+            }
+            if end < units.len() {
+                let (owner, opening) = self.first_source_frame_owner(table, cell, styles)?;
+                if owner != end || frame.is_some_and(|height| (height - opening).abs() > epsilon) {
+                    return None;
+                }
+                frame = Some(opening);
+            } else {
+                let pad = cell.effective_padding(&table.padding);
+                let height = units.iter().map(|unit| unit.height).sum::<f64>()
+                    + hwpunit_to_px(i32::from(pad.top) + i32::from(pad.bottom), self.dpi);
+                completed_height = completed_height.max(height);
+            }
+        }
+        frame.filter(|height| completed_height <= *height)
     }
 
     pub(super) fn stored_span_partial_first_frame_owner(

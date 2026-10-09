@@ -971,7 +971,15 @@ impl TypesetEngine {
                     row_start_cut,
                     &res.end_cut,
                     styles,
-                ));
+                ) || layout_engine
+                    .row_cut_first_source_frame_height(
+                        table,
+                        r,
+                        row_start_cut,
+                        &res.end_cut,
+                        styles,
+                    )
+                    .is_some());
             // [Task #713] sliver(orphan) 회피 — 일반 표는 기존 content-only 기준을
             // 유지한다. 패딩 포함 painted 기준은 좁은 #2439 strict 표, saved internal
             // reset, 그리고 선언 높이보다 큰 1×1 child가 실제 multi-unit으로 검증된

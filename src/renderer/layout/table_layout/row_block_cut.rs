@@ -58,11 +58,22 @@ impl<'a> CellCutFrame<'a> {
             self.styles,
         );
         let content = (content_advance - trim).max(0.0) + self.header_height(end);
-        if content > 0.0 {
+        let physical = if content > 0.0 {
             content + self.padding
         } else {
             0.0
+        };
+        if self.start == 0 {
+            if let Some((owner, opening)) =
+                self.engine
+                    .first_source_frame_owner(self.table, self.cell, self.styles)
+            {
+                if end == owner {
+                    return physical.max(opening);
+                }
+            }
         }
+        physical
     }
 }
 

@@ -25200,7 +25200,8 @@ impl LayoutEngine {
                 max_h = h;
             }
         }
-        max_h
+        self.row_cut_first_source_frame_height(table, row, start_cut, end_cut, styles)
+            .map_or(max_h, |height| max_h.max(height))
     }
 
     /// 새 physical page에 온전히 들어갈 1×1 중첩 표 래퍼의 선행 문단 묶음을
