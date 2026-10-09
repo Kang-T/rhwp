@@ -4,7 +4,9 @@ mod stored_complete_block_cut;
 mod stored_plain_row_frame;
 mod stored_span_content;
 mod stored_span_reservation;
+mod stored_span_row_owner;
 mod stored_zero_origin;
+mod unit_diagnostics;
 
 use super::super::composer::{compose_paragraph, ComposedLine, ComposedParagraph};
 use super::super::height_measurer::{
@@ -12667,6 +12669,7 @@ impl LayoutEngine {
                     unit.hard_break_before, unit.stored_frame_break_before);
             }
         }
+        unit_diagnostics::trace_units(cell, &units);
         if let Some(started) = issue2424_started {
             use std::sync::atomic::Ordering::Relaxed;
             ISSUE2424_CELL_UNITS_MISSES.fetch_add(1, Relaxed);
@@ -24813,6 +24816,11 @@ impl LayoutEngine {
                 prior_h += self.row_cut_content_height(table, start_row, &[], start_cut, styles);
             }
         }
+        let whole_source_rows =
+            start_cut.is_empty() && start_row_height_override.is_none() && end_cut.is_empty();
+        let saved_start_owner = whole_source_rows
+            .then(|| self.stored_span_row_boundary_owner(table, cell, start_row, styles))
+            .flatten();
         if straddles_start {
             if let Some(index) = table
                 .cells
@@ -24839,6 +24847,8 @@ impl LayoutEngine {
             if resumes_stored_opening {
                 // 앞 조각이 소비한 첫 원본 유닛을 이어받는다. 실제 carry 컷이 우선한다.
                 1
+            } else if let Some(owner) = saved_start_owner {
+                owner
             } else if prior_h > 0.0 {
                 let fit = self.cell_units_fitting_height(cell, table, styles, prior_h - pad_top);
                 self.snap_units_to_stored_cell_reset(cell, table, styles, 0, fit)
@@ -24861,6 +24871,10 @@ impl LayoutEngine {
             } else {
                 prior_h + cell_height
             };
+            let owner = whole_source_rows
+                .then(|| self.stored_span_row_boundary_owner(table, cell, end_row, styles))
+                .flatten();
+            owner.unwrap_or_else(|| {
             let accepted_height = (consumed_end - prior_h).max(0.0);
             // Rebase the budget at the actual accepted content cursor. A saved reset
             // can snap that cursor backward; original physical rows no longer give
@@ -24874,9 +24888,11 @@ impl LayoutEngine {
                 fit += 1;
             }
             self.snap_units_to_stored_cell_reset(cell, table, styles, su, fit)
+            }).max(su)
         } else {
             usize::MAX
         };
+        unit_diagnostics::trace_span_cut(cell, start_row, end_row, prior_h, cell_height, su, eu);
         (su, eu)
     }
 
