@@ -208,3 +208,15 @@ WASM 비교는 첫 원본 export에서 `setHangul2024Compat` 부재로 중단됐
 독립 원문 Print 번호와 실제 두 backend의 render tree를374·375·376쪽에서 대조했다. 표시366·368의 짝수 쪽은 Header 번호만, 표시367의 홀수 쪽은 Footer 번호만 소유한다. 수정 전375쪽의 Header/Footer 중복과 수정 후 Footer 단독을 기록했다(`batch5-hf-parity-check.json`). `displayText`의 실제 자동 번호를 검사했으며 원시`text`의 공백을 번호 부재로 오인하지 않았다. 이 진단은 정식 회귀 검사를 대신하지 않는다.
 
 고정 base를 전달한 manifest48/48 target 검사와 source unit tier4149 tests 검사는 각각 exit0이다(`batch5-base-policy-checks.json`). 원 PR7개는 원격에서 모두 open이며 기록한 contributor head와 동일함을 재확인했다(`batch5-remote-pr-heads.json`). 현재 HWP/HWPX의 Native 전체383쪽 비교를 실행 중이다. 전체 fresh WASM 비교·분할 반례의 정식 회귀·전체 nextest·세 Clippy·실제 출력 backend·각 PR 최종 검토는 아직 미완료이므로 보류 판정을 유지한다. 새 rendering test/baseline과 원격 push·통합 PR은 아직 추가하지 않았다.
+
+#### 242쪽 이월 오류의 공통 끝점 보완 후보 — 2026-10-10
+
+`0a8ac9f82`의 HWP fresh WASM 전383쪽도 종료됐다. 미달은242쪽44.16538% 하나이며, 앞서 완료한 HWP Native44.16228%, HWPX Native/fresh WASM43.99893%와 같은 행 소유 오류다. 실제 전쪽 결과는 `candidate-0a8ac9f82-wasm-handbook-hwp-full/provenance.json`에 보존한다. 4개 조합의382쪽 통과를 전체 gate 통과로 바꾸지 않는다.
+
+같은 원본을 고정된 Native 실행파일 `f97144651`과 `bc254b8a5`로 진단했다. section7 host408의 첫 컷은 원래0..11/이어받기11..13에서0..9/9..13으로 달라졌으며 셀별 줄 높이는 같다. 이전 표405의 컷·이어받기 점유도 같다. 차이는 제목407에서 전체49.3px를 누적한 흐름으로, 다음 표 진입이242.4→275.0px가 됐다. 실제 제목 원점과 표 원점은 두 실행의 paint에서 같지만 이 추가 예약 때문에 두 행이242쪽으로 이월된다. 기록은 `batch6-242-{cut,budget,flow}-history/`에 원본·binary·source hash와 명령·실제 JSON·진단 로그를 연결한다. 전역 내용 중복이 아니라 쪽 소유 오류다.
+
+독립 원본 저장 줄은 제목407의17118HU와1250HU 줄높이·748HU 줄간격·1000HU 뒤 간격으로 다음 host408의20116HU를 정확히 닫는다.152쪽의 제목46도27323+1250+748+1000=30321HU로 후속 host47을 닫는다. 두 제목은 같은 문단 양식이다. 전체 문단 높이를 더하는 기존 boolean은152쪽에는 맞지만 앞 partial-table 뒤 커서의 차이가 있는241쪽에는 과다 예약한다. 이전처럼 무조건 fit 높이만 더하면152쪽의 제목·표 겹침을 다시 만든다.
+
+후속 후보는 `float_placement.rs:stored_paragraph_successor_flow`에서 genuine·비편집·비dirty의 저장 줄과 후속 비TAC 문단 상대 흐름 표가 닫는 콘텐츠 하단/흐름 끝 HU를 함께 만든다. 문서 ID·행 번호·고정 픽셀 보정·clamp를 사용하지 않는다. 재조판 줄 수가 달라진 경로와 다단·합성·저장 줄 리셋은 이 전체 문단 계약 밖이다. page base는 column anchor, lazy base는 body origin, unbased partial-table 저장 사다리는 기존 배치처럼 body-relative 축을 쓴다.
+
+측정 소비는 전체 fitted/atomic-overflow 문단의 공통 끝점 사영 → 실제 cursor 차이 전진 → 다음 표의 budget/cut이며, 콘텐츠 하단도 같은 결과를 기록한다. 절대 끝점과 전체 문단 높이의 차이를 spacing trim 또는 underrun으로 재해석하지 않는다. 실제 배치는 `layout.rs`의 FullParagraph 최종 항목 완료에서 같은 끝점을 같은 축으로 소비하고, 그 뒤 다음 항목 커서를 갱신한다. 빈/partial 문단은 이 전체 문단 계약으로 덮어쓰지 않는다. 이 source 변경의 fresh Native/WASM·전체 페이지 gate·정상 대조군·필수 회귀/lint는 아직 미검증이다. 새 회귀나 baseline은 아직 추가하지 않으며 보류 판정을 유지한다.

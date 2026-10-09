@@ -5764,7 +5764,6 @@ mod issue_3780_line_advance_oob {
 
     fn fp(lines: usize) -> FormattedParagraph {
         FormattedParagraph {
-            preserve_full_stored_flow_advance: false,
             tail_line_remaining_width: None,
             computed_host_lines: None,
             square_host_plan: None,

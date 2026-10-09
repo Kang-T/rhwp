@@ -1671,6 +1671,99 @@ pub(crate) fn stored_frame_successor_shared_spacing_px(
         .unwrap_or(0.0)
 }
 
+/// A genuine text ladder and the following paragraph-relative flow table
+/// independently close the paragraph's trailing space. This is an endpoint,
+/// not a height to add to a cursor that may already include leading spacing.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct StoredParagraphSuccessorFlow {
+    content_bottom_hu: i32,
+    flow_end_hu: i32,
+}
+
+impl StoredParagraphSuccessorFlow {
+    /// Page bases use the column anchor; lazy bases use the body origin.
+    /// An unbased stored ladder is body-relative, as in the partial-table
+    /// layout path. Refuse a stale endpoint instead of clamping or rewinding.
+    pub(crate) fn project(
+        self,
+        current_y: f64,
+        base_hu: Option<i32>,
+        anchor_y: f64,
+        dpi: f64,
+    ) -> Option<(f64, f64)> {
+        let base = base_hu.unwrap_or(0);
+        let content_bottom =
+            anchor_y + hwpunit_to_px(self.content_bottom_hu.checked_sub(base)?, dpi);
+        let flow_end = anchor_y + hwpunit_to_px(self.flow_end_hu.checked_sub(base)?, dpi);
+        (current_y.is_finite() && current_y <= content_bottom && content_bottom <= flow_end)
+            .then_some((content_bottom, flow_end))
+    }
+}
+
+pub(crate) fn stored_paragraph_successor_flow(
+    para: &Paragraph,
+    next: &Paragraph,
+    styles: &super::style_resolver::ResolvedStyleSet,
+    profile: crate::model::provenance::LayoutCompatibilityProfile,
+    dpi: f64,
+) -> Option<StoredParagraphSuccessorFlow> {
+    use crate::model::paragraph::LineSeg;
+
+    if profile.session_edited()
+        || !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
+        || !para.controls.is_empty()
+        || para.text.trim().is_empty()
+        || para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+        || next.stored_text_partition_is_dirty()
+        || next.cell_format_vpos_dirty
+        || !next.text.trim().is_empty()
+        || !next.controls.iter().any(|control| {
+            matches!(control, Control::Table(table) if is_para_topbottom_float(&table.common))
+        })
+        || para.line_segs.iter().any(|line| {
+            line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                || line.vertical_pos < 0
+                || line.line_height <= 0
+                || line.line_spacing < 0
+        })
+        || para.line_segs.windows(2).any(|pair| {
+            pair[0].vertical_pos.checked_add(pair[0].line_height)
+                .is_none_or(|bottom| bottom > pair[1].vertical_pos)
+        })
+    {
+        return None;
+    }
+    let last = para.line_segs.last()?;
+    let after = next.line_segs.first()?;
+    if after.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0 {
+        return None;
+    }
+    let spacing_after = styles
+        .para_styles
+        .get(para.para_shape_id as usize)?
+        .spacing_after;
+    let next_before = styles
+        .para_styles
+        .get(next.para_shape_id as usize)?
+        .spacing_before;
+    let hu_per_px = 1.0 / hwpunit_to_px(1, dpi);
+    let content_bottom_hu = last.vertical_pos.checked_add(last.line_height)?;
+    let flow_end_hu = content_bottom_hu
+        .checked_add(last.line_spacing)?
+        .checked_add((spacing_after * hu_per_px).round() as i32)?;
+    (spacing_after.is_finite()
+        && spacing_after >= 0.0
+        && next_before.is_finite()
+        && next_before >= 0.0
+        && flow_end_hu.checked_add((next_before * hu_per_px).round() as i32)
+            == Some(after.vertical_pos))
+    .then_some(StoredParagraphSuccessorFlow {
+        content_bottom_hu,
+        flow_end_hu,
+    })
+}
+
 /// A two-frame cell's declared total and the successor line independently
 /// close its opening box. Multi-page cell ladders are not this contract.
 pub(crate) fn stored_two_frame_successor_origin_hu(

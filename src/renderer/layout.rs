@@ -9904,6 +9904,38 @@ impl LayoutEngine {
                         hcursor.min_flow_floor = hcursor.min_flow_floor.max(new_y);
                     }
                 }
+                // The same saved endpoint closes pagination and paint. Adding
+                // a formatted height here would count leading spacing again
+                // after a partial table; leaving a trimmed cursor would let the
+                // following table overlap the title.
+                if multi_col_width.is_none() && matches!(item, PageItem::FullParagraph { .. }) {
+                    let stored_end = paragraphs.get(item_para).and_then(|para| {
+                        let comp = composed.get(item_para)?;
+                        if comp.lines.len() != para.line_segs.len() {
+                            return None;
+                        }
+                        let frame = super::float_placement::stored_paragraph_successor_flow(
+                            para,
+                            paragraphs.get(item_para + 1)?,
+                            styles,
+                            self.profile.get(),
+                            self.dpi,
+                        )?;
+                        frame.project(
+                            _y_in,
+                            hcursor.vpos_page_base.or(hcursor.vpos_lazy_base),
+                            if hcursor.vpos_page_base.is_some() {
+                                hcursor.col_anchor_y
+                            } else {
+                                col_area.y
+                            },
+                            self.dpi,
+                        )
+                    });
+                    if let Some((_, end)) = stored_end {
+                        new_y = end;
+                    }
+                }
             }
             y_offset = new_y;
             if was_tac {

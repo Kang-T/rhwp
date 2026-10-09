@@ -188,7 +188,6 @@ pub(in crate::renderer::typeset) fn format_paragraph_for_flow(
         (available.is_finite() && available > 0.0 && remaining.is_finite()).then_some(remaining)
     })();
     FormattedParagraph {
-        preserve_full_stored_flow_advance: false,
         tail_line_remaining_width,
         computed_host_lines,
         square_host_plan: None,
