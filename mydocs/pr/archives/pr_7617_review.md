@@ -243,7 +243,7 @@ HWP/HWPX의 실제 Native page plan은 모두383쪽이다.241쪽 host408은0..11
 | HWPX Native | 383/383 | 90.40200% | 0·0 |
 | HWPX fresh WASM | 383/383 | 90.40200% | 0·0 |
 | HWP Native | 383/383 | 90.42728% | 0·0 |
-| HWP fresh WASM | 실행 중 | 미확정 | 미확정 |
+| HWP fresh WASM | 383/383 | 90.42728% | 0·0 |
 
 HWPX Native/fresh WASM의 새 전383쪽 raster 중382쪽은 PNG bytes가 같으며1쪽은 다르다.
 같은 수치와 대부분의 동일 PNG를 실제 backend·기하 계약 전체의 충족으로 승격하지 않는다.
@@ -265,10 +265,25 @@ font bytes를 각각 검증하고, 이미 완료된 같은 source의 raw export�
 
 실행·source/입력/Print/package hash·전쪽 TSV는 ignored
 `output/pr-review/planet6897-20261008/candidate-5538efd38-native-handbook-{hwp,hwpx}-full.json`,
-`candidate-5538efd38-wasm-handbook-hwpx-full/provenance.json`에 보존했다.
+`candidate-5538efd38-wasm-handbook-{hwp,hwpx}-full/provenance.json`에 보존했다.
 새 대표 compare·overlay·review는 `candidate-5538efd38-handbook-boundary-panels/`,
 낮은 쪽은 `candidate-5538efd38-hwpx-native-full-low-panels/`, 그림 bounds는
 `candidate-5538efd38-handbook-low-picture-bounds.json`에 있다.
-전체 회귀는 `bea45e807-full-regression.json`/`bea45e807-full.log`에서 진행 중이며 실패가 발견됐다.
-최종 실패 목록과 고정 upstream/devel의 시각 근거를 확보하기 전에 baseline을 완화하거나
-다른 이슈로 임의 이관하지 않는다. 원 PR·통합 후보의 머지 보류는 유지한다.
+전체 회귀는 `bea45e807-full-regression.json`/`bea45e807-full.log`에서 종료됐다.
+`bea45e807`의 빌드 잡8개·nextest10개, `--no-fail-fast` 실행은10,265건 중10,243통과·22실패·46제외,
+nextest exit100이다. 마지막 대형 표 #2063 검사는1,085.469초 뒤 통과했다.
+22실패는12개 검사 묶음이며 본문 넘침·텍스트 겹침·쪽수·저장 줄/표 경계·글꼴 메트릭을 포함한다.
+같은 source의 Studio 전체 Node 검사는1,827건 중1,813통과·12실패·2제외다.
+Vite 모듈 로딩 시간 초과7건과 해당 로딩 실패 뒤 생성자 오류5건을 관측했으며,
+동일 source·같은 실패 파일7개를 file concurrency2로 재실행하여54건 모두 통과(exit0,61.06초)했다.
+source hash가 같고 실패 파일 전체가 재실행됐음을
+`bea45e807-studio-failure-control.json`/`.log`로 고정했다. 최초 로딩 시간 초과의 실행 부하 원인을
+의심할 근거이며, 이 집중 대조를 최종 Studio 전체 통과로 보고하지 않는다.
+검사명·원본 경로·고정 base 내 검사 존재 여부·assertion·로그 hash는 ignored
+`bea45e807-terminal-failure-inventory.json`에 보존했다.
+
+최종 실패 원본의 고정 upstream/devel 시각 근거를 확보하기 전에 baseline을 완화하거나
+검사를 임의 제거하지 않는다. 사용자 지시에 따라 같은 원본·독립 Print의 고정 base
+Native/fresh WASM 최저값이90% 미만으로 입증된 기존 미달만 기존 이슈 #7445로 이관하며,
+90% 이상이면 현재 통합 branch에서 개선한다. 기준 미검증은 이관 근거가 아니다.
+원 PR·통합 후보의 머지 보류는 유지한다.
