@@ -38,7 +38,7 @@ last_verified: 2026-10-09
 
 ## 원본·독립 Print PDF 재확보와 최신 Native 비교
 
-처음 기록의 “대응 Print PDF 없음”은 접수 당시의 상태다. 원본 5개를 지정된 다운로드 자료에서 찾았으며 모두 실제 마지막 저장 product가 Hancom2020/11.0.0.8227이었다. 해당 버전 계약대로 HWP2020 MCP의 비동기 Print method0/one-up으로 PDF를 새로 만들었고, 실제 runtime11.0.0.9136, 완료 상태·byte 수·SHA·PDF signature/EOF·쪽수를 확인했다. 변형된 기존3개 sample은 그대로 보존하며 아래 원본과 동일한 입력으로 취급하지 않는다. 서비스 주소·token은 공개하지 않는다.
+처음 기록의 “대응 Print PDF 없음”은 접수 당시의 상태다. 원본 5개를 지정된 다운로드 자료에서 찾았으며 모두 실제 마지막 저장 product가 Hancom2020/11.0.0.8227이었다. 해당 버전 계약대로 HWP2020 MCP의 비동기 Print method0/one-up으로 PDF를 새로 만들었고, 실제 runtime11.0.0.9136, 완료 상태·byte 수·SHA·PDF signature/EOF·쪽수를 확인했다. 기존3개 sample은 그대로 보존했다. 아래의 바이트 대조로 이 sample들이 대응 원본과 동일함을 확인했으며, 파일명만으로 수동 수정본으로 분류하지 않는다. 서비스 주소·token은 공개하지 않는다.
 
 | 원본 | 독립 Print PDF | 쪽수 | Native 전쪽 최저 | 판정 |
 | --- | --- | --- | --- | --- |
@@ -50,7 +50,7 @@ last_verified: 2026-10-09
 
 실행 source는 `f9714465180585f3ed6eb56d9b3df4e17793f4c6`이며 전7쪽을 비교했다. 36308670의2쪽 review/overlay를 직접 판독해 첫 이어받은 행이 짧아 사진 행과 뒤 `끝.`이 위로 당겨진 것을 확인했다. pypdf로 독립 PDF의 실제 괘선 좌표를 읽었으며 사진 행 시작은195.46667px, Native cell 시작은180.5px였다. 단순 글꼴 농도 차이로 분류하지 않는다. Native 전체 score는 이 표와 같고, fresh WASM 원본7쪽 검증은 아직 남는다. `candidate-f97144651-pr7628-original-native.json`, `candidate-f97144651-pr7628-original-panels/`, `pr7628-36308670-pdf-p2-paths.json`을 ignored output에 보존한다.
 
-base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도로 얻었지만, 임베딩 face와 직접 판독/fresh WASM 및 실제 실패 검사와의 연결을 확인하기 전에는 새로운 #7445 이관을 확정하지 않는다. base74→5168의 원본 read/export 소스 동등성 추론은 새5168 실행과 구별한다. 현재 브랜치87.25354%만 보고 이관하지 않으며, 정상 테스트·원본·PDF는 보존한다. base에서90% 이상인 실패는 현재 branch 개선 대상이고 정확히90%도 포함한다. 다른4개 원본의 Native 개선은 첫 원본의 남은 배치 차이나 편집한 변형 fixture의 독립 Print 검증을 대신하지 않는다. 새 회귀·golden·baseline은 이 자료 보존 commit에서 추가/완화하지 않았다.
+base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도로 얻었지만, 임베딩 face와 직접 판독/fresh WASM 및 실제 실패 검사와의 연결을 확인하기 전에는 새로운 #7445 이관을 확정하지 않는다. base74→5168의 원본 read/export 소스 동등성 추론은 새5168 실행과 구별한다. 현재 브랜치87.25354%만 보고 이관하지 않으며, 정상 테스트·원본·PDF는 보존한다. base에서90% 이상인 실패는 현재 branch 개선 대상이고 정확히90%도 포함한다. 다른4개 원본의 Native 개선은 첫 원본의 남은 배치 차이나 실제로 편집한 입력의 독립 Print 검증을 대신하지 않는다. 새 회귀·golden·baseline은 이 자료 보존 commit에서 추가/완화하지 않았다.
 
 원본/PDF의 정확한 SHA-256과 보존 경로는 아래 표이며, 실제 검증 파일과 바이트 동일함을 확인했다.
 
@@ -71,3 +71,7 @@ base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도�
 실제 소비 경로는 `layout/table_layout.rs::stored_full_width_row_declared_height` → `typeset/table/continuation/fragment/emit.rs`의 수용 예산 및 `stored_row_box_sum` 누적 → 같은 emit의 실제 수용 높이를 뺀 `start_row_height_override` → `scan/runner.rs`·행 스캔의 잔여 요구 높이 → `layout/table_partial.rs`의 행 높이와 저장 프레임 정렬 원점이다. 내용 컷과 이미 배치한 물리 공간을 구별하며, 측정 이후 paint가 다른 높이를 추정하는 처리를 추가하지 않는다.
 
 **미검증:** 이 후보의 컴파일·작은 경계 실행·새 Native/fresh WASM 출력은 아직 실행 전이다. 앞/뒤 조각의 내용 소속·누락·중복, 마지막 유닛 뒤 빈 밴드와 뒤 행/문단, 정상 대조군을 새 source head에서 확인한다. 이전 f971의 시각·집중 검사 통과를 이 후보의 통과로 재사용하지 않으며 새 회귀·baseline 변경도 아직 추가하지 않는다.
+
+기존 `36312980_broken_cell_ladder_center.hwpx`, `36455985_no_lineseg_cell_spacing_before.hwpx`, `36494836_field_marker_tac_lines.hwpx`의 SHA-256은 각각 위 대응 원본과 정확히 같다. 새로 확보한 이 세 경로의 Print PDF는 동일 입력의 반복 출력이며, 별도의 편집·합성 입력 coverage로 세지 않는다. 과거의 변형본 분류는 이 바이트 대조로 정정했다.
+
+후보 commit `46de329e53084e5c50b62555e256cf7e2f8f7e8a` 뒤 `upstream/devel`을 다시 fetch했다. base는 `6f66932a73ee6fd05a74a83bdc438c9499a89a12`로 유지되어 rebase는 up-to-date로 끝났고 원 기여/보정 순서는 바뀌지 않았다. 동일 후보를 검토 worktree에 checkout해 파생 suite 준비와 `cargo fmt --all -- --check`를 exit0으로 확인했다. 주 작업공간의 오래된 ignored generated suite를 대상으로 실패했던 앞선 포맷 실행은 통과 근거에 포함하지 않는다. Native 빌드와 시각 확인은 이 기록 작성 시 진행 중이며 이전 종료값 없는 workspace 검사는 중단 기록으로 보존했다.
