@@ -13,7 +13,7 @@ last_verified: 2026-10-09
 
 - 브랜치: `review/semanticist21-20261008`
 - 현재 통합 base: `79abd9e49675f4286eaed38197f7e837afb744e7` (진행54의 fetch·devel 동기화·rebase 확인; 원격 최신 상태는 제출 직전 재조회). 이전 base `6f66932a73ee6fd05a74a83bdc438c9499a89a12`는 진행42–53의 역사 검증 기준이다. 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
-- 현재 메인터너 체크포인트: `f3c8cd7d370668e36322db71c1c2c820260124ae`; 진행54에 v72 커밋·리베이스를 기록한다. 그 위의 v73 변경은 아직 미커밋 검증 중이다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
+- 현재 메인터너 체크포인트는 이 문서와 함께 보존하는 v74–v77 묶음 보정이다. 진행58에 Native 검증·실패·미검증 범위를 기록한다. 이전 `3505cb8cd8d09f3c125fdb08c9ccec6efece78ff`는 진행55–56의 v73 검증·커밋·동기화 체크포인트다. 이전 `f3c8cd7d370668e36322db71c1c2c820260124ae`는 진행54의 v72 커밋·리베이스 체크포인트다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
@@ -1020,3 +1020,55 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - fresh WASM6803·6935전8쪽sweep도exit0/182.505초/source불변으로끝났다. 두문서최저95.40319%/91.57542%·전체쪽수5/5·3/3·누락0으로Native와같다. 같은8쪽Native/fresh WASM RenderTree 전체가동일함을확인했다(`source-frame-batch-v73-backend-ownership-audit.json`). [WASM6935 2쪽review](../../../output/pr-review/semanticist21-20261008/wasm-source-frame-batch-review-v73/issue6935/review/review_002.png)와 [3쪽review](../../../output/pr-review/semanticist21-20261008/wasm-source-frame-batch-review-v73/issue6935/review/review_003.png)를직접읽어이어받는열린변·실제종료선·뒤주석소속을확인했다. #6024전103쪽·교육415쪽및나머지문서,최종lint/전체Rust/원격CI/merge를이8쪽결과로대신하지않는다.
 
 - v73기존73개집중nextest는exit0/442.636초/실행18.259초,73PASS/6053skip,source23개불변으로끝났다(`nextest-shared-source-frame-batch-v73-exit.json`). 전체Rust·최종lint는별도미완료다. 검사 뒤소스변경에이결과를재사용하지않는다. 다음#6024묶음전현재변경을일반커밋으로고정하고upstream/devel정합을재확인한다.
+
+### 진행56 — 내용 완료 행과 실제 수용 밴드의 공통 기록 보정(v74)
+
+- v73 커밋은 `3505cb8cd8d09f3c125fdb08c9ccec6efece78ff`이다. fetch한 upstream/devel과local devel은모두79abd9e49675이며rebase는up-to-date였다. 검증한Native 소스23개와커밋바이트·생성Studio JS·fresh pkg의동일성을확인했고커밋직후clean이었다(`commit-source-identity-v73.json`).
+- 독립Print34/35·50/51·95/96의source/consumer진단에따라두경로를한묶음으로보정한다. 첫source partial frame의내용완료행은기존ordinary owner만허용하는조건대신같은행에서닫히는모든span owner의원본줄유닛이실제prefix+남은밴드에완전히들어가는지를확인한다. 아직이어지는span·편집/재조판/합성줄·줄리셋은이완료증명에서제외한다. 첫source frame인증은기존호출자조건을유지한다.
+- 내용이완전히소비된원본rowspan BAND_CUT는남은물리행예산을padding·빈밴드까지같은end_row_height_override로예약·배치한다. emit의accepted_row_boxes에도완전소비된일반end_cut의이물리높이를기록하여다음closing span이실제수용prefix를한번차감한다. 일반행#5585빈밴드이어받기·블록컷·마지막표행의기존경로는그대로검증대조군으로둔다. #6024 r137의0→0문단owner는별도미검증이다.
+- 수정전대조군후보#5585 원본17쪽의Native/fresh WASM전쪽TSV를v73고정binary/pkg로실행중이다. 이실행은v74현재소스검증이아니며code source hash가진행중변경됐더라도입력·binary/pkg는3505cb8cd의검증산출물로고정되어있다. v74묶음은Native빌드→원본9개·영향review와같은대조군→기존집중회귀·fresh WASM을묶음실행한다. 신규fixture/golden/회귀추가·통합PR은아직보류한다.
+
+- #5585 v73고정Native 전17쪽TSV는exit1/208.395초,15쪽40.95189%·16쪽33.72728%로미달했다. 기존fixture를정상대조군으로자동판정하지않는다. runner의source_unchanged=false는실행중v74원인보정을시작한것이며v73binary/pkg의변경은없다. 이결과는3505cb8cd와byte동일이확인된v73검증산출물의수정전증거다. fresh WASM결과·미달쪽직접review·v74같은입력대조는후속검증으로남긴다. #5585회귀기대값은변경하지않는다. v74 fmt·fmt check는exit0이며Native빌드는진행중이다.
+
+- v74 Native 묶음빌드는exit0/274.593초/source불변, binary SHA `27be2550264b5ec1b878abc66b906ded09be0fe6d28938139acbf644e9b57adf`로완료됐다(`native-build-shared-source-frame-batch-v74-exit.json`). 원본9개·6024영향16쪽review·6803/6935전8쪽review·5585전17쪽TSV를같은source/binary로묶음실행중이다. 영향경계의직접판독전에는전체검증완료로보고하지않는다.
+
+- v74 원본9개는6024 103쪽·Main52/52·1133 3/3·6935 3·6803 5·교육415를유지하지만6761은103→105로회귀했다. 최초차이는62쪽(구역3/para0/ctrl2) 첫조각endRow6→5이며원본r5에그림bin45/46이있다(`issue6761-section3-para0-v74.dump.txt`, `batch-analysis-issue6761-v74`). 새plain-line certificate를기존일반행의완료content box까지강제한것이잘못된가정이다. 일반행은기존측정box에그림도포함한다. 기존ordinary_owners경로를복원하고새certificate는앞행에서시작한closing span의추가증명에만적용한다(v74 retry1). 임계값·기대쪽수는변경하지않는다.
+- v74 6024 35쪽review를직접읽었으며38.84165→99.42%로앞업무행이월·표끝·뒤제목·다음표첫행소속이개선됐다(`native-source-terminal-frame-diagnosis-v74/issue6024/review/review_035.png`). 같은묶음의6803/6935 Native 전8쪽은exit0/166.508초/source불변이다. 전체6024·6761회귀해소·fresh WASM및최종gate로대용하지않는다. 현재v74 retry1을같은원본9개와영향경계·대조군에서다시확인한다.
+
+- v74 retry1 Native 빌드는 exit0/258.262초/source 불변, binary SHA `0c527aa96db817c432b4464314d909c302ab292049536856e5e6385953f01c02`다. 원본9개 재확인에서6761은105→103으로복구됐고6024 103·Main52/52·1133 3/3·6935 3·6803 5·교육415를유지했다(`pages-original-countercheck-shared-source-frame-batch-v74-retry1.json`). 쪽수복구를내용/시각무회귀증거로대신하지않고영향review를재실행한다.
+- 초기v74의6024 영향16쪽review는exit1/468.721초,8쪽이90%미만(12/14/53/55/96/97/98/99)이며누락0이다. 실행중retry1소스변경으로source_unchanged=false였고고정v74binary의진단증거로보존한다. #5585는v73 Native/fresh WASM과v74 Native 모두17쪽중15/16쪽40.95189/33.72728%미달로같으며,최종검증이나정상대조군으로승격하지않는다. 기존회귀의기대값·baseline은변경하지않았다.
+
+### 진행57 — 완료된 병합 셀의 뒤 행 소유와 합산 경계(v75)
+
+- v74 retry1 Native6803/6935 전8쪽은exit0/165.299초,source불변이다.6024 영향16쪽은exit1/458.651초/source불변으로8쪽미달이남는다. 같은문서의13개원본표와전103쪽RenderTree 진단은exit0/2.376초로수집했다.
+- 독립Print13쪽은r28 일반사항까지,14쪽은r29 오보·왜곡 보도 대응부터소유한다. 현source row completion은r25의긴병합owner가r35까지이어진다는이유로r28을배제했다. 저장줄내용전체가현재prefix+밴드에들어가는것과병합셀의물리종료행은별개다. 원본줄의완전한수용은유지하고,뒤물리행을continuation이계속소유하도록완료내용인증에서동일종료행가정을제거한다. 뒤유닛이실제로필요한owner·저장reset·편집/재조판은전체내용fit인증으로계속기각한다.
+- Print95쪽의r28–30묶음은측정prefix810.44px와완료마지막행29.7466666667px로source901.4933333333px에들어간다. 기존block/개별row 실제합산순서를독립진단에서재현하면2.2737367544323206e-13px초과로엄격비교가실패한다(`issue6024-p95-complete-source-block-fp-diagnosis-v74-retry1.json`, `diagnose-complete-source-block-fp-actual-scan-v74-retry1.rs`). block 수용은기존runner의f64::EPSILON·실제연산개수기준roundoff만인정한다. content·물리행예산·paint좌표·시각90% gate의허용치를늘리지않는다. 실제초과인블록은기존이월/분할경로를유지한다. 두원인보정을한번에빌드하고원본9개·영향경계·73기존계약을검증한다.
+- v75 Native build는exit0/254.622초/source불변(binary `feb935e1e1acbe552b39c1df0cfeeab2191773ea7a836ea17e1380f3a6de77fa`)이며원본9개쪽수는v74 retry1과같다.73개집중nextest도exit0/505.636초(실행23.565초),73PASS/6053skip/source불변이다.6803/6935 전8쪽Native는exit0/163.000초다. 테스트통과를시각무회귀로승격하지않는다.
+- v75 6024 영향18쪽직접출력에서95/96쪽은90% gate를넘었으나14쪽첫두행겹침·51쪽첫업무행물리높이소실이관측됐다.51쪽점수는v74 retry1의통과에서58.39647%로악화됐고52/53쪽도미달이다. 현재변경의실제회귀로기록하고구현을고친다. 전103쪽TSV는고정v75binary로계속실행한다.
+- 55쪽독립Print SVG의윗변은127.21875px,Native는123.5px다. 원본anchor 덤프에서61은표제앞control(pos0),106은표제뒤control(pos9)임을확인했다(`issue6024-source-anchors-v75.txt`). 첫조각준비에서`for_first_fragment`가제거한outer top을저장head control에만돌려주는가정이tail control의원본위여백283HU를잃는다. 같은유효저장host 계약의head/tail placement가동일바깥상자를소비하도록수정한다. 교육·합성/편집·호스트와겹치는줄은기존저장host 유효성·profile 조건으로제외한다.
+- 내용완료조건의확대에서발생한회귀는원본끝행의실제physical row plan과paint 소비를추적한다. 기존옵트인TABLE_DRIFT에선택한original/accepted/resolved행상자를남겨최초손실계층을확인한다(v76진단). 아직51쪽등회귀해소·fresh WASM·최종검증근거는없다.
+- v76 Native build는exit0/280.544초/source불변이며binary SHA `cbae672d0312a12ab878633ccd3b0efcd9f189fcf354eb85adb8d3f79e523da9`다. 옵트인진단은exit0/2.927초로실행됐다.61/102의첫accepted row ledger는각각37.2133333333/50.8266666667px를정확히기록했다. 뒤continuation의`start_row_height_override`가있으면`stored_fragment_row_plan`이조기반환하여그ledger를소비하지않는다. `DIAG_5714`도5.3466666667/13.3866666667px를새행높이로이월함을확인했다(`issue6024-next-row-tail-owner-diagnosis-v75.json`, `logs/batch-analysis-issue6024-v76.log`).
+- v77은저장첫source row의완료증명과scan의실제끝행이일치하고end cut이없는경우,그이전행의blank tail을새행override로만들지않는다. 이미수용된physical ledger를다음closing span이차감하고새ordinary row의원래측정상자를보존한다. 같은행의부분컷과기존명시블록이어받기는별도소유로유지한다. source row 완료인증·블록roundoff·표제뒤outer top·잘못된tail owner수정을같은후보로원본9개·기존73+#5714/#5585·영향PNG에서검증한다.
+- 55쪽outer top 보정의새Native sweep은exit0/38.751초/source불변,65.96649→99.74833%다. 표원점은123.5→127.3px로독립Print127.21875px와같은영역에서대조했고`native-source-frame-top-margin-v76/issue6024/review/review_055.png`를직접표시했다. fullsource v77/fresh WASM의최종근거로대신하지않는다.
+
+
+### 진행58 — v77 실제 소비 복구와 남은 전체 검증
+
+- v75 고정 binary의6024 전103쪽 TSV는 exit1/1232.193초로 종료했다. 75쪽이90% 이상이고28쪽이미달(12/14/19/27/40/47/48/49/51/52/53/55/56/59/62/66/67/68/76/83/84/85/91/92/94/97/98/99),최저47쪽45.66481%이며누락0이다. 실행중v76/v77 source 보정으로source_unchanged=false이며현재후보의성공증거가아닌수정전전체증거다(`native-source-terminal-frame-full-v75-exit.json`, `native-source-terminal-frame-full-v75/issue6024/silhouette.tsv`). 75/103=72.8%는이후보의페이지gate통과비율이며초기18개작업의전체완료율이아니다.
+- v77 Native 묶음빌드는exit0/254.220초/source불변, binary SHA `7890ad6fbf1a2a1fe23289a96610d4448cbc1d6fe671ca7f2f18c96799b275b4`다(`native-build-shared-source-frame-batch-v77-exit.json`). 원본9개쪽수는v73/v75와같다.6024 countercheck의false는v64의104쪽과비교한것으로새회귀가아니다. 전103쪽진단도exit0/2.825초/source불변이다.
+- 실제다음조각에서61/102의accepted prefix가소비되며,14쪽r29/r30은126.3/154.7px의연속28.5px상자로복구됐다.51쪽r6은142.1px부터41.8px이고뒤r7은184.0px부터시작한다. 독립Print의142.0833→183.7969px와같은영역에서대조한다(`issue6024-tail-consumer-before-after-v77.json`, `logs/batch-analysis-issue6024-v77.log`). [v77 14쪽review](../../../output/pr-review/semanticist21-20261008/native-source-terminal-frame-diagnosis-v77/issue6024/review/review_014.png)를직접열어60.00982→99.78%와겹침해소·내용순서를확인했다. 전체18쪽의terminal결과및51쪽PNG는별도확인한다.
+- v77 Native6803/6935 전8쪽sweep은exit0/166.109초/source불변,최저95.40319/91.57542%·전체쪽수5/5·3/3·누락0으로통과했다. [6935 2쪽review](../../../output/pr-review/semanticist21-20261008/native-source-frame-batch-review-v77/issue6935/review/review_002.png)를직접읽어하단이어받기열린변·뒤내용보존을확인했다. 새v77 fresh WASM은아직실행하지않아v73의WASM8쪽통과로대신하지않는다.
+- 기존5714의76076 원본과정확한독립2020 Print(82쪽)의35–37쪽대조도실행했다. v77은exit1/68.975초/source불변이며36쪽73.26187%로미달한다. 직접review의행경계차이를정상대조군으로승격하지않고수정전v73같은쪽과비교한다. 테스트기대값·golden·픽셀허용치는바꾸지않는다. 전체82쪽·fresh WASM의90%적격성은미검증이다.
+- 6024의96쪽은점수가90%이상이어도Print의r59 `직제개정 요구`가97쪽으로이월된다. 현재block59..61의전체56.9px는잔여31.5px에안들어가지만ordinary r59의완전한28.4533px상자는들어간다. 재시도end_cut은첫행6owner완료/다음행4owner미소비이며cut_h13.3px라기존MIN_TOP_KEEP_PX기각경로에서emit전에이월된다(`issue6024-p96-complete-row-orphan-diagnosis-v77.json`). 미완료텍스트고아와완전한행상자를구분하는독립내용·물리높이근거를분석한다. 전역최소높이를낮추거나새정식6024회귀를추가하지않았다.
+- 진행률보고에서실행완료·90%통과·현재head검증을구분한다. 현재집중78검사/6024영향18쪽은실행중이며,6024전쪽재검증·교육415쪽과6761등전체Native/fresh WASM·최종lint/전체Rust/Skia·통합PR/CI/merge/후속처리는남는다. 초기18개체리픽적용완료를초기18개검토완료로보고하지않는다.
+
+- 76076 수정전v73의같은35–37쪽도exit1/128.268초로36쪽73.26187%다. 세쪽RenderTree SHA가모두v77과바이트동일하여이번묶음의새배치회귀는아님을확인했다(`issue5714-native-before-after-v77-audit.json`). 이것은upstream base 자체의적격성증거가아니며,90%미달의기존회귀를삭제/완화하거나정상대조군으로승격하지않는다.
+- [v77 51쪽review](../../../output/pr-review/semanticist21-20261008/native-source-terminal-frame-diagnosis-v77/issue6024/review/review_051.png)를직접읽어58.39647→95.25%와첫r6·뒤업무행순서복구를확인했다. 하단r28의내용/빈밴드차이는남는다. 원본block27..29의hard reset으로end cut을수용한뒤r28부분을다음쪽에이어받는경로이며전체업무소속정확성의완료증거로대신하지않는다. 35쪽도99.42%의같은영역·표끝·뒤제목을직접대조했다.
+
+- v77 집중nextest는exit100/474.332초(실행19.727초)/source불변,78개중76PASS/2FAIL/6048skip으로종료했다(`nextest-shared-source-frame-batch-v77-exit.json`). 두FAIL은기존5585의row3동일컷빈밴드이어받기와끝표뒤outer bottom이다. actual fragment는14쪽rows0..4/endcut없음→15쪽rows4..10/endcut[1,1]→16쪽rows9..10/startcut[1,1]이고뒤문단gap은-0.24px다. testcase가기대한row3빈밴드·아래1.87px와다르다. 기존73개및5714두검사는통과했지만전체묶음통과로보고하지않는다.
+- 실패원본5585의17쪽전체TSV와14–16쪽review를현재v77고정binary로재실행한다. 수정전v73와현재v77의14/15/16쪽RenderTree는모두바이트동일이다(`issue5585-before-after-native-v77-audit.json`). 이는이번묶음의새회귀가아님을입증하지만기존실제배치결함또는테스트오류판정을해소하지않는다. 독립Print·현재출력·완전내용/빈밴드소유를직접확인하고원본을90%이상으로만든뒤의관계검사로검토한다. expectation/픽셀허용치/테스트제거는수행하지않았다.
+- Cargo 집중검증의terminal을확인한뒤같은동결소스의root 최적화fresh WASM을공용target/pr-review로시작했다(`wasm-build-shared-source-frame-batch-v77-command.json`). 빌드가끝나고pkg/public/hash·실제브라우저·Native와동일영역sweep까지확인하기전에는WASM검증완료가아니다.
+
+- v77 6024 영향18쪽sweep은exit1/638.469초/source불변·누락0·전체쪽수103/103으로끝났다.13쪽은90%이상이고12/53/97/98/99의5쪽은71.48133/50.65125/67.60932/74.76649/73.52941%로미달이다(`native-source-terminal-frame-diagnosis-v77-exit.json`, `native-source-terminal-frame-diagnosis-v77/summary.json`). v75의9미달쪽에서14/51/52/55가gate를회복했지만전체103쪽의최종적격성으로승격하지않는다.96쪽review도직접표시해96.83%에도마지막r59가빠지는실제차이를확인했다.
+- v77 5585 실패영역14–16쪽review는exit1/86.978초/source불변이며15/16쪽40.95189/33.72728%다. 두PNG를직접열어15쪽에서다음row9 `【구글】Advertising Program`이앞당겨지고16쪽에는그제목이없으며뒤본문도위로이동함을확인했다. 기존문서최저90%조건을충족하지못하므로새회귀추가나기대값갱신은하지않는다.기존FAIL은소스동일v73와같은실제출력차이로기록한다.17쪽전체TSV는실행중이다.
+- 이묶음은부분보정체크포인트로일반커밋한다. source byte identity와base ancestry는ignored검증기록에고정하며fresh WASM빌드·upstream동기화후소스가바뀌면해당영향검증을다시실행한다. 집중검사2FAIL·위미달/내용소속차이가남아push/PR검토요청/통합완료단계가아니다.사용자지침파일·테스트기대값·fixture/golden은이번묶음에서변경하지않았다.

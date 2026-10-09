@@ -4298,7 +4298,11 @@ impl ParagraphFloatPlacement {
     }
 
     /// 저장 앵커의 줄 소유를 판정하는 공통 근거. 개체 바깥여백도 이 판정을 소비한다.
-    fn stored_host_lines_are_valid(para: &Paragraph, table: &Table, control_index: usize) -> bool {
+    pub(crate) fn stored_host_lines_are_valid(
+        para: &Paragraph,
+        table: &Table,
+        control_index: usize,
+    ) -> bool {
         is_para_topbottom_float(&table.common)
             && table.common.vert_align == VertAlign::Top
             && super::layout::stored_host_lines_precede_float(para, table, control_index)

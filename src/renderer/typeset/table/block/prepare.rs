@@ -496,7 +496,7 @@ impl TypesetEngine {
                         || st.profile.hwpx_stored_layout())
                         && !st.profile.session_edited()
                         && matches!(table.page_break, crate::model::table::TablePageBreak::RowBreak)
-                        && crate::renderer::float_placement::ParagraphFloatPlacement::stored_head_host_lines_are_valid(
+                        && crate::renderer::float_placement::ParagraphFloatPlacement::stored_host_lines_are_valid(
                             para, table, ctrl_idx,
                         ))) {
                         let top_margin = hwpunit_to_px(table.outer_margin_top as i32, self.dpi);

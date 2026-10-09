@@ -149,11 +149,27 @@ impl TypesetEngine {
                     && active
                         .iter()
                         .all(|cell| usize::from(cell.row) == row && cell.row_span == 1);
+                // Ordinary rows already have a complete measured content box,
+                // including pictures. The plain-line certificate is only for
+                // earlier merged owners whose unit window must finish here.
+                let complete_owners = ordinary_owners
+                    || (!active.is_empty()
+                        && input
+                            .prepared
+                            .layout_engine
+                            .stored_complete_source_row_content_fits(
+                                source.row_geometry_table,
+                                row,
+                                input.start.cursor_row,
+                                &input.prepared.cut_row_heights,
+                                remaining,
+                                source.styles,
+                            ));
                 let content = input
                     .prepared
                     .layout_engine
                     .row_complete_cut_content_height(source.row_geometry_table, row, source.styles);
-                if ordinary_owners && content <= remaining {
+                if complete_owners && content <= remaining {
                     complete_last_row = Some((row, remaining));
                 }
                 break;

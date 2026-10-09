@@ -86,7 +86,18 @@ impl TypesetEngine {
             let blk_start_cut: &[usize] = if r == cursor_row { &start_cut } else { &[] };
             let block_row_offsets = block_query.row_offsets(&block);
             let block_h = block_query.required_height(&block, blk_start_cut);
-            if consumed + cs_before + block_h <= avail_for_rows {
+            let required = consumed + cs_before + block_h;
+            // The source remainder and a mixed row/block walk can sum the
+            // same physical boxes in different orders. Account only for f64
+            // roundoff, as the saved-span reservation does after this walk.
+            let roundoff = f64::EPSILON
+                * (required.abs() + avail_for_rows.abs()).max(1.0)
+                * (r - cursor_row + block_size + 2) as f64;
+            if required <= avail_for_rows
+                || (required.is_finite()
+                    && avail_for_rows.is_finite()
+                    && required - avail_for_rows <= roundoff)
+            {
                 consumed += cs_before + block_h;
                 r = b_end;
                 end_row = r;

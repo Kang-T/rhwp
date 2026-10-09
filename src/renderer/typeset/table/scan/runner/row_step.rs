@@ -768,7 +768,20 @@ impl TypesetEngine {
                     end_row = r + 1;
                     split_end_cut = res.end_cut.clone();
                     split_end_limit = budget.max(res.consumed_height);
-                    consumed += cs_before + split_end_limit;
+                    let physical_band = row_start_cut
+                        .is_empty()
+                        .then(|| {
+                            layout_engine.stored_complete_row_cut_band(
+                                table,
+                                r,
+                                &split_end_cut,
+                                avail_for_rows - consumed - cs_before,
+                                styles,
+                            )
+                        })
+                        .flatten();
+                    end_row_height_override = physical_band;
+                    consumed += cs_before + physical_band.unwrap_or(split_end_limit);
                     if std::env::var("RHWP_DIAG_SCAN").is_ok() {
                         eprintln!(
                             "DIAG_SCAN BAND_CUT r={} limit={:.1} content={:.1} row_total={:.1}",

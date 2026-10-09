@@ -139,6 +139,12 @@ impl TypesetEngine {
             });
             heights[row] = required;
         }
+        if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
+            eprintln!(
+                "TABLE_FRAGMENT_ROWS: pi={} cursor={} original={:?} accepted={:?} resolved={:?}",
+                source.para_index, cursor.row, original, cursor.accepted_row_boxes, heights
+            );
+        }
         Some(heights)
     }
 
@@ -166,6 +172,12 @@ impl TypesetEngine {
         let heights = input
             .fragment_row_heights
             .unwrap_or(&input.source.measured_table.row_heights);
+        if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
+            eprintln!(
+                "TABLE_ACCEPTED_ROWS: pi={} rows={}..{} last={:?} measured={:?}",
+                input.source.para_index, input.start.cursor_row, end_row, last_height, heights
+            );
+        }
         cursor.accepted_row_boxes.resize(heights.len(), None);
         for (row, &height) in heights
             .iter()

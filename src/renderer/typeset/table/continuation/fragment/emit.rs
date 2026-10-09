@@ -1079,12 +1079,32 @@ impl TypesetEngine {
             straddle_page_bands.clone()
         };
         // 중간 또는 내용이 완전히 소비된 최종 컷 fragment 배치
+        let complete_physical_end_cut = split_block_start.is_none()
+            && split_end_limit > 0.0
+            && end_row_height_override.is_some()
+            && !split_end_cut.is_empty()
+            && end_row > cursor_row
+            && layout_engine
+                .advance_row_cut(
+                    row_geometry_table,
+                    end_row - 1,
+                    &split_end_cut,
+                    f64::MAX,
+                    styles,
+                )
+                .fully_consumed;
+        let complete_source_row_frame = split_block_start.is_none()
+            && split_end_cut.is_empty()
+            && split_end_limit <= 0.0
+            && budget
+                .source_complete_frame_last_row
+                .is_some_and(|(row, _)| row + 1 == end_row);
         self.record_stored_fragment_rows(
             st,
             continuation,
             input,
             end_row,
-            split_end_cut.is_empty() && split_end_limit <= 0.0,
+            (split_end_cut.is_empty() && split_end_limit <= 0.0) || complete_physical_end_cut,
             end_row_height_override,
         );
         st.append_item(PageItem::PartialTable {
@@ -1465,7 +1485,10 @@ impl TypesetEngine {
                 })
             })
             .or_else(|| end_row_height_override
-            .filter(|_| !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
+            // A certified complete source row advances to a new row. Its
+            // accepted prefix already accounts for the merged owner's space;
+            // the previous row's blank tail cannot replace the new row's box.
+            .filter(|_| !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
                 && !layout_engine.row_uses_reflow_physical_frame(table, end_row.saturating_sub(1)))
             .and_then(|limit| {
             let full = cut_row_h.get(end_row.saturating_sub(1)).copied()?;
