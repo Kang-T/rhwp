@@ -478,7 +478,25 @@ impl TypesetEngine {
             } = source_tail_query.gate(&res);
             let mut uses_source_frame_tail = false;
             if source_tail_enabled {
-                let source_tail_cut = source_tail_query.candidate(&res, stored_source_frame);
+                // Capacity can pass an authenticated source frame even when
+                // its measured height is smaller. Such a boundary limits unit
+                // ownership; it is not only a positive height extension.
+                let source_frame_contracts_capacity =
+                    stored_source_frame.as_ref().is_some_and(|frame| {
+                        frame.hit_hard_break
+                            && frame.end_cut.len() == res.end_cut.len()
+                            && frame.end_cut != res.end_cut
+                            && frame
+                                .end_cut
+                                .iter()
+                                .zip(&res.end_cut)
+                                .all(|(source, capacity)| source <= capacity)
+                    });
+                let source_tail_cut = if source_frame_contracts_capacity {
+                    stored_source_frame
+                } else {
+                    source_tail_query.candidate(&res, stored_source_frame)
+                };
                 if let Some(mut source_tail_cut) = source_tail_cut {
                     if let Some(correction) =
                         source_tail_query.mirrored_correction(&res, &source_tail_cut, padding)
@@ -506,7 +524,9 @@ impl TypesetEngine {
                             source_tail_cut.end_cut
                         );
                     }
-                    if extension > 0.5 && mid_extension_ok && source_tail_owns_this_page {
+                    if (source_frame_contracts_capacity || (extension > 0.5 && mid_extension_ok))
+                        && source_tail_owns_this_page
+                    {
                         // Downstream fit/retry decisions must reason in the
                         // same frame-sized budget as the cut.  The precise
                         // physical overfill is measured from the painted
