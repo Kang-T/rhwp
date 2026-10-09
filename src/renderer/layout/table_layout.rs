@@ -5385,7 +5385,10 @@ impl LayoutEngine {
                 let r = cell.row as usize;
                 let span = cell.row_span as usize;
                 if span > 1 && r + span <= row_count && cell.height < 0x80000000 {
-                    let total_h = hwpunit_to_px(cell.height as i32, self.dpi);
+                    // 제약은 순수 행 높이 합이다. 셀 선언에 포함된 내부 행 간격은
+                    // 측정과 배치에서 같은 방식으로 먼저 제외한다.
+                    let total_h = hwpunit_to_px(cell.height as i32, self.dpi)
+                        - hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
                     if let Some(existing) = constraints.iter_mut().find(|x| x.0 == r && x.1 == span)
                     {
                         if total_h > existing.2 {
@@ -5397,51 +5400,10 @@ impl LayoutEngine {
                 }
             }
             constraints.sort_by_key(|&(_, span, _)| span);
-            let max_iter = row_count + constraints.len();
-            for _ in 0..max_iter {
-                let mut progress = false;
-                for &(r, span, total_h) in &constraints {
-                    let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
-                        + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
-                    let unknown_rows: Vec<usize> =
-                        (r..r + span).filter(|&i| row_heights[i] == 0.0).collect();
-                    if unknown_rows.len() == 1 {
-                        let remaining = (total_h - known_sum).max(0.0);
-                        row_heights[unknown_rows[0]] = remaining;
-                        progress = true;
-                    }
-                }
-                if !progress {
-                    break;
-                }
-            }
-            for &(r, span, total_h) in &constraints {
-                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
-                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
-                let unknown_rows: Vec<usize> =
-                    (r..r + span).filter(|&i| row_heights[i] == 0.0).collect();
-                if !unknown_rows.is_empty() {
-                    let remaining = (total_h - known_sum).max(0.0);
-                    let per_row = remaining / unknown_rows.len() as f64;
-                    for i in unknown_rows {
-                        row_heights[i] = per_row;
-                    }
-                }
-            }
-            // [#2291/#2237] 병합 셀 **선언** 높이가 걸친 행합을 초과하면 잔여를
-            // 마지막 걸침 행에 가산한다 — 한글 관례 실측(연결맵 244×10 r183:
-            // c3 rs=4 선언 217.8px vs 행합 201.3px, 한글 행 괘선 실측 r183 =
-            // 39.8+16.5 = 56.3px 정확 일치). 종전에는 모든 행이 rs=1 선언으로
-            // 채워진(미지 행 없음) 표에서 이 잔여가 지면에서 소실되어, rowspan
-            // 중첩 문서가 한글보다 쪽당 +15% 조밀해졌다(연결맵 −35쪽의 지배
-            // 성분). 콘텐츠 기반 확장(2-b)과 별개의 선언 기반 규칙이다.
-            for &(r, span, total_h) in &constraints {
-                let known_sum: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
-                    + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
-                if total_h > known_sum + 0.5 {
-                    row_heights[r + span - 1] += total_h - known_sum;
-                }
-            }
+            crate::renderer::height_measurer::solve_rowspan_row_heights(
+                &constraints,
+                &mut row_heights,
+            );
             // [#5910] 반대 방향 모순(병합 선언 < 걸친 행들의 단일행 선언 합)은
             // 마지막 걸침 행을 줄여 닫는다 — HeightMeasurer 2-b 와 동일 규칙.
             let shrink = self.indexed_rowspan_declared_overflow_shrink(table);
