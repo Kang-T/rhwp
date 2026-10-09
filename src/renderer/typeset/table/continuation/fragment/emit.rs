@@ -1272,6 +1272,21 @@ impl TypesetEngine {
                     + last_height;
                 Some(hwpunit_to_px(source.height as i32, self.dpi) - used)
             });
+        let source_first_frame_remaining = (!is_continuation
+            && cursor_row == 0
+            && start_cut.is_empty()
+            && split_block_start.is_none()
+            && split_end_limit > 0.0)
+            .then(|| {
+                layout_engine.stored_first_frame_row_remainder(
+                    table,
+                    end_row.checked_sub(1)?,
+                    &next_cut,
+                    &mt.row_heights,
+                    styles,
+                )
+            })
+            .flatten();
         let next_start_row_height_override = source_opening_row_frame
             .as_ref().map(|(_, _, remaining)| *remaining)
             .or(empty_opening_next_height)
@@ -1283,6 +1298,7 @@ impl TypesetEngine {
                     .then_some(frames.closing_height)
             })
             .or(complete_block_next_height)
+            .or(source_first_frame_remaining)
             .or_else(|| {
                 let (row, used, height) = accepted_stored_row_frame?;
                 let full = layout_engine.stored_full_width_row_declared_height(

@@ -1,6 +1,7 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
 mod stored_complete_block_cut;
+mod stored_intra_paragraph_frame;
 mod stored_plain_row_frame;
 mod stored_span_content;
 mod stored_span_reservation;
@@ -18228,6 +18229,10 @@ impl LayoutEngine {
                 return trim;
             }
         }
+
+        let declared_box = self
+            .stored_first_cell_frame_height(table, cell)
+            .unwrap_or(declared_box);
 
         // 문단 안 되감김은 **물리 쪽 프레임**일 수도, 공간이 남은 **로컬 재시작**일
         // 수도 있다(기계 문서의 촘촘한 리셋 — `#1658` 낭비 쪽 회귀의 근거). 둘을

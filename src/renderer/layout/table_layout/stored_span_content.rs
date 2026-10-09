@@ -67,6 +67,10 @@ impl LayoutEngine {
         table: &Table,
         cell: &Cell,
     ) -> bool {
+        cell.row_span > 1 && self.stored_plain_text_cell_frame(table, cell)
+    }
+
+    pub(super) fn stored_plain_text_cell_frame(&self, table: &Table, cell: &Cell) -> bool {
         let profile = self.profile.get();
         (profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
             && !profile.session_edited()
@@ -76,7 +80,6 @@ impl LayoutEngine {
                 .table_text_reflowed(table)
             && !table.common.treat_as_char
             && table.page_break == TablePageBreak::RowBreak
-            && cell.row_span > 1
             && !cell.dirty_flag
             && !cell.paragraphs.is_empty()
             && cell.paragraphs.iter().all(|para| {

@@ -1456,6 +1456,17 @@ impl LayoutEngine {
                                             && self.cell_unit_opens_stored_page_frame(
                                                 cell, table, styles, start,
                                             ))
+                                        || self
+                                            .stored_first_frame_row_remainder(
+                                                table,
+                                                start_row,
+                                                start_cut,
+                                                resolved_row_heights,
+                                                styles,
+                                            )
+                                            .is_some_and(|height| {
+                                                start_row_height_override == Some(height)
+                                            })
                                         || self.stored_paragraph_allows_orphan_split(
                                             table, cell, &units, start, styles,
                                         ))
