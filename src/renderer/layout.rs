@@ -13053,13 +13053,21 @@ impl LayoutEngine {
                 // empty floats: Square sibling lanes and stored HWPX layout
                 // have separate coordinate contracts.
                 let empty_reflow_flow_end =
-                    crate::renderer::float_placement::reflow_empty_table_host(para, t)
-                        .then(|| {
-                            ctx.paragraph_float_placements
-                                .get(&(para_index, control_index))
-                                .map(|placement| col_area.y + placement.occupied_bottom)
-                        })
-                        .flatten();
+                    (crate::renderer::float_placement::reflow_empty_table_host(para, t)
+                        || (is_current_empty_para_float && is_para_topbottom_float(&t.common)))
+                    .then(|| {
+                        ctx.paragraph_float_placements
+                            .get(&(para_index, control_index))
+                            .filter(|placement| {
+                                placement.flow
+                                    == super::float_placement::ParagraphFloatFlow::NextLine
+                                    || crate::renderer::float_placement::reflow_empty_table_host(
+                                        para, t,
+                                    )
+                            })
+                            .map(|placement| col_area.y + placement.occupied_bottom)
+                    })
+                    .flatten();
                 let empty_rowbreak_flow_end = if let Some(end) = empty_reflow_flow_end {
                     // The resolved box has already consumed its outer top.
                     // Its accepted bottom also owns the host's after-space.

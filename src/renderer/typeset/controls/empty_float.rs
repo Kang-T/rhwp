@@ -456,24 +456,15 @@ pub(super) fn prepare(
         .or(square_resolved)
         .or(outer_box_resolved)
         .or_else(|| {
-            (is_topbottom_para_float
-                && topbottom_float_count >= 2
-                && matches!(
-                    table.common.vert_align,
-                    crate::model::shape::VertAlign::Top | crate::model::shape::VertAlign::Inside
-                ))
-            .then(|| {
-                let top = lane_top + ft.host_spacing.before;
-                crate::renderer::float_placement::ParagraphFloatPlacement {
-                    flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
-                    anchor_y: para_start_height,
-                    stored_host_origin: None,
-                    stored_successor_line_origin: None,
-                    table_left: None,
-                    table_top: top,
-                    occupied_bottom: top + ft.effective_height + ft.host_spacing.after,
-                }
-            })
+            crate::renderer::float_placement::ParagraphFloatPlacement::from_empty_sibling_box(
+                para,
+                table,
+                lane_top,
+                para_start_height,
+                ft.effective_height,
+                ft.host_spacing.before,
+                ft.host_spacing.after,
+            )
         });
     let lane_bottom = resolved.map_or(lane_top + reserved_height, |p| {
         if control_resolved.is_some() || square_resolved.is_some() || outer_box_resolved.is_some() {

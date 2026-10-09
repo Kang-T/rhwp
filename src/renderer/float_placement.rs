@@ -1394,7 +1394,7 @@ pub(crate) fn stored_empty_control_table_frame(
         .count()
         == 1
         && host.controls.iter().all(|control| {
-            matches!(control, Control::Table(_))
+            matches!(control, Control::Table(_) | Control::SectionDef(_))
                 || matches!(control, Control::ColumnDef(column) if column.column_count == 1)
         });
     if !host.text.trim().is_empty()
@@ -1405,12 +1405,11 @@ pub(crate) fn stored_empty_control_table_frame(
         || successor.cell_format_vpos_dirty
         || !(matches!(
             host.column_type,
-            ColumnBreakType::None | ColumnBreakType::Page
+            ColumnBreakType::None | ColumnBreakType::Page | ColumnBreakType::Section
         ) || (host.column_type == ColumnBreakType::MultiColumn && single_column))
         || successor.column_type != ColumnBreakType::None
         || anchor.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
         || next.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
-        || (anchor.segment_width != 0 && table.caption.is_none())
         || anchor.line_height <= 0
         || next.line_height <= 0
         || anchor_vpos < frame_vpos
@@ -3834,6 +3833,37 @@ pub fn stored_cellbreak_fragment_row_end(
 }
 
 impl ParagraphFloatPlacement {
+    /// 빈 호스트의 형제 표는 앞 형제가 확정한 흐름 원점에서 바깥 상자를 점유한다.
+    /// lane과 일반 block이 같은 앞·본체·뒤 상자를 예약하고 paint에 전달한다.
+    pub(crate) fn from_empty_sibling_box(
+        para: &Paragraph,
+        table: &Table,
+        flow_top: f64,
+        host_origin: f64,
+        table_height: f64,
+        before: f64,
+        after: f64,
+    ) -> Option<Self> {
+        if !empty_topbottom_sibling_host(para, table)
+            || ![flow_top, host_origin, table_height, before, after]
+                .iter()
+                .all(|value| value.is_finite())
+            || table_height <= 0.0
+        {
+            return None;
+        }
+        let table_top = flow_top + before;
+        Some(Self {
+            flow: ParagraphFloatFlow::NextLine,
+            anchor_y: host_origin,
+            stored_host_origin: None,
+            stored_successor_line_origin: None,
+            table_left: None,
+            table_top,
+            occupied_bottom: table_top + table_height + after,
+        })
+    }
+
     /// 실제 앞 글줄 끝에 도착한 빈 저장 호스트의 바깥 상자를 확정한다.
     /// 호스트 앞 간격은 글줄 사다리의 간격이며, 괘선 위 바깥 여백과 다르다.
     /// 오프셋0도 바깥 상자의 원점이다. 앞 글줄·저장 사다리·실제 흐름 끝이
@@ -5600,6 +5630,16 @@ pub(crate) fn float_pushed_line_spacing_before(
     } else {
         0.0
     }
+}
+
+/// 빈 문단에서 문단 기준 자리차지 표가 형제의 흐름 밴드를 함께 소비한다.
+pub(crate) fn empty_topbottom_sibling_host(para: &Paragraph, table: &Table) -> bool {
+    is_para_topbottom_float(&table.common)
+        && matches!(table.common.vert_align, VertAlign::Top | VertAlign::Inside)
+        && !para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}')
+        && para.controls.iter().filter(|control| {
+            matches!(control, Control::Table(t) if is_para_topbottom_float(&t.common))
+        }).take(2).count() >= 2
 }
 
 /// With no line box, an empty block host places its sole flow table
