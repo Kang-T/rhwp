@@ -13,7 +13,7 @@ last_verified: 2026-10-09
 
 - 브랜치: `review/semanticist21-20261008`
 - 현재 통합 base: `6f66932a73ee6fd05a74a83bdc438c9499a89a12` (진행42의fetch/rebase 확인; 원격최신상태는제출직전재조회). 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
-- 현재 메인터너 체크포인트: `8f3c1e0db94f38195b192a216817a3ea6e8a54c9`; 후속 v64 retry1의 원본 표제/첫 조각 보정과 검증은 진행44에 기록한다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
+- 현재 메인터너 체크포인트: `fe201fa05f25ee744fb465a8b8a7348d38576d18`; v64 retry1의 원본 표제/첫 조각 보정과 검증은 진행44에 기록한다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
@@ -865,3 +865,12 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - v64 retry1 #6761원본39–40 Native sweep는최종exit0/55.513초/9개source hash불변이며39쪽98.94265/40쪽97.45412%다. canonical 두review를직접표시해첫표하단과마지막행/뒤쪽반복머리행·이어받는‘함유혼합물’줄소유/괘선·후속본문을같은영역에서대조했다. 40쪽bbox는136.1/599.7px로유지되면서첫행글줄의원점도개선됐다. `native-issue6761-stored-title-host-opening-frame-v64-retry1/` 및exit/log에보존했다. freshWASM은아직없으므로최종승인아니다.
 - 사용자가처음지적한Main3쪽도현v64 retry1로새캡처했다: HWP99.89467/HWPX99.84971%. HWPcanonical `native-stored-title-host-opening-frame-p3-review-v64-retry1/scattered-hwp/review/review_003.png`를직접표시해‘인장시험’/첫표전체행·다음표/뒤문단과Print의원점을대조했다. 이전v41의56.53%이미지를현결과로재사용하지않았다. 나머지Main전쪽TSV/#1133전쪽은진행중이다.
 - 동일v64 retry1 기존73개nextest는최종exit100/406.611초/실행22.003초,71PASS/기존2FAIL/2767skip이고9개소스해시불변이다(`nextest-stored-title-host-opening-frame-v64-retry1-exit.json`,log). #6761negative두계약포함새FAIL없다. 남은#6981종료소유/#7226쪽수의원본교육과정415쪽전수Native/freshWASM90%선행증거는아직없어검사·기대값·baseline을변경하지않았다. 현재두Rust파일과통합기록을체크포인트커밋하고rootfreshWASM으로다음출력경로를검증한다.
+
+- 체크포인트 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의9개소스SHA가v64 retry1 Native build의9개snapshot SHA와모두같다(`v64-retry1-build-to-commit-proof.json`). 이head로rootwrapper의freshWASM web/no-opt진단빌드를시작했다(`wasm-build-stored-title-host-opening-frame-v64-retry1.json`). 최적화배포산출물검증은아직없으며Native/freshWASM최종시각·Studio확인은별도남는다. 현재Rust/test소스는동결하고공유target의Cargo는한개만실행한다.
+- v64 retry1 Main3쪽두형식Native작업과#1133전쪽두형식Native작업은모두최종exit0/107.573초및223.774초로종료됐고9개소스해시불변이다(`native-original-boundaries-v64-retry1-exit.json`). #1133의6쪽최저96.19594%/누락0이며앞v63결과와같다. 검사변경은없다.
+- v62같은불변pin의HWPX tail39–52는exit0/302.271초다. 기존1–38/새39–52의PNG52쌍을전부Pillow.verify하고중복PDF39–52bytes도같음을확인해별도완결scope에hardlink보존했다(`native-stored-partial-frame-physical-extent-completed-v62/provenance.json`). 첫결합에서Poppler숫자padding을세자리로추정해찾기실패한자체오류는파일명숫자로쪽을대응시키고재실행해수정했다. Native/PDFbytes를변경하지않았다. 전체52쪽TSV/90%미만0을같은역사source의증거로기록하며새v64전체head승인으로대신하지않는다.
+
+- fe201fa05의rootfreshWASM web/no-opt빌드는최종exit0/599.703초/9개source hash불변이다(`wasm-build-stored-title-host-opening-frame-v64-retry1.json`). pin은`wasm-pkg-stored-title-host-opening-frame-v64-retry1-fe201fa05`,WASM SHA`5da9a953cb1094c6f02a36038c7eee461ebddc3512ae7c3117d016457e00b044`,JS SHA`7462392b9b4dadb36c0b60cc0afa9de3fc6e41a861b150010ea51f0a7974737a`이며pkg/public이같다. 새WASM이publicJS의추가6개runtime import를실제로요구함을WebAssembly.Module.imports로확인했고node syntax도통과했다(`studio-js-required-wasm-imports-v64-retry1.json`). 필수binding이므로generated publicJS를검증기록과함께커밋한다. 아직실제Studioreload/시각비교와최적화배포산출물검증은없다.
+- 현v64 retry1 Main HWP전체52쪽Native TSV는누락0/최저93.25821%(10쪽)/90%미만0으로종료됐다. HWPX전체는진행중이다. 새10쪽canonical NativeHWP93.25821/HWPX94.98450%도직접대조했으나하단괘선과마지막행글줄에남는차이가보인다. 90%점수로해결완료를선언하지않고Git동기화후그물리밴드소비경로보정을이어간다.
+- 실패#6981의`build_page_render_tree(377)`/‘노동인권’가정은정본PDF의페이지375–381텍스트에서노동인권이380–381쪽에있는것과충돌한다. Native같은구간도노동인권380–381쪽이다(`education-terminal-page-pin-independent-text-v64-retry1.json`). 관련‘선언문작성’경계는별도시각대조가필요하다. 텍스트추출을fidelity승인으로대체하지않으며원본415쪽전수Native/freshWASM90%선행검증전테스트·기대값·baseline을수정하지않는다.
+- 사용자의커밋→upstream/devel동기화→rebase→계속지시에따라새fetch를완료했고upstream/devel은기존6f66932a7 그대로다. local devel은local-only0/behind65,현재review는upstream-only0/local87이다. freshWASM이종료됐으며원본전체Native는고정실행파일에서계속된다. 소스checkout없이localdevelref를fast-forward fetch로갱신하고현재review의rebase를실행해각SHA/clean여부를기록한다.
