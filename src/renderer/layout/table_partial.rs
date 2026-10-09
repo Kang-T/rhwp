@@ -5701,6 +5701,15 @@ impl LayoutEngine {
         let owns_declared_row_frame = end_row_height_override.is_some()
             && end_row.checked_sub(1).is_some_and(|row| {
                 self.native_stored_row_has_text_frame_boundary(table, row, styles)
+                    || (self.profile.get().hwpx_stored_layout()
+                        && self
+                            .stored_full_width_row_declared_height(
+                                table,
+                                row,
+                                styles,
+                                self.current_body_area.get().3,
+                            )
+                            .is_some())
             });
         let fold_last_row = render_rows.last().copied().filter(|&fold_row| {
             (end_row < table.row_count as usize

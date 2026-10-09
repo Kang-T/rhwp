@@ -1083,6 +1083,40 @@ impl TypesetEngine {
             } else {
                 base
             };
+            // An authenticated HWPX source row owns a minimum across fragments,
+            // while the saved first object frame owns this page's physical box.
+            // Reserve that same box before selecting units; spare page capacity
+            // must not enlarge the first box and reduce the carried remainder.
+            let base = if st.profile.hwpx_stored_layout()
+                && !is_continuation
+                && cursor_row == 0
+                && start_cut.is_empty()
+            {
+                saved_first_fragment_source_frame
+                    .filter(|_| {
+                        (0..row_count).any(|row| {
+                            prepared
+                                .layout_engine
+                                .stored_full_width_row_declared_height(
+                                    table,
+                                    row,
+                                    input.source.styles,
+                                    st.layout.body_area.height,
+                                )
+                                .is_some()
+                        })
+                    })
+                    .map_or(base, |(height, _)| {
+                        base.min(
+                            (height
+                                - header_overhead
+                                - hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi))
+                            .max(0.0),
+                        )
+                    })
+            } else {
+                base
+            };
             if !is_continuation
                 && cursor_row == 0
                 && start_cut.is_empty()

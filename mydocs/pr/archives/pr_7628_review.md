@@ -77,3 +77,7 @@ base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도�
 후보 commit `46de329e53084e5c50b62555e256cf7e2f8f7e8a` 뒤 `upstream/devel`을 다시 fetch했다. base는 `6f66932a73ee6fd05a74a83bdc438c9499a89a12`로 유지되어 rebase는 up-to-date로 끝났고 원 기여/보정 순서는 바뀌지 않았다. 동일 후보를 검토 worktree에 checkout해 파생 suite 준비와 `cargo fmt --all -- --check`를 exit0으로 확인했다. 주 작업공간의 오래된 ignored generated suite를 대상으로 실패했던 앞선 포맷 실행은 통과 근거에 포함하지 않는다. Native 빌드와 시각 확인은 이 기록 작성 시 진행 중이며 이전 종료값 없는 workspace 검사는 중단 기록으로 보존했다.
 
 이후 후보46de의 Native 빌드는447.50초/exit0으로 완료했고 원본5개 전7쪽과 동일 바이트 샘플3개의 반복 Print 전3쪽을 비교했다. 정상4개는 위 점수를 유지했으나36308670의2쪽은87.25354%로 바뀌지 않았다. 실제 scan은 `end_cut=[1,16]`, `frame=None`, `override=None`였다. 후보의 enum 조건이 XML 이름을 내부 enum 이름으로 잘못 해석해 경로가 비적용이었던 것을 파서의 CELL→RowBreak 매핑으로 확인하고 수정했다. 새 후보는 아직 재빌드·시각 실행 전이며, 이 관측을 개선 통과나 정식 회귀의 수정 전 FAIL로 세지 않는다.
+
+다음 후보 `1e58eafab9232c7224aabe142305f6f9a8497bc3`의 Native 빌드는375.08초/exit0, 원본5개 전7쪽 비교도 완료했다. 정상4개 점수는 유지했으나36308670의2쪽은85.33707%로 미달했다. review PNG를 직접 열었고, 실제 scan의 첫 행 예약397.72px와 최종 cell 상자388.1px가 달랐다. 이어받기77.2px를 합해도 선언474.91px가 보존되지 않았다. `layout/table_partial.rs`의 배치 뒤 줄간격 접기는 HWP5 프레임만 보호하고 있었으며, 공유 helper 호출 뒤 다른 분기가 높이를 덮어쓴 사례로 판정했다.
+
+추가 후보는 같은 유효한 HWPX 행 소유 조건으로 이미 계산된 `saved_first_fragment_source_frame`을 행 스캔 예산에 적용한다. source의 첫 개체 프레임은512.92px이고 앞 온전한 행을 제외하면 약394.53px이다. 실제 쪽의 더 큰 잔여 공간으로 이 프레임을 늘리면 다음 조각의 잔여가 줄어드므로 이 source 상자를 먼저 예약한다. 최종 접기에서도 같은 행 소유 조건을 소비해 예약된 물리 상자를 유지한다. 기존 HWP5 접기 보호 조건은 보존한다. 새 수치 상수·문서 ID·기준값 변경은 없다. 이 추가 후보의 컴파일·Native/fresh WASM·경계 검사는 아직 미검증이며,1e58의 실패와 로그/PNG를 보존한다.
