@@ -2,7 +2,7 @@
 kind: investigation
 status: historical
 canonical: mydocs/pr/archives/pr_7617_review.md
-last_verified: 2026-10-09
+last_verified: 2026-10-10
 ---
 
 # PR #7617 리뷰 — 표가 민 첫 글줄의 문단 앞 간격
@@ -230,3 +230,45 @@ HWP/HWPX의 실제 Native page plan은 모두383쪽이다.241쪽 host408은0..11
 원본 결재문서5개 전7쪽은 Native/fresh WASM 모두 최저99.61781%다. 편람 HWPX 영향·정상 대조20쪽은 두 backend 모두 최저92.77642%, 미달·누락0쪽이다.152쪽99.43126%,241쪽98.56603%,242쪽98.37935%,243쪽99.15390%,281쪽99.92654%,375쪽92.77642%다.242쪽의 이전43.99893% 실패와 같은 원본·Print에서 비교했다. 두 backend는 실제 새 Native와 fresh WASM 출력이며 이전 capture를 바꾸어 이름 붙인 것이 아니다. 브라우저 재사용은 canonical 준비·font byte·PNG parity가 확인된 실행 orchestration만 재사용하며 점수·원시 WASM geometry를 바꾸지 않았다.
 
 152/241/242/281/375쪽의 Native/fresh WASM compare·standalone overlay·review10개를 산출하고 모두 직접 열었다(`candidate-711f7f92e-handbook-boundary-panels/`).241쪽의 공개 단계 두 행이 본래 쪽에 남고242쪽은 결과 활용 행으로 시작하며 뒤 본문·표 외곽·하단 번호가 보존된다.152쪽의 제목과 뒤 표는 겹치지 않으며281쪽의 목차 쪽번호와 아래 테두리도 유지한다.375쪽의 왼쪽 서식 약1.9px 차이, 글꼴 획·농도·AA·일부 괘선 두께 차이는 남는다. 선택20쪽을 원본383쪽 전수 통과로 보고하지 않는다. 최신 전체 회귀·lint·다른 PR 경계와 전쪽 시각 검증을 마친 뒤 최종 판정하며 새 rendering test/baseline·원격 push·통합 PR은 아직 보류한다.
+
+### 2026-10-10 통합 제품 source의 전쪽 수치와 직접 판독
+
+제품 source `5538efd3832ab2137e86de5302b4dee7caf392b7`, 고정 base
+`21ed64071f81f35f37618717693bd30f727392c9`를 Native·fresh WASM으로 새로 빌드했다.
+그 뒤 검사·fixture만 더한 `bea45e807be47d460899a6c62f55e200a0fcd423`는 제품 source/Cargo와 같다.
+동일 원본과 대응 2024 Print, 동일 font bytes,96dpi/Print profile에서 다음 전쪽 수치를 확보했다.
+
+| 원본·출력 | 비교/전체 | 최저 실루엣 보조값 | 90% 미만·누락 |
+| --- | --- | --- | --- |
+| HWPX Native | 383/383 | 90.40200% | 0·0 |
+| HWPX fresh WASM | 383/383 | 90.40200% | 0·0 |
+| HWP Native | 383/383 | 90.42728% | 0·0 |
+| HWP fresh WASM | 실행 중 | 미확정 | 미확정 |
+
+HWPX Native/fresh WASM의 새 전383쪽 raster 중382쪽은 PNG bytes가 같으며1쪽은 다르다.
+같은 수치와 대부분의 동일 PNG를 실제 backend·기하 계약 전체의 충족으로 승격하지 않는다.
+ignored `candidate-5538efd38-hwpx-full-raster-identity.json`에 동일·상이 쪽을 구별했다.
+WASM의 최초 전체 실행은 historical raster parity control의 source SHA를 제품 source SHA와
+같아야 한다고 잘못 묶은 orchestration guard에서 중단됐다. source/package·raw geometry·exact
+font bytes를 각각 검증하고, 이미 완료된 같은 source의 raw export에서 실제383쪽 raster와 TSV를
+완료했다. 중단 record는 `provenance.invalid-control-binding.json`에 보존했다.
+
+새 source의152/241/242/281/375쪽 양 경로 review10개를 직접 열었다.
+281쪽 목차의 오른쪽 번호·아래 표 외곽과241/242쪽의 원래 쪽 소속은 유지된다.
+추가로 전체 최저 쪽93/130/273의 Native review를 직접 판독했다. 수치90% 이상이어도
+그림 좌표 차이가 남는다. 같은96dpi 좌표계의 SVG image와 독립 PDF CTM에서93쪽 두 번째
+그림 x는123.28 대138.4107,273쪽 두 번째 그림 y는508.12 대519.4693이다.
+상위 SVG transform 여부도 확인했다. 해당 세 쪽의 새 PNG는 f971 및0a의 같은 쪽 PNG와 같지만,
+기존 차이라는 분류로 배치 보류를 해제하지 않는다. 실제 소비 경로·원본 선언·기준 출력의
+대응을 대조하여 원인과 필요한 보완 범위를 정한다.130쪽과 나머지 낮은 쪽의 괘선·그림 경계도
+추가 판독·해석 대상이다. 이 절은 수치 선행 조건과 직접 판독상 잔여 결함을 분리한 진행 기록이다.
+
+실행·source/입력/Print/package hash·전쪽 TSV는 ignored
+`output/pr-review/planet6897-20261008/candidate-5538efd38-native-handbook-{hwp,hwpx}-full.json`,
+`candidate-5538efd38-wasm-handbook-hwpx-full/provenance.json`에 보존했다.
+새 대표 compare·overlay·review는 `candidate-5538efd38-handbook-boundary-panels/`,
+낮은 쪽은 `candidate-5538efd38-hwpx-native-full-low-panels/`, 그림 bounds는
+`candidate-5538efd38-handbook-low-picture-bounds.json`에 있다.
+전체 회귀는 `bea45e807-full-regression.json`/`bea45e807-full.log`에서 진행 중이며 실패가 발견됐다.
+최종 실패 목록과 고정 upstream/devel의 시각 근거를 확보하기 전에 baseline을 완화하거나
+다른 이슈로 임의 이관하지 않는다. 원 PR·통합 후보의 머지 보류는 유지한다.
