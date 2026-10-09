@@ -195,4 +195,16 @@ WASM 비교는 첫 원본 export에서 `setHangul2024Compat` 부재로 중단됐
 
 최신 base `21ed64071`의 순서 보존 rebase를 끝낸 뒤 `b06e963f9`은 온전한 셀이 partial-table 안에 놓이는 실제 경로에도 `stored_single_column_cell_flow`의 문단/줄 원점을 전달한다. 부분 셀은 현재 컷의 첫 소유 줄을 같은 밴드 좌표계의 조각 원점으로 사용하며, 첫 조각의 leading band와 문단 앞 간격은 한 번만 소비한다. 기존 문단/개체 소유 컷을 바꾸거나 줄을 숨기지 않는다. 그림·중첩 표·dirty/합성 등 공통 생산자가 제외한 경로는 해당 계획을 사용하지 않는다. 실제154쪽의 `cut=None` 경계와 컷이 있는 대조군의 실행 확인은 아직 미검증이다.
 
-375쪽의 상단 쪽번호는 원본 XML과 실제 Print로 별도 분리했다. 원문 전체에는 section11의 EVEN 머리말, ODD 꼬리말, 빈 EVEN 꼬리말만 있으며 ODD/BOTH 머리말은 없다. 홀수 표시 쪽367의 Print text operator에는 하단 쪽번호 하나만 있지만 이전 실제 render tree에는 Header/Footer 양쪽에 `－ 367 －`가 있다. `batch4-hf-parity-source-diagnostic.json`에 입력/PDF/tree hash·원본 applyPageType·Print 기준선681.92px·수정 전 노드를 보존했다. `0a8ac9f82e3123637b5f3741feb9f5d56dd735b7`은 구역 간 kind 상속의 반대 홀짝 fallback을 제거하고 같은 홀짝 슬롯만 소비한다. BOTH 정의는 기존 carry 갱신에서 두 슬롯에 각각 기록되며, 현재 구역의 슬롯별 재선택과 이전 구역의 같은 슬롯 상속은 유지한다. 임의로375쪽의 Header를 숨기는 처리가 아니다. 이 source의 Native/fresh WASM·홀짝 정상 대조군·전체 회귀와 최종 lint는 아직 미검증이다. 두 보완과 upstream의 renderer 변경을 같은 새 후보로 빌드·출력해 확인한다.
+375쪽의 상단 쪽번호는 원본 XML과 실제 Print로 별도 분리했다. 원문 전체에는 section11의 EVEN 머리말, ODD 꼬리말, 빈 EVEN 꼬리말만 있으며 ODD/BOTH 머리말은 없다. 홀수 표시 쪽367의 Print text operator에는 하단 쪽번호 하나만 있지만 이전 실제 render tree에는 Header/Footer 양쪽에 `－ 367 －`가 있다. `batch4-hf-parity-source-diagnostic.json`에 입력/PDF/tree hash·원본 applyPageType·Print 기준선681.92px·수정 전 노드를 보존했다. `0a8ac9f82e3123637b5f3741feb9f5d56dd735b7`은 구역 간 kind 상속의 반대 홀짝 fallback을 제거하고 같은 홀짝 슬롯만 소비한다. BOTH 정의는 기존 carry 갱신에서 두 슬롯에 각각 기록되며, 현재 구역의 슬롯별 재선택과 이전 구역의 같은 슬롯 상속은 유지한다. 임의로375쪽의 Header를 숨기는 처리가 아니다. 작성 당시 이 source의 Native/fresh WASM·홀짝 정상 대조군·전체 회귀와 최종 lint는 미검증이었다. 아래 실제 실행 결과에서 완료한 범위만 갱신한다.
+
+#### 최신 후보의 영향 쪽 검증과 홀짝 대조 — 2026-10-10
+
+제품 source `0a8ac9f82e3123637b5f3741feb9f5d56dd735b7`, base `21ed64071f81f35f37618717693bd30f727392c9`를 고정했다. 같은 공유 target과 build jobs8에서 Native CLI 빌드는481.66초 exit0, fresh WASM은129.53초 exit0이며 fmt check도 exit0이다. 이전 source의 산출물을 최신 source의 결과로 재사용하지 않았다. 원본 결재문서5개·전체7쪽은 Native/fresh WASM 모두 최저99.61781%, 미달·누락0쪽이다.
+
+편람 원본 HWPX는 두 경로 모두383쪽이며 기존 미달16쪽의 Native/fresh WASM 최저92.77642%, 미달·누락0쪽이다. 154쪽은 수정 전84.67500%에서98.48451%,375쪽은92.52421%에서92.77642%다. `candidate-0a8ac9f82-handbook-compat2024-boundaries.json` 및 `candidate-0a8ac9f82-wasm-handbook-hwpx-compat2024-boundaries/provenance.json`에 입력·Print PDF·font·package/source hash와 전체16쪽 TSV를 연결했다. 이 결과는383쪽 전수 비교의 완료 판정이 아니다.
+
+같은 후보의154·375쪽 Native/fresh WASM compare·standalone overlay·review4개를 새로 산출하고 모두 직접 열었다(`candidate-0a8ac9f82-handbook-boundary-panels/`). 154쪽은 셀 내부 단 전환 뒤 글줄과 후속 행의 큰 밀림이 해소됐다.375쪽은 오른쪽 서식의 외곽·뒤 본문이 복구되고 상단 중복 쪽번호가 제거됐다. 왼쪽 서식의 약1.9px 위치·획 농도 차이는 남는다. 이 차이를 점수로 면제하거나 전체 일치를 주장하지 않는다.
+
+독립 원문 Print 번호와 실제 두 backend의 render tree를374·375·376쪽에서 대조했다. 표시366·368의 짝수 쪽은 Header 번호만, 표시367의 홀수 쪽은 Footer 번호만 소유한다. 수정 전375쪽의 Header/Footer 중복과 수정 후 Footer 단독을 기록했다(`batch5-hf-parity-check.json`). `displayText`의 실제 자동 번호를 검사했으며 원시`text`의 공백을 번호 부재로 오인하지 않았다. 이 진단은 정식 회귀 검사를 대신하지 않는다.
+
+고정 base를 전달한 manifest48/48 target 검사와 source unit tier4149 tests 검사는 각각 exit0이다(`batch5-base-policy-checks.json`). 원 PR7개는 원격에서 모두 open이며 기록한 contributor head와 동일함을 재확인했다(`batch5-remote-pr-heads.json`). 현재 HWP/HWPX의 Native 전체383쪽 비교를 실행 중이다. 전체 fresh WASM 비교·분할 반례의 정식 회귀·전체 nextest·세 Clippy·실제 출력 backend·각 PR 최종 검토는 아직 미완료이므로 보류 판정을 유지한다. 새 rendering test/baseline과 원격 push·통합 PR은 아직 추가하지 않았다.
