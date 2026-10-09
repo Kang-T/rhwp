@@ -443,7 +443,18 @@ pub(super) fn try_place_stored_tac_paragraph(
                 .saturating_add(seg.line_spacing)
                 .saturating_sub(crate::renderer::px_to_hwpunit(placement.end, dpi))
         });
+        // 일반 표 문단 경로는 장식 개체도 원래 컨트롤 순서대로 발행한다.
+        // 줄 계획의 단축이 그 경로를 생략해도, 흐름을 점유하지 않는 장식의
+        // paint 소유권은 남는다. 표의 저장 pen을 같은 문단 앵커로 전달한다.
+        let owner = placement.control_index;
+        let host_origin = placement.inline.y;
+        for (index, control) in para.controls.iter().enumerate().take(owner) {
+            place_table_host_shape(st, para_idx, index, control, para, host_origin, styles, dpi);
+        }
         st.commit_stored_tac_control(para_idx, placement);
+        for (index, control) in para.controls.iter().enumerate().skip(owner + 1) {
+            place_table_host_shape(st, para_idx, index, control, para, host_origin, styles, dpi);
+        }
         // 원본 저장 줄의 좌표축은 이미 확립돼 있다. 합성 줄의 확정 끝만
         // lazy 원점으로 역산하며, 실제 저장 표 뒤 사다리는 유지한다.
         if rebase_line_origin {

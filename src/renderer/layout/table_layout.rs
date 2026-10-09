@@ -12416,6 +12416,7 @@ impl LayoutEngine {
                 _ => true,
             }
         });
+        let authenticated_hwpx_frame = self.direct_hwpx_cell_preserves_stored_frame(cell, table);
         let plain_empty_paragraph: Vec<bool> = cell
             .paragraphs
             .iter()
@@ -12670,6 +12671,10 @@ impl LayoutEngine {
                 self.compose_cell_unit_paragraph(p, cell.text_direction, inner_width, styles);
             let para_style = styles.para_styles.get(p.para_shape_id as usize);
             let is_empty_spacer_para = p.text.trim().is_empty() && p.controls.is_empty();
+            let stored_frame_empty_advance = authenticated_hwpx_frame
+                .then(|| self.stored_empty_line_advance_hu(cell, pi))
+                .flatten()
+                .map(|advance| hwpunit_to_px(advance, self.dpi));
             // [#6923] 겹침 걸음 사다리(음수 line_spacing)의 빈 줄은 접지 않는다 — 저장
             // 사다리가 그 줄의 점유를 직접 말한다. 규칙과 근거는
             // `crate::renderer::stored_overlap_spacer_advance_hu` 에 한 곳으로 있고,
@@ -12693,6 +12698,7 @@ impl LayoutEngine {
                 // 한글에 없는 빈 쪽이 생긴다.
                 (profile.hwp5_stored_pagination_layout()
                     || profile.hwp5_origin_hwpx()
+                    || stored_frame_empty_advance.is_some()
                     || (profile.hwpx_stored_layout()
                         && is_block_rowbreak
                         && table.row_count == 1
@@ -14169,7 +14175,9 @@ impl LayoutEngine {
                         _ => 0.0,
                     })
                     .sum();
-                let para_h = if let Some(advance) = stored_overlap_spacer_advance_px {
+                let para_h = if let Some(advance) = stored_frame_empty_advance {
+                    spacing_before + advance + spacing_after
+                } else if let Some(advance) = stored_overlap_spacer_advance_px {
                     advance
                 } else if collapse_empty_rowbreak_spacer {
                     0.0
@@ -17553,6 +17561,52 @@ impl LayoutEngine {
                     sum_fits_declared
                 }
             })
+    }
+
+    /// 컷이 인증한 원본 프레임의 줄 상자는 측정과 실제 배치가 함께 보존한다.
+    /// 편집·합성된 사다리는 원본 저장 좌표로 취급하지 않는다.
+    pub(super) fn direct_hwpx_cell_preserves_stored_frame(
+        &self,
+        cell: &crate::model::table::Cell,
+        table: &crate::model::table::Table,
+    ) -> bool {
+        !self.profile.get().session_edited()
+            && !cell.dirty_flag
+            && cell.paragraphs.iter().all(|paragraph| {
+                !paragraph.stored_text_partition_is_dirty() && !paragraph.cell_format_vpos_dirty
+            })
+            && self.direct_hwpx_cell_has_declared_stored_frame(cell, table)
+    }
+
+    /// 다음 원본 줄의 시작이 닫는 빈 줄의 점유 전진량. 전체 셀의 그림 여백이나
+    /// 선언 크기 대신 해당 줄의 저장 높이·간격·후속 원점으로 입증한다.
+    pub(super) fn stored_empty_line_advance_hu(
+        &self,
+        cell: &crate::model::table::Cell,
+        paragraph_index: usize,
+    ) -> Option<i32> {
+        let paragraph = cell.paragraphs.get(paragraph_index)?;
+        if !paragraph.text.is_empty() || !paragraph.controls.is_empty() {
+            return None;
+        }
+        let [line] = paragraph.line_segs.as_slice() else {
+            return None;
+        };
+        let next = cell
+            .paragraphs
+            .get(paragraph_index + 1)?
+            .line_segs
+            .first()?;
+        if (line.tag | next.tag) & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+            != 0
+            || line.vertical_pos < 0
+            || line.line_height <= 0
+            || line.line_spacing < 0
+        {
+            return None;
+        }
+        let advance = line.line_height.checked_add(line.line_spacing)?;
+        (line.vertical_pos.checked_add(advance)? == next.vertical_pos).then_some(advance)
     }
 
     /// 행의 셀별 "보이는 소스 셀인가" 표지 — 열 순서로 정렬한 셀 순서다.

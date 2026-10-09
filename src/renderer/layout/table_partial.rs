@@ -1614,24 +1614,51 @@ impl LayoutEngine {
             };
             let line_ranges: Option<Vec<(usize, usize)>> = cut_units
                 .map(|(su, eu)| self.cell_line_ranges_from_cut(cell, table, styles, su, eu));
+            let authenticated_hwpx_frame =
+                self.direct_hwpx_cell_preserves_stored_frame(cell, table);
+            // 빈 저장 줄의 높이를 배치에서 재추측하지 않는다. 현재 컷이 소유한
+            // 같은 CellUnit의 물리 전진량을 소비하며, 다른 조각의 빈 줄은 제외한다.
+            let stored_empty_line_advances = if authenticated_hwpx_frame {
+                let units = self.cell_units(cell, table, styles);
+                let (start, end) = cut_units.unwrap_or((0, units.len()));
+                cell.paragraphs
+                    .iter()
+                    .enumerate()
+                    .map(|(index, _)| {
+                        self.stored_empty_line_advance_hu(cell, index)?;
+                        units.iter().take(end).skip(start).find_map(|unit| {
+                            (unit.para_idx == index
+                                && unit.empty_spacer
+                                && unit.vis_start == 0
+                                && unit.vis_end == 1
+                                && unit.height > 0.0)
+                                .then_some(unit.height)
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                vec![None; cell.paragraphs.len()]
+            };
             // #7032: composition intentionally emits zero lines for text="".
             // Keep the existing empty-paragraph eligibility and unit ledger;
             // neither the cut policy nor the global composer is changed here.
             let empty_paragraphs: Vec<bool> = cell
                 .paragraphs
                 .iter()
-                .map(|para| {
+                .enumerate()
+                .map(|(index, para)| {
                     cell.text_direction == 0
                         && !self.profile.get().hwp3_layout()
                         && para.text.is_empty()
-                        && super::paragraph_layout::empty_no_lineseg_paragraph_metrics(
-                            para,
-                            styles,
-                            styles.para_styles.get(para.para_shape_id as usize),
-                            false,
-                            self.dpi,
-                        )
-                        .is_some()
+                        && (stored_empty_line_advances[index].is_some()
+                            || super::paragraph_layout::empty_no_lineseg_paragraph_metrics(
+                                para,
+                                styles,
+                                styles.para_styles.get(para.para_shape_id as usize),
+                                false,
+                                self.dpi,
+                            )
+                            .is_some())
                 })
                 .collect();
             let empty_owners = cut_units
@@ -2149,7 +2176,8 @@ impl LayoutEngine {
             let resumed_stored_frame_origin = cut_units.and_then(|(su, _)| {
                 if su == 0
                     || !linear_single_cell
-                    || !self.profile.get().hwp5_stored_pagination_layout()
+                    || !(self.profile.get().hwp5_stored_pagination_layout()
+                        || authenticated_hwpx_frame)
                     || cell
                         .paragraphs
                         .iter()
@@ -2575,7 +2603,9 @@ impl LayoutEngine {
                 let para_y_before_lines = para_y;
                 // 표 컨트롤이 없는 문단: 텍스트 먼저, 컨트롤 나중 (기존 동작)
                 // 표 컨트롤이 있는 문단: 문단 앞 간격 적용 → 표 먼저 배치 → 텍스트(엔터 등) 나중
-                if !has_table_ctrl
+                if let Some(advance) = stored_empty_line_advances[cp_idx] {
+                    para_y += advance;
+                } else if !has_table_ctrl
                     || composed
                         .lines
                         .iter()
