@@ -597,6 +597,23 @@ impl TypesetEngine {
             };
             host_before + vert_off + fragment_outer_bottom
         };
+        // 다음 쪽 저장 줄이 잔여 셀 밴드를 닫으면 첫 조각 예산만 개체 프레임으로
+        // 한정한다. 뒤 조각은 기존 완료 컷과 빈 밴드 높이를 이어받는다.
+        if st.profile.hwp5_stored_pagination_layout()
+            && !st.profile.session_edited()
+            && !self.render_normalization.table_text_reflowed(table)
+        {
+            if let Some(frame) =
+                crate::renderer::stored_float_anchor::stored_single_cell_first_frame_height_hu(
+                    para,
+                    paragraphs_all.get(para_idx + 1),
+                    table,
+                )
+            {
+                table_available = table_available
+                    .min(st.current_height + hwpunit_to_px(frame, self.dpi) + first_frag_overhead);
+            }
+        }
         let remaining_on_page = fragment_host_placement.map_or_else(
             || (table_available - st.current_height - first_frag_overhead).max(0.0),
             |p| {
