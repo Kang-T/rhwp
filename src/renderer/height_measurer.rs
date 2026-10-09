@@ -3649,7 +3649,7 @@ impl HeightMeasurer {
                     .unwrap_or(content_height);
 
                 // 닫힌 원본 프레임의 빈 마지막 줄은 그림 띠와 별도의 실제 공간이다.
-                let text_height = if self.is_native_hwp5
+                let text_height = if (self.is_native_hwp5 || self.hwpx_stored_layout)
                     && !self.session_edited
                     && !self.render_normalization.table_text_reflowed(table)
                 {

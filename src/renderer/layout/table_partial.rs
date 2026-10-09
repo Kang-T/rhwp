@@ -1968,10 +1968,13 @@ impl LayoutEngine {
                     cell_y + pad_top + (align_inner_height - total_content_height).max(0.0)
                 }
             };
-            let text_y_start = text_y_start
-                + stored_empty_picture_frame
-                    .map(|frame| hwpunit_to_px(frame.line_offset_hu, self.dpi))
-                    .unwrap_or(0.0);
+            let text_y_start = stored_empty_picture_frame
+                .map(|frame| {
+                    cell_y
+                        + pad_top
+                        + frame.paragraph_origin_offset_px(inner_height, effective_align, self.dpi)
+                })
+                .unwrap_or(text_y_start);
 
             // 세로쓰기 셀: 별도 레이아웃 경로 (가로 레이아웃 루프 대신)
             if cell.text_direction != 0 {

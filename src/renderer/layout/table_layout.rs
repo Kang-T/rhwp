@@ -5297,7 +5297,7 @@ impl LayoutEngine {
         table: &crate::model::table::Table,
     ) -> Option<crate::renderer::float_placement::StoredEmptyPictureCellFrame> {
         let profile = self.profile.get();
-        if !profile.hwp5_stored_pagination_layout()
+        if !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
             || profile.session_edited()
             || self
                 .render_normalization
@@ -9742,8 +9742,7 @@ impl LayoutEngine {
                 .map(|frame| {
                     content_cell_y
                         + pad_top
-                        + (inner_height - hwpunit_to_px(frame.content_height_hu, self.dpi)).max(0.0)
-                        + hwpunit_to_px(frame.line_offset_hu, self.dpi)
+                        + frame.paragraph_origin_offset_px(inner_height, effective_valign, self.dpi)
                 })
                 .unwrap_or(text_y_start)
                 + upper_page_clip_line_reservation
@@ -12177,7 +12176,10 @@ impl LayoutEngine {
                 mixed_nested_starts_after_table: false,
                 mixed_nested_source_para_idx: None,
                 recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
-                top_and_bottom_flow: true,
+                top_and_bottom_flow: cell.paragraphs[0].controls.iter().any(|control| {
+                    matches!(control, Control::Picture(picture)
+                        if picture.common.text_wrap == TextWrap::TopAndBottom)
+                }),
                 empty_spacer: false,
                 non_inline_control_range: Some((0, cell.paragraphs[0].controls.len() - 1)),
             }];

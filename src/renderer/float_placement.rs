@@ -358,13 +358,98 @@ pub(crate) fn stored_inline_content_frame(
     })
 }
 
-/// 그림 띠 뒤의 빈 마지막 줄을 담는 원본 셀 프레임.
-/// 그림들은 같은 띠의 원점에서 움직이며 각 그림 높이로 원점을 따로 역산하지 않는다.
+/// Original cell frame shared by an empty anchor line and its picture band.
+/// All pictures retain their signed offsets from one paragraph origin.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct StoredEmptyPictureCellFrame {
     pub line_offset_hu: i32,
     pub picture_band_origin_hu: i32,
     pub content_height_hu: i32,
+}
+
+impl StoredEmptyPictureCellFrame {
+    pub(crate) fn paragraph_origin_offset_px(
+        self,
+        inner_height: f64,
+        align: crate::model::table::VerticalAlign,
+        dpi: f64,
+    ) -> f64 {
+        use crate::model::table::VerticalAlign;
+        let free = (inner_height - hwpunit_to_px(self.content_height_hu, dpi)).max(0.0);
+        let alignment = match align {
+            VerticalAlign::Top => 0.0,
+            VerticalAlign::Center => free / 2.0,
+            VerticalAlign::Bottom => free,
+        };
+        alignment + hwpunit_to_px(self.line_offset_hu, dpi)
+    }
+}
+
+/// A paragraph-relative Square float starts at the empty paragraph's origin,
+/// not after its anchor line. Center/Bottom alignment consumes the union of
+/// that line and the picture boxes, including their negative top extents.
+fn stored_empty_square_picture_cell_frame(
+    cell: &crate::model::table::Cell,
+) -> Option<StoredEmptyPictureCellFrame> {
+    use crate::model::paragraph::LineSeg;
+    use crate::model::table::VerticalAlign;
+    if cell.dirty_flag
+        || cell.text_direction != 0
+        || !matches!(
+            cell.vertical_align,
+            VerticalAlign::Center | VerticalAlign::Bottom
+        )
+    {
+        return None;
+    }
+    let [para] = cell.paragraphs.as_slice() else {
+        return None;
+    };
+    let [line] = para.line_segs.as_slice() else {
+        return None;
+    };
+    if !para.text.is_empty()
+        || para.column_type != crate::model::paragraph::ColumnBreakType::None
+        || para.stored_text_partition_is_dirty()
+        || para.cell_format_vpos_dirty
+        || para.controls.is_empty()
+        || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || line.vertical_pos != 0
+        || line.line_height <= 0
+    {
+        return None;
+    }
+    let mut top = 0_i32;
+    let mut bottom = line.line_height;
+    for control in &para.controls {
+        let Control::Picture(picture) = control else {
+            return None;
+        };
+        let common = &picture.common;
+        let height = signed_hwpunit(common.height);
+        if common.treat_as_char
+            || !common.flow_with_text
+            || common.text_wrap != TextWrap::Square
+            || common.vert_rel_to != VertRelTo::Para
+            || common.vert_align != VertAlign::Top
+            || common.margin.top != 0
+            || common.margin.bottom != 0
+            || picture.caption.is_some()
+            || picture.shape_attr.rotation_angle.rem_euclid(360) != 0
+            || height <= 0
+        {
+            return None;
+        }
+        let offset = signed_hwpunit(common.vertical_offset);
+        top = top.min(offset);
+        bottom = bottom.max(offset.checked_add(height)?);
+    }
+    let origin = top.checked_neg()?;
+    Some(StoredEmptyPictureCellFrame {
+        line_offset_hu: origin,
+        picture_band_origin_hu: origin,
+        content_height_hu: bottom.checked_sub(top)?,
+    })
 }
 
 pub(crate) fn stored_empty_picture_cell_frame(
@@ -373,6 +458,9 @@ pub(crate) fn stored_empty_picture_cell_frame(
 ) -> Option<StoredEmptyPictureCellFrame> {
     use crate::model::paragraph::LineSeg;
     use crate::model::table::VerticalAlign;
+    if let Some(frame) = stored_empty_square_picture_cell_frame(cell) {
+        return Some(frame);
+    }
     if cell.row_span != 1
         || cell.text_direction != 0
         || cell.vertical_align != VerticalAlign::Bottom
