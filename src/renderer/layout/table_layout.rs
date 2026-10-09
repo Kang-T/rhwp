@@ -17057,7 +17057,7 @@ impl LayoutEngine {
         .then_some(height)
     }
 
-    /// A CellBreak source stream can reset inside one owning row. The row's
+    /// A HWPX CELL (IR RowBreak) stream can reset inside one owning row. The row's
     /// declared box is independent of how many content units each page accepts.
     /// Native RowBreak authentication keeps its existing object-frame contract.
     fn stored_minimum_row_has_text_frame_boundary(
@@ -17076,7 +17076,7 @@ impl LayoutEngine {
                 && !table.common.treat_as_char
                 && matches!(
                     table.page_break,
-                    crate::model::table::TablePageBreak::CellBreak
+                    crate::model::table::TablePageBreak::RowBreak
                 )
                 && table.cells.iter().any(|cell| {
                     usize::from(cell.row) == row
@@ -17103,12 +17103,12 @@ impl LayoutEngine {
                 table.page_break,
                 crate::model::table::TablePageBreak::RowBreak
             );
-        let hwpx_cell_source = self.profile.get().hwpx_stored_layout()
+        let hwpx_row_source = self.profile.get().hwpx_stored_layout()
             && matches!(
                 table.page_break,
-                crate::model::table::TablePageBreak::CellBreak
+                crate::model::table::TablePageBreak::RowBreak
             );
-        if !(native_row_source || hwpx_cell_source)
+        if !(native_row_source || hwpx_row_source)
             || self.profile.get().session_edited()
             || self
                 .render_normalization
@@ -17157,7 +17157,7 @@ impl LayoutEngine {
                 {
                     return None;
                 }
-                if hwpx_cell_source {
+                if hwpx_row_source {
                     let units = self.cell_units(owner, table, styles);
                     if self.cell_cut_has_projected_lines(owner, table, styles, 0, units.len()) {
                         return None;

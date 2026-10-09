@@ -64,9 +64,9 @@ base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도�
 
 ## HWPX 저장 행의 물리 높이 보정 후보
 
-리베이스 뒤 `2288ccb2cdbe78c2781d73025932a9277738bdff`에서 남은 차이를 추적했다. 실제 Hancom 저장 원본 36308670의 CellBreak 행은 두 Center 정렬 소유 셀이 같은 선언 높이 35618HU를 갖고, 본문 셀의 저장 문단 vpos가 쪽 경계에서 다시 시작한다. 독립 Print PDF의 앞/뒤 행 조각 높이 합은 약 474.36px로 선언 높이 474.91px에 대응한다. 기존 Native 조각 합은 약 459.8px이며 뒤 사진 행이 약 15px 위로 당겨졌다. 이 수치는 진단 관측값이며 회귀 기대값으로 고정하지 않는다.
+리베이스 뒤 `2288ccb2cdbe78c2781d73025932a9277738bdff`에서 남은 차이를 추적했다. 실제 Hancom 저장 원본 36308670의 XML `pageBreak="CELL"` 행은 두 Center 정렬 소유 셀이 같은 선언 높이 35618HU를 갖고, 본문 셀의 저장 문단 vpos가 쪽 경계에서 다시 시작한다. 독립 Print PDF의 앞/뒤 행 조각 높이 합은 약 474.36px로 선언 높이 474.91px에 대응한다. 기존 Native 조각 합은 약 459.8px이며 뒤 사진 행이 약 15px 위로 당겨졌다. 이 수치는 진단 관측값이며 회귀 기대값으로 고정하지 않는다.
 
-후보는 저장본·비편집·비재조판 CellBreak 경로에서 연속 열을 완전히 덮는 비병합 소유 셀, 동일 선언 높이, 비Top 정렬, 유효한 저장 문단 프레임 재시작과 비투영 내용 조건을 확인한다. 기존 HWP5 RowBreak 수용 조건과 편집/재조판 경로는 유지한다. 특정 문서 식별자나 위치 상수를 추가하지 않았다.
+후보는 저장본·비편집·비재조판 HWPX CELL 경로에서 연속 열을 완전히 덮는 비병합 소유 셀, 동일 선언 높이, 비Top 정렬, 유효한 저장 문단 프레임 재시작과 비투영 내용 조건을 확인한다. XML CELL은 `parser/hwpx/section.rs`에서 IR `RowBreak`로 변환되므로 이 내부 속성으로 분기한다. 기존 HWP5 RowBreak 수용 조건과 편집/재조판 경로는 유지한다. 특정 문서 식별자나 위치 상수를 추가하지 않았다.
 
 실제 소비 경로는 `layout/table_layout.rs::stored_full_width_row_declared_height` → `typeset/table/continuation/fragment/emit.rs`의 수용 예산 및 `stored_row_box_sum` 누적 → 같은 emit의 실제 수용 높이를 뺀 `start_row_height_override` → `scan/runner.rs`·행 스캔의 잔여 요구 높이 → `layout/table_partial.rs`의 행 높이와 저장 프레임 정렬 원점이다. 내용 컷과 이미 배치한 물리 공간을 구별하며, 측정 이후 paint가 다른 높이를 추정하는 처리를 추가하지 않는다.
 
@@ -75,3 +75,5 @@ base74의 같은 원본·새 Print PDF Native 전2쪽 최저42.02958%를 별도�
 기존 `36312980_broken_cell_ladder_center.hwpx`, `36455985_no_lineseg_cell_spacing_before.hwpx`, `36494836_field_marker_tac_lines.hwpx`의 SHA-256은 각각 위 대응 원본과 정확히 같다. 새로 확보한 이 세 경로의 Print PDF는 동일 입력의 반복 출력이며, 별도의 편집·합성 입력 coverage로 세지 않는다. 과거의 변형본 분류는 이 바이트 대조로 정정했다.
 
 후보 commit `46de329e53084e5c50b62555e256cf7e2f8f7e8a` 뒤 `upstream/devel`을 다시 fetch했다. base는 `6f66932a73ee6fd05a74a83bdc438c9499a89a12`로 유지되어 rebase는 up-to-date로 끝났고 원 기여/보정 순서는 바뀌지 않았다. 동일 후보를 검토 worktree에 checkout해 파생 suite 준비와 `cargo fmt --all -- --check`를 exit0으로 확인했다. 주 작업공간의 오래된 ignored generated suite를 대상으로 실패했던 앞선 포맷 실행은 통과 근거에 포함하지 않는다. Native 빌드와 시각 확인은 이 기록 작성 시 진행 중이며 이전 종료값 없는 workspace 검사는 중단 기록으로 보존했다.
+
+이후 후보46de의 Native 빌드는447.50초/exit0으로 완료했고 원본5개 전7쪽과 동일 바이트 샘플3개의 반복 Print 전3쪽을 비교했다. 정상4개는 위 점수를 유지했으나36308670의2쪽은87.25354%로 바뀌지 않았다. 실제 scan은 `end_cut=[1,16]`, `frame=None`, `override=None`였다. 후보의 enum 조건이 XML 이름을 내부 enum 이름으로 잘못 해석해 경로가 비적용이었던 것을 파서의 CELL→RowBreak 매핑으로 확인하고 수정했다. 새 후보는 아직 재빌드·시각 실행 전이며, 이 관측을 개선 통과나 정식 회귀의 수정 전 FAIL로 세지 않는다.
