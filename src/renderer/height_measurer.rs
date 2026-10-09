@@ -2623,6 +2623,31 @@ impl HeightMeasurer {
             .sum()
     }
 
+    fn cell_stored_block_flow(
+        &self,
+        cell: &crate::model::table::Cell,
+        styles: &ResolvedStyleSet,
+        depth: usize,
+    ) -> Option<crate::renderer::float_placement::StoredBlockCellFlow> {
+        if depth >= Self::MAX_NESTED_DEPTH || cell.text_direction != 0 {
+            return None;
+        }
+        crate::renderer::float_placement::stored_block_cell_flow(
+            &cell.paragraphs,
+            styles,
+            self.dpi,
+            |nested| {
+                let stretch = self.render_normalization.nested_table_width_scale(nested);
+                self.measure_table_impl(nested, 0, 0, styles, depth + 1, stretch)
+                    .total_height
+                    + hwpunit_to_px(
+                        i32::from(nested.outer_margin_top) + i32::from(nested.outer_margin_bottom),
+                        self.dpi,
+                    )
+            },
+        )
+    }
+
     fn cell_nested_controls_bottom(
         &self,
         cell: &crate::model::table::Cell,
@@ -3325,7 +3350,11 @@ impl HeightMeasurer {
                 // 흡수 검사 몫), 절대배치 반례(#4533 기장군 계열)는 native
                 // HWP5 라 게이트 밖이다. 3090867 실측: last_end 896.0 vs
                 // additive 1,108.4(=text 595.3+nested 513.1) — 1.24×.
+                let stored_block_flow = has_nested_table_in_cell
+                    .then(|| self.cell_stored_block_flow(cell, styles, depth))
+                    .flatten();
                 let compressed_monotonic_ladder = has_nested_table_in_cell
+                    && stored_block_flow.is_none()
                     && !self.is_native_hwp5
                     && !cell_all_no_ls
                     && ladder_intact
@@ -3350,7 +3379,12 @@ impl HeightMeasurer {
                                 )
                                 > last_end_px * 1.15
                     };
-                let content_height = if has_nested_table_in_cell
+                let content_height = if let Some(flow) = stored_block_flow {
+                    // A block and its saved anchor line share an origin. The
+                    // same plan places both the table and its following lines;
+                    // additive fallback must not prepend the anchor line again.
+                    flow.bottom
+                } else if has_nested_table_in_cell
                     && (cell_all_no_ls || !ladder_intact || compressed_monotonic_ladder)
                 {
                     // [#2148 실험] NO_LS 셀은 vpos 사다리가 없어 nested_bottom 의
@@ -4899,16 +4933,19 @@ impl HeightMeasurer {
                         !p.controls.iter().any(|c| matches!(c, Control::Table(_)))
                             || crate::renderer::float_placement::reflow_block_table_host_occupied_height(p, 0.0, 0.0).is_some()
                     });
-                mc.total_content_height = if reflow_block_hosts {
-                    mc.total_content_height
-                } else if ladder_collapsed || all_no_ls {
-                    mc.total_content_height
-                        + self.unabsorbed_nested_tables_height(&cell.paragraphs, styles, depth)
-                } else {
-                    let nested_bottom =
-                        self.cell_nested_controls_bottom(cell, styles, depth, mc_cell_w);
-                    nested_bottom.max(mc.total_content_height)
-                };
+                mc.total_content_height =
+                    if let Some(flow) = self.cell_stored_block_flow(cell, styles, depth) {
+                        flow.bottom
+                    } else if reflow_block_hosts {
+                        mc.total_content_height
+                    } else if ladder_collapsed || all_no_ls {
+                        mc.total_content_height
+                            + self.unabsorbed_nested_tables_height(&cell.paragraphs, styles, depth)
+                    } else {
+                        let nested_bottom =
+                            self.cell_nested_controls_bottom(cell, styles, depth, mc_cell_w);
+                        nested_bottom.max(mc.total_content_height)
+                    };
             }
         }
         for mc in &mut measured_cells {

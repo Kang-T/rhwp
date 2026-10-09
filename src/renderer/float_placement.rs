@@ -3429,6 +3429,13 @@ pub(crate) fn stored_block_cell_flow(
                 // The successor is not positioned after the physical block.
                 // Its stored coordinate cannot be the complete parent extent.
                 unabsorbed_block |= saved_gap < block_height;
+            } else {
+                // The last host has no successor that can witness the block's
+                // extent. Its saved anchor line can be shorter than the block;
+                // both begin at the same paragraph origin, rather than stacking
+                // the anchor line before the table.
+                unabsorbed_block |=
+                    hwpunit_to_px(para.line_segs[0].line_height, dpi) < block_height;
             }
         }
         heights.push(h);
