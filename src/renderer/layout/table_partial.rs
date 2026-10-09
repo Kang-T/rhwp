@@ -1619,23 +1619,7 @@ impl LayoutEngine {
             // 빈 저장 줄의 높이를 배치에서 재추측하지 않는다. 현재 컷이 소유한
             // 같은 CellUnit의 물리 전진량을 소비하며, 다른 조각의 빈 줄은 제외한다.
             let stored_empty_line_advances = if authenticated_hwpx_frame {
-                let units = self.cell_units(cell, table, styles);
-                let (start, end) = cut_units.unwrap_or((0, units.len()));
-                cell.paragraphs
-                    .iter()
-                    .enumerate()
-                    .map(|(index, _)| {
-                        self.stored_empty_line_advance_hu(cell, index)?;
-                        units.iter().take(end).skip(start).find_map(|unit| {
-                            (unit.para_idx == index
-                                && unit.empty_spacer
-                                && unit.vis_start == 0
-                                && unit.vis_end == 1
-                                && unit.height > 0.0)
-                                .then_some(unit.height)
-                        })
-                    })
-                    .collect::<Vec<_>>()
+                self.stored_empty_line_advances_for_cut(cell, table, styles, cut_units)
             } else {
                 vec![None; cell.paragraphs.len()]
             };

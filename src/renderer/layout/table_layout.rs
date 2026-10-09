@@ -17571,6 +17571,7 @@ impl LayoutEngine {
         table: &crate::model::table::Table,
     ) -> bool {
         !self.profile.get().session_edited()
+            && cell.text_direction == 0
             && !cell.dirty_flag
             && cell.paragraphs.iter().all(|paragraph| {
                 !paragraph.stored_text_partition_is_dirty() && !paragraph.cell_format_vpos_dirty
@@ -17580,7 +17581,7 @@ impl LayoutEngine {
 
     /// 다음 원본 줄의 시작이 닫는 빈 줄의 점유 전진량. 전체 셀의 그림 여백이나
     /// 선언 크기 대신 해당 줄의 저장 높이·간격·후속 원점으로 입증한다.
-    pub(super) fn stored_empty_line_advance_hu(
+    fn stored_empty_line_advance_hu(
         &self,
         cell: &crate::model::table::Cell,
         paragraph_index: usize,
@@ -20142,6 +20143,34 @@ impl LayoutEngine {
             }
         }
         owners
+    }
+
+    /// 원본 프레임의 현재 컷에 속한 빈 줄의 물리 높이. private 소유 필드의
+    /// 해석은 CellUnit 생산자가 담당하고, paint에는 확정 전진량만 전달한다.
+    pub(super) fn stored_empty_line_advances_for_cut(
+        &self,
+        cell: &crate::model::table::Cell,
+        table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+        cut: Option<(usize, usize)>,
+    ) -> Vec<Option<f64>> {
+        let units = self.cell_units(cell, table, styles);
+        let (start, end) = cut.unwrap_or((0, units.len()));
+        cell.paragraphs
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
+                self.stored_empty_line_advance_hu(cell, index)?;
+                units.iter().take(end).skip(start).find_map(|unit| {
+                    (unit.para_idx == index
+                        && unit.empty_spacer
+                        && unit.vis_start == 0
+                        && unit.vis_end == 1
+                        && unit.height > 0.0)
+                        .then_some(unit.height)
+                })
+            })
+            .collect()
     }
 
     pub(crate) fn cell_cut_contains_non_inline_control_units(
