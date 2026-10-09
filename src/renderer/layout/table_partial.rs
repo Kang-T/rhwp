@@ -6492,6 +6492,30 @@ impl LayoutEngine {
             if let Some(first_edge) = h_edges.first_mut() {
                 first_edge.fill(None);
             }
+            // Exhausted rows in a block cursor have zero physical height.
+            // Their internal grid edges may coincide with the fragment origin
+            // too. A newly starting source cell keeps its real edge; a cell
+            // whose units were already consumed does not acquire another top.
+            if start_cut_is_block {
+                let (bs, be) = rowspan_block_range(table, start_row);
+                for (index, edge) in h_edges.iter_mut().enumerate().skip(1) {
+                    if grid_row_y[index] != 0.0 {
+                        break;
+                    }
+                    let Some(&row) = render_rows.get(index) else {
+                        break;
+                    };
+                    let has_new_owner = table.cells.iter().any(|cell| {
+                        cell.row as usize == row
+                            && block_cut_index(table, bs, be, cell)
+                                .and_then(|ordinal| start_cut.get(ordinal))
+                                .is_none_or(|&cut| cut == 0)
+                    });
+                    if !has_new_owner {
+                        edge.fill(None);
+                    }
+                }
+            }
         }
 
         // An interior Square-flow cut owns a page fragment, not the cell's

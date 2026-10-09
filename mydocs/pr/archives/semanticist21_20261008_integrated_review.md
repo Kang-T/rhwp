@@ -12,8 +12,8 @@ last_verified: 2026-10-09
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 현재 통합 base: `6f66932a73ee6fd05a74a83bdc438c9499a89a12` (진행42의fetch/rebase 확인; 원격최신상태는제출직전재조회). 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
-- 현재 메인터너 체크포인트: `fe201fa05f25ee744fb465a8b8a7348d38576d18`; v64 retry1의 원본 표제/첫 조각 보정과 검증은 진행44에 기록한다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
+- 현재 통합 base: `79abd9e49675f4286eaed38197f7e837afb744e7` (진행54의 fetch·devel 동기화·rebase 확인; 원격 최신 상태는 제출 직전 재조회). 이전 base `6f66932a73ee6fd05a74a83bdc438c9499a89a12`는 진행42–53의 역사 검증 기준이다. 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
+- 현재 메인터너 체크포인트: `f3c8cd7d370668e36322db71c1c2c820260124ae`; 진행54에 v72 커밋·리베이스를 기록한다. 그 위의 v73 변경은 아직 미커밋 검증 중이다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
@@ -997,3 +997,26 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 수정 경계33/76/77/78의 직접review는exit1/195.675초·76쪽74.01609%이며33쪽98.80354%다(`native-source-terminal-frame-review-v72/`). 33쪽 r167의 같은쪽수용은 확인했지만 위쪽r137c1 라벨도 차이가 있다. 독립Print32쪽은 첫문단 `위원회`만 소유하고33쪽은 다음문단 `정보보안 및 개인정보 보호`를 소유한다. 실제원본p0/p1의0→0 저장쪽리셋이CellUnit index1에hard/page_frame_reset=true로 존재하나 straddle의물리높이43.3733→내용cut0..2가 그 경계를 넘겨 다음문단첫줄까지32쪽에 소비한다(`native-batch-zero-slot-label-v72-readonly`, 원본para70덤프). 저장reset검출추가보다 실제straddle컷·예약·paint가이미검출된동일owner를소비하도록보정하는것이 다음원인경로다.
 - #6935 2쪽하단선은 수정전1→수정후0,3쪽실제종료선은보존임을 같은원본RenderTree관계로확인했다(`issue6935-fragment-edge-ownership-audit-v72.json`).3쪽의0높이행에서원점으로이동한상단선은별도미해결이다. 새회귀·golden추가와통합PR은보류한다.
 - 원격base는79abd9e49675f4286eaed38197f7e837afb744e7의#7693으로1커밋전진했다(`upstream-base-readonly-v72.json`).Rust엔진변경없이문서·Visual Sweep/exporter가변경됐다. 현재증거를보존하고커밋→fetch/devel동기화→rebase뒤새도구의전체쪽수·compat·색상범례계약으로fresh WASM/Native증거를확인한다.사용자지침파일을이작업에서직접수정하지않았다.
+
+### 진행54 — 리베이스·시각 경계와 WASM 세대 API 묶음
+
+- 보정커밋e12cd3886을보존한뒤devel을79abd9e49675로fast-forward하고94개로컬커밋을충돌없이rebase했다. 새code head는f3c8cd7d370668e36322db71c1c2c820260124ae이다.1354개Rust소스/빌드입력바이트동일·upstream조상·clean을확인했다(`rebase-source-identity-v72.json`). 새도구Native8쪽도exit0/167.749초/동일소스·전체쪽수검사로재출력했다(`native-source-frame-batch-review-v72-rebased/`).
+- root wrapperfresh WASM은exit0/1101.409초/source31개불변이다. pkg/public/snapshot WASM SHA는2dc5a5730f42e9395261bc23217699bfde10a7d5c65b0ae4717435d4332f48d9로일치하며JS도일치한다(`wasm-package-source-frame-batch-v72-audit.json`). 그러나새exporter가요구한setHangul2024Compat가WASM에없어실제8쪽비교는exit1/6.692초·未출력이다.재빌드만으로해결되었다고보고하지않는다. `DocumentCore::set_hangul2024_compat`는존재하지만Deref만으로JS공개API가되지않는것이원인이다. 새layout_generation모듈은그기존함수·기존캐시무효화/재조판에직접위임한다.2020 Print비교는명시적으로2022를선택한다.
+- #6935의남은3쪽윗선은block start_cut=[4,16,3,3]에서소진된0높이행의내부edge가원점에겹친것이다. Square·반복제목없음·블록시작컷에서만원점의0높이edge를확인하고,해당행에cut0/알수없는새셀owner가있으면원래선을보존한다. 이미소비한owner만있을때재개조각의새윗변으로그리지않는다. 높이·내용·최종닫힘선을바꾸지않으며Native/fresh WASM묶음재검증은v73에서실행한다.
+
+### 진행55 — v73 Native 경계 확인과 미달 페이지 묶음 진단
+
+- 경로는 `maintainer_general`이며 보조 문서는 `intake_and_review`, `local_validation`, `multi_pr_update_branch`, `visual_fixture_evidence`다. 최신 base의 90% 선행 조건·확대 판독·기존 회귀 이관 조건을 다시 확인했다. 사용자 승인된 메인터너 보정을 계속하며 지침 파일은 수정하지 않는다.
+- v73 Native 빌드는 exit0/260.307초/source 불변이며 binary SHA는 `07258c8ee5fe2380dc030538778893b7d115fbdbfa4ea8bd25f77802cd7092c1`이다. 전9개 원본 쪽수는 v72와 동일한52/52,3/3,6935 3,6803 5,6024 103,교육415,6761 103이다. countercheck의 `unchanged=false`는 v64의6024 104쪽과 비교한 값이며 v72→v73 회귀가 아니다.
+- Native6803·6935 전8쪽 sweep은 exit0/161.647초/source 불변,최저95.40319%/91.57542%,전체쪽수5/5·3/3·누락0이다. [6935 새3쪽 review](../../../output/pr-review/semanticist21-20261008/native-source-frame-batch-review-v73/issue6935/review/review_003.png)를 직접 읽어 빈왼쪽칸 위 짧은선 제거와 최종종료선·뒤주석 보존을 확인했다. `issue6935-fragment-edge-ownership-audit-v73.json`은2쪽 경계가v72와 동일하고3쪽 원점내부선만 제거됐음을 기록한다. fresh WASM 빌드는 진행 중이며 Native 결과로 대용하지 않는다.
+- #6024 미달32쪽의 전쪽내용 대응 진단에서 모두 같은번호Print와 가장 잘 대응했다(`issue6024-full-below90-alignment-v72.json`). 이는 전역 쪽밀림 해소의 진단이며 시각 승인 근거가 아니다. v73 대표12/14/35/51/55/96쪽 재출력은 exit1/162.242초, 점수71.48133/53.48369/38.84165/48.53494/65.96649/48.27492%다. 35쪽은 이전쪽 업무행 잔여가 첫행으로 넘어와 다음표 시작과 내용컷까지 달라지고,51쪽은 첫업무행 높이 차이가 이후 행 경계에 누적되며,96쪽은같은표의내용행소속이앞쪽으로차이난다. 원본13개표의저장구조를묶음덤프하고측정·컷·paint경로를분석한다. 같은source의Native/fresh WASM을마칠때까지코드변경을동결한다.
+- 원격 읽기전용 재조회는 열린30개 중 비draft23개이며 초기18개 중#7612는외부merge되어열린17개,후속6개는별도검토로유지한다(`open-pr-current-v73.json`). #7615 최신head의후속#7662꼬리는아직수용하지않았다. 원격변경·통합PR·CI/merge/후속처리는미수행이다.
+
+- 독립 Print의51쪽 벡터 괘선을96dpi좌표로 추출했다(`issue6024-print-fragment-edges-v73.json`). Print50쪽r5의물리높이는974.2969→1025.1198=50.8229px,51쪽첫r6은142.0833→183.7969=41.7136px이다. Native는각각45.8/28.5px이다. `row_step.rs`의BAND_CUT가content limit35.7을수용하지만physical override를주지않아paint가content30.7+padding15.1로45.8을선택한다. `emit.rs`는완전소비된end_cut도accepted_row_boxes기록에서제외한다. 다음조각은실제수용prefix대신원래row5box를소비한다. 같은기록에34/35쪽의r23전체내용이월과95/96쪽의r28–30행이월을독립Print와연결했다(`issue6024-source-frame-consumer-diagnosis-v73.json`). 다음묶음은내용완전소비·실제수용빈밴드·closing span잔여를같은결과로연결하는범위다. 아직이변경을production에적용하거나해결완료로판정하지않았다.
+
+- v73 최적화 fresh WASM은 exit0/1080.079초/source 불변으로 완료됐다. WASM SHA `503d25a88872861ef878dab749534a9fc268d16a77838a979d4ce8b79b4e8f42`, JS SHA `4628f097cddafb073362cc2ff03d19744de3e037aa62d311b4bd4386528c7a20`가 root pkg/Studio public/snapshot에서 일치한다. 기존에 추적하던 `rhwp-studio/public/rhwp.js`에는 wrapper가 생성한 새API8줄이 추가됐다. ignored pkg/WASM/파생suite는stage하지않는다.
+- 실제 Studio 새로고침·#6935원본로드에서새WASM served SHA일치·font loaded·canvas3개·pageerror0을확인했다(`browser-studio-shared-source-frame-v73.json`). setHangul2024Compat(false→true→false) 실행은쪽수3→3→3과2022 RenderTree원상복원을확인했다. 이는generationAPI공개·기존캐시무효화위임·브라우저반영의증거이며2024독립Print정합검증은아니다. freshWASM8쪽sweep과기존73개회귀는실행중이다.
+
+- fresh WASM6803·6935전8쪽sweep도exit0/182.505초/source불변으로끝났다. 두문서최저95.40319%/91.57542%·전체쪽수5/5·3/3·누락0으로Native와같다. 같은8쪽Native/fresh WASM RenderTree 전체가동일함을확인했다(`source-frame-batch-v73-backend-ownership-audit.json`). [WASM6935 2쪽review](../../../output/pr-review/semanticist21-20261008/wasm-source-frame-batch-review-v73/issue6935/review/review_002.png)와 [3쪽review](../../../output/pr-review/semanticist21-20261008/wasm-source-frame-batch-review-v73/issue6935/review/review_003.png)를직접읽어이어받는열린변·실제종료선·뒤주석소속을확인했다. #6024전103쪽·교육415쪽및나머지문서,최종lint/전체Rust/원격CI/merge를이8쪽결과로대신하지않는다.
+
+- v73기존73개집중nextest는exit0/442.636초/실행18.259초,73PASS/6053skip,source23개불변으로끝났다(`nextest-shared-source-frame-batch-v73-exit.json`). 전체Rust·최종lint는별도미완료다. 검사 뒤소스변경에이결과를재사용하지않는다. 다음#6024묶음전현재변경을일반커밋으로고정하고upstream/devel정합을재확인한다.
