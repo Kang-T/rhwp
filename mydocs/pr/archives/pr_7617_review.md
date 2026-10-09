@@ -329,3 +329,64 @@ rowbreak HWPX 18→19쪽과 PrEP HWPX 140→141쪽은 전자투표와 다른 구
 PrEP의 일부 빈 줄 전진량 변경도 관측했으나 쪽수 원인으로 단정하지 않는다.
 두 원본의 고정 base 전쪽 Native 시각 비교는 진행 중이며, 이 쪽수 진단만으로 기존 미달
 이관이나 기준값 변경을 결정하지 않는다. 통합·개별 PR의 보류 판정은 유지한다.
+
+#### 묶음 보정 실행 결과와 다음 원인 분석 — 2026-10-10
+
+보정 commit `77d5c12ec9301c530a46d1954e63dfb424a8c23f`에서 review worktree의
+파생 suite 준비·전체 fmt check·Native CLI 빌드·locked fresh WASM 빌드를 순차 실행해
+모두 exit0을 확인했다. 공유 `target/pr-review`와 빌드 잡8개를 사용했다.
+고정 base `21ed64071f81f35f37618717693bd30f727392c9`에 대한 manifest check와
+source-side unit tier check도 exit0이다. 세 Clippy·최종 전체 회귀의 완료 증거는 아니다.
+
+| 같은 원본·Print의 보정 경계 | Native | fresh WASM | 미달 |
+| --- | --- | --- | --- |
+| 전자투표 전체2쪽 | 최저90.88965% | 최저90.88965% | 0 |
+| 편람 HWPX 영향10쪽 | 최저90.54980% | 최저90.54980% | 0 |
+
+10쪽은93/94/130/152/154/241/242/273/281/375쪽이다. 이12쪽의 실제 양 경로 raster는
+PNG bytes가 모두 같다. Native 대표 review9개를 직접 판독했으며, 전자투표의 카드·사진,
+241/242쪽의 행 소속·이어받기,281쪽의 오른쪽 목차 번호·아래 테두리를 확인했다.
+93쪽 두 번째 그림 x는138.8px로 Print138.4107px에 가까워지고,273쪽의 캡션 y484.1px와
+두 번째 그룹 y519.6px도 Print484.08/519.4693px에 가까워졌다. 작은 획·AA 차이는 남는다.
+선택12쪽을 전383쪽·Canvas/Skia 소비 경로·전체 회귀의 통과로 보고하지 않는다.
+
+수치가 통과해도93/130쪽 그림 테두리는 누락된다. 실제 원본 `hp:pic/hp:lineShape`에
+93쪽 SOLID/width0,130쪽 SOLID/width34HU가 있지만 `parse_picture`가 이 자식을 적재하지
+않는다. 독립 Print93쪽은 두 그림 뒤에0.12pt 검은 stroke를 그린다. 같은 문서273쪽의
+그룹 그림에는 lineShape가 없어 정상 대조가 된다. 생산자인 파서·Picture IR에서 기존
+`make_picture_border_node`와 각 배치 경로, 출력 backend로 이어지는 경로를 보정 대상으로
+추적하며, 관측 좌표·문서 ID를 조건으로 삼지 않는다.130쪽 안쪽 여백과 개체 외곽은
+테두리 보정 후 같은 좌표계에서 다시 판독한다.
+
+최초 편람 WASM 실행은 C: 여유 공간0으로 font-embedded SVG 복사 중 ENOSPC exit1이었다.
+미완료 SVG 중간 파일만 해시 목록을 남기고 제거해9.79GiB를 확보했다. 실패 로그·raw WASM·
+render tree·frozen package는 보존했다. 재실행은 전체383쪽 raw SVG/tree와 동일 입력의
+전체 Native font-face 정책을 검증하되 요청한10쪽의 글꼴 포함 복사본만 만든다.
+기하·글꼴 bytes·페이지 수·raster·실루엣 계산·gate는 바꾸지 않았으며 실제 재실행 exit0이다.
+실패 원문과 전송 adapter의 변경 함수 해시는 ignored provenance에 분리했다.
+
+고정 base Native의 실패 원본 전쪽 비교도 종료됐다. rowbreak HWPX는18쪽 중
+4/6/7/8/15/16쪽 미달, 최저32.69054%이며 이6쪽의 review를 직접 판독했다.
+사용자가 지정한 기존 이슈 #7445 이관의 base 미달 조건에 해당하지만, 현재 후보의
+추가 이어받기와 같은 조건 전쪽 비교·실제 이관은 아직 완료 전이다.
+PrEP HWPX는140쪽 전체 최저91.84847%, 미달0이다.27쪽의 기존 차트 색·스타일 차이와
+105쪽의20개 예산 행·최종 합계,108쪽의13개 참고문헌을 직접 판독했다.
+PrEP 관련 실패5건은 #7445로 이관하지 않고 현재 branch에서 보정한다.
+base fresh WASM에2024 setter가 없으므로 이140쪽 결과를 base WASM2024로 보고하지 않는다.
+
+PrEP105쪽의 저장 표 원점과 바로 앞 제목의 공유 끝점은11181HU로 정확히 같다.
+독립 Print의 표 윗변243.2533px와 base 표243.5px도 이를 뒷받침한다.
+`saved_rowbreak_object_frame`의 HWPX 조건이 `source_top < current_height`여서 같은 원점을
+제외한 뒤 host 후행 간격까지 포함한790.2px를 일반 whole-fit 예산에 넣고,20행 중 마지막
+행을 다음 쪽으로 보낸다. 같은 저장 프레임의 수용·예약·최종 배치 경로와 multi-page
+반례를 대조한 뒤 수정하며, 제목의 유효한 끝점을 되돌려 쪽수만 맞추지 않는다.
+
+실행·최저값·12쪽 raster identity·대표 직접 판독은 ignored
+`candidate-77d5c12ec-{native,wasm}-boundary-fidelity.json`,
+`candidate-77d5c12ec-boundary-raster-identity.json`,
+`candidate-77d5c12ec-{native,wasm}-correction-panels/`에 있다.
+base18/140쪽 전수와 대표 직접 판독은
+`upstream-21ed64071-rowbreak-prep-native-fidelity.json`,
+`upstream-21ed64071-{rowbreak-below90-panels,prep-base-boundary-panels}/`에 있다.
+실패22건의 원본별 판정은 `bea45e807-terminal-failure-inventory.json`에서 갱신했다.
+최종 전체 회귀·lint·남은 원본의 base 판정·개별 PR 검토와 통합은 계속 보류한다.
