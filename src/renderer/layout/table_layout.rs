@@ -5100,6 +5100,9 @@ impl LayoutEngine {
         paragraphs: &[Paragraph],
         styles: &ResolvedStyleSet,
     ) -> f64 {
+        if let Some(flow) = self.stored_single_column_cell_flow(paragraphs) {
+            return hwpunit_to_px(flow.content_end_hu, self.dpi);
+        }
         let cell_para_count = paragraphs.len();
         composed_paras
             .iter()
@@ -5120,6 +5123,18 @@ impl LayoutEngine {
                 )
             })
             .sum()
+    }
+
+    fn stored_single_column_cell_flow(
+        &self,
+        paragraphs: &[Paragraph],
+    ) -> Option<crate::renderer::float_placement::StoredSingleColumnCellFlow> {
+        if !(self.profile.get().native_hwp5_layout() || self.profile.get().hwpx_stored_layout()) {
+            return None;
+        }
+        self.section_column_spacing_hu.get().and_then(|spacing| {
+            crate::renderer::float_placement::stored_single_column_cell_flow(paragraphs, spacing)
+        })
     }
 
     /// 단일 문단의 줄 높이 합산 (공통 로직)
@@ -6242,6 +6257,7 @@ impl LayoutEngine {
         let stored_inline_frame = (row_filter.is_none() && !single_row_fragment)
             .then(|| self.stored_inline_content_frame(cell, table))
             .flatten();
+        let single_column_flow = self.stored_single_column_cell_flow(&cell.paragraphs);
         let inner_area = LayoutRect {
             x: inner_x,
             y: text_y_start,
@@ -6483,7 +6499,25 @@ impl LayoutEngine {
                     para.line_segs.first().map(|s| s.vertical_pos)
                 );
             }
-            if use_saved_cell_para_vpos
+            if let Some(flow) = &single_column_flow {
+                if start_line == 0 && !single_row_continuation && !single_row_fragment {
+                    let spacing_before = styles
+                        .para_styles
+                        .get(para.para_shape_id as usize)
+                        .map_or(0.0, |style| style.spacing_before);
+                    let anchored_y = cell_para_line_anchor_y(
+                        text_y_start,
+                        content_cell_y,
+                        pad_top,
+                        flow.line_origins_hu[cp_idx][0],
+                        self.dpi,
+                        use_top_vpos_anchor,
+                        upper_clip_line_reservation,
+                    );
+                    para_y = anchored_y - spacing_before;
+                    snap_anchored_with_spacing_before = spacing_before > 0.0;
+                }
+            } else if use_saved_cell_para_vpos
                 && (!has_nested_table || trust_stored_cell_flow)
                 && has_stored_para_anchor
             {
@@ -9576,7 +9610,12 @@ impl LayoutEngine {
                 && nested_stored_profile
                 && raw_stored_flow_extent > 0.0
                 && raw_stored_flow_extent <= inner_height + 0.5;
-            let (stored_flow_extent, stored_flow_line_sum) = if !has_nested_table
+            let single_column_flow = self.stored_single_column_cell_flow(&cell.paragraphs);
+            let (stored_flow_extent, stored_flow_line_sum) = if let Some(flow) = &single_column_flow
+            {
+                let extent = hwpunit_to_px(flow.content_end_hu, self.dpi);
+                (extent, extent)
+            } else if !has_nested_table
                 || hwpx_noninline_tac_nested_stored_flow
                 || nested_stored_overflow_rescue
             {
@@ -9620,8 +9659,8 @@ impl LayoutEngine {
             // 정렬 오프셋과 담을 줄 수가 1줄분으로 굳어 뒤 문단이 셀 밖으로 밀려
             // 잘리거나 아예 렌더되지 않는다. 배치 쪽 first_seg_vpos_is_anchor 와
             // 같은 규약을 측정에도 적용한다.
-            let stored_flow_has_para_anchors =
-                crate::renderer::cell_vpos_ladder_is_intact(&cell.paragraphs);
+            let stored_flow_has_para_anchors = single_column_flow.is_some()
+                || crate::renderer::cell_vpos_ladder_is_intact(&cell.paragraphs);
             let stored_flow_shape_is_trusted = (depth > 0 || table.common.treat_as_char)
                 && stored_flow_extent > 0.0
                 && non_flow_object_extent <= stored_flow_extent + 0.5
@@ -9922,6 +9961,9 @@ impl LayoutEngine {
             .with_native_hwp5(self.profile.get().hwp5_stored_pagination_layout())
             .with_hwpx_stored_layout(self.profile.get().hwpx_stored_layout())
             .with_render_normalization(self.render_normalization_overlay());
+        if let Some(spacing) = self.section_column_spacing_hu.get() {
+            measurer.set_section_column_spacing_hu(spacing);
+        }
         measurer.cell_controls_height(&cell.paragraphs, styles, 0, 0.0)
     }
 
@@ -12178,6 +12220,34 @@ impl LayoutEngine {
         table: &crate::model::table::Table,
         styles: &ResolvedStyleSet,
     ) -> Vec<CellUnit> {
+        if let Some(flow) = self.stored_single_column_cell_flow(&cell.paragraphs) {
+            return flow
+                .line_advances_hu()
+                .into_iter()
+                .map(|(pi, li, advance)| CellUnit {
+                    height: hwpunit_to_px(advance, self.dpi),
+                    hard_break_before: false,
+                    stored_frame_break_before: false,
+                    page_frame_reset_before: false,
+                    vpos_gap_before: false,
+                    para_idx: pi,
+                    vis_start: li,
+                    vis_end: li + 1,
+                    nested_row: None,
+                    nested_table_fragment: None,
+                    mixed_nested_fragment: false,
+                    mixed_nested_trailing: false,
+                    mixed_nested_content_height: 0.0,
+                    mixed_nested_recursive: false,
+                    mixed_nested_starts_after_table: false,
+                    mixed_nested_source_para_idx: None,
+                    recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
+                    top_and_bottom_flow: false,
+                    empty_spacer: cell.paragraphs[pi].text.trim().is_empty(),
+                    non_inline_control_range: None,
+                })
+                .collect();
+        }
         {
             let mut nested = self.nested_table_ptrs.borrow_mut();
             for paragraph in &cell.paragraphs {

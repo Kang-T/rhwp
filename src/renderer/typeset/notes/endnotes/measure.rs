@@ -403,6 +403,7 @@ impl TypesetEngine {
                 .collect(),
         };
         let scratch = crate::renderer::layout::LayoutEngine::new(self.dpi);
+        self.prime_section_cell_context(&scratch);
         // 렌더 셋업과 같은 출처 프로필·정규화를 싣는다. 프로필이 기본값이면 HWP3 변환본의
         // 수식 줄 들여쓰기 배율이 두 배가 되어 이어지는 수식 줄이 좁아지고 한 줄 더 꺾인다.
         scratch.set_layout_profile(st.profile);
@@ -873,6 +874,7 @@ impl TypesetEngine {
         // `PageLayoutContext` 만 만든다. `col_node` 는 방출된 노드를 받는 sink 로만 쓰이고
         // 높이만 읽은 뒤 버려진다.
         let scratch = LayoutEngine::new(self.dpi);
+        self.prime_section_cell_context(&scratch);
         let mut frame = PageLayoutContext::new(0, en_col_w, height);
         let col_id = frame.next_id();
         let mut col_node = RenderNode::new(

@@ -3364,6 +3364,114 @@ pub(crate) struct StoredBlockCellFlow {
     pub(crate) bottom: f64,
 }
 
+/// Stored text rows in successive single-column bands share a cell frame.
+/// A new band starts after the preceding occupied line box plus the section's
+/// inter-band space, rather than that line's ordinary trailing line spacing.
+/// Object rows, explicit page/column breaks and incomplete saved ladders keep
+/// their existing composition and fragment contracts.
+pub(crate) struct StoredSingleColumnCellFlow {
+    pub(crate) line_origins_hu: Vec<Vec<i32>>,
+    pub(crate) content_end_hu: i32,
+}
+
+impl StoredSingleColumnCellFlow {
+    pub(crate) fn line_advances_hu(&self) -> Vec<(usize, usize, i32)> {
+        let lines: Vec<_> = self
+            .line_origins_hu
+            .iter()
+            .enumerate()
+            .flat_map(|(pi, lines)| {
+                lines
+                    .iter()
+                    .enumerate()
+                    .map(move |(li, &top)| (pi, li, top))
+            })
+            .collect();
+        lines
+            .iter()
+            .enumerate()
+            .map(|(index, &(pi, li, top))| {
+                let next = lines
+                    .get(index + 1)
+                    .map_or(self.content_end_hu, |line| line.2);
+                (pi, li, next - top + if index == 0 { top } else { 0 })
+            })
+            .collect()
+    }
+}
+
+pub(crate) fn stored_single_column_cell_flow(
+    paragraphs: &[Paragraph],
+    section_column_spacing_hu: i32,
+) -> Option<StoredSingleColumnCellFlow> {
+    use crate::model::paragraph::{ColumnBreakType, LineSeg};
+    if section_column_spacing_hu < 0
+        || !paragraphs.iter().skip(1).any(|para| {
+            para.controls
+                .iter()
+                .any(|control| matches!(control, Control::ColumnDef(_)))
+        })
+    {
+        return None;
+    }
+    let mut band_origin = 0_i64;
+    let mut occupied_end = 0_i64;
+    let mut previous_top = None;
+    let mut has_transition = false;
+    let mut origins = Vec::with_capacity(paragraphs.len());
+    for (pi, para) in paragraphs.iter().enumerate() {
+        if para.stored_text_partition_is_dirty()
+            || para.cell_format_vpos_dirty
+            || para.line_segs.is_empty()
+            || !matches!(
+                para.column_type,
+                ColumnBreakType::None | ColumnBreakType::MultiColumn
+            )
+        {
+            return None;
+        }
+        let positions = para.control_utf16_positions();
+        let mut defines_band = false;
+        for (ci, control) in para.controls.iter().enumerate() {
+            let Control::ColumnDef(columns) = control else {
+                return None;
+            };
+            if defines_band || columns.column_count != 1 || positions.get(ci).copied() != Some(0) {
+                return None;
+            }
+            defines_band = true;
+        }
+        if defines_band && pi > 0 {
+            band_origin = occupied_end.checked_add(i64::from(section_column_spacing_hu))?;
+            has_transition = true;
+        }
+        let mut lines = Vec::with_capacity(para.line_segs.len());
+        for line in &para.line_segs {
+            if line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                || line.vertical_pos < 0
+                || line.line_height <= 0
+            {
+                return None;
+            }
+            let top = band_origin.checked_add(i64::from(line.vertical_pos))?;
+            if previous_top.is_some_and(|previous| top <= previous) {
+                return None;
+            }
+            occupied_end = occupied_end.max(top.checked_add(i64::from(line.line_height))?);
+            previous_top = Some(top);
+            lines.push(i32::try_from(top).ok()?);
+        }
+        origins.push(lines);
+    }
+    if !has_transition {
+        return None;
+    }
+    Some(StoredSingleColumnCellFlow {
+        line_origins_hu: origins,
+        content_end_hu: i32::try_from(occupied_end).ok()?,
+    })
+}
+
 pub(crate) fn stored_block_cell_flow(
     paragraphs: &[Paragraph],
     styles: &super::style_resolver::ResolvedStyleSet,

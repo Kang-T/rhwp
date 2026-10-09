@@ -1244,6 +1244,7 @@ impl TypesetEngine {
                     && !para_has_visible_text(para)
                     && (rowbreak_table_has_internal_saved_vpos_reset(table) || {
                         let engine = crate::renderer::layout::LayoutEngine::new(self.dpi);
+                        self.prime_section_cell_context(&engine);
                         engine.set_layout_profile(st.profile);
                         engine.set_render_normalization_overlay(std::sync::Arc::clone(
                             &self.render_normalization,

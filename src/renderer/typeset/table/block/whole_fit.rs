@@ -52,6 +52,7 @@ impl TypesetEngine {
             return false;
         }
         let engine = crate::renderer::layout::LayoutEngine::new(self.dpi);
+        self.prime_section_cell_context(&engine);
         engine.set_layout_profile(self.profile.get());
         engine.set_render_normalization_overlay(std::sync::Arc::clone(&self.render_normalization));
         (0..usize::from(table.row_count))
@@ -483,6 +484,7 @@ impl TypesetEngine {
             && self.render_normalization.table_text_reflowed(table)
         {
             let layout_engine = crate::renderer::layout::LayoutEngine::new(self.dpi);
+            self.prime_section_cell_context(&layout_engine);
             layout_engine.set_layout_profile(st.profile);
             layout_engine.prime_column_layout_env(&st.layout);
             layout_engine.set_render_normalization_overlay(std::sync::Arc::clone(

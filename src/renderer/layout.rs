@@ -3480,6 +3480,7 @@ pub(crate) struct ParagraphVerticalSpacing {
 }
 
 pub struct LayoutEngine {
+    section_column_spacing_hu: std::cell::Cell<Option<i32>>,
     /// DPI
     dpi: f64,
     /// Font selection이 확정한 slot→exact source를 layout session 수명에 공급한다.
@@ -3749,6 +3750,7 @@ impl LayoutEngine {
             hidden_header_footer: std::cell::RefCell::new(std::collections::HashSet::new()),
             cell_has_square_float: std::cell::Cell::new(false),
             body_float_carve_evidence: std::cell::RefCell::new(Vec::new()),
+            section_column_spacing_hu: std::cell::Cell::new(None),
             total_pages: std::cell::Cell::new(0),
             current_page_number: std::cell::Cell::new(0),
             current_page_is_section_first: std::cell::Cell::new(true),
@@ -3967,6 +3969,12 @@ impl LayoutEngine {
         overlay: std::sync::Arc<crate::renderer::render_normalization::RenderNormalizationOverlay>,
     ) {
         *self.render_normalization.borrow_mut() = overlay;
+    }
+
+    pub(crate) fn set_section_column_spacing_hu(&self, spacing: i32) {
+        if self.section_column_spacing_hu.replace(Some(spacing)) != Some(spacing) {
+            self.clear_layout_caches();
+        }
     }
 
     #[inline]

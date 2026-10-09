@@ -1571,6 +1571,7 @@ pub struct MeasuredSection {
 /// 높이 측정 엔진
 pub struct HeightMeasurer {
     dpi: f64,
+    section_column_spacing_hu: std::cell::Cell<Option<i32>>,
     is_hwp3_variant: bool,
     legacy_hwp3_stored_geometry: bool,
     is_native_hwp5: bool,
@@ -1674,6 +1675,7 @@ impl HeightMeasurer {
     pub fn new(dpi: f64) -> Self {
         Self {
             dpi,
+            section_column_spacing_hu: std::cell::Cell::new(None),
             is_hwp3_variant: false,
             legacy_hwp3_stored_geometry: false,
             is_native_hwp5: false,
@@ -1743,6 +1745,15 @@ impl HeightMeasurer {
 
     pub fn with_default_dpi() -> Self {
         Self::new(DEFAULT_DPI)
+    }
+
+    pub(crate) fn set_section_column_spacing_hu(&self, spacing: i32) {
+        self.section_column_spacing_hu.set(Some(spacing));
+    }
+
+    pub(crate) fn with_section_column_spacing_hu(self, spacing: i32) -> Self {
+        self.set_section_column_spacing_hu(spacing);
+        self
     }
 
     /// 셀 안 비-TAC 자리차지 개체가 표 흐름에 요구하는 세로 범위.
@@ -3321,6 +3332,18 @@ impl HeightMeasurer {
                         })
                         .sum()
                 };
+                let text_height = (self.is_native_hwp5 || self.hwpx_stored_layout)
+                    .then(|| self.section_column_spacing_hu.get())
+                    .flatten()
+                    .and_then(|spacing| {
+                        crate::renderer::float_placement::stored_single_column_cell_flow(
+                            &cell.paragraphs,
+                            spacing,
+                        )
+                    })
+                    .map_or(text_height, |flow| {
+                        hwpunit_to_px(flow.content_end_hu, self.dpi)
+                    });
                 // 중첩 표가 있는 셀: LINE_SEG.line_height에 중첩 표 높이가 미포함.
                 // vpos 점프에만 반영되므로, 마지막 seg의 (vpos + lh)로 전체 높이를 계산.
                 let has_nested_table_in_cell = cell
@@ -4958,6 +4981,23 @@ impl HeightMeasurer {
             };
             let wrap_bottom = self.cell_wrap_objects_bottom_height(&cell.paragraphs);
             mc.total_content_height = mc.total_content_height.max(wrap_bottom);
+            if let Some(flow) = (self.is_native_hwp5 || self.hwpx_stored_layout)
+                .then(|| self.section_column_spacing_hu.get())
+                .flatten()
+                .and_then(|spacing| {
+                    crate::renderer::float_placement::stored_single_column_cell_flow(
+                        &cell.paragraphs,
+                        spacing,
+                    )
+                })
+            {
+                mc.line_heights = flow
+                    .line_advances_hu()
+                    .into_iter()
+                    .map(|(_, _, advance)| hwpunit_to_px(advance, self.dpi))
+                    .collect();
+                mc.total_content_height = hwpunit_to_px(flow.content_end_hu, self.dpi);
+            }
         }
 
         let (row_block_start, row_block_end) = compute_row_blocks(table, row_heights.len());

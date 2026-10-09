@@ -4699,7 +4699,8 @@ impl DocumentCore {
             .with_native_hwp5(profile.native_hwp5_layout())
             .with_hwpx_stored_layout(profile.hwpx_stored_layout())
             .with_session_edited(profile.session_edited())
-            .with_hwp3_origin_flow_spacing_before(hwp3_origin_flow_spacing_before);
+            .with_hwp3_origin_flow_spacing_before(hwp3_origin_flow_spacing_before)
+            .with_section_column_spacing_hu(i32::from(section.section_def.column_spacing));
         let column_def = Self::find_initial_column_def(paragraphs);
         let layout =
             PageLayoutInfo::from_page_def(&section.section_def.page_def, &column_def, self.dpi);
@@ -4727,6 +4728,7 @@ impl DocumentCore {
             measurer.measure_section(paragraphs, composed, &self.styles, Some(column_width))
         };
         let typesetter = TypesetEngine::new(self.dpi)
+            .with_section_column_spacing_hu(i32::from(section.section_def.column_spacing))
             .with_render_normalization(std::sync::Arc::clone(&self.render_normalization.overlay));
         let Some(renderer_job) = typesetter.begin_resumable_table_pagination(
             paragraphs,
@@ -4828,6 +4830,7 @@ impl DocumentCore {
                 };
             };
             TypesetEngine::new(self.dpi)
+                .with_section_column_spacing_hu(i32::from(section.section_def.column_spacing))
                 .with_render_normalization(std::sync::Arc::clone(
                     &self.render_normalization.overlay,
                 ))
@@ -4855,6 +4858,7 @@ impl DocumentCore {
         let result = {
             let section = &self.document.sections[section_index];
             let Some(mut result) = TypesetEngine::new(self.dpi)
+                .with_section_column_spacing_hu(i32::from(section.section_def.column_spacing))
                 .with_render_normalization(std::sync::Arc::clone(
                     &self.render_normalization.overlay,
                 ))
@@ -5199,6 +5203,7 @@ impl DocumentCore {
                 }
             };
 
+            measurer.set_section_column_spacing_hu(i32::from(section.section_def.column_spacing));
             // 증분 측정: 이전 측정 데이터가 있으면 문단/표 수준 선택적 캐싱
             let issue2424_measure_started = issue2424_profile_enabled.then(std::time::Instant::now);
             let measured = if !self.measured_sections[idx].fallback_paragraphs.is_empty() {
@@ -5330,9 +5335,11 @@ impl DocumentCore {
                 } else {
                     EndnoteDeferral::None
                 };
-                let typesetter = TypesetEngine::new(self.dpi).with_render_normalization(
-                    std::sync::Arc::clone(&self.render_normalization.overlay),
-                );
+                let typesetter = TypesetEngine::new(self.dpi)
+                    .with_render_normalization(std::sync::Arc::clone(
+                        &self.render_normalization.overlay,
+                    ))
+                    .with_section_column_spacing_hu(i32::from(section.section_def.column_spacing));
                 typesetter.typeset_section_with_variant(
                     para_src,
                     composed,
@@ -6457,6 +6464,12 @@ impl DocumentCore {
 
     fn dump_section_typesetter(&self, sec_idx: usize) -> TypesetEngine {
         let typesetter = TypesetEngine::new(self.dpi)
+            .with_section_column_spacing_hu(
+                self.document
+                    .sections
+                    .get(sec_idx)
+                    .map_or(0, |section| i32::from(section.section_def.column_spacing)),
+            )
             .with_render_normalization(std::sync::Arc::clone(&self.render_normalization.overlay));
         typesetter.apply_section_format_context(
             self.section_render_paragraphs(sec_idx),
@@ -7747,6 +7760,12 @@ impl DocumentCore {
         // (이전 구역 + 현재 구역의 이전 페이지 모두 포함하여 구역 간 번호 연속 지원)
         self.layout_engine.reset_numbering_state();
         let sec_idx = page_content.section_index;
+        self.layout_engine.set_section_column_spacing_hu(
+            self.document
+                .sections
+                .get(sec_idx)
+                .map_or(0, |section| i32::from(section.section_def.column_spacing)),
+        );
         let sec_page_offset: usize = self
             .pagination
             .iter()
