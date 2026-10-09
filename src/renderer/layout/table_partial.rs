@@ -1778,9 +1778,9 @@ impl LayoutEngine {
             ) && !table.common.treat_as_char
                 && table.row_count == 1
                 && table.col_count == 1;
-            // A continuation beginning at an accepted stored frame reset still
-            // owns that frame's initial empty paragraph. The visible-line range
-            // may start later, so derive the origin from the source unit itself.
+            // 확인한 저장 프레임 재시작에서 이어받는 조각도 프레임의 첫 빈 문단을
+            // 소유한다. 가시 줄 범위는 뒤에서 시작할 수 있으므로 원본 유닛에서
+            // 직접 원점을 구한다.
             let resumed_stored_frame_origin = cut_units.and_then(|(su, _)| {
                 if su == 0
                     || !linear_single_cell
