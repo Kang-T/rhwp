@@ -1,47 +1,16 @@
-//! [#6865] `PATINVERT → DPa → PATINVERT` 관용구의 **1비트 마스크**는 보이는 칠이 아니다.
+//! [#6865] 1비트 ROP mask는 원본 브러시 paint의 선택 영역을 소유한다.
 //!
-//! **증상.** 156627451 3쪽 WMF 도해의 옅은 회색 패널이 흑백 체커보드(50% 회색)로 칠해져
-//! 그 위 글자가 배경에 묻힌다. 7쪽 배너는 그러데이션 자리에 디더 띠 220개가 깔린다.
+//! `PATINVERT → DPa → PATINVERT`의 비트 연산은 `(D XOR G) AND M XOR G`다.
+//! M이 검정이면 G, 흰색이면 원래 D가 남는다. 흑백 패턴은 직접 덮어 칠하지 않고
+//! 반전한 휘도 mask에서만 소비하며, 실제 브러시 paint는 그 mask를 한 번 참조한다.
 //!
-//! **레코드 실측** — `BinData/image4.wmf`:
+//! 과거 PATCOPY 근사에서는 mask를 없앴지만, 원본 mask 선택을 보존하는 SVG가
+//! 패턴 정의를 가지는 것은 정상이다. 정의의 문자열 부재로 보이는 칠을 판정하지 않는다.
+//! 합성 레코드의 자원 소유·참조·반전 계약과 실제 WMF curve 바이트의 기존 검사를 유지한다.
+//! HWP 전체 페이지·글꼴·그림 위치의 한컴 피델리티를 이 단위 계약으로 대신하지 않는다.
 //!
-//! ```text
-//!   36 CreateBrushIndirect   style=SOLID color=#D9D9D9
-//!   38 DibBitBlt             rop=0x005A0049  PATINVERT
-//!   40 DibCreatePatternBrush 8x8 bpp=1 palette=#000000,#FFFFFF   ← 마스크
-//!                            비트 55 AA 55 AA … (정확히 50% 체커보드)
-//!   44 DibBitBlt             rop=0x00A000C9  DPa
-//!   49 DibBitBlt             rop=0x005A0049  PATINVERT
-//! ```
-//!
-//! **관용구의 참 의미.** 마스크 비트가 1(흰색)이면 바탕이 남고, 0(검정)이면 브러시 색이
-//! 남는다.
-//!
-//! ```text
-//!   M=0xFFFFFF :  (D ⊕ G) ∧ 0xFFFFFF ⊕ G = D      바탕 그대로
-//!   M=0x000000 :  (D ⊕ G) ∧ 0x000000 ⊕ G = G      브러시 색
-//! ```
-//!
-//! 곧 마스크는 **브러시 색이 어디에 남을지**를 정할 뿐 그 자신이 칠이 아니다. `#6469` 가
-//! 이 관용구를 `PATCOPY` 로 근사하기로 했으므로 색은 이미 앞 `PATINVERT` 가 칠했고,
-//! 가운데 마스크를 또 칠하면 흑백 디더가 그 위를 덮는다.
-//!
-//! **수정.** 상쇄기가 마지막 `PATINVERT` 만 지우던 것을, 가운데 `DPa` 의 브러시가 1비트일
-//! 때 그 blit 도 함께 지우도록 했다. `#6469` 가 살려 둔 "**그림**을 실은 `DPa`"(흰 원)는
-//! 1비트가 아니므로 종전대로 그려진다 — 아래 음성 대조가 그것을 잠근다.
-//!
-//! **실측(3쪽 패널 4점, 96dpi PNG).**
-//!
-//! | | 수정 전 | 수정 후 | 정본(engine 2020) |
-//! |---|---:|---:|---:|
-//! | (130,460) | 96 | **217** | 245 |
-//! | (150,250) | 98 | **217** | 245 |
-//!
-//! 남는 28 계조는 `#6469` 의 `PATCOPY` 근사가 50% 하프톤을 단색으로 평탄화하기 때문이고
-//! 별개 축이다 — 이 시험은 **디더가 칠로 나가지 않는다**만 잠근다.
-//!
-//! **폭발반경.** 코퍼스 10,000건에서 1비트 패턴 브러시를 가진 문서는 21건뿐이고, 전/후
-//! 바이너리 렌더 대조에서 쪽수가 달라진 문서는 0이다.
+//! 독립 연산 근거: Microsoft MS-WMF TernaryRasterOperation의 PATINVERT/DPa.
+//! SVG defs/mask의 비표시 자원과 실제 paint는 W3C SVG의 소유·참조 의미를 따른다.
 
 use rhwp::wmf::converter::{SVGPlayer, WMFConverter};
 
@@ -187,6 +156,66 @@ fn to_svg(bytes: &[u8]) -> String {
     String::from_utf8(bytes).expect("SVG 는 UTF-8 이다")
 }
 
+/// 패턴 정의는 칠이 아니다. 합성 XOR/AND/XOR의 패턴은 mask에만 속해야 한다.
+fn assert_pattern_only_selects_brush_paint(svg: &str) {
+    let doc = roxmltree::Document::parse(svg).expect("SVG XML");
+    let in_defs =
+        |node: roxmltree::Node<'_, '_>| node.ancestors().any(|parent| parent.has_tag_name("defs"));
+    let paint: Vec<_> = doc
+        .descendants()
+        .filter(|node| {
+            node.is_element() && !in_defs(*node) && node.attribute("fill") == Some("#D9D9D9")
+        })
+        .collect();
+    assert_eq!(paint.len(), 1, "원본 브러시색 paint는 한 번만 발행");
+    let reference = paint[0]
+        .attribute("mask")
+        .expect("보이는 브러시 paint의 mask 소유");
+    let mask_id = reference
+        .strip_prefix("url(#")
+        .and_then(|s| s.strip_suffix(')'))
+        .expect("mask 참조 형식");
+    let mask = doc
+        .descendants()
+        .find(|node| node.attribute("id") == Some(mask_id))
+        .expect("같은 SVG의 mask 정의");
+    assert!(mask.has_tag_name("mask") && in_defs(mask));
+    assert_eq!(mask.attribute("mask-type"), Some("luminance"));
+    let patterns: Vec<_> = doc
+        .descendants()
+        .filter(|node| {
+            node.attribute("fill")
+                .is_some_and(|fill| fill.starts_with("url(#rop_pat"))
+        })
+        .collect();
+    assert!(!patterns.is_empty(), "흑백 원본 패턴을 선택 자원으로 보존");
+    for pattern in patterns {
+        assert!(
+            pattern.ancestors().any(|owner| owner == mask),
+            "흑백 패턴은 같은 mask 안에서만 소비하며 독립 paint로 칠하지 않음"
+        );
+        let filter_ref = pattern
+            .attribute("filter")
+            .expect("검정 mask가 브러시를 선택하도록 반전");
+        let id = filter_ref
+            .strip_prefix("url(#")
+            .and_then(|s| s.strip_suffix(')'))
+            .unwrap();
+        let filter = doc
+            .descendants()
+            .find(|node| node.attribute("id") == Some(id))
+            .unwrap();
+        for channel in ["feFuncR", "feFuncG", "feFuncB"] {
+            let transfer = filter
+                .descendants()
+                .find(|node| node.has_tag_name(channel))
+                .unwrap();
+            assert_eq!(transfer.attribute("type"), Some("table"));
+            assert_eq!(transfer.attribute("tableValues"), Some("1 0"));
+        }
+    }
+}
+
 #[test]
 fn issue_6865_monochrome_mask_blit_is_not_painted() {
     let svg = to_svg(&idiom(1));
@@ -194,10 +223,7 @@ fn issue_6865_monochrome_mask_blit_is_not_painted() {
         svg.contains("#D9D9D9") || svg.contains("rgb(217,217,217)"),
         "앞 PATINVERT 의 브러시 색은 남아야 한다:\n{svg}"
     );
-    assert!(
-        !svg.contains("rop_pat"),
-        "1비트 마스크는 보이는 칠로 나가면 안 된다:\n{svg}"
-    );
+    assert_pattern_only_selects_brush_paint(&svg);
     // 동일한 비트 연산이 벡터 윤곽 사이에 저장된 정상 한컴 WMF도 대조한다.
     // 월간 수출입 보도자료 BinData/BIN0003.wmf의 원본 바이트이며, 독립 PDF1쪽은
     // 붉은 사각형 대신 8×8 흑백 패턴을 적용한 꺾은선으로 표시한다.
@@ -290,14 +316,13 @@ fn blit_rect(rop: u32, x: i16, y: i16, width: i16, height: i16) -> Vec<u8> {
 
 #[test]
 fn issue_6865_halftone_one_unit_edge_padding_is_removed() {
-    // Match both real fixture shapes: top/left overscan and a shifted bottom.
+    // 원본 레코드의 상단/왼쪽 넘김과 아래쪽 이동에서도 자원/paint 역할은 같다.
     for middle in [blit_rect(DPA, 9, 9, 51, 51), blit_rect(DPA, 9, 11, 51, 50)] {
         let svg = finish_sequence(
             mask_prefix(dib_pattern_brush(1), middle),
             &[select_object(0), brush_blit(PATINVERT)],
         );
-        assert!(!svg.contains("rop_pat"));
-        assert_eq!(svg.matches("fill=\"#D9D9D9\"").count(), 1);
+        assert_pattern_only_selects_brush_paint(&svg);
     }
 }
 
@@ -473,5 +498,5 @@ fn issue_6865_reversed_black_white_palette_is_a_mask() {
         mask_prefix(pattern, brush_blit(DPA)),
         &[select_object(0), brush_blit(PATINVERT)],
     );
-    assert!(!svg.contains("rop_pat"));
+    assert_pattern_only_selects_brush_paint(&svg);
 }
