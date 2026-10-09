@@ -5245,7 +5245,11 @@ impl LayoutEngine {
             // 전에 적용해 typeset의 누적 예약과 같은 높이 공간을 사용한다.
             if let Some(limit) = start_row_height_override {
                 if start_row < row_count {
-                    row_heights[start_row] = limit.max(0.0);
+                    // 이어받은 물리 높이는 남은 행의 최소 점유다. 스캐너의
+                    // RowScanQuery::whole_row_height와 같이 현재 컷의 내용과
+                    // 유효 여백을 보존한다. 이 조각을 다시 자른 경우에는 아래
+                    // end_row_height_override가 수용한 컷의 정확한 높이를 소유한다.
+                    row_heights[start_row] = row_heights[start_row].max(limit.max(0.0));
                 }
             }
 
