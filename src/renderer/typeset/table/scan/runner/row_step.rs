@@ -1401,10 +1401,16 @@ impl TypesetEngine {
             && end_row == cursor_row + 1
             && (layout_engine.row_uses_reflow_physical_frame(table, cursor_row)
                 || layout_engine
-                    .native_stored_row_has_text_frame_boundary(table, cursor_row, styles))
+                    .native_stored_row_has_text_frame_boundary(table, cursor_row, styles)
+                || (!start_cut_is_block
+                    && layout_engine.row_has_original_plain_text_owners(
+                        table,
+                        cursor_row,
+                        &split_end_cut,
+                    )))
         {
-            // The carried minimum belongs to the entire remainder. A new content
-            // cut owns only the accepted footprint, shared by reservation and paint.
+            // 넘겨받은 최소 높이는 남은 행 전체의 공간이다. 다시 나눈 내용 컷은
+            // 실제 수용한 높이만 소유하며 예약과 paint가 이 같은 상자를 쓴다.
             end_row_height_override = Some(consumed);
         }
         let scan = BlockTableRowScan {

@@ -64,8 +64,9 @@ impl TypesetEngine {
             source_first_fragment_row_end,
             ..
         } = *budget;
-        let stored_complete_extent =
-            self.stored_partial_fragment_complete_extent(input, budget, &scan);
+        let stored_complete_extent = self
+            .stored_partial_fragment_complete_extent(input, budget, &scan)
+            .or_else(|| self.stored_body_closing_fragment_extent(st, input, budget, &scan));
         let BlockTableRowScan {
             source_frame_band,
             consumed,
@@ -1260,7 +1261,25 @@ impl TypesetEngine {
             continuation.finish(row_count, true);
             return TableContinuationIteration::Complete;
         }
+        let source_frame_closes_body = !is_continuation
+            && stored_complete_extent.is_some()
+            && table.caption.is_none()
+            && st.current_zone_y_offset == 0.0
+            && fragment_placement.is_some_and(|placement| {
+                let bottom = placement.table_top
+                    + partial_height
+                    + hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi);
+                (bottom - st.layout.body_area.height).abs()
+                    <= hwpunit_to_px(2, self.dpi)
+                        + f64::EPSILON * st.layout.body_area.height.abs().max(1.0) * 4.0
+            });
         commit_fragment(st, caption_extra + partial_height, false);
+        if !is_continuation && stored_complete_extent.is_some() {
+            // 내용 컷과 독립적으로 인증한 첫 조각 상자가 실제 지면을 차지했다.
+            // 다음 조각의 여백은 같은 커서 사실을 예산·배치가 함께 소비한다.
+            continuation.stored_fragment_outer_frame = true;
+            continuation.stored_fragment_closes_body = source_frame_closes_body;
+        }
         // 큰 RowBreak 표가 기존 각주를 이미 가진 page에서 시작할 때에는 첫 fragment의
         // cell-footnote를 같은 lane에 섞지 않는다. 그 page의 기존 각주(표 25의
         // 105·106)를 보존하고, 표가 이어지는 fresh page에서 cell-footnote를 순서대로
@@ -1431,10 +1450,18 @@ impl TypesetEngine {
             })
             .or_else(|| {
                 let row = end_row.checked_sub(1)?;
-                let opening = end_row_height_override?;
                 if split_block_start.is_some() || split_end_limit <= 0.0 { return None; }
+                let carried = (row == cursor_row)
+                    .then_some(start_row_height_override).flatten();
+                // 물리 잔여를 다시 분할했으면 스캔과 paint가 함께 쓴 현재 컷의
+                // 패딩 포함 점유를 차감한다. 전체 행의 첫 조각으로 되돌리지 않는다.
+                let opening = end_row_height_override.or_else(|| carried.map(|_| {
+                    layout_engine.row_cut_content_height(
+                        table, row, start_cut, &next_cut, styles,
+                    )
+                }))?;
                 let remaining = layout_engine.stored_ordinary_row_remainder(
-                    table, row, &next_cut, opening, styles,
+                    table, row, &next_cut, opening, carried, styles,
                 )?;
                 (!layout_engine.stored_complete_row_tail_is_line_advance(
                     table, row, &next_cut, remaining, styles,
@@ -1616,15 +1643,10 @@ impl TypesetEngine {
                     split_end_limit, tail_band_continues
                 );
             }
-            // 선언 잔여가 남은 소유 유닛의 실제 요구 높이보다 작을 수 있다.
-            // 작은 빈 상자를 수용한 뒤 paint에서 키우지 않고, 같은 컷의 요구를
-            // 이어받기 커서에서 생산해 다음 스캔과 실제 배치가 함께 소비한다.
-            let remaining = if split_block_start.is_none() && split_end_limit > 0.0
-                && !layout_engine.advance_row_cut(table, end_row - 1, &next_cut, f64::MAX, styles).fully_consumed
-            {
-                tail.max(layout_engine.row_cut_content_height(table, end_row - 1, &next_cut, &[], styles))
-            } else { tail };
-            (tail > 0.5 && tail_band_continues).then_some(remaining)
+            // 이 잔여는 한 조각의 물리 하한이며 남은 전체 내용의 높이가 아니다.
+            // 내용은 여러 조각에 걸칠 수 있으므로 그 전체 높이로 현재 조각을
+            // 늘리지 않는다. 다음 스캔이 이 컷에서 실제 수용할 유닛을 선택한다.
+            (tail > 0.5 && tail_band_continues).then_some(tail)
         }));
         // [#7531] 행 경계에서 끝난 조각의 쪽 끝 빈 띠는 그 경계를 넘는 걸침 칸이 차지한다.
         // 행 안에서 끊긴 조각도 남은 물리 공간은 같은 띠다(끝 행이 쪽을 채우면 0).

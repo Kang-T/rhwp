@@ -125,11 +125,13 @@ impl TypesetEngine {
                     }
                 }
             }
-            // Consume a carried physical tail before scanning the next row.
+            // 넘겨받은 물리 잔여도 현재 예산에 들어갈 때만 통째로 수용한다.
+            // 더 큰 잔여는 일반 컷 스캔에서 내용과 함께 여러 조각으로 나눈다.
             if r == v.cursor_row {
-                if let Some(height) = v.start_row_height_override.filter(|_| {
+                if let Some(height) = v.start_row_height_override.filter(|height| {
                     !layout_engine.row_uses_reflow_physical_frame(table, r)
                         && layout_engine.row_cut_units_exhausted(table, r, start_cut, styles)
+                        && progress.scan.consumed + height <= v.avail_for_rows
                 }) {
                     progress.scan.consumed += height;
                     progress.r += 1;

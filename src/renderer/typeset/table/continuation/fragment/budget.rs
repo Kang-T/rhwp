@@ -198,7 +198,10 @@ impl TypesetEngine {
             + if is_continuation
                 && (fragment_opens_outer_top
                     || terminal_fragment_opens_outer_top
-                    || source_cut_opens_outer_top)
+                    || source_cut_opens_outer_top
+                    || (input.start.stored_fragment_outer_frame
+                        && st.current_height <= 0.5
+                        && std::ptr::eq(row_geometry_table, table)))
                 && !strict_following_plain_text_fit
                 && !single_cell_page_fragment
                 && !recursive_overlay_frame
@@ -1011,15 +1014,17 @@ impl TypesetEngine {
                     let flow_bottom_hu =
                         anchor_hu.saturating_add(table.common.height.min(i32::MAX as u32) as i32);
                     let flow_bottom_px = hwpunit_to_px(flow_bottom_hu, self.dpi);
-                    // [#7418] 앵커는 **문단 시작**이다. host 글을 첫 조각 앞에 냈으면
-                    // `current_height` 는 그만큼 전진해 있다 — 빼고 견준다(21298295: host
-                    // `1. 편성기준` 36.8px 선방출로 프레임을 놓쳐 13행 첫 줄이 다음 쪽으로 가고
-                    // 3쪽이 됐다. 한/글 2쪽).
-                    let para_start = st.current_height
+                    // 저장 가시 줄의 앵커와 실제 배치가 확정한 같은 앵커를 비교한다.
+                    // 제목 선방출을 뺀 문단 시작은 앞 간격을 포함하지 않을 수 있다.
+                    // 배치 계획이 없는 기존 흐름 경로만 선방출 전 원점을 사용한다.
+                    let flow_host_start = st.current_height
                         - st.pre_emitted_host_heights
                             .get(&para_idx)
                             .copied()
                             .unwrap_or(0.0);
+                    let actual_anchor = fragment_placement
+                        .and_then(|placement| placement.stored_host_origin)
+                        .unwrap_or(flow_host_start);
                     let frame_height =
                         hwpunit_to_px(table.common.height.min(i32::MAX as u32) as i32, self.dpi);
                     // 호스트 내용이 원점을 전진시켰다면 저장 앵커의 끝만으로
@@ -1029,7 +1034,14 @@ impl TypesetEngine {
                         placement.table_top + frame_height
                             <= source_first_fragment_flow_bottom + 0.5
                     });
-                    ((anchor_px - para_start).abs() <= 0.5
+                    if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
+                        eprintln!(
+                            "TABLE_STORED_FIRST_FRAME: pi={} source_anchor={:.8} flow_host={:.8} placement={:?} frame={:.8} fits={}",
+                            para_idx, anchor_px, flow_host_start, fragment_placement,
+                            frame_height, placed_frame_fits,
+                        );
+                    }
+                    ((anchor_px - actual_anchor).abs() <= 0.5
                         && flow_bottom_px <= source_first_fragment_flow_bottom + 0.5
                         && placed_frame_fits)
                         .then_some((frame_height, flow_bottom_px))
@@ -1553,6 +1565,24 @@ impl TypesetEngine {
                 st.layout.body_area.height,
                 self.dpi,
             );
+            avail_for_rows.min((bottom - top - header_overhead).max(0.0))
+        } else {
+            avail_for_rows
+        };
+        // 첫 수용 상자가 본문을 닫은 원본은 뒤 조각도 같은 바깥 프레임 안에서
+        // 컷을 선택한다. 실제 종료의 빈 띠는 스캔 뒤 원본 소유 컷에서 확인한다.
+        let avail_for_rows = if is_continuation
+            && input.start.stored_fragment_closes_body
+            && st.current_height <= 0.5
+            && st.current_zone_y_offset == 0.0
+            && std::ptr::eq(row_geometry_table, table)
+        {
+            let top = fragment_placement.map_or(
+                st.current_height + host_before_overhead + vert_offset_overhead,
+                |placement| placement.table_top,
+            ) + caption_extra;
+            let bottom = st.layout.body_area.height
+                - hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi);
             avail_for_rows.min((bottom - top - header_overhead).max(0.0))
         } else {
             avail_for_rows

@@ -1,4 +1,4 @@
-//! 반복 제목행이 여는 원본 쪽 프레임에서 일반 행의 내용 컷과 물리 상자를 함께 조회한다.
+//! 원본 일반 행의 저장 내용 컷과 실제 물리 조각 상자를 함께 조회한다.
 
 use super::{LayoutEngine, ResolvedStyleSet};
 use crate::model::table::{Cell, Table};
@@ -10,8 +10,7 @@ impl LayoutEngine {
         table: &'a Table,
         row: usize,
     ) -> Option<Vec<&'a Cell>> {
-        if !table.repeat_header
-            || !self.stored_row_boxes_exceed_first_frame(table)
+        if !self.stored_row_boxes_exceed_first_frame(table)
             || table.cells.iter().any(|cell| {
                 cell.row_span > 1
                     && usize::from(cell.row) <= row
@@ -158,9 +157,7 @@ impl LayoutEngine {
         if !start.is_empty()
             || end.len() != cells.len()
             || !(self.stored_ordinary_row_cut_has_boundary(table, row, start, end, styles)
-                || self
-                    .advance_row_cut(table, row, end, f64::MAX, styles)
-                    .fully_consumed)
+                || self.row_cut_consumes_all_ordinary_units(table, row, end, styles))
             || !self.row_cut_remaining_is_single_stored_frame(table, row, end, None, styles)
         {
             return None;
@@ -180,20 +177,26 @@ impl LayoutEngine {
         row: usize,
         cut: &[usize],
         opening: f64,
+        carried: Option<f64>,
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
         let cells = self.original_ordinary_row_cells(table, row)?;
         if cut.len() != cells.len()
             || !self.row_cut_remaining_is_single_stored_frame(table, row, cut, None, styles)
             || !(self.stored_ordinary_row_cut_has_boundary(table, row, &[], cut, styles)
-                || self.stored_single_line_row_is_fragmentable(table, row, styles))
+                || self.stored_single_line_row_is_fragmentable(table, row, styles)
+                || carried.is_some())
         {
             return None;
         }
-        let full = cells
-            .iter()
-            .map(|cell| hwpunit_to_px(cell.height as i32, self.dpi))
-            .fold(0.0, f64::max);
+        // 같은 행을 다시 나누면 이전 조각까지 차감한 커서의 물리 잔여를 쓴다.
+        // 원본 전체 높이로 돌아가 이미 소비한 공간을 다시 예약하지 않는다.
+        let full = carried.unwrap_or_else(|| {
+            cells
+                .iter()
+                .map(|cell| hwpunit_to_px(cell.height as i32, self.dpi))
+                .fold(0.0, f64::max)
+        });
         let end: Vec<_> = cells
             .iter()
             .map(|cell| self.cell_units(cell, table, styles).len())
@@ -253,9 +256,7 @@ impl LayoutEngine {
                 cut.len() == cells.len()
                     && (self.stored_ordinary_row_cut_has_boundary(table, row, &[], cut, styles)
                         || self.stored_single_line_row_is_fragmentable(table, row, styles)
-                        || self
-                            .advance_row_cut(table, row, cut, f64::MAX, styles)
-                            .fully_consumed)
+                        || self.row_cut_consumes_all_ordinary_units(table, row, cut, styles))
             })
     }
 }

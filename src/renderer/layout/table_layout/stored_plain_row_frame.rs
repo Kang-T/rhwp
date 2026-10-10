@@ -6,6 +6,31 @@ use crate::model::table::{Cell, Table, TablePageBreak};
 use super::{LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    /// 일반 부분 컷의 저장 글줄은 중첩 개체의 물리 조각을 입증하지 않는다.
+    /// 해당 행의 실제 소유자 전부가 원본 일반 글줄 상자를 공유하는지 확인한다.
+    pub(crate) fn row_has_original_plain_text_owners(
+        &self,
+        table: &Table,
+        row: usize,
+        cut: &[usize],
+    ) -> bool {
+        let owners: Vec<_> = table
+            .cells
+            .iter()
+            .filter(|cell| {
+                usize::from(cell.row) <= row
+                    && row < usize::from(cell.row) + usize::from(cell.row_span)
+            })
+            .collect();
+        !owners.is_empty()
+            && owners.len() == cut.len()
+            && owners.iter().all(|cell| {
+                usize::from(cell.row) == row
+                    && cell.row_span == 1
+                    && self.stored_plain_text_cell_frame(table, cell)
+            })
+    }
+
     pub(crate) fn stored_span_opening_frame(
         &self,
         table: &Table,
