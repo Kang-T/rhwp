@@ -2173,6 +2173,11 @@ pub(crate) fn stored_adjacent_line_table_frame(
     };
     let before = previous.line_segs.last()?;
     let after = successor.line_segs.first()?;
+    // 문단 재구성으로 바뀐 누적 좌표가 아니라 세 원본 줄의 같은 쪽 축을 쓴다.
+    // 뒤 원점만 복원하고 앞 두 줄을 누적 축에서 읽으면 앞 표까지 새 쪽으로 밀린다.
+    let anchor_vpos = ladder_vpos(host, 0, anchor.vertical_pos);
+    let before_vpos = ladder_vpos(previous, previous.line_segs.len() - 1, before.vertical_pos);
+    let after_vpos = ladder_vpos(successor, 0, after.vertical_pos);
     let valid = |para: &Paragraph| {
         !para.stored_text_partition_is_dirty()
             && !para.cell_format_vpos_dirty
@@ -2189,11 +2194,11 @@ pub(crate) fn stored_adjacent_line_table_frame(
         || !successor.controls.is_empty()
         || para_has_non_whitespace_text(host)
         || !matches!(host.controls.as_slice(), [Control::Table(_)])
-        || anchor.vertical_pos <= 0
-        || before.vertical_pos <= 0
-        || after.vertical_pos != 0
-        || i64::from(anchor.vertical_pos)
-            != i64::from(before.vertical_pos)
+        || anchor_vpos <= 0
+        || before_vpos <= 0
+        || after_vpos != 0
+        || i64::from(anchor_vpos)
+            != i64::from(before_vpos)
                 + i64::from(before.line_height)
                 + i64::from(before.line_spacing)
         || table.common.treat_as_char
@@ -2211,7 +2216,7 @@ pub(crate) fn stored_adjacent_line_table_frame(
     {
         return None;
     }
-    let anchor_y = hwpunit_to_px(anchor.vertical_pos, dpi);
+    let anchor_y = hwpunit_to_px(anchor_vpos, dpi);
     let table_top = anchor_y
         + hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), dpi)
         + hwpunit_to_px(i32::from(table.outer_margin_top), dpi);

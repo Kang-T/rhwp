@@ -21,6 +21,7 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+mod stored_table_tail;
 mod tac_cache_repair;
 
 /// HWP 내보내기 + 자기 재로드 검증 결과 (#178 Stage 6).
@@ -500,6 +501,9 @@ impl DocumentCore {
     ) {
         use crate::model::control::Control;
 
+        let profile = document.layout_profile();
+        let source_table_frames = !profile.session_edited()
+            && (profile.hwpx_stored_layout() || profile.hwp5_stored_pagination_layout());
         for section in &mut document.sections {
             // [#4898] 이 구역의 저장 lineseg 가 배치 권위를 갖는지 먼저 판정한다 —
             // 권위가 있으면 0높이 lineseg(한컴이 접어 둔 숨은 블록)를 재조판하지 않는다.
@@ -755,7 +759,6 @@ impl DocumentCore {
                     .map(|(i, para)| {
                         if reflowed_paras.contains(&i)
                             || para.stored_text_partition_dirty
-                            || !para.controls.is_empty()
                             || para.line_segs.iter().any(|line| {
                                 line.tag
                                     & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
@@ -763,6 +766,11 @@ impl DocumentCore {
                             })
                         {
                             return None;
+                        }
+                        if !para.controls.is_empty() {
+                            return source_table_frames
+                                .then(|| stored_table_tail::source_frame_tail(para))
+                                .flatten();
                         }
                         let last = para.line_segs.last()?;
                         let painted_end = last.vertical_pos.saturating_add(last.line_height);
