@@ -2148,7 +2148,7 @@ impl CenteredTextLineMeasure {
         for (text, style) in &self.runs {
             let mut measured_style = style.clone();
             measured_style.extra_char_spacing = extra_char_spacing;
-            width += estimate_text_width(text, &measured_style);
+            width += estimate_text_width_exact(text, &measured_style);
         }
         // 마지막 가시 글자의 음수 자간은 글리프 자체의 폭을 줄이지 않는다.
         if let Some((text, style)) = self.runs.iter().rev().find(|(text, _)| !text.is_empty()) {
@@ -2160,10 +2160,10 @@ impl CenteredTextLineMeasure {
                 let glyph = character.to_string();
                 let mut measured_style = style.clone();
                 measured_style.extra_char_spacing = extra_char_spacing;
-                let advance = estimate_text_width(&glyph, &measured_style);
+                let advance = estimate_text_width_exact(&glyph, &measured_style);
                 measured_style.letter_spacing = 0.0;
                 measured_style.extra_char_spacing = 0.0;
-                width += (estimate_text_width(&glyph, &measured_style) - advance).max(0.0);
+                width += (estimate_text_width_exact(&glyph, &measured_style) - advance).max(0.0);
             }
         }
         width
