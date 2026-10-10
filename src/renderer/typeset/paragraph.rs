@@ -900,13 +900,20 @@ pub(super) fn prepare_forced_page_boundary(
     fmt: &FormattedParagraph,
     paragraphs: &[Paragraph],
     available: f64,
-    dpi: f64,
+    note_measure: &super::notes::footnotes::measure::BodyFootnoteMeasure<'_>,
 ) -> ForcedPageBoundary {
+    let dpi = note_measure.engine.dpi;
     // native HWP5 본문은 기존 각주가 있는 page tail에서도 `vpos=0` reset으로
     // 다음 physical page를 기록할 수 있다. 일반 reset은 과분할 위험이 있으므로,
     // 실제 FootnoteArea 경계와 source/flow가 함께 맞을 때만 강제 경계로 쓴다.
     let native_hwp5_existing_footnote_reset_line =
-        native_hwp5_existing_footnote_reset_overlap_break_line(st, para, fmt, paragraphs, dpi);
+        native_hwp5_existing_footnote_reset_overlap_break_line(
+            st,
+            para,
+            fmt,
+            paragraphs,
+            note_measure,
+        );
     // 흐름 스냅이 이미 확정한 지연 기준은 마지막 줄·내부 쪽 경계도 함께 소비한다.
     // 첫 빈 개체 호스트의 저장 위치는 표 밴드 뒤의 줄일 수 있어 쪽 원점으로 다시 쓰지 않는다.
     let current_page_vpos_base = st.vpos_page_base.or(st.vpos_lazy_base).or_else(|| {

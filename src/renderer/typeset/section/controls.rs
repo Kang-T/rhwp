@@ -620,6 +620,7 @@ impl TypesetEngine {
                         paragraphs,
                         ctrl_idx,
                         fn_ctrl,
+                        styles,
                         has_table,
                         native_hwp5_footnote_break,
                     );

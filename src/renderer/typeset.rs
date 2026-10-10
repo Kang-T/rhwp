@@ -3854,8 +3854,7 @@ impl TypesetEngine {
                 styles,
                 is_last_in_section,
             },
-            self.dpi,
-            || self.profile.get().session_edited(),
+            self,
         );
     }
 

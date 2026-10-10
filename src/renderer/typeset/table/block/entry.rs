@@ -104,7 +104,10 @@ impl TypesetEngine {
                 fmt,
                 paragraphs_all,
                 st.available_height(),
-                self.dpi,
+                &crate::renderer::typeset::notes::footnotes::measure::BodyFootnoteMeasure {
+                    engine: self,
+                    styles,
+                },
             );
             if let Some(break_line) = boundary.forced_page_break_line.filter(|&line| {
                 para.line_segs[line].vertical_pos > 0

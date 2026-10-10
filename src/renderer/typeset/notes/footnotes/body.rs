@@ -9,7 +9,7 @@ use crate::renderer::typeset::notes::footnotes::measure::composed_footnote_conte
 use crate::renderer::typeset::{
     estimate_footnote_note_height, hwpunit_to_px,
     native_hwp5_rowbreak_host_precedes_first_fragment, Control, Footnote, FootnoteRef,
-    FootnoteSource, Paragraph, TypesetEngine, TypesetState,
+    FootnoteSource, Paragraph, ResolvedStyleSet, TypesetEngine, TypesetState,
 };
 
 impl TypesetEngine {
@@ -22,6 +22,7 @@ impl TypesetEngine {
         paragraphs: &[Paragraph],
         ctrl_idx: usize,
         fn_ctrl: &Footnote,
+        styles: &ResolvedStyleSet,
         has_table: bool,
         native_hwp5_footnote_break: Option<super::boundary::NativeHwp5FootnoteBreak>,
     ) {
@@ -64,6 +65,13 @@ impl TypesetEngine {
             para_index: para_idx,
             control_index: ctrl_idx,
         };
+        let note_measure = super::measure::BodyFootnoteMeasure {
+            engine: self,
+            styles,
+        };
+        let block_content_height = note_measure.block_content_height(st, fn_ctrl, None);
+        let content_height = block_content_height
+            .unwrap_or_else(|| composed_footnote_content_height(fn_ctrl, self.dpi));
         // 번호는 문서 순서다. 앞 각주의 저장 suffix가 다음 쪽 lane을 열었으면
         // 뒤 번호를 현재 쪽에 끼워 넣지 않고 같은 lane에서 이어받는다.
         // 본문 marker의 소유 쪽은 이 예약으로 바뀌지 않는다.
@@ -74,7 +82,7 @@ impl TypesetEngine {
                     source,
                     fragment: None,
                 },
-                composed_footnote_content_height(fn_ctrl, self.dpi),
+                content_height,
             );
             return;
         }
@@ -115,7 +123,7 @@ impl TypesetEngine {
                         && (!original_hwpx_table_host
                             || !self.render_normalization.table_text_reflowed(table)) =>
                 {
-                    let full_content_height = composed_footnote_content_height(fn_ctrl, self.dpi);
+                    let full_content_height = content_height;
                     st.table_host_terminal_fragment_placement(
                         para_idx,
                         table_control_index,
@@ -174,7 +182,8 @@ impl TypesetEngine {
                 full_content_height,
             );
         } else if !has_table {
-            let fn_height = estimate_footnote_note_height(fn_ctrl, self.dpi);
+            let fn_height = block_content_height
+                .unwrap_or_else(|| estimate_footnote_note_height(fn_ctrl, self.dpi));
             let move_to_next_reset_page = native_hwp5_final_marker_footnote_uses_next_reset_page(
                 st, para_idx, para, paragraphs, ctrl_idx, fn_ctrl, fn_height,
             );
@@ -196,12 +205,7 @@ impl TypesetEngine {
                     para,
                 )
                 .is_none()
-                && !st.footnote_fragment_fits_current_page(
-                    composed_footnote_content_height(fn_ctrl, self.dpi),
-                    true,
-                    false,
-                    0.0,
-                );
+                && !st.footnote_fragment_fits_current_page(content_height, true, false, 0.0);
             let body_tail_reset =
                 native_hwp5_body_footnote_tail_reset(st, para_idx, para, ctrl_idx);
             // 두 줄 각주는 full-note owner route와 다른 계약이다. marker
