@@ -1451,7 +1451,6 @@ impl LayoutEngine {
                 area_width,
                 fn_ref.fragment,
                 total,
-                area_width,
             );
             // 각주 간 간격
             if i + 1 < footnotes.len() {
@@ -1495,6 +1494,7 @@ impl LayoutEngine {
                 number_drawn,
                 selected_start..selected_end,
                 total,
+                area_width,
             );
             total += placement.spacing.before;
             if let Some(block) = placement.block_table {
