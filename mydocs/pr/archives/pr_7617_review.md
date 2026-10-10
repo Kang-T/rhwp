@@ -543,7 +543,7 @@ source 해시는 새 `candidate-c99f8bd66-build/build.json`에 고정했다. 이
 | empty-band-control | 17 | 0 | 97.12321% |
 | large-frame-control | 7 | 0 | 96.75116% |
 
-caption1853の13/14/37/38쪽과 pr1674의4쪽은 Native/fresh WASM 모두 각각
+caption1853의13/14/37/38쪽과 pr1674의4쪽은 Native/fresh WASM 모두 각각
 97.20426/96.73474/96.08718/95.85736/94.17980%이고 같은 PNG bytes다.
 반면 caption1853의45쪽은 두 출력 모두34.60991%라 보류다. 이6쪽만의 WASM 비교를
 전체 WASM 검증으로 보고하지 않는다. font data URI와 같은 font bytes의 file URI,
@@ -573,3 +573,24 @@ resolved top → 실제 괘선으로 연결하며 기존 확정 배치가 있으
 pr1674의빈 글줄 후 lazy 기준이180HU를 재가산하는 현상, scattered의rowspan 컷 예약과
 paint의 요구 높이 차이, caption1853의표 뒤 본문 흐름 차이는 여전히 추가 조사 대상이다.
 고정 base의 새 재출력 전에는 이 네 원본의 미달을 #7445 이관 근거로 삼지 않는다.
+
+추가 보완 `d970d831558d0cebdaaaf02d9e66f2bed45fd99e`에서 같은 배치 상태의
+mutable 바인딩을 유지했다. 앞선 f5b340cb8 빌드는 바인딩 오류로 exit101이었고
+해당 오류를 수정한 d970d8315의 Native 빌드는 jobs8, 504.33초, exit0이다.
+고정 base21ed64071 대비 manifest·unit-tier 검사는 모두 exit0이다.
+fresh WASM과 전체 시각 재검증은 계속 진행 중이다. 현재 진단에서 sample4514 pi763의
+예약655.5와 paint의원점은 같아졌고, caption1853 pi371의첫 예산은790.1에서855.7로
+수정됐다. 이 좌표 진단만으로 시각 gate·겹침·내용 보존 통과를 선언하지 않는다.
+
+삭제된 HWPX Print 실행 증거는 동일한 커밋 원본으로 한컴2020 비동기 Print를 다시
+실행해 확보했다. input SHA-256은
+`a6ea57f3006f4ff66299d525899ecdd5b6973a53be8b064ec9489c2461523d2f`이며,
+job `3c027504-500b-4010-9e03-fde6485d69e5`의 실제 결과는 engine2020,
+`pdf_print_method=0`, `pdf_output_mode=hancom2020_pdf_driver_one_up`, 4쪽이다.
+download의 크기·SHA와 PDF signature·EOF를 확인했다. 새 PDF는
+[같은 HWPX의 독립 Print](../../../pdf/float_push_spacing_before/float_push_spacing_before_boundaries-hwpx-2020.pdf)에
+등재했고 SHA-256은 `d92e138dd6e147dd223acd205cad9cc008b51b2a0ec633dcc3b0ad49f57766b9`다.
+이전 Downloads 보존본과 전4쪽의 텍스트·MediaBox는 같지만 아직 새 PDF의 실제 raster를
+대조하지 않았으므로 이를 geometry 일치 증거로 사용하지 않는다. 원 HWP의 대응 PDF를
+HWPX 자체의 Print 증거로 대신하지 않는다. sanitized receipt와 bytes 확인은 ignored
+`batch16-pr7617-boundary-print.json`, `restored-boundary-print-verification.json`에 남겼다.
