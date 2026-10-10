@@ -79,6 +79,56 @@ pub(crate) fn native_empty_topbottom_rewind_anchor_saved_para_y(
     (bottom <= col_area.y + col_area.height + 0.5).then_some(saved_para_y)
 }
 
+/// 통째로 이월한 표의 전량 측정 상자를 후속 원본 줄이 닫는 경우의 새 쪽 원점.
+/// 이전 쪽의 호스트 줄 높이는 새 쪽에서 수용한 개체의 뒤 간격을 대신하지 않는다.
+pub(crate) fn stored_relocated_measured_table_successor_origin(
+    stored_layout: bool,
+    host: &Paragraph,
+    table: &Table,
+    successor: Option<&Paragraph>,
+    measured_height: f64,
+    dpi: f64,
+) -> Option<f64> {
+    use crate::model::paragraph::{ColumnBreakType, LineSeg};
+    let next = successor?;
+    let [anchor] = host.line_segs.as_slice() else {
+        return None;
+    };
+    let line = next.line_segs.first()?;
+    if !stored_layout
+        || !host.text.trim().is_empty()
+        || !matches!(host.controls.as_slice(), [Control::Table(_)])
+        || host.stored_text_partition_is_dirty()
+        || host.cell_format_vpos_dirty
+        || next.stored_text_partition_is_dirty()
+        || next.cell_format_vpos_dirty
+        || next.column_type != ColumnBreakType::None
+        || anchor.line_height <= 0
+        || line.line_height <= 0
+        || anchor.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || table.cells.iter().any(|cell| cell.dirty_flag)
+        || !is_para_topbottom_float(&table.common)
+        || !table.common.flow_with_text
+        || table.common.allow_overlap
+        || table.caption.is_some()
+        || table.page_break != TablePageBreak::RowBreak
+        || !measured_height.is_finite()
+        || measured_height <= 0.0
+        || !dpi.is_finite()
+        || dpi <= 0.0
+    {
+        return None;
+    }
+    let host_vpos = ladder_vpos(host, 0, anchor.vertical_pos);
+    let next_vpos = ladder_vpos(next, 0, line.vertical_pos);
+    let extent = (measured_height * 7200.0 / dpi).round() as i64
+        + i64::from(table.outer_margin_top)
+        + i64::from(table.outer_margin_bottom);
+    (next_vpos > 0 && host_vpos > next_vpos && extent == i64::from(next_vpos))
+        .then(|| hwpunit_to_px(next_vpos, dpi))
+}
+
 /// 원본 HWP5·HWPX에서 새 쪽으로 이월한 빈 그림 표는 저장 셀 프레임이
 /// 실제 그림·아래 캡션보다 클 수 있다. 표 프레임을 보존하면서 흐름만 다음
 /// 저장 글줄 원점에서 재개하는 형상을 확인한다. 반환값은 본문 상대 좌표다.
