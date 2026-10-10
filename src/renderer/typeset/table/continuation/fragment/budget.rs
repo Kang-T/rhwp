@@ -469,12 +469,21 @@ impl TypesetEngine {
                     st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
                     st.profile.session_edited(),
                 );
-            // 100HU의 아래 inset은 Native 단일 셀의 쪽 조각 계약이다.
-            // 저장 텍스트 프레임이 있다는 이유만으로 HWPX나 쪽 중간의
-            // 첫 조각에도 이 띠를 예약하면 들어가는 마지막 유닛이 이월된다.
-            // 일반 원본 행은 본문 하단, 쪽을 닫는 선언 상자는 그 자체의
-            // 바깥 여백, 해당 Native 쪽 조각만 공통 inset을 소비한다.
-            let bottom = if body_filling_source_frame || single_cell_page_fragment {
+            // 쪽 중간 첫 조각의 advance와 HWPX에 Native 아래 inset을
+            // 추가하지 않는다. 쪽을 닫는 선언 상자는 자기 바깥 여백을,
+            // 이어받는 Native 원본의 물리 상자는 paint의 공통 하단을 쓴다.
+            // A continued native source row can reserve a blank physical band.
+            // Its accepted box must end at the same fragment bottom as paint,
+            // including when several rows share that page. Otherwise emit
+            // records a larger box and wrongly subtracts it from the terminal
+            // row's independently declared remaining height.
+            let native_continuation_source_frame = is_continuation
+                && st.profile.hwp5_stored_pagination_layout()
+                && table.row_count > 1;
+            let bottom = if body_filling_source_frame
+                || single_cell_page_fragment
+                || native_continuation_source_frame
+            {
                 crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
                     table,
                     st.inline_flow_column().height,
