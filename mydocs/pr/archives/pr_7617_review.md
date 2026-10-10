@@ -717,3 +717,13 @@ HWP 실제 paint 로그(`batch61-current-handbook-paint-flow`)는 표13이444.3�
 `edb086255` Native Clippy·빌드 exit0/396.39초 뒤 같은 HWP284쪽 새 Print-profile review를 직접 읽었다.7번 제목·괘선·본문의8px 조기 배치가 해소됐고90.42728%→98.26895%,전체 count383/383이다. HWPX281·284쪽 새 PNG는 직전에 읽은8af 출력과 byte-identical이며 비교/hash 기록을 `batch64-edb-handbook-panels/provenance.json`에 남겼다. 이는 선택 Native 판독이며 전체383쪽·fresh WASM·현재 추가 각주 보정689484afb의 최종 검증은 아니다.
 
 현재689484afb에서 fmt·Native Clippy는 exit0이고 Native 빌드가 공유 cache에서 jobs8로 실행 중이다. 종료 뒤 `batch67-physical-note-lane-verification`이 같은 frozen binary로 가맹사업 전142쪽 TSV를 먼저 산출하고 실제69~72쪽·정상 대조군을 재출력한다. 현재는 실행 대기이며 전쪽 결과를 완료로 표시하지 않는다.8af777a20의 별도 순차 WASM Clippy·workspace build/all-targets Clippy·두 base 고정 정책 검사·fresh WASM 빌드는 exit0으로 끝났지만 이후 source 변경의 최종 gate를 대신하지 않는다.
+
+## 정상 최소 셀 높이와 행 컷의 여백 — 2026-10-11
+
+689484afb Native 빌드는 exit0/382.92초로 완료했다. 같은 frozen 실행 파일의 실제 각주 등록 로그에서67~70이 끝 표 조각의 물리71쪽에 함께 예약됨을 확인했다(`batch69-current-franchise-lane-routing`). 전142쪽 시각 비교는 계속 실행 중이며 등록 로그를 시각 통과로 대신하지 않는다.
+
+원본650의4×2 자식 표에서2행은 선언 높이282HU, 위·아래 안 여백141HU씩이고 오른쪽의 저장5줄은7400HU에서 끝난다. 기존 출력 행 높이100.5px는 줄7400HU + 축소된 여백141HU에 해당한다. 독립 Print의 같은 행 괘선 차이는102.288px이며, 원본 줄과 온전한 여백의7682HU는96DPI에서102.42667px다. 같은 최소 높이를 가진 기존 #7234의 실제 한컴 저장본·PDF 대조도 내용이 들어오면서 여백을 포함한 행으로 성장하는 계약을 입증한다. 입력을 바꾸거나 합성 최소값으로 원본을 대체하지 않았다.
+
+생산·소비 경로는 `Cell::vertical_padding_is_abnormal → resolve_cell_padding_at_height → row_cut_content_height → table_partial의 MeasuredTable 없는 온전한 자식 행 재계산`이다. 선언 높이와 여백 합이 같은 정상 최소값을 비정상으로 처리하던 `>=`를 문서화된 엄격 초과 `>`로 수정했다. 실제 초과 여백의 기존 축소와0 높이 비발동은 유지한다. 측정의 중첩 relaxed-pad 및 전체 행 계산은 별도 소비 경로이므로 같은 결과가 되는지 기존 대조군으로 확인한다. 원본 레코드·기존 paint·Print 괘선은 ignored `batch71-padding-source-proof/provenance.json`에 연결했다.
+
+이 보정의 재빌드·전체 페이지 Native/fresh WASM·관계형 검사·최종 회귀는 미검증이다. 부모 표 원점 등 남은 차이까지 해결했다고 주장하지 않으며 새 회귀·기대값·baseline·이관은 추가하지 않았다.

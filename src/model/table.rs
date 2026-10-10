@@ -292,8 +292,10 @@ impl Cell {
     /// 렌더는 저장 여백을 그대로 써서 글자가 아래 괘선을 넘는다 — 여백이 셀
     /// 높이의 절반~1배인 정상 조밀 표에서 오발동한 #5751 이 그 사례다
     /// (156505020 데이터 셀: pad 15.09px, h 21.09px).
+    /// 여백 합과 같은 선언 높이는 내용 높이가 아직 반영되지 않은 정상 최소값이다.
+    /// 이를 축소하면 실제 줄로 성장한 행에서도 컷 계산만 여백을 잃는다.
     pub fn vertical_padding_is_abnormal(cell_height_px: f64, total_v_pad_px: f64) -> bool {
-        cell_height_px > 0.0 && total_v_pad_px >= cell_height_px
+        cell_height_px > 0.0 && total_v_pad_px > cell_height_px
     }
 
     /// 1×1 표의 선언된 바깥 높이는 유일한 셀의 물리 높이이기도 하다.
