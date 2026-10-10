@@ -77,22 +77,48 @@ impl TypesetEngine {
             split_end_limit,
             mut end_row_height_override,
         } = scan;
+        let source_first_row_frame =
+            layout_engine.saved_first_row_opening_frame(table, styles, st.layout.body_area.height);
+        let source_opening_row_frame = (!is_continuation
+            && cursor_row == 0
+            && start_cut.is_empty()
+            && end_row == 1
+            && split_block_start.is_none())
+        .then_some(source_first_row_frame.as_ref())
+        .flatten()
+        .filter(|(cut, height, _)| {
+            cut == &split_end_cut && end_row_height_override == Some(*height)
+        });
         // A cut consumes content; the declared cell minimum also owns blank
         // physical space. Carry actual accepted boxes rather than estimating
         // them from preceding content cuts.
         let stored_row_frame = end_row.checked_sub(1).and_then(|row| {
-            if split_end_limit <= 0.0 || split_end_cut.is_empty() || split_block_start.is_some() {
+            if split_end_limit <= 0.0
+                || split_end_cut.is_empty()
+                || split_block_start.is_some()
+                || source_opening_row_frame.is_some()
+            {
                 return None;
             }
             // Frame ownership uses the same unreserved source body height as
             // paint. Footnotes and zones constrain acceptance below, not the
             // existence of the source-owned minimum.
-            let declared = layout_engine.stored_full_width_row_declared_height(
-                table,
-                row,
-                styles,
-                st.layout.body_area.height,
-            )?;
+            let declared = layout_engine
+                .stored_full_width_row_declared_height(
+                    table,
+                    row,
+                    styles,
+                    st.layout.body_area.height,
+                )
+                .or_else(|| {
+                    (row == 0
+                        && continuation
+                            .stored_row_box_sum
+                            .is_some_and(|(owner, _)| owner == row))
+                    .then_some(source_first_row_frame.as_ref())
+                    .flatten()
+                    .map(|(_, opening, remaining)| opening + remaining)
+                })?;
             let used = continuation
                 .stored_row_box_sum
                 .filter(|(owner, _)| *owner == row)
@@ -1060,8 +1086,13 @@ impl TypesetEngine {
         if let Some(box_height) = single_cell_box_height {
             continuation.single_cell_box_sum_px += box_height;
         }
-        let accepted_stored_row_frame = stored_row_frame
-            .map(|(row, used, height, _)| (row, used, end_row_height_override.unwrap_or(height)));
+        let accepted_stored_row_frame = source_opening_row_frame
+            .map(|(_, opening, _)| (0, 0.0, *opening))
+            .or_else(|| {
+                stored_row_frame.map(|(row, used, height, _)| {
+                    (row, used, end_row_height_override.unwrap_or(height))
+                })
+            });
         if let Some((row, used, height)) = accepted_stored_row_frame {
             continuation.stored_row_box_sum = Some((row, used + height));
         }
@@ -1164,7 +1195,9 @@ impl TypesetEngine {
                     + last_height;
                 Some(hwpunit_to_px(source.height as i32, self.dpi) - used)
             });
-        let next_start_row_height_override = empty_opening_next_height
+        let next_start_row_height_override = source_opening_row_frame
+            .as_ref().map(|(_, _, remaining)| *remaining)
+            .or(empty_opening_next_height)
             .or_else(|| {
                 let frames = input.prepared.source_single_cell_row_frames?;
                 (!is_continuation
@@ -1177,7 +1210,8 @@ impl TypesetEngine {
                 let (row, used, height) = accepted_stored_row_frame?;
                 let full = layout_engine.stored_full_width_row_declared_height(
                     table, row, styles, st.layout.body_area.height,
-                )?;
+                ).or_else(|| (row == 0).then_some(source_first_row_frame.as_ref())
+                    .flatten().map(|(_, opening, remaining)| opening + remaining))?;
                 let remaining = (full - used - height).max(0.0);
                 (remaining > 0.5).then_some(remaining)
             })

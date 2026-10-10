@@ -15826,6 +15826,133 @@ impl LayoutEngine {
         })
     }
 
+    /// The first object frame can close inside the first source row. Its
+    /// synchronized CellUnit resets own a physical box, rather than the sum of
+    /// the consumed advances. The remaining box belongs to the same row even
+    /// when its cells declare different heights or use different alignments.
+    pub(crate) fn saved_first_row_opening_frame(
+        &self,
+        table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+        body_height: f64,
+    ) -> Option<(Vec<usize>, f64, f64)> {
+        let profile = self.profile.get();
+        if !body_height.is_finite()
+            || body_height <= 0.0
+            || !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
+            || profile.session_edited()
+            || self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+            || table.common.treat_as_char
+            || table.page_break != TablePageBreak::RowBreak
+            || table.common.text_wrap != TextWrap::TopAndBottom
+            || table.common.height == 0
+            || table.common.height > i32::MAX as u32
+            || table.cell_spacing != 0
+            || self
+                .nested_table_ptrs
+                .borrow()
+                .contains(&(table as *const crate::model::table::Table as usize))
+        {
+            return None;
+        }
+        let order = Self::row_cut_cell_order(table, 0);
+        let full_height = *table.get_raw_row_heights().first()?;
+        if full_height <= table.common.height || full_height > i32::MAX as u32 {
+            return None;
+        }
+        let mut next_col = 0;
+        let mut cut = Vec::with_capacity(order.len());
+        let mut last_advance_bottom = 0.0_f64;
+        let opening = hwpunit_to_px(table.common.height as i32, self.dpi);
+        for &index in &order {
+            let cell = &table.cells[index];
+            if cell.row != 0
+                || cell.row_span != 1
+                || cell.col != next_col
+                || cell.col_span == 0
+                || cell.height == 0
+                || cell.height > i32::MAX as u32
+                || cell.dirty_flag
+                || cell
+                    .paragraphs
+                    .iter()
+                    .any(|p| p.stored_text_partition_is_dirty() || p.cell_format_vpos_dirty)
+            {
+                return None;
+            }
+            next_col = next_col.checked_add(cell.col_span)?;
+            let units = self.cell_units(cell, table, styles);
+            let end = units.iter().enumerate().skip(1).find_map(|(i, unit)| {
+                (unit.page_frame_reset_before || unit.stored_frame_break_before).then_some(i)
+            })?;
+            // This plan certifies one opening and one closing source frame.
+            // A later reset follows the existing multi-frame continuation path.
+            if units[end + 1..]
+                .iter()
+                .any(|unit| unit.page_frame_reset_before || unit.stored_frame_break_before)
+            {
+                return None;
+            }
+            let (_, _, top, bottom) = self.resolve_cell_padding(cell, table);
+            for unit in &units[..end] {
+                if unit.nested_row.is_some()
+                    || unit.non_inline_control_range.is_some()
+                    || unit.vis_start >= unit.vis_end
+                {
+                    return None;
+                }
+                let para = cell.paragraphs.get(unit.para_idx)?;
+                if para
+                    .controls
+                    .iter()
+                    .any(|c| !matches!(c, Control::Footnote(_) | Control::Endnote(_)))
+                {
+                    return None;
+                }
+                let lines = para.line_segs.get(unit.vis_start..unit.vis_end)?;
+                for line in lines {
+                    if line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                        || line.vertical_pos < 0
+                        || line.line_height <= 0
+                    {
+                        return None;
+                    }
+                    let ink_bottom =
+                        top + hwpunit_to_px(
+                            line.vertical_pos.saturating_add(line.line_height),
+                            self.dpi,
+                        ) + bottom;
+                    // Authenticate the box through stored line extents. A
+                    // declared frame that cuts ink is not accepted or clamped.
+                    if ink_bottom > opening + 2.0 * self.dpi / 7200.0 {
+                        return None;
+                    }
+                    last_advance_bottom = last_advance_bottom
+                        .max(ink_bottom + hwpunit_to_px(line.line_spacing.max(0), self.dpi));
+                }
+            }
+            cut.push(end);
+        }
+        if next_col != table.col_count
+            || opening > last_advance_bottom + 2.0 * self.dpi / 7200.0
+            || !self.row_cut_ends_at_stored_page_reset(table, 0, &[], &cut, styles)
+        {
+            return None;
+        }
+        let remaining = hwpunit_to_px((full_height - table.common.height) as i32, self.dpi);
+        if opening > body_height || remaining > body_height {
+            return None;
+        }
+        // A source minimum cannot make grown/reflowed content fit a smaller
+        // physical tail. Both scan and paint consume this exact accepted plan.
+        (self.row_cut_content_height(table, 0, &cut, &[], styles)
+            <= remaining + 2.0 * self.dpi / 7200.0)
+            .then_some((cut, opening, remaining))
+    }
+
     /// 셀 저장 사다리가 다음 줄을 쪽 위(vpos 0)에서 다시 시작하면 한/글은 그 자리에서
     /// 쪽을 갈랐다(앞 줄이 칸 첫 줄이라 vpos 0 이어도 같다 — 편람 부록 행 83: 줄 0·1 이
     /// 모두 vpos 0, 정본은 줄 0 만 앞 쪽 끝에 둔다). 이때 앞 줄 뒤의 줄 간격(문단이 바뀌면 문단 뒤 간격까지)은 다음 프레임

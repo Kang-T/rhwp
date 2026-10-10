@@ -113,6 +113,46 @@ impl TypesetEngine {
                 }
             }
         }
+        // A synchronized source reset closes the first physical row box.
+        // Decide its demand before accepting content; the same source plan is
+        // carried by emission and consumed by the partial-table painter.
+        if !is_continuation && cursor_row == 0 && start_cut.is_empty() && header_overhead == 0.0 {
+            if let Some((cut, opening, _)) = layout_engine.saved_first_row_opening_frame(
+                table,
+                styles,
+                st.layout.body_area.height,
+            ) {
+                if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+                    eprintln!("DIAG_SCAN SOURCE_FIRST_ROW_FRAME pi={para_idx} cut={cut:?} opening={opening:.3} available={avail_for_rows:.3}");
+                }
+                if opening <= avail_for_rows + 0.1 {
+                    return BlockTableRowScan {
+                        consumed: opening,
+                        end_row: 1,
+                        split_block_start: None,
+                        split_end_cut: cut,
+                        split_end_limit: opening,
+                        end_row_height_override: Some(opening),
+                    };
+                }
+                // No accepted content or physical space on this page. Keep
+                // the exact source cut for a fresh page rather than forcing a
+                // smaller box now and enlarging it during paint.
+                if !st.current_items.is_empty()
+                    || st.current_height > 0.0
+                    || st.current_footnote_height > 0.0
+                {
+                    return BlockTableRowScan {
+                        consumed: 0.0,
+                        end_row: cursor_row,
+                        split_block_start: None,
+                        split_end_cut: Vec::new(),
+                        split_end_limit: 0.0,
+                        end_row_height_override: None,
+                    };
+                }
+            }
+        }
         // [Task #993] 컷 기반 행 경계 walk — cursor_row 부터 avail_for_rows
         // 안에 들어가는 행을 advance_row_cut(단일 권위 함수)으로 누적 배치한다.
         // 예산을 못 채우거나 vpos 리셋(hard break)을 만난 첫 행이 분할 행이

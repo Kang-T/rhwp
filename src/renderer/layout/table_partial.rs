@@ -5753,8 +5753,19 @@ impl LayoutEngine {
             }
         }
 
+        let source_first_row_frame =
+            self.saved_first_row_opening_frame(table, styles, self.current_body_area.get().3);
         let saved_opening_alignment_height = self
             .saved_single_cell_full_prefix_frame_height(table, start_cut, end_cut, styles)
+            .or_else(|| {
+                (start_row == 0 && end_row == 1 && start_cut.is_empty())
+                    .then_some(source_first_row_frame.as_ref())
+                    .flatten()
+                    .filter(|(cut, opening, _)| {
+                        cut.as_slice() == end_cut && end_row_height_override == Some(*opening)
+                    })
+                    .map(|(_, opening, _)| *opening)
+            })
             .or_else(|| {
                 source_single_cell_row_frames
                     .filter(|frame| {
@@ -5818,6 +5829,11 @@ impl LayoutEngine {
                 || page_cap_fold > 0.5)
                 && enclosing_cell_ctx.is_none()
                 && !align_saved_opening_frame
+                // A carried source row owns its accepted blank band, too.
+                && !(fold_row == 0 && start_row == 0 && is_continuation
+                    && source_first_row_frame.as_ref().is_some_and(|(cut, _, remaining)| {
+                        cut.as_slice() == start_cut && start_row_height_override == Some(*remaining)
+                    }))
                 && !owns_declared_row_frame
                 && budget_row_height_0.is_none()
                 && probe.is_none_or(|p| {
