@@ -1978,3 +1978,67 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 고정source/cases 필수gate의 최초 실행에서 fmt·Native Clippy·WASM32 lib Clippy·workspace build·workspace all-targets Clippy가 모두exit0이었다. manifest 검사는 최신 case bytes에 맞지 않는 생성 harness28개로exit1이었고 기대값·정책을 완화하지 않았다. 원본source/cases SHA 불변을 확인하며 최종 case bytes에서 `--prepare`를 다시 실행해exit0/3.145초로 생성물을 갱신했다. retry1 fmt도exit0/28.031초이며 all-targets Clippy와 base 고정 정책 검사는 순차 재확인 중이다(`source-frame-final-cases-reprepare-v131.json`, `source-frame-corrected-stage-gates-v131-retry1.json`).
 
 - retry1은 terminal exit0로 완료했다. 최종 case bytes 재생성 뒤 fmt28.031초·all-targets Clippy15.323초·고정base21ed manifest2.094초·unit-tier26.876초가 모두PASS이고 source/cases SHA는 불변이다. 최초 gate의 Native/WASM32 Clippy·workspace build 통과와 함께 필수7항목을 충족했다. 집중207 PASS 및 Native/fresh 범위별 수치는 위 기록과 같다. 전체Rust·초기18개 최종통합/시각/Studio 검증은 남아 있어 PR 준비 완료를 주장하지 않는다. 이 단계는 일반 커밋으로 고정하고 fetch 뒤 upstream/devel HEAD가 변경된 경우에만 rebase한다.
+
+
+## 110. v131 완료 뒤 — 전체 실패9개와 원본 시각 비교
+
+- 보정 단계는 일반 커밋 `ebb3d8337dcb6b8ebd8563bd453ad91ee7aff1ac`으로 고정했다. fetch 결과 upstream/devel과 local devel 모두 `21ed64071f81f35f37618717693bd30f727392c9` 그대로여서 rebase하지 않았다. 새 체리픽·원격 push·PR 생성·merge는 하지 않았다(`stage-source-frame-commit-sync-v131.json`).
+- 위 고정 커밋의 전체 기본 nextest는 terminal exit100/1603.460초다. 실제 Summary1019.822초·10344 run/10335 PASS/9 FAIL/45 skip이며 production/cases SHA는 불변이다(`whole-default-rust-terminal-failures-v131.json`). 이전17 실패 이름 중8개가 현재 실패 목록에서 빠졌고 새 실패 이름은 없다. #7009 두 검사 삭제, #6950 절대 핀의 관계3검사 대체, #6860 잘못된 수동 기대값 보정도 포함되므로 전부 렌더러 개선으로 세지 않는다. 기존 overflow partition1/2, #1891 개별 상한 검사, oracle partition0은 현재 정식 전체 실행에서PASS했다.
+- 현재 실패는 overflow-cell partition7/8/9, #4882 원본215쪽/내보낸 HWPX216쪽, #3930 편람 HWP의 Q8 고정쪽, #5966/#6718 가맹산업 보고서144대143쪽 핀, #1133 소상공인 각주 고정쪽, #1156 KPS 표의0..16행 핀이다. 셀 원장의 실제 관측은 external-bindata32→43, giant-overfill76→230, 편람HWP32→35다. 기준값이나 공차를 완화하지 않는다.
+- 가맹산업 원본 SHA `a1b8299b2554a83873b780474defb02efa949b43c86c63bcc164967f96091e55`와 기존 독립Print SHA `4cf22800e29baddb9b84023462c75252efd4efb04d22e9e64a8e3d9313076009`는 유지했다. PR #6098의 동일PDF 기록 및 Creator/Producer를 재확인했다. 고정base143쪽/현재144쪽/Print142쪽이며, 선택60쪽 base38.12514%·current46.87310%로 둘 다미달이다. current60쪽 review를 실제 표시/판독했고 독립Print59쪽의 내용이 나타나는 쪽 소속 차이를 확인했다. 현재 전144쪽 tree와 원본 model table을 읽어 말미12행과 ‘8. 보복조치 행위’가143~144쪽에 남음을 확인했다. 텍스트 근방 대응은 진단일 뿐 전쪽 시각 통과가 아니다(`franchise5966-base-current-p60-v131.json`, `franchise5966-current-body-page-correspondence-v131.json`). 대화에서현재142쪽이라고 한 최초 설명은 v124의 과거값을 잘못 재인용한 것이므로 즉시 현재144쪽으로 정정했다. 검사143을142/144로 바꾸거나 원문을 제거하지 않았다.
+- #7751/#7752/#7753/#7732의 최신 본문을 API로 다시 읽어 동일 원본/축의 이관과 유지 범위를 확인했다(`remaining-regression-exact-transfer-live-v132.json`). #7753은 #4882 왕복 등식을 유지하고 #7751은 Q8 계약을 유지한 기록이 있어, 문서명만으로 추가 검사를 일괄 제거하지 않는다. #7769의 synam-001은 실패한 kps-ai와 다른 원본이다.
+- #7732에는 동일 원본 `issue1937_rowbreak_footnote_overpagination.hwp`의 #1133 각주 쪽번호 함수가 제거 대상으로 명시되어 있다. 현재 고정base51/Print50쪽, current52/Print50쪽이며 base25쪽98.30030%·43쪽40.95946%, current25쪽40.14877%·43쪽32.81172%다. current25쪽 review를 실제 표시/판독해 다른 표 내용과 본문의 쪽 소속 차이를 확인했다. 기존 함수의 부적합 이관 근거와 현재25쪽의 추가 악화를 구분하며 코드의 소비 경로도 검토한다(`footnote1937-base-current-selected-v132.json`, `footnote1937-base-current-direct-v132.json`). 이 단계에서는 해당 검사를 아직 삭제하지 않았다.
+- CGMP는 현재 커밋의 Native 전48쪽을 재출력해 terminal exit0/1160.087초·최저47쪽94.00342%·미달/누락0을 확인했다. 모든48PNG는 v111 Native와 byte동일하나 실제 현재 실행을 별도로 기록했다(`cgmp-current-native-whole-summary-v131.json`). 현재 frozen fresh WASM 전48쪽은 이어 진행 중이며 과거 fresh 결과로 최신 실행을 대신하지 않는다. CGMP의 현재 메인터너 보정 범위와 원본/정식5검사는 유지한다.
+- 전체 Rust는 종료했으므로 다음 보정 단계의 source/cases 편집이 가능하다. 관련 원본의 시각 판독과 실제 값의 생산→예산/스캔→커서 잔여→paint 소비를 대조한 뒤 한 묶음으로 보정한다. 현재 KPS의 독립Print37/38쪽 base/current 진단은 진행 중이다. Native Skia·Studio·초기18개 최종 시각·개별review/오늘할일·통합PR/정확한head CI/merge/후속처리는 아직 남는다.
+
+- KPS 원본 `samples/kps-ai.hwp` SHA `9b0fceb3d96956f27c893e15a72a1ad94f7ee005bd581381a1aadfcb1f57a7b9`, Print `pdf/kps-ai-2022.pdf` SHA `7c064fd290368369a3c8eaa7d7b03668c46fb4dfe0fc18ba52d00456ffe01d28`를 같은 글꼴/DPI로 비교했다. base/current/Print 모두77쪽이며, 선택37/38쪽 base96.09153/50.04329%·exit1/88.583초, current99.81896/98.70875%·exit0/110.668초다. current37쪽 review를 직접 표시/판독해 Print와 내용·표 경계가 대응함을 확인했다. 기존0..16 고정행 기대값의 정당성을 독립Print와 다시 대조하며 검사를 아직 변경하지 않았다. 선택2쪽 Native만의 근거이고 전77쪽/fresh WASM 통과가 아니다(`kps1156-base-current-selected-v132.json`, `native-current-kps1156-direct-v132/kps1156/provenance.json`).
+- 완료한 CGMP Native48SVG1,588,680,589byte(약1.48GiB)를 삭제했다. Native terminal exit0와48PNG/TSV 보존을 확인했고 현재 실행 중인 WASM의font_policy/svg·rendered/svg 경로와 구분했다(`finished-native-cgmp-svg-cleanup-v131.json`). 삭제 뒤 가용 공간은8.5GB이며 source·입력·Print·공유target은 변경하지 않았다. KPS의 full font SVG는 선택2개에도약0.149GiB이므로 전77쪽 Native/fresh 작업 전에는 작업별 공간 소비를 확인한다. 공간 때문에 검증 범위를 축소하거나 완료로 보고하지 않는다.
+
+
+## 111. v132 — 첫 프레임 높이의 소유 판정과 추가 회귀 추적
+
+- 이전 goal turn은 v131 전체10344검사 terminal 및9실패 확정, 원본/Print baseline 비교와KPS 선택2쪽 직접 판독을 완료한 진행이다. 현재 Cargo와 v131 전체 nextest는 종료했으며 CGMP frozen fresh만 별도 계속하던 상태를 확인했다.
+- 같은 소상공인 원본25쪽의 단계별 frozen Native tree를 대조했다. 최초 통합 f58718 및v2/v20/v41/v58/v77/v78/v79/v80에는 Print와 같은 본문·각주가 있고 v81부터 이전 표의 행이 남으며 각주가 없다. v94/v95/v111/v124/v131도 같은 소속 차이가 유지된다. 따라서 v131의 마지막 일반행 재컷만으로 이 차이를 설명하지 않는다(`footnote1937-early-frozen-p25-bisection-v132.json`, `footnote1937-v78-v85-bisection-v132.json`, `footnote1937-frozen-version-p25-bisection-v132.json`).
+- v81의 일반 원점 재시작이 임의의 첫 상자 빈 밴드까지 인증하는 가정을 제거했다. 실제 원본 줄 전진과 안여백의 끝을 포함한 경계만 허용하며 별도로 인증된 병합 상자는 유지한다. 앞간격200HU·첫조각24.6667px의 기존 근거를 포함한 끝점 equality를 허용하고 문서ID/고정좌표 분기를 추가하지 않았다. 생산 `first_source_frame_owner` → `CellCutFrame::height` 후보 높이와 `row_cut_content_height`의 행 상자 → scan/emit 소비를 추적한다.
+- 첫 v132 Native build는exit0/79.104초·source 불변·SHA `28c6104d78ef37bdb7c2877371c739db8f8cf9b9b140a278cd53a1432a7f556a`다. 그러나 소상공인25쪽 tree는 여전히 이전 표·각주0이며 이 수정만으로 해결을 주장하지 않는다. KPS37쪽과가맹산업60쪽도 quick tree만확인했으며시각승인으로세지않는다(`first-frame-boundary-quick-counters-v132.json`). 일반 첫 프레임의 실제컷·높이·소유를 진단하려고 환경변수로만 활성화되는 trace를 추가해 후속Native를빌드중이다. 정식 회귀 기대값·baseline은 아직 변경하지 않았다.
+- 소상공인 원본164문단7×3표의 common26965HU와 raw행1282/17722/8762/2882/2882/2882/2882HU 및 실제 저장리셋을 public DocumentCore로 읽어 기록했다(`footnote1937-source-row-metrics-v132.log`). 첫 standalone 진단의 library glob 오류는 실제비해시 `debug/librhwp.rlib` 경로로바로잡았다. 이것은 구현 결함의 수정 전FAIL 증거가 아니다.
+- frozen `ebb3d8337` CGMP fresh 전48쪽은terminal exit0/1843.162초·최저47쪽94.00342%·미달0이며 모든48PNG가동결Native와byte동일하다(`cgmp-frozen-native-fresh-whole-v131-summary.json`). 새 v132의 source는 변경됐으므로 그48쪽 성공을 새source검증으로 재인용하지 않는다. 해당 종료 작업의SVG144개는 해시를보존하고사용자지침대로삭제한다.
+
+
+## 112. v132 — 첫 프레임 인증과 실제 컷의 유효 안여백 통일
+
+- v80/v81/current frozen CLI의 동일 원본 scan을 실행해 최초 차이가 소상공인99문단 표의4행 컷 `[1,2,7,1,1,1,1]` 뒤에서 발생함을 확인했다. v80의 다음 쪽16행이 v81의14행으로 이동한다(`footnote1937-v80-v81-scan-diff-v132.txt`). 마지막25쪽만의 각주 배치 문제가 아니다.
+- 실제99문단4행 셀의 선언282HU와 원본 안여백566+566HU는 현재 `resolve_cell_padding`에서 유효 총141HU=1.88px로 축소된다. 그러나 첫 프레임 소유 인증은 원본1132HU=15.09333px를 더해 실제 컷에 없는 높이를 인정했다. 상자142.29333px, 내용 전진134.4px에서 원본 여백으로 인증되던 프레임은 실제 유효 여백과 일치하지 않는다. 같은 원본·독립 Print를 유지하며 값을 고정하는 문서 예외를 추가하지 않는다.
+- 생산 `first_source_frame_owner`와 완결 형제 높이 → `row_cut_content_height`/`CellCutFrame::height` → scan 예산/재컷/예약 → 이어받기 물리 높이의 소비를 대조했다. 첫 프레임 소유·완결 형제·첫 프레임 trailing trim 모두 기존 실제 컷과 같은 `resolve_cell_padding`을 소비하도록 통일한다. 원점 reset만으로 임의 빈 밴드를 소유하는 v81 가정도 제거하며, 독립 형제 행의 증명이 있는 rowspan 경로와 문단 앞 간격 인증은 보존한다.
+- 첫 유효 여백 진단 Native는 build exit0/49.402초, SHA `e9a450f86adfcee77b618308d12df66103a06fed7eb08051ab6cf8b252ed172c`다. 같은 원본25쪽 render tree의 각주는0→1로 복구됐다(`footnote1937-resolved-padding-quick-v132/`). 이는 내용 소속 진단이고 전체50쪽·Native/fresh WASM90% 증거가 아니다. 잘못 호출한 export-render-tree `--json`은 usage exit2였으며 올바른 `-o` 재실행 exit0으로 고쳤고 수정 전 결함 검출로 세지 않는다.
+- 진단 trace를 제거하고 첫 프레임 trim까지 동일한 여백 소비로 정리한 최종 후보를 fmt/build 중이다. 이어 같은 원본25/43쪽·정상 첫 프레임/이어받기 대조와 기존 정식 검사를 한 묶음으로 확인한다. source/cases와 원본/Print는 검증 중 동결하며 기존 검사 기대값·baseline을 변경하지 않는다. 새 회귀 추가와 통합 PR/CI/merge는 최종 Native/fresh·필수 gate까지 보류한다.
+
+- 최종 후보 Native build는 exit0/51.973초·source불변·SHA `2eafdfa74af6c1ac0a2c7ce850b5b2ed5a272b886eb57e4b669a3b7b03ad2cbb`다. 기존 검사는 최초198개와 현재 파생suite에서 선택 누락을 확인한 추가16개, 총214개 모두PASS다(96.338초/100.425초, compile포함291.823초/150.934초). #1133의 기존25쪽 각주 검사도PASS이며 기대값을 변경하지 않았다.
+
+- 최종 후보의 소상공인 Native25쪽은40.14877→98.29507%로 복구됐고 실제 각주·표 마지막 행·뒤 본문 순서를 직접 review로 확인했다.43쪽은32.81172→39.81618%로 개선되지만 여전히 미달이며 실제 전체51/Print50쪽이다. 고정base도43쪽40.95946%·51/50쪽이지만 이번25쪽 개선으로 전체 미달을 면제하지 않는다. 원본 전체90%·fresh WASM 완료로 보고하지 않는다(`native-effective-padding-footnote1937-retry2-v132/footnote1937/silhouette.tsv`). 가맹산업 원본의 최신 실제쪽수도144로 유지된다(`first-frame-effective-padding-final-quick-counters-v132.json`).
+- 첫 Chrome WS 시작30초 시간초과는 제품 결함과 구분한다. 실루엣 전용에서 지원하지 않는 `--resume`의usage exit2도 보존했으며, 같은 입력·후보·글꼴·Print로 새출력/Chrome 대기180초를 지정한 재실행은 두쪽 raster/TSV를 완료했고 exit1은43쪽/전체쪽수 미달에 따른 gate결과다. 같은 완료SVG를 별도Google Chrome for Testing152.0.7977.75로 캡처한25쪽 진단 review도 표시·판독했다(98.29512%). 캐시Chrome 진단과 기본raster의98.29507%를 구분한다. 원본·글꼴·좌표·일치율 허용값을 바꾸지 않았다.
+- 정상대조 Native는5585의14/15/16쪽98.86635/99.86181/97.84322%, 고용지원 전4쪽93.26573/98.66593/96.40553/98.89367%, CGMP35/39/42/47쪽98.46451/95.37856/98.77406/94.00342%로 모두90% 이상이다(`first-frame-effective-padding-native-controls-v132.json`). 고용지원만 해당문서 전쪽이고 CGMP/5585는 선택 경계이며 fresh로 확대하지 않는다.
+- 교육과정 첫 프레임 대조의 과거 active samples/PDF 경로는 이미 같은바이트의#7445 asset으로 이관된 상태였다. 실제 실행자료의원본SHA623b00d56bef…/PrintSHA82fe8eefecbf…를 확인해 현재 보존 경로로 재실행한다. 첫 경로없음exit1은제품회귀가 아니며 새source·fixture로 대체하지 않는다. 교육과정 검사를 복원하지 않는다.
+
+- v132의 fmt/Native Clippy/WASM32 Clippy/workspace build/all-target Clippy/고정base manifest/고정base unit-tier7단계는 모두exit0이며 source/cases불변이다(30.984/92.891/79.944/109.955/114.573/6.523/28.032초). 그러나 이 lint 성공으로 뒤의 실행 회귀를 면제하지 않는다.
+- 끝난 중간 v114–123/v125–128 바이너리24개를 실행 중인 `/proc/*/exe`와 대조하고SHA를 기록한 뒤 삭제해8,082,372,592byte(약7.53GiB)를 확보했다(`finished-intermediate-binary-cleanup-v132.json`). v80/v81·v113/v124/v129/v131/v132와고정base/현재후보, 원본·PDF·PNG·TSV·공유target은보존했고 가용공간은17GB다. 압축하지 않았다.
+
+## 113. v133 — 첫 프레임 빈 물리 공간의 반례 확인과 재보정
+
+- 같은 이관 원본의 교육과정 대조188/189/190쪽은96.57268/61.77494/21.36546%이며 전체416/Print415쪽이다. 바로직전 frozen v131의 같은 바이트/compat2022 실제layout은415쪽이었다(`education-v131-before-effective-padding-page188-v132.json`, exit0/44.633초).188쪽 render tree도byte동일하지 않다(exit0/41.794초). 따라서 과거#7445 미달만으로 이번415→416 실행회귀를 제외하지 않으며 후보를 커밋하지 않았다. 최종 WASM도 아직 시작하지 않았다.
+- 내용 전진과 실제 물리 상자의 빈 띠를 구분한다. 저장Common 상자의 높이를 내용전진의 상한으로 항상 제한한 v132조건은 원본상자가소유하는 빈물리공간도 기각할 수 있다. 현재후보는 실제컷의유효여백과원본여백이같은좌표를쓰는지를먼저검사하고, 일치하는상자의인증된같은문단쪽프레임reset에는기존물리공간소유를보존하도록재보정한다. 안여백축소로좌표가달라진상자는Common높이를그대로덧씌우지않는다. 문서ID·쪽번호·임의픽셀핀을추가하지않는다.
+- 소상공인/교육과정 두원본의실제쪽수·영향경계를같이확인한뒤관련214검사와필수gate·Native/fresh를같은새후보로재실행한다. v132의214PASS/7gatePASS를바뀐v133source의성공으로재인용하지않는다. 기존모든원본/Print·검사기대값·baseline은그대로보존한다.
+
+- 첫 v132의 줄 전진 상한만 적용한 동결후보도 같은교육과정에서416쪽이었다(exit0/45.990초, `education-bound-only-causal-counter-v133.json`). 원본안여백을유효여백으로바꾼후보와구분해원인을분리했다. v133 Native build는exit0/75.616초·source불변·SHA `c78594a23d03adc0d45c84ad347d78fcda53089e440c83f0faebf6267e26c373`다. 실제쪽수는소상공인51/교육과정415로동결전후의수량을보존했다(4.086초/41.095초, `first-frame-padding-coordinate-contract-quick-counters-v133.json`). 쪽수보존을원본전체시각통과로쓰지않는다.
+- 현재파생28suite와lib의같은필터214검사를한번에선택하고, 종료성공뒤필수7gate를순차실행하는worker를시작했다. 별도의동결Nativeworker는소상공인25/43쪽·5585 14–16쪽·고용지원전4쪽·CGMP35/39/42/47쪽·교육과정188–190쪽을같은새후보로재출력한다. 안정된Google Chrome152 실행경로와180초대기만명시하며90%기준·글꼴·원본·PDF·좌표를완화하지않는다. 두worker는현재실행중이며fresh WASM/커밋/새base동기화는아직미실행이다.
+
+- 최신v133후보에서도원본25쪽은98.29512%·실제각주/표마지막행/뒤본문의순서를새[review.png](../../../output/pr-review/semanticist21-20261008/native-coordinate-contract-footnote1937-direct-v133/footnote1937/review.png)에서직접표시·확인했다.43쪽39.81618%·전체51/Print50쪽미달은남는다. 관련214기존검사는최신source의같은28suite/lib에서전부PASS/exit0(실행118.806초, compile포함318.116초, 3slow)다. 기대값변경이나새회귀추가는없다. 필수7gate와남은Native대조는같은source에서이어진행하며이전후보의성공을전용하지않는다.
+
+
+## 114. v133 — Native 대조·필수 lint 종료와 남은 실패 재확인
+
+- 현재 source/cases에서 필수7단계 모두terminal PASS다(`first-frame-padding-coordinate-contract-stage-gates-v133.json`): fmt33.632초, Native Clippy98.552초, WASM32 Clippy87.132초, workspace build125.846초, all-target Clippy117.602초, 고정base21ed64071 manifest7.684초, unit-tier25.388초. 전체기간 source/cases불변이며 파생suite나baseline을커밋하지않는다.
+- 동결Native5문서/16선택쪽대조도terminal이다(`first-frame-padding-coordinate-contract-native-controls-v133.json`). 고용지원 전4쪽최저1쪽93.27661%,5585선택3쪽최저16쪽97.84322%, CGMP선택4쪽최저47쪽94.05301%다. 교육과정188/189/190쪽은99.02821/97.68479/99.13336%·실제415/Print415쪽으로v132의416쪽회귀가복구됐다.189쪽새review를직접표시·판독해행소속/본문순서/쪽이어받기를확인했고,Native하단표괘선이PDF보다약5px낮은차이를남긴다. 교육과정전체415쪽미달해소로확대하지않는다. 소상공인은25쪽98.29512%복구,43쪽39.81618%와51/50쪽의기존미달을남긴다.
+- 최신후보의이전실패8개를정확한전체함수명으로다시실행했다(`remaining-eight-terminal-results-v133.json`): 실제119.554초/compile포함226.074초,1PASS/7FAIL,exit100/source불변이다. overflow-cell partition7은새후보에서PASS다. 나머지는partition8/9,정책연구원본215/내보낸HWPX216쪽등식,Q8고정쪽,KPS고정행,가맹산업144대143두검사다. 전체release-test10344재실행으로해석하지않고이번관련214PASS와남은7FAIL을구분한다.
+- 정책연구원본을새후보의같은Nativeexport로진단HWPX에내보냈다(`policy-roundtrip-forensics-v133/run.json`). 원본SHA50094a3db2b2…불변,생성SHAf2d662b1ad5e…,CLI `--verify-pages` exit4/75.831초에서215/216쪽을재현했다. `ir-diff`도exit3/19.270초이며정규화차이는쪽수1건과표셀1건,합계2건이다. 이생성HWPX는진단자료이고독립Print/정식fixture가아니다. 원본이나원래왕복등식을제거하거나기준값을완화하지않는다.
+- 이번단계는첫프레임여백좌표보정의Native·기존검사·lint체크포인트다. fresh WASM·현재source의전체필수검증·남은7실패·초기18개개별review/오늘할일/통합PR/CI/merge/후속처리는완료되지않았다. 종료검증뒤현재변경을일반커밋으로고정하고fetch된upstream/develHEAD가달라진경우에만rebase한다.

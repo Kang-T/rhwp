@@ -18122,9 +18122,9 @@ impl LayoutEngine {
         // row coordinates. This contract also applies to Square tables.
         if let Some((owner, opening)) = self.first_source_frame_owner(table, cell, styles) {
             if owner == end_cut {
-                let padding = cell.effective_padding(&table.padding);
-                let padding =
-                    hwpunit_to_px(i32::from(padding.top) + i32::from(padding.bottom), self.dpi);
+                // 상자 인증과 컷 높이가 소비하는 유효 안여백을 그대로 사용한다.
+                let (_, _, top, bottom) = self.resolve_cell_padding(cell, table);
+                let padding = top + bottom;
                 return (consumed_before_px + last_unit_height_px + padding - opening)
                     .max(0.0)
                     .min(trim);

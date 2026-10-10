@@ -78,9 +78,21 @@ impl LayoutEngine {
     ) -> Option<(usize, f64)> {
         let opening = self.source_first_cell_frame_height(table, cell)?;
         let units = self.cell_units(cell, table, styles);
-        let padding = cell.effective_padding(&table.padding);
-        let padding = hwpunit_to_px(i32::from(padding.top) + i32::from(padding.bottom), self.dpi);
+        // 저장 상자는 실제 컷과 같은 유효 안여백으로 인증한다. 선언 셀 높이로
+        // 축소된 여백 대신 원본 여백을 더하면 현재 배치에 없는 물리 띠가 생긴다.
+        let (_, _, top, bottom) = self.resolve_cell_padding(cell, table);
+        let padding = top + bottom;
         let epsilon = hwpunit_to_px(2, self.dpi);
+        let source_padding = cell.effective_padding(&table.padding);
+        let source_padding = hwpunit_to_px(
+            i32::from(source_padding.top) + i32::from(source_padding.bottom),
+            self.dpi,
+        );
+        // 원본 Common 상자의 좌표는 저장 안여백을 포함한다. 실제 컷에서 그
+        // 여백을 축소했다면 원본 상자를 같은 좌표의 물리 프레임으로 재사용할 수 없다.
+        if (source_padding - padding).abs() > epsilon {
+            return None;
+        }
         let mut previous: Option<&crate::model::paragraph::LineSeg> = None;
         let mut advance = 0.0;
         for (index, unit) in units.iter().enumerate() {
@@ -115,17 +127,17 @@ impl LayoutEngine {
                                 && peer.col != cell.col
                                 && self.first_source_frame_owner(table, peer, styles).is_some()
                         });
-                    // An ordinary row's authenticated object frame can retain
-                    // blank space after the line advance. The following local
-                    // restart still belongs to the next physical fragment.
+                    // 같은 여백 좌표에서 인증한 Common 상자는 내용 전진 뒤의 빈
+                    // 물리 공간도 소유할 수 있다. 같은 문단의 실제 쪽 프레임 재시작을
+                    // 요구하며, 그 공간을 줄 전진의 상한으로 다시 잘라내지 않는다.
                     let ordinary_source_restart = cell.row_span == 1
                         && unit.page_frame_reset_before
                         && units[index - 1].para_idx == unit.para_idx;
-                    return (opening + epsilon >= ink
-                        && (opening < advance + padding
+                    let accepted = opening + epsilon >= ink
+                        && (opening <= advance + padding + epsilon
                             || independently_closed_span
-                            || ordinary_source_restart))
-                        .then_some((index, opening));
+                            || ordinary_source_restart);
+                    return accepted.then_some((index, opening));
                 }
                 if i64::from(line.vertical_pos)
                     != i64::from(before.vertical_pos)
@@ -199,9 +211,8 @@ impl LayoutEngine {
                 }
                 frame = Some(opening);
             } else {
-                let pad = cell.effective_padding(&table.padding);
-                let height = units.iter().map(|unit| unit.height).sum::<f64>()
-                    + hwpunit_to_px(i32::from(pad.top) + i32::from(pad.bottom), self.dpi);
+                let (_, _, top, bottom) = self.resolve_cell_padding(cell, table);
+                let height = units.iter().map(|unit| unit.height).sum::<f64>() + top + bottom;
                 completed_height = completed_height.max(height);
             }
         }
