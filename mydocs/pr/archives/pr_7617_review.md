@@ -743,3 +743,11 @@ HWP 실제 paint 로그(`batch61-current-handbook-paint-flow`)는 표13이444.3�
 원본이 아닌 줄·편집/재조판·되감긴 후속 좌표·내용 혼재·캡션·선언과 실제 높이가 다른 표·후속 문단이 없는 경우는 기존 계약이 거부하거나 기존 경로를 유지한다. 다행/재귀 컷의 각 행 유닛 높이와 바깥여백 회계는 기존 경로를 별도로 확인한다. 새 임의 수치·문서 식별자·고정 px 보정은 넣지 않았으며 새 회귀와 baseline을 추가하지 않았다. 이 추가 source의 실제 활성화·앞 간격 및 첫/끝/분할 경계·Native/fresh WASM 전쪽·확대 판독은 아직 미검증이다.
 
 기본 checkout의 `cargo fmt --all`은 오래된 ignored generated suite가 이미 제외된 원본을 참조해 실패했다. tracked 변경은 위 두 source만이며 standalone rustfmt로 포맷했다. 제출용 전체 fmt·Clippy와 정책 검사는 prepare된 review worktree에서 새 source로 수행한다. 이 환경 실패를 formatter 통과나 제품 회귀로 바꾸어 기록하지 않는다.
+
+e2e674040의 prepare·전체 fmt check·Native Clippy·Native 빌드는 exit0으로 종료했다(Native616.39초, SHA-256 `69bd2e13bccfa4cfe61f8bac5b1e8063d04ee1e74efa110c6ab51142dc415fcf`). 실제 새 render tree에서70쪽 표 원점은489.0→492.8px로 바뀌었으며 독립 Print492.10133px에 가깝고,2행102.4px와 전체142쪽을 유지한다(`batch82-empty-host-runtime-check`). 처음 batch80의 진단 프로세스는 빌드 provenance 생성보다 먼저 읽어 FileNotFoundError로 끝났다. 종료를 확인하고 완료된 동일 실행 파일로 진단만 재실행했으며 Native 빌드를 재시작하지 않았다. 이 관측값을 시각 PASS로 대신하지 않는다.
+
+가맹사업689484afb 및005fab000의 전체142쪽 TSV는24쪽이90% 미만이며 최저30.86526%다.005fab000의70쪽은80.69136→87.56941%지만 여전히 미달이다. 미달 목록은1,2,8,9,10,19,38,39,41,42,43,50,52,56,57,67,68,69,70,71,91,95,118,119이며70·71쪽만 해결하면 완료되는 범위가 아니다. 이전 head의 전쪽 원본과 전체24쪽 review를 `batch67-physical-note-lane-verification`, `batch76-current-padding-visual`, `batch81-franchise-all-failed-panels`에 보존했다. 새 e2e674040의 정확한 font transport/pool parity를 다시 통과한 뒤 같은 전142쪽 TSV와 이24쪽·정상 경계 PNG를 `batch83-current-empty-host-visual`에서 생성 중이다.
+
+직접 판독한8·9쪽은 표138의 첫/끝 물리 프레임과 후속 본문이 이르다. 원본 셀 높이10788HU는143.84px인데 Print의 두 조각은59.29467+84.388=143.68267px이며 기존 Native bbox는46.9+71.2px다. 단순 내용 컷이 남은 물리 공간을 누락하는지 생산·예약·paint 경로를 추적해야 하며 선언값 clamp만으로 해결했다고 판단하지 않는다.57쪽은 표557 이어받기에 Print와 다른 source 줄이 들어가고 뒤 행/본문이 이르다.005fab000의71쪽에서 각주67~70은 보존되지만 마지막 괘선·본문·각주 간격이 다르다. 이 세 그룹을 함께 분석하며 현재 보정 문서를 #7445로 이관하거나 검사를 제거하지 않는다.
+
+추가 독립 대조군7216의 긴/짧은 최소 높이 HWPX는 각각 최저45.83553%·37.85254%로 미달이다. 짧은 표1쪽을 직접 읽어 표와 뒤 문단이 Print보다 이른 배치 차이를 확인했다.6개 집중 검사 PASS를 이 대조군의 시각 일치로 승격하지 않는다. 대조군의 새 회귀/기대값은 추가하지 않았고 관련 실제 출력 및 두 backend 확인은 미검증으로 남긴다. 각 이미지의 실제 판독 쪽·hash·관측값은 해당 ignored provenance에 기록했다. 전체47입력·fresh WASM·최종 lint/policy·전체 nextest·개별7 review·PR/merge는 아직 미완료다.
