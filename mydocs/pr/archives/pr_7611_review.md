@@ -460,3 +460,5 @@ rebase 전후 Rust source 차이는 위 source 보완의2파일뿐이며 기존 
 `scattered`41쪽의 `(GB-R)`은 삭제가 아니라42쪽 이월이었다. 독립 Print에도42쪽에 있고 원문 해당 문단의 저장 vpos가0으로 재시작한다. 이 줄을 새 누락 회귀라고 단정했던 설명을 철회한다. base/head의 표 owner·시작57/끝103행·컷과 측정/컷용 행 높이는 같지만 조각 요구/점유 높이에는9.78667px 차이가 남아 추가 분류가 필요하다. 소유 변경을 잘못된 base 위치로 되돌리지 않고 기존 낮은 출력과 현재 변경을 구분한다(`batch20-scattered-boundary-diagnosis/classification.json`).
 
 원래48개 쪽 나눔 영향 입력 중 이미 #7445로 이관된3쪽 입력1개를 별도로 보존하고, 활성47개 전3,628쪽의 Native/fresh WASM 비교를 준비했다. 각 문서를 비교한 뒤 generated SVG만 제거하고 PNG/TSV/log/JSON/font payloads를 보존하도록 대기 중이다. 준비 스크립트 존재를 실행 완료로 세지 않으며 전체 TSV·각 PR 판정·원격 통합은 아직 미완료다.
+
+관계 검사 추가 head `1ea61ce6b`의 fmt·Native/WASM Clippy·workspace build는 통과했으나 all-targets Clippy는 root crate에 없는 `tempfile` 참조로 exit101이었다. 새 dependency를 추가하지 않고 표준 라이브러리로 원자적으로 만든 고유 임시 디렉터리와 한 JSON 파일만 정리하는 guard로 교체한다. 정식 긍정/부정 대조와 전체 회귀는 이 실패 이전에 시작되지 않았으며 아직 PASS가 아니다. 제품 source가 그대로인 `9dedca104`의 활성47개 전쪽 시각 비교는 첫 Native 원문부터 실제 실행 중이다. 진행 중 출력을 최종 gate 통과로 표시하지 않는다.

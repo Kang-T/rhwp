@@ -3,7 +3,7 @@
 //! 절대 좌표를 고정하지 않고 동일 셀의 owner 줄과 그림의 정렬·포함 관계를 검사한다.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rhwp::document_core::DocumentCore;
@@ -13,6 +13,34 @@ use serde_json::Value;
 
 const SAMPLE: &str = "samples/issue4514/sample1-repro.hwp";
 const HOST_PARAGRAPH: usize = 75;
+
+struct TemporaryTree(PathBuf);
+
+impl TemporaryTree {
+    fn new() -> Self {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system timestamp")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "rhwp-issue4514-tree-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir(&path).expect("create owned temporary directory");
+        Self(path)
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TemporaryTree {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(self.0.join("render_tree_005.json"));
+        let _ = fs::remove_dir(&self.0);
+    }
+}
 
 fn nodes(node: &Value) -> Vec<&Value> {
     let mut result = vec![node];
@@ -53,7 +81,7 @@ fn centered_cell_picture_preserves_its_owner_line_alignment() {
     // Test-only override executes this same contract against a frozen pre-fix CLI.
     let binary = std::env::var_os("RHWP_4514_RENDER_BIN")
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_rhwp").into());
-    let output = tempfile::tempdir().expect("temporary render-tree directory");
+    let output = TemporaryTree::new();
     let result = Command::new(binary)
         .arg("export-render-tree")
         .arg(&input)
