@@ -116,9 +116,25 @@
     }
   ],
   "comparisons": {
-    "substFeatureDetection": {
-      "withoutSubstFont": "subst-counterpart-hwp",
-      "withSubstFont": "document-substitute-hwpx"
-    }
+    "documentSubstituteDeclarations": [
+      {
+        "documentId": "subst-counterpart-hwp",
+        "face": "KoPubWorld돋움체 Light",
+        "languageSlots": [
+          0,
+          1
+        ],
+        "substFont": "한컴바탕"
+      },
+      {
+        "documentId": "document-substitute-hwpx",
+        "face": "KoPubWorld돋움체 Light",
+        "languageSlots": [
+          0,
+          1
+        ],
+        "substFont": "HCR Batang"
+      }
+    ]
   }
 }

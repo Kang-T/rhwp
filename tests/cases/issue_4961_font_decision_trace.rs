@@ -120,28 +120,30 @@ fn stage4_public_hwp_hwpx_profiles_are_end_to_end_and_feature_detected() {
         );
     }
 
-    let feature = &manifest["comparisons"]["substFeatureDetection"];
-    let without = traces
-        .get(
-            feature["withoutSubstFont"]
-                .as_str()
-                .expect("without subst id"),
-        )
-        .expect("without subst trace");
-    let with = traces
-        .get(feature["withSubstFont"].as_str().expect("with subst id"))
-        .expect("with subst trace");
-    assert!(without["records"]
+    // HWP5 표 20의 0x80 선언과 HWPX substFont를 각각 보존한다.
+    // HWP에도 대체 선언이 있으므로 형식만으로 null을 기대하지 않는다.
+    for declaration in manifest["comparisons"]["documentSubstituteDeclarations"]
         .as_array()
-        .expect("without records")
-        .iter()
-        .all(|record| record["document"]["substFont"].is_null()));
-    assert!(with["records"]
-        .as_array()
-        .expect("with records")
-        .iter()
-        .any(|record| !record["document"]["substFont"].is_null()));
-    assert_ne!(without["layoutHash"], with["layoutHash"]);
+        .expect("문서 대체 선언")
+    {
+        let trace = traces
+            .get(declaration["documentId"].as_str().expect("선언 문서 ID"))
+            .expect("선언 문서 trace");
+        let slots = declaration["languageSlots"].as_array().expect("언어 슬롯");
+        let records: Vec<_> = trace["records"]
+            .as_array()
+            .expect("선언 records")
+            .iter()
+            .filter(|record| {
+                record["document"]["face"] == declaration["face"]
+                    && slots.contains(&record["document"]["languageSlot"])
+            })
+            .collect();
+        assert!(!records.is_empty(), "선언 대상 글꼴 record가 있어야 한다");
+        assert!(records
+            .iter()
+            .all(|record| { record["document"]["substFont"] == declaration["substFont"] }));
+    }
 }
 
 #[test]
@@ -151,7 +153,7 @@ fn stage4_public_trace_limit_and_unsupported_backends_fail_closed() {
         .as_array()
         .expect("공개 문서")
         .iter()
-        .find(|doc| doc["id"] == "exact-face")
+        .find(|document| document["id"] == "exact-face")
         .expect("exact-face 입력 유지");
     let trace = public_trace(
         document["path"].as_str().expect("document path"),
