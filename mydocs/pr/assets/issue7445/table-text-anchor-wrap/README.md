@@ -37,6 +37,10 @@ TSV·실행 로그·중간 JSON·직접 판독 기록은 ignored `output/pr-revi
 같은 원본 전3쪽 Native/fresh WASM 최저90% 이상과 제목·표/행·본문의 소속·보존·겹침을
 직접 판독한 뒤 독립 기대값의 관계형 회귀로 복원한다. 이 이관으로 #7445를 종료하지 않는다.
 
+추가 회귀의 보완과 실제 검사·자산 이동 범위는
+[#7445 후속 등록](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-6091683296)에 기록했다.
+게시 뒤 API에서 한국어 본문이 원문과 같고 선두 BOM·물음표 치환이 없음을 확인했다.
+
 ![base 2쪽](base-review_002.png)
 ![보완 제품 2쪽](current-review_002.png)
 ![기존 미달이 남은 3쪽](current-review_003.png)

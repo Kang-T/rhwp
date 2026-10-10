@@ -433,3 +433,62 @@ ignored 증적은 `candidate-f4853740e-build/build.json`,
 `batch10-pr7617-boundary-print.json`, `pr7617-latest-original-head-intake/provenance.json`,
 `candidate-f4853740e-prep40-path-diagnostic/`에 있다. WASM 패널의 실제 직접 판독은
 해당 provenance에 별도로 남긴다. 전체 회귀·lint·추가 기여 commit 순서 검토와 최종 승인은 보류한다.
+
+### 2026-10-10 순서 재적용과 최신 경계 검증
+
+최신 fetch의 `upstream/devel`은 `21ed64071f81f35f37618717693bd30f727392c9`다.
+추가 기여 commit `1ed091daf421f92a9e2536645f9178877d54be40`과
+`85ea9a90bd0cd348b820db0eb9cea8d95356a15d`를 기존 기여 코드의 대응 commit
+`aeab4110e2903e10b976b4523c3c7903b831b18c` 바로 뒤, 메인터너 보정 앞에 넣었다.
+원본·생성기·검사 7개와 PNG 12개는 기여자 author와 cherry-pick 출처를 유지한다.
+기여자가 추가한 진단 TSV 2개만 bytes를 유지해 ignored output으로 보존했다.
+이후 보정 107개를 순서대로 rebase했고 실제 exit0이다. 결과
+`c2d41cb4b70e79e73541949d74bcba858afe36c6`의 제품 source와 Cargo 파일은
+검증 제품 `e4087c00a8d5b78534e27cb79f01cdd4bf2b6917`과 bytes가 같다.
+검사·자산 추가가 끝난 것이며, 추가 검사 7개의 정식 실행과 수정 전 FAIL 증거는 아직 미검증이다.
+
+| e408 제품의 비교 범위 | Native 최저 | fresh WASM 최저 |
+| --- | ---: | ---: |
+| 편람 HWPX 93/130/273/281쪽 | 94.75915% | 94.75915% |
+| PrEP HWPX 39/40/105/108쪽 | 99.78379% | 99.78379% |
+| 기여자 경계 HWP 전4쪽 | 99.43997% | 99.43997% |
+| 같은 입력 Print를 새로 만든 경계 HWPX 전4쪽 | 96.45793% | 96.45793% |
+| 저장 프레임 RowBreak 정상 대조군 전7쪽 | 96.75116% | 96.75116% |
+| 소비가 끝난 빈 밴드 HWP 정상 대조군 전17쪽 | 97.12321% | 97.12321% |
+
+각 backend 40쪽 TSV가 실제 완료됐다. 두 출력의 38쪽 raster bytes는 같으며,
+빈 밴드 대조군 13/17쪽은 작은 글자 영역의 실제 raster 차이가 있어 동일하다고 기록하지 않는다.
+해당 WASM 두 review를 직접 열어 표 외곽·뒤 본문·내용 순서를 확인했으며 글자 굵기·AA 차이는 남는다.
+같은 대조군 15쪽도 직접 판독해 소비한 행을 다시 그리지 않고 양쪽 열의 소속과 표 하단을 유지함을
+확인했다. Native 편람 93/130/273쪽을 최신 패널에서 다시 열어 그림 외곽·캡션을 확인했다.
+편람 281쪽은 최신 판독에서 이전의 짧은 표 하단과 목차 오른쪽 번호 배치를 보완한 결과를 확인했다.
+이 40쪽은 편람 전383쪽·PrEP 전140쪽이나 전체 회귀의 최종 통과를 대신하지 않는다.
+
+남은 실패 원본 4개의 동일 조건 Native 경계 35쪽도 비교했다. `pr-1674.hwpx` 4쪽은
+base92.97642% → 현재27.20138%, `issue1853_caption_precedes_body_split.hwpx` 14쪽은
+base96.73474% → 현재32.02164%로 추가 회귀다. 전자는 표 프레임 높이·칸 내용 정렬,
+후자는 13쪽 마지막 줄의 14쪽 이월과 뒤 본문 원점 차이를 직접 확인했다. 문서 전체의
+base 미달을 이유로 이 추가 회귀를 #7445에 넘기지 않는다. 남은 원본의 전쪽 현재 비교와
+fresh WASM, 보정·정식 회귀·lint가 완료되지 않아 이 검토의 최종 판정은 계속 보류다.
+
+ignored 근거는 `batch13-ordered-pr7617-insert.json`,
+`candidate-e4087c00a-{native,wasm}-boundary-fidelity.json`,
+`candidate-e4087c00a-boundary-raster-identity.json`, `batch14-{native,wasm}-correction-panels/`,
+`batch14-current-failure-boundaries/provenance.json`, `batch14-pr1674-print-path/`에 있다.
+완료된 WASM 글꼴 전송 SVG는 `candidate-e4087c00a-font-policy-lossless-archive/archive.json`으로
+bytes 복원 가능한 상태로 보존했으며, 재사용 시 해당 manifest의 hash와 복원을 확인한다.
+
+`pr-1674` 4쪽의 원점 보완은 아직 실행 검증 전이다. 같은 문단의 앞 표를 이전 쪽에서
+소비한 뒤 시작하는 다음 표는 예산의 `anchor_offset_already_spent`에서 1130HU 문단
+오프셋을 이미 제외하지만, 별도의 배치 계획이 없으면 paint가 이를 다시 적용한다.
+예산에서 결정한 현재 프레임 원점을 `FragmentBudget.fragment_placement` →
+`emit.rs`의 `commit_fragment`/`record_paragraph_float_placement` →
+`layout_partial_table_item`의 `resolved_table_top` → `layout_partial_table_resolved`의
+실제 `table_y`로 전달하는 보완을 작성했다. 독립적인 저장/캡션 원점이 있으면 그 결과를 우선한다.
+관측 좌표 clamp, 문서 ID 조건, 행 컷 변경은 추가하지 않는다.
+
+처음 패널에서 보인 차이를 표 전체의 단순 이동으로만 해석하지 않는다. fresh SVG 대조에서
+첫 제목의 원점은 base/current가 같았고, 행의 물리 높이·정렬 공간이 더 커진 것을 확인했다.
+소비된 문단 오프셋과 실제 프레임 원점을 일치시킨 뒤 표 외곽·칸 내용·뒤 내용까지 다시 대조해야 한다.
+새 보완 코드는 기존 e408 실행 증거의 대상이 아니며 아직 빌드·시각·정식 검사가 미검증이다.
+`issue1853`의 잘못된 줄 소유와 나머지 실패를 함께 분석·보완한 후 묶어서 검증한다.

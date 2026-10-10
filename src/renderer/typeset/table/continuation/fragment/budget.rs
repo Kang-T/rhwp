@@ -788,6 +788,23 @@ impl TypesetEngine {
             }
         }
 
+        // 앞 형제 표에서 이미 소비한 문단 오프셋은 새 쪽의 첫 조각에 다시
+        // 붙이지 않는다. 위 예산만 0으로 처리하고 원점을 전달하지 않으면
+        // paint가 문단 오프셋을 다시 적용해 같은 조각이 예약 영역 밖에 놓인다.
+        // 유효한 저장/캡션 원점은 그대로 우선하며, 없는 경우에만 예산이 쓰는
+        // 현재 프레임의 원점을 확정 배치와 공유한다.
+        if fragment_placement.is_none() && anchor_offset_already_spent {
+            let top = st.current_height + host_before_overhead;
+            fragment_placement = Some(crate::renderer::float_placement::ParagraphFloatPlacement {
+                flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+                anchor_y: st.current_height,
+                stored_host_origin: None,
+                stored_successor_line_origin: None,
+                table_left: None,
+                table_top: top,
+                occupied_bottom: top,
+            });
+        }
         let page_avail = fragment_placement.map_or(page_avail, |p| {
             let boundary = if is_continuation
                 || prepared.host_frame
