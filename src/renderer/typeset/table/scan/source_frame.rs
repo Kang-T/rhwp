@@ -173,17 +173,30 @@ impl SourceFrameQuery<'_> {
             ) <= avail_for_rows - consumed - cs_before + 0.5
             && consumed + cs_before + row_total
                 <= avail_for_rows + source_first_fragment_overflow_allowance;
-        // A direct HWPX row with one visible owner and a structural empty
-        // partner has an explicit source fragment boundary.  Let the
-        // row-cut walk retain it; ordinary and multi-owner rows keep the
-        // measured whole-row fast path. The same rule applies to original
-        // Native cells whose two local-zero line boxes close the stored row.
-        // Spare capacity cannot merge their independently owned source frames.
+        // 직접 HWPX의 선언 프레임과 원본 Native 셀의 물리 경계는 행 분할이
+        // 소유한다. 경계가 없는 일반 행만 측정 높이로 통째 수용한다.
+        // 남는 예산으로 독립적인 두 저장 프레임을 합치지 않는다.
         let declared_source_frame = (native_text_source_frame && stored_source_frame.is_some())
             || (row_start_cut.is_empty()
                 && !table_text_reflowed()
                 && (layout_engine.row_has_declared_stored_frame(table, r)
-                    || layout_engine.native_saved_two_line_row_frame(table, r, styles)));
+                || layout_engine.native_saved_two_line_row_frame(table, r, styles)
+                // 원본 HWP5 셀의 문단 사이에도 물리 쪽 경계가 저장된다.
+                // 같은 CellUnit 컷이 존재하면 선언 프레임의 초과 허용으로
+                // 다음 쪽 내용을 통째 수용하지 않고 기존 행 분할에 맡긴다.
+                || (profile.hwp5_stored_pagination_layout()
+                    && !profile.session_edited()
+                    && source_first_fragment_row_end == Some(r + 1)
+                    && table.cells.iter().filter(|cell| cell.row as usize == r).all(|cell| {
+                        !cell.dirty_flag
+                            && cell.paragraphs.iter().all(|para| {
+                                !para.stored_text_partition_is_dirty()
+                                    && !para.cell_format_vpos_dirty
+                                    && para.controls.is_empty()
+                            })
+                    })
+                    && layout_engine
+                        .row_block_has_internal_hard_break(table, r, r + 1, styles))));
         let whole_row_fits = !declared_source_frame
             && !(row_start_cut.is_empty() && terminal_zero_origin_cut)
             && ((!single_visible_source_frame
