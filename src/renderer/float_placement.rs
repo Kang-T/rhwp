@@ -2032,6 +2032,81 @@ pub(crate) fn stored_nested_row_frames(
     })
 }
 
+/// 공백 호스트의 저장 줄이 float 뒤에 있을 때, 앞 본문과 그 줄이 닫는 개체 상자.
+/// 공백 줄을 개체 앞에 다시 예약하지 않고 원래 뒤 줄과 후속 문단을 보존한다.
+pub(crate) fn stored_float_before_whitespace_line_frame(
+    previous: &Paragraph,
+    host: &Paragraph,
+    successor: &Paragraph,
+    table: &Table,
+    measured_height: f64,
+    dpi: f64,
+) -> Option<ParagraphFloatPlacement> {
+    use crate::model::{
+        control::Control,
+        paragraph::{ColumnBreakType, LineSeg},
+    };
+    let [anchor] = host.line_segs.as_slice() else {
+        return None;
+    };
+    let before = previous.line_segs.last()?;
+    let after = successor.line_segs.first()?;
+    if host.text.is_empty()
+        || !host.text.chars().all(char::is_whitespace)
+        || !matches!(host.controls.as_slice(), [Control::Table(_)])
+        || !previous.controls.is_empty()
+        || host.column_type != ColumnBreakType::None
+        || successor.column_type != ColumnBreakType::None
+        || [previous, host, successor].iter().any(|para| {
+            para.stored_text_partition_is_dirty()
+                || para.cell_format_vpos_dirty
+                || para.source_line_seg_vertical_pos.is_some()
+                || para
+                    .line_segs
+                    .iter()
+                    .any(|line| line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0)
+        })
+        || before.line_height <= 0
+        || anchor.line_height <= 0
+        || anchor.line_spacing < 0
+        || table.common.treat_as_char
+        || !table.common.flow_with_text
+        || !is_para_topbottom_float(&table.common)
+        || table.caption.is_some()
+        || signed_hwpunit(table.common.vertical_offset) < 0
+        || !measured_height.is_finite()
+        || !dpi.is_finite()
+        || dpi <= 0.0
+        || (measured_height * 7200.0 / dpi).round() != f64::from(table.common.height)
+    {
+        return None;
+    }
+    let start = i64::from(before.vertical_pos)
+        + i64::from(before.line_height)
+        + i64::from(before.line_spacing);
+    let top = start
+        + i64::from(signed_hwpunit(table.common.vertical_offset))
+        + i64::from(table.outer_margin_top);
+    let end = top + i64::from(table.common.height) + i64::from(table.outer_margin_bottom);
+    if start < 0
+        || end != i64::from(anchor.vertical_pos)
+        || end + i64::from(anchor.line_height) + i64::from(anchor.line_spacing)
+            != i64::from(after.vertical_pos)
+    {
+        return None;
+    }
+    let px = |hu: i64| hu as f64 * dpi / 7200.0;
+    Some(ParagraphFloatPlacement {
+        flow: ParagraphFloatFlow::NextLine,
+        anchor_y: px(start),
+        stored_host_origin: Some(px(end)),
+        stored_successor_line_origin: Some(px(i64::from(after.vertical_pos))),
+        table_left: None,
+        table_top: px(top),
+        occupied_bottom: px(end),
+    })
+}
+
 /// 앞 글줄의 전진 끝과 다음 쪽의 본문 재시작이 닫는 저장 표 상자다.
 /// 표가 원래 줄 폭을 가진 빈 호스트에 저장되어도 개체 원점은 같은 바깥 상자다.
 /// 빈 호스트 줄은 상자 앞이나 뒤에 저장될 수 있다. 앞 줄 끝과 실측 본체·여백으로

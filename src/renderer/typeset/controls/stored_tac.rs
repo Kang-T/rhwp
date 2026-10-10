@@ -18,6 +18,8 @@ pub(in crate::renderer::typeset) struct StoredTacPage {
     pub vpos_lazy_base: Option<i32>,
     pub side_wrap_empty: bool,
     pub stored_table_column_base: Option<i32>,
+    /// 첫 원본 TAC의 확정 배치와 저장 줄이 현재 단 원점에서 일치하는가.
+    pub original_object_column_origin: bool,
 }
 
 pub(super) struct StoredTacPlan {
@@ -486,7 +488,9 @@ pub(super) fn prepare(
                 let unreserved_origin =
                     page.current_height + fmt.spacing_before - shared_spacing_before;
                 let same_frame = (saved_origin - page.current_height).abs() <= dpi / 7200.0
-                    || (saved_origin - unreserved_origin).abs() <= dpi / 7200.0;
+                    || (saved_origin - unreserved_origin).abs() <= dpi / 7200.0
+                    || (page.original_object_column_origin
+                        && para.source_line_seg_vertical_pos.is_none());
                 if !same_frame {
                     return None;
                 }
