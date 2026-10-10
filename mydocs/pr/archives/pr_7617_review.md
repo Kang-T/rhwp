@@ -668,3 +668,14 @@ WASM 빌드 성공이나 다른 head의 PNG로 fresh WASM 비교를 대신하지
 시각·전체 회귀는 아직 미검증이다. 비싼 재빌드 전에 준비한 review worktree에서 Clippy
 세 단계와 workspace build·정책 검사를 순차 실행한다. 로그는
 `candidate-aa07ccc9e-validation/`에 남긴다.
+
+
+#### 삭제 후 최신 보완 코드의 lint와 5쪽 초기 진단 — 2026-10-10
+
+code head `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 owned review worktree에서 고정 base `21ed64071f81f35f37618717693bd30f727392c9`에 대해 prepare·fmt check·Native/WASM/workspace all-target Clippy·workspace build·integration manifest·source unit-tier 정책 검사를 모두 exit0으로 확인했다. 공유 `target/pr-review`, 빌드 잡8개를 사용했고 tracked source 해시가 실행 전후 동일하다. 명령·exit·시간·로그 해시는 ignored `candidate-aa07ccc9e-validation/provenance.json`에 보존했다. 이 lint 통과를 전체 회귀나 시각 검증 완료로 보고하지 않는다.
+
+동일 code head의 성공한 workspace dev 실행 파일을 별도로 보존해 pr1674를 먼저 진단했다. 35쪽·overflow6/textOverlap0이며 추가됐던5쪽 하단 넘침은 없다. 같은 원본·독립 Print의5쪽 초기 비교는95.17154%다. canonical 원본 SVG 래스터와 동일 글꼴 바이트의 file URI·browser pool 결과가2쪽에서 픽셀·PNG 바이트까지 같음을 확인했다. 새 review PNG를 직접 판독했고 내용 순서와 표 이어받기는 보존되지만 아래 표의 위 괘선은485 대489, 아래 괘선은1027 대1022 raster 행에 남는다. 같은 base 원본의 아래 괘선은1004행이다. 이 수치는 차이 분석이며 회귀 assertion이나 baseline으로 추가하지 않는다.
+
+실제 Print 배치 로그에는 `VPOS_SOURCE_CONTINUOUS: pi=39 ... source_base=0 plain_line_consumed=true`가 있다. 새 terminal source gap 분기의 적용 로그는 이 원본에서 없으므로, 그 분기가 표 여백을 해결했다고 주장하지 않는다. 초기 dev PNG·원본/Print/실행 파일 해시·직접 판독은 ignored `batch18-debug-pr1674-boundary/provenance.json`에 연결했다. 최종 release-test Native/fresh WASM 빌드·영향 페이지 재검증과 전체 회귀는 별도 진행 중이며, 이 초기 한 쪽을 전쪽 통과로 승격하지 않는다.
+
+삭제 후 재구성한 고정 base의6입력 Native 전체209쪽에는 누락·쪽수 차이가 없다. Native 최저값은 caption1853 49.33810%, pr1674 62.93877%, scattered41.11436%, sample4514 2.70444%, 정상 대조군 empty-band96.34172%·large-frame96.75116%다. base WASM package 빌드는 성공했지만 당시 공개 API에 compat setter가 없어 canonical exporter 실행은 중단됐다. 이것은 측정 실패이며90% 미만 결과가 아니다. 재구성 실행의 WASM은 미검증으로 유지한다. canonical `visual_fixture_evidence.md`는 Native만으로 고정 base의 미달이 입증돼도 이관을 허용하므로, 기존-at-base 검사·동일 원본/Print·현재 추가 회귀 해소를 함께 확인한 범위만 사용자 지정 기존 #7445로 이관할 수 있다. 이 단계에서 추가 검사/자료 이관, 새 회귀 추가, 기대값 완화, 원격 push·PR 생성은 하지 않았다.
