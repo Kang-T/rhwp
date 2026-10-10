@@ -799,3 +799,11 @@ source 보완을 커밋한 뒤 `git fetch upstream devel`과 `git rebase upstrea
 새 source의 fmt·공백 검사는 통과했고, `candidate-8a7a2cff8-native-diagnostic-build`에서 공유 `target/pr-review`/jobs8로 suite 준비→fmt→Native Clippy→Native 빌드를 순차 실행 중이다. `batch97-block-footnote-runtime-check`는 같은 frozen binary를 기다려 전체 쪽수·표 컷·FootnoteArea의 실제 표를 조사한다. observer의 최초 시작은 build provenance 생성 전 FileNotFound로 종료했으며 `initial-start-failure.json`에 보존하고 같은 빌드 관찰만 재개했다. Native 빌드 자체는 재시작하지 않았다.
 
 새 각주 표의 Native/fresh WASM 전쪽90% 및 확대 판독, 첫 표 번호/계속 조각 경계, 정상 대조군은 아직 미검증이다. 일반 여러 표·복합 호스트·캡션·Square·편집 저장본 및 블록 표 분할의 한컴 일치를 이 보정의 통과로 주장하지 않는다. 원본·검사·baseline을 바꾸거나 현재 보정 문서를 #7445로 이관하지 않았다. 전체47입력·7개 PR의 추가 시각/편집 증거·최종 lint/nextest·개별 review/PR/CI/merge/후속 처리는 계속 미완료다.
+
+### 19쪽 기호의 원문·독립 PDF 폭 대조
+
+`batch99-franchise-print-font-readonly`에서 독립 Print의 garbled BaseFont 이름을 원래 CP949로 복구해 본문 `/F1`이 휴먼명조임을 확인했다. 설치된 정확한 family는 `C:/Windows/Fonts/HMKMM.TTF`이며 SHA-256은 `d033df71fa41de48905407f7d39aca74ebd9ae87298c5420513acaa187fbefc6`다. PDF subset의512 UPEM과 대표 글자 `필`·`것`의512 advance/윤곽 bounding box는 설치 face와 같다. 이 소수 글자의 대조를 전체 글꼴 동일성으로 확대하지 않는다. 처음 조사한 HMFMMUEX.TTC는 휴먼모음T·휴먼엑스포였으므로 대상 family 증거에서 제외했다.
+
+독립 Print의 모서리 기호는 U+231C `⌜`·U+231F `⌟`이고 `/F4` Haansoft Batang subset에 있다. 휴먼명조에는 두 glyph가 없으며 PDF fallback의1024 UPEM/1024 advance는 전각이다. PDF text transform(size104×0.12×96/72)으로 약16.64px가 된다. 직전 실제 `2b6bf82df` RenderTree의 같은 원본 ¶252 기호 run은8.3px다. 기호 뒤 내용 위치 차이는 이 자연 전진폭 누락과 함께 조사한다. 기존 `text_measurement`의 metric miss→generic halfwidth 경로 및 실제 glyph fallback/font selection 소비를 추적하되, 기호를 임의 전각 상수로 바꾸거나 현재 보정 문서를 글꼴 예외·#7445 이관으로 처리하지 않는다. 독립 PDF의 fallback 출처와 실제 측정/paint 선택이 공유되는지 아직 미검증이며, 새 글꼴/폭 source 보정이나 회귀 기대값 변경은 이 조사에서 하지 않았다.
+
+`8a7a2cff8`의 suite 준비·전체 fmt·Native Clippy는 exit0이다. Native 빌드가 실제 rustc에서 실행 중이며, batch97의 실제 각주 표/전체 쪽수 진단과 batch98의 새 전쪽 시각 검증은 같은 owned build를 기다린다. batch98은142쪽과41쪽 FootnoteArea의 표가 확인되지 않으면 고비용 시각 산출 전 실패 상태를 기록한다. 전체 제출·통합 판정은 미완료다.
