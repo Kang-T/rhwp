@@ -727,3 +727,7 @@ HWP 실제 paint 로그(`batch61-current-handbook-paint-flow`)는 표13이444.3�
 생산·소비 경로는 `Cell::vertical_padding_is_abnormal → resolve_cell_padding_at_height → row_cut_content_height → table_partial의 MeasuredTable 없는 온전한 자식 행 재계산`이다. 선언 높이와 여백 합이 같은 정상 최소값을 비정상으로 처리하던 `>=`를 문서화된 엄격 초과 `>`로 수정했다. 실제 초과 여백의 기존 축소와0 높이 비발동은 유지한다. 측정의 중첩 relaxed-pad 및 전체 행 계산은 별도 소비 경로이므로 같은 결과가 되는지 기존 대조군으로 확인한다. 원본 레코드·기존 paint·Print 괘선은 ignored `batch71-padding-source-proof/provenance.json`에 연결했다.
 
 이 보정의 재빌드·전체 페이지 Native/fresh WASM·관계형 검사·최종 회귀는 미검증이다. 부모 표 원점 등 남은 차이까지 해결했다고 주장하지 않으며 새 회귀·기대값·baseline·이관은 추가하지 않았다.
+
+`005fab000`의 fmt·Native Clippy와 Native 빌드가 exit0/521.69초로 끝났다. 실행 파일 SHA-256은 `aa7fa5201564f394d7ce194ee13e3f9cba0407b61de3b07366d63a47060ba284`다. 실제 새 render tree는 문제 행의100.5→102.4px 성장과 전체142쪽 유지를 보여 준다(`batch73-padding-runtime-check`). 표 원점489.0px는 그대로이므로 행 여백 보존과 표 원점의 남은 차이를 구분한다. 이 수치는 진단 관측값이며 회귀의 절대 px assertion으로 추가하지 않았다.
+
+새 가맹사업70쪽과 기존 최소 높이 표1쪽에서 전체 임베딩 글꼴의 byte-identical file transport·browser pool과 canonical raster가 모든 픽셀과 PNG bytes까지 같음을 다시 입증했다(`batch75-current-font-raster-control/control.json`). 같은 원본 font cmap 검사·글꼴 공급·페이지별 지표·gate를 유지하는 기존 실행 wrapper로 새 전체142쪽 TSV와 최소 높이 두 독립 Print 대조군을 `batch76-current-padding-visual`에서 생성 중이다. 기존 #5751·#7234의 두 suite만 선택한 nextest는 공유 cache의 Native 빌드 종료 뒤 jobs8/threads10으로 실행 중이다(`batch74-padding-focused-regression/focused-regression.log`). 아직 전체47입력·fresh WASM·최종 전체 회귀·PR 완료를 입증하지 않는다.
