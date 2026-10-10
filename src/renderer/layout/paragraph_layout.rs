@@ -2073,14 +2073,113 @@ fn right_tab_block_width_with_tac(
     Some(estimate_text_width(&tail, &ts) + tac_w)
 }
 
-/// [#6303] 칸 폭 자동 축소(#6196) 셀의 오버플로우 자간을 안쪽 폭에 수렴시킨다.
+/// 가운데 정렬에서 폭 맞춤과 시작점 계산이 함께 소비하는 실제 글줄 끝.
+/// 저장 줄의 구분 공백은 잉크가 없지만 음수 자간 뒤의 마지막 글리프는
+/// advance 끝을 넘어간다. 이 두 값을 서로 다른 단계에서 따로 제외하면
+/// 원래 폭에 들어가는 줄까지 압축된다. 장식 공백의 점유는 그대로 남긴다.
+struct CenteredTextLineMeasure {
+    runs: Vec<(String, TextStyle)>,
+    char_count: usize,
+}
+
+impl CenteredTextLineMeasure {
+    fn new(line: &ComposedLine, styles: &ResolvedStyleSet) -> Option<Self> {
+        // 개체·탭·겹침·각주 마커는 각자의 위치/축소 계약으로 측정한다.
+        if line.runs.iter().any(|run| {
+            run.char_overlap.is_some()
+                || run.footnote_marker.is_some()
+                || effective_text_for_metrics(run).contains(['\t', '\u{FFFC}'])
+        }) {
+            return None;
+        }
+        let mut runs: Vec<_> = line
+            .runs
+            .iter()
+            .map(|run| {
+                (
+                    effective_text_for_metrics(run).to_owned(),
+                    run.text_style(styles),
+                )
+            })
+            .collect();
+        for (run, (text, style)) in line.runs.iter().zip(&mut runs).rev() {
+            let painted_border = styles
+                .char_styles
+                .get(run.char_style_id as usize)
+                .and_then(|char_style| char_style.border_fill_id.checked_sub(1))
+                .and_then(|index| styles.border_styles.get(index as usize))
+                .is_some_and(|border| {
+                    border.fill_color.is_some()
+                        || border.pattern.is_some()
+                        || border.gradient.is_some()
+                        || border.image_fill.is_some()
+                        || border
+                            .borders
+                            .iter()
+                            .any(|edge| edge.line_type != crate::model::style::BorderLineType::None)
+                });
+            if style.underline != crate::renderer::UnderlineType::None
+                || style.strikethrough
+                || style.shade_color != 0xFFFFFF
+                || painted_border
+            {
+                break;
+            }
+            let end = text.trim_end_matches(' ').len();
+            text.truncate(end);
+            if !text.is_empty() {
+                break;
+            }
+        }
+        let char_count = runs.iter().map(|(text, _)| text.chars().count()).sum();
+        // 모든 공백인 줄의 장식/흐름 계약을 정렬 대상 글자로 바꾸지 않는다.
+        line.runs
+            .iter()
+            .any(|run| {
+                effective_text_for_metrics(run)
+                    .chars()
+                    .any(|character| character != ' ')
+            })
+            .then_some(Self { runs, char_count })
+    }
+
+    fn width(&self, extra_char_spacing: f64) -> f64 {
+        let mut width = 0.0;
+        for (text, style) in &self.runs {
+            let mut measured_style = style.clone();
+            measured_style.extra_char_spacing = extra_char_spacing;
+            width += estimate_text_width(text, &measured_style);
+        }
+        // 마지막 가시 글자의 음수 자간은 글리프 자체의 폭을 줄이지 않는다.
+        if let Some((text, style)) = self.runs.iter().rev().find(|(text, _)| !text.is_empty()) {
+            if let Some(character) = text
+                .chars()
+                .next_back()
+                .filter(|character| *character != ' ')
+            {
+                let glyph = character.to_string();
+                let mut measured_style = style.clone();
+                measured_style.extra_char_spacing = extra_char_spacing;
+                let advance = estimate_text_width(&glyph, &measured_style);
+                measured_style.letter_spacing = 0.0;
+                measured_style.extra_char_spacing = 0.0;
+                width += (estimate_text_width(&glyph, &measured_style) - advance).max(0.0);
+            }
+        }
+        width
+    }
+}
+
+/// 글자 간격을 실제 측정 폭에 수렴시킨다.
 ///
 /// 저장 사다리가 한 줄·안쪽 폭으로 적어 둔 칸이 자연 폭에서 안쪽 폭을 15% 넘게
 /// 놓친 경우에만 쓴다. 선형 1회 `slack/N` 은 말미 글자·narrow glyph 클램프 때문에
-/// 목표보다 1~2% 헐겁다. 일반 문단·일반 셀의 자간은 그대로 둔다.
+/// 목표보다 1~2% 헐겁다. 가운데 정렬은 줄 끝 측정 결과를 재사용하고,
+/// 나머지 일반 문단·일반 셀의 기존 선형 경로는 그대로 둔다.
 fn converge_cell_overflow_char_spacing(
     comp_line: &ComposedLine,
     styles: &ResolvedStyleSet,
+    centered_measure: Option<&CenteredTextLineMeasure>,
     tab_width: f64,
     total_char_count: usize,
     total_text_width: f64,
@@ -2090,13 +2189,21 @@ fn converge_cell_overflow_char_spacing(
     let min_sp = -avg_char_w * 0.5;
     let mut extra = ((available_width - total_text_width) / total_char_count as f64).max(min_sp);
     for _ in 0..4 {
-        let mut measured = 0.0f64;
-        for run in &comp_line.runs {
-            let mut ts = run.text_style(styles);
-            ts.default_tab_width = tab_width;
-            ts.extra_char_spacing = extra;
-            measured += estimate_text_width(&run.text, &ts);
-        }
+        let measured = centered_measure.map_or_else(
+            || {
+                comp_line
+                    .runs
+                    .iter()
+                    .map(|run| {
+                        let mut ts = run.text_style(styles);
+                        ts.default_tab_width = tab_width;
+                        ts.extra_char_spacing = extra;
+                        estimate_text_width(&run.text, &ts)
+                    })
+                    .sum()
+            },
+            |measure| measure.width(extra),
+        );
         let delta = available_width - measured;
         if delta >= -0.05 && delta.abs() < 0.25 {
             break;
@@ -2113,6 +2220,7 @@ fn compute_line_extra_spacing(
     comp_line: &ComposedLine,
     trailing_space_limit: usize,
     styles: &ResolvedStyleSet,
+    centered_measure: Option<&CenteredTextLineMeasure>,
     alignment: Alignment,
     in_cell: bool,
     needs_justify: bool,
@@ -2127,6 +2235,8 @@ fn compute_line_extra_spacing(
     available_width: f64,
     tab_width: f64,
 ) -> (f64, f64, f64) {
+    let fit_width = centered_measure.map_or(total_text_width, |measure| measure.width(0.0));
+    let fit_char_count = centered_measure.map_or(total_char_count, |measure| measure.char_count);
     // 음수 자간은 마지막 글자의 advance도 줄이지만 실제 glyph 잉크 폭은 줄이지 않는다.
     // 나눔정렬에서 advance만 셀 끝에 맞추면 정상 폭으로 그린 마지막 glyph가 clip을
     // 넘어가므로, 마지막 가시 글자의 음수 자간만 시각 점유 폭에 되돌린다.
@@ -2406,6 +2516,7 @@ fn compute_line_extra_spacing(
                     converge_cell_overflow_char_spacing(
                         comp_line,
                         styles,
+                        None,
                         tab_width,
                         total_char_count,
                         total_text_width,
@@ -2465,30 +2576,32 @@ fn compute_line_extra_spacing(
                 (0.0, raw.max(min_sp), 0.0)
             }
         }
-    } else if total_text_width > available_width && total_char_count > 1 && !has_tabs {
+    } else if fit_width > available_width && fit_char_count > 1 && !has_tabs {
         // 비정렬(왼쪽/오른쪽/가운데) 텍스트가 오버플로우할 때 글자 간격 압축
         if suppress_cell_overflow_spacing {
             (0.0, 0.0, 0.0)
-        } else if converge_auto_shrink_cell {
+        } else if converge_auto_shrink_cell || centered_measure.is_some() {
             // [#6303] 칸 폭 자동 축소(#6196) 가 선형 slack/N 한 번이면 목표가
             // 1~2% 헐거워 긴 행 꼬리가 괘선 밖으로 나간다. 저장 한 줄이 안쪽 폭을
             // 15% 넘게 넘는 칸에서만 줄바꿈은 그대로 두고 실측 폭을 수렴시킨다.
-            // 일반 in_cell 줄까지 수렴하면 page-local hash·text-overlap 이 흔들린다.
+            // 가운데 정렬 글줄은 마지막 음수 자간의 잉크 점유도 같은 측정으로
+            // 확인한다. 나머지 일반 in_cell 줄에는 기존 적용 조건을 유지한다.
             (
                 0.0,
                 converge_cell_overflow_char_spacing(
                     comp_line,
                     styles,
+                    centered_measure,
                     tab_width,
-                    total_char_count,
-                    total_text_width,
+                    fit_char_count,
+                    fit_width,
                     available_width,
                 ),
                 0.0,
             )
         } else {
-            let raw = (available_width - total_text_width) / total_char_count as f64;
-            let avg_char_w = total_text_width / total_char_count as f64;
+            let raw = (available_width - fit_width) / fit_char_count as f64;
+            let avg_char_w = fit_width / fit_char_count as f64;
             let min_sp = -avg_char_w * 0.5;
             (0.0, raw.max(min_sp), 0.0)
         }
@@ -6492,6 +6605,19 @@ impl LayoutEngine {
             let is_hancom_company_pua_logo_line =
                 is_hancom_company_pua_logo_line(comp_line, alignment);
 
+            // 생성한 soft-wrap 구분 공백과 개체/탭은 기존 소유·측정 계약을
+            // 유지한다. 순수 가운데 정렬 글줄은 저장 줄 끝과 문단 끝 모두
+            // 동일한 점유 폭으로 압축 여부와 실제 시작점을 결정한다.
+            let centered_measure = if alignment == Alignment::Center
+                && !has_tabs
+                && !renders_synthetic_wrap_trailing_space
+                && line_tac_offsets_for_width.is_empty()
+            {
+                CenteredTextLineMeasure::new(comp_line, styles)
+            } else {
+                None
+            };
+
             let trailing_space_limit = trailing_space_limit_after_last_inline_object(
                 comp_line,
                 line_tac_offsets_for_width
@@ -6521,6 +6647,7 @@ impl LayoutEngine {
                     comp_line,
                     trailing_space_limit,
                     styles,
+                    centered_measure.as_ref(),
                     alignment,
                     cell_ctx.is_some(),
                     needs_justify,
@@ -6706,8 +6833,11 @@ impl LayoutEngine {
                         0.0
                     } else {
                         (available_width
-                            - (effective_text_width - trailing_ws_width - terminal_tracking_width))
-                            .max(0.0)
+                            - centered_measure.as_ref().map_or(
+                                effective_text_width - trailing_ws_width - terminal_tracking_width,
+                                |measure| measure.width(extra_char_sp),
+                            ))
+                        .max(0.0)
                             / 2.0
                     };
                     x_base + inline_offset + num_x_offset + align_offset
@@ -10622,6 +10752,7 @@ mod issue_2809_split_alignment_tests {
             &line,
             usize::MAX,
             &ResolvedStyleSet::default(),
+            None,
             Alignment::Split,
             true,
             true,
@@ -10659,6 +10790,7 @@ mod issue_2809_split_alignment_tests {
             &trailing_line,
             usize::MAX,
             &styles,
+            None,
             Alignment::Justify,
             false,
             true,
@@ -10699,6 +10831,7 @@ mod issue_2809_split_alignment_tests {
             &line,
             usize::MAX,
             &styles,
+            None,
             Alignment::Split,
             true,
             true,
@@ -10749,6 +10882,7 @@ mod issue_2809_split_alignment_tests {
             &line,
             usize::MAX,
             &ResolvedStyleSet::default(),
+            None,
             Alignment::Justify,
             false,
             true,
@@ -10772,6 +10906,7 @@ mod issue_2809_split_alignment_tests {
             &line,
             usize::MAX,
             &ResolvedStyleSet::default(),
+            None,
             Alignment::Justify,
             false,
             true,
@@ -10819,6 +10954,7 @@ mod issue_4657_distribute_alignment_tests {
             &line(text),
             usize::MAX,
             &ResolvedStyleSet::default(),
+            None,
             Alignment::Distribute,
             false,
             false,
