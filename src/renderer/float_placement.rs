@@ -3126,9 +3126,8 @@ fn stored_captioned_picture_successor_placement(
     let [Control::Picture(picture)] = para.controls.as_slice() else {
         return None;
     };
-    let [host] = para.line_segs.as_slice() else {
-        return None;
-    };
+    // 같은 저장 시각 줄의 좌우 조각도 하나의 그림 호스트 원점을 공유한다.
+    let host = super::layout::stored_single_visual_line(para)?;
     let next = successor.line_segs.first()?;
     let caption = picture.caption.as_ref()?;
     let common = &picture.common;
@@ -3137,8 +3136,11 @@ fn stored_captioned_picture_successor_placement(
         || successor.stored_text_partition_is_dirty()
         || !successor.controls.is_empty()
         || successor.column_type != ColumnBreakType::None
-        || host.line_height <= 0
-        || host.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || para.cell_format_vpos_dirty
+        || successor.cell_format_vpos_dirty
+        || para.line_segs.iter().any(|line| {
+            line.line_height <= 0 || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        })
         || successor.line_segs.iter().any(|line| {
             line.line_height <= 0 || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
         })
