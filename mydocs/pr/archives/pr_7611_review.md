@@ -506,3 +506,13 @@ GitHub의 #7445 본문과 댓글103개를 조회했다. #1853 HWPX는 [기존 �
 rowbreak14쪽은 여전히59.31517%, 전체19/Print18쪽이다. `batch32-corrected-pagination-diagnosis/rowbreak-budget.stderr`에서 원점 뒤 예산525.0px가 행 예산519.92px로 재차 줄어드는 소비 경로를 확인했다. 실제 차감은 일반 하단 inset이 아니라 `prepare.rs`의 `source_text_first_frame_height`가 HWPX에도 Native 선언 높이38994HU를 컷 상한으로 전달하는 별도 경로다. 저장 원점과 행의 마지막 전진 간격은 같은 물리 상자가 아니다. 이 Native 계약을 Native profile에 한정하고 HWPX의 선언 첫 상자는 기존 `saved_single_cell_opening_frame_cut` 인증 경로로 예약하도록 추가 보정했다. 이는 `272754bcb` 출력 뒤 수정이며 아직 새 실행에서 검증하지 않았다. 기존 rowbreak 쪽수·소유 검사와 원본은 유지한다.
 
 가맹사업 보고서는 두 독립 한컴 Print PDF 모두142쪽인데 기존 두 회귀의143쪽 기대값은 release 실측만 근거로 적혀 있었다. 같은 원본의 고정 base는143쪽, 보정본은144쪽이다. `batch30-franchise-boundary/`의 원문 문자열 대조에서 base도 문단518부터 Print보다 한 쪽 늦고, 현재는 문단654부터 두 쪽 늦다. 이 문자열 대조는 소유 진단이며 시각 통과 증거가 아니다. 새71·72쪽 review에서도 서로 다른 내용이 같은 쪽에 놓인 차이가 확인됐다. 현재 보정 문서이므로 #7445로 이관하거나 검사·샘플을 삭제하지 않는다. 원래143쪽 고정을 현재144쪽으로 복사하지 않고 원본 출력과 각주·표 조각의 소유를 개선한 뒤 독립 근거의 관계 검사로 교정한다. 전체 페이지142/144 불일치 및 이 문서의 미달은 PR 보류 사유로 유지한다.
+
+### 각주 이어받기의 본문 소유 분리 — 2026-10-10
+
+`a52ba6fbe` Native 빌드가 exit0/731.64초로 끝났고 rowbreak의 전체 page plan은18쪽으로 복원됐다. 같은14쪽의 새 review PNG(`batch34-native-frame-review/rowbreak/review/review_014.png`)는94.80%이며 진단 방법 그림이 이 쪽에 남는 것을 직접 판독했다. 같은 쪽 Native selected gate만 통과했고 전체 시각 gate·fresh WASM·회귀 통과로 확대하지 않는다.
+
+가맹사업 첫 추가 쪽을 원본 CFB 레코드와 한컴47·48쪽으로 대조했다(`batch35-franchise-first-page-drift/`). 문단512의 각주43은 LIST_HEADER의 문단 개수가3이고, 첫 문단10줄 뒤 표·그림 문단이 vpos0에서 재시작하며 뒤 빈 줄은19729HU로 이어진다. 따라서 파서가 문단을 잘못 흡수한 사례가 아니다. Print48쪽에도 본문516의 배달앱 그림과 각주43의 카카오 그림이 각각 있어 원본·기준 입력 대응을 확인했다. Print47쪽의 본문514 marker는 그대로 남고 각주44~46의 본문은43의 suffix 뒤인48쪽에 있다.
+
+실제 오류 경로는 `register_body_footnote`의 `current_page_reset_fragments`다. prefix를 현재 쪽에 등록한 직후 `force_new_page()`로 suffix를 등록하면서 아직 현재 쪽에 들어가는 본문513·514까지 새 쪽으로 넘긴다. 각주 suffix의 소유와 본문 페이지 전환을 같은 상태로 취급한 오류다. 이를 다음 물리 쪽의 각주 큐로 분리했다. source fragment와 높이의 같은 결과를 큐에 보존하고, 실제 `push_new_page`가 본문·개체의 새 프레임을 준비한 뒤 lane에 예약한다. 그 뒤 번호도 같은 큐를 따라 순서를 보존하며, 구역 끝에는 미소비 suffix를 별도 각주 쪽으로 보존한다. 새 일반 source 가정·픽셀 상수·문서 ID 분기는 추가하지 않았다. 이 수정의 런타임 검증과 관계형 검사 교정은 아직 미완료이며 뒤쪽 표650의 추가 컷 차이도 따로 남는다.
+
+고정 `a52ba6fbe`의 `RHWP_DIAG_FN` 실행에서 prefix152.6px를 등록한 직후 새 쪽의 suffix275.1px와 뒤 각주12/12/36px를 등록하는 실제 경로를 확인했다(`before-body-note.stderr`; 진단의 page 카운터는 열린 page 개수+1이다). 원본 HWP30입력의 저장 각주 reset 후보는3개였으며 정책연구 문단421·1865와 가맹사업 문단512다(`source-note-reset-audit.json`). 이는 source 후보 조사이며 composer 대응·runtime routing·HWPX 검증이나 세 입력의 시각 통과 증거는 아니다. 정상 대조군과 suffix 뒤 새 번호·구역 끝을 포함한 최신 실행은 미검증으로 남긴다.

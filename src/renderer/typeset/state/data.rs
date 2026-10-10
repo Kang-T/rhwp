@@ -1,7 +1,7 @@
 //! 상태의 불변 관측면. 쓰기 권한은 state 소유자에 한정한다.
 use crate::renderer::typeset::{
     ColumnType, DeferredSquarePictureControl, DeferredTableControl, EndnoteParaSource, EndnoteRef,
-    PageContent, PageItem, PageLayoutInfo, Paragraph, VisibleFloatExclusion,
+    FootnoteRef, PageContent, PageItem, PageLayoutInfo, Paragraph, VisibleFloatExclusion,
 };
 pub(in crate::renderer::typeset) struct StateView {
     /// 완성된 페이지 목록
@@ -69,6 +69,9 @@ pub(in crate::renderer::typeset) struct StateView {
     /// 옮겨 밴드 바닥을 확장할 때만 사용한다.
     pub(in crate::renderer::typeset) square_band_top: Option<f64>,
     pub(in crate::renderer::typeset) current_footnote_height: f64,
+    /// 저장 각주 reset 뒤 조각과 그 뒤 번호는 다음 물리 쪽을 소유한다.
+    /// 현재 본문을 먼저 이월하지 않고 실제 쪽 전환 때 같은 순서로 예약한다.
+    pub(in crate::renderer::typeset) deferred_body_footnotes: Vec<(FootnoteRef, f64)>,
     /// 현재 큐 예약은 실제 배치와 같은 본문 하단 앵커를 사용한다.
     pub(in crate::renderer::typeset) current_footnote_body_bottom_reserved: bool,
     /// 현재 쪽은 그림 표시가 있는 앞쪽에서 이월된 HWPX 각주 본문을 소유한다.

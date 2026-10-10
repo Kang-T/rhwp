@@ -38,6 +38,7 @@ impl TypesetState {
                 square_band_bottom: 0.0,
                 square_band_top: None,
                 current_footnote_height: 0.0,
+                deferred_body_footnotes: Vec::new(),
                 current_footnote_body_bottom_reserved: false,
                 deferred_hwpx_note_body: false,
                 current_bottom_fixed_exclusion: 0.0,
@@ -654,6 +655,7 @@ impl TypesetState {
             self.data.current_height = self.data.current_height.max(overlay_top_reserve);
             self.data.current_start_height = self.data.current_height;
         }
+        self.drain_deferred_body_footnotes();
     }
 
     pub(in crate::renderer::typeset) fn reset_for_new_page(&mut self) {

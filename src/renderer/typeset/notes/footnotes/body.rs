@@ -64,6 +64,20 @@ impl TypesetEngine {
             para_index: para_idx,
             control_index: ctrl_idx,
         };
+        // 번호는 문서 순서다. 앞 각주의 저장 suffix가 다음 쪽 lane을 열었으면
+        // 뒤 번호를 현재 쪽에 끼워 넣지 않고 같은 lane에서 이어받는다.
+        // 본문 marker의 소유 쪽은 이 예약으로 바뀌지 않는다.
+        if !has_table && st.has_deferred_body_footnotes() {
+            st.defer_body_footnote_for_next_page(
+                FootnoteRef {
+                    number: fn_ctrl.number,
+                    source,
+                    fragment: None,
+                },
+                composed_footnote_content_height(fn_ctrl, self.dpi),
+            );
+            return;
+        }
         // 원본 HWPX의 표 뒤 형제 각주도 실제 끝 조각 소유를 따른다.
         // 편집·무효 텍스트 분할·합성 줄은 원본 저장 캡션의 근거로 사용하지 않는다.
         let original_hwpx_table_host = st.profile.hwpx_stored_layout()
@@ -357,13 +371,14 @@ impl TypesetEngine {
                     fragment: Some(split.prefix),
                 });
                 st.add_footnote_fragment_height(split.prefix_height, split.prefix.draw_separator);
-                st.force_new_page();
-                st.record_current_footnote(FootnoteRef {
-                    number: fn_ctrl.number,
-                    source: source.clone(),
-                    fragment: Some(split.suffix),
-                });
-                st.add_footnote_fragment_height(split.suffix_height, split.suffix.draw_separator);
+                st.defer_body_footnote_for_next_page(
+                    FootnoteRef {
+                        number: fn_ctrl.number,
+                        source: source.clone(),
+                        fragment: Some(split.suffix),
+                    },
+                    split.suffix_height,
+                );
                 return;
             }
             if let Some((page_idx, _)) = routed {
