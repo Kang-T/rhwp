@@ -16547,7 +16547,7 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
     ) -> RowCutResult {
         let issue2424_started = issue2424_profile_enabled().then(std::time::Instant::now);
-        let result = self.advance_row_cut_inner(table, row, start_cut, avail_height, styles);
+        let result = self.advance_row_cut_inner(table, row, start_cut, avail_height, styles, None);
         if let Some(started) = issue2424_started {
             use std::sync::atomic::Ordering::Relaxed;
             ISSUE2424_ADVANCE_ROW_CUT_CALLS.fetch_add(1, Relaxed);
@@ -18295,6 +18295,7 @@ impl LayoutEngine {
         start_cut: &[usize],
         avail_height: f64,
         styles: &ResolvedStyleSet,
+        cell_budget_deltas: Option<&[f64]>,
     ) -> RowCutResult {
         let row_cells: Vec<&crate::model::table::Cell> = Self::row_cut_cell_order(table, row)
             .into_iter()
@@ -18365,6 +18366,13 @@ impl LayoutEngine {
                 && !table.common.treat_as_char;
         let native_table_fragment_frames = self.native_stored_table_has_fragment_frames(table);
         for (i, cell) in row_cells.iter().enumerate() {
+            // Parallel cells own their padding independently. A short sibling
+            // with larger padding must not shorten this cell's content band.
+            let avail_height = avail_height
+                + cell_budget_deltas
+                    .and_then(|deltas| deltas.get(i))
+                    .copied()
+                    .unwrap_or(0.0);
             let units = self.cell_units(cell, table, styles);
             let native_text_frame_cell = native_table_fragment_frames
                 && cell.row_span == 1
@@ -22368,20 +22376,32 @@ impl LayoutEngine {
         start_cut: &[usize],
         styles: &ResolvedStyleSet,
     ) -> f64 {
+        self.row_remaining_visible_cell_padding(table, row, start_cut, styles)
+            .into_iter()
+            .fold(0.0, f64::max)
+    }
+
+    fn row_remaining_visible_cell_padding(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        start_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> Vec<f64> {
         if start_cut.iter().any(|cut| *cut > 0)
             && self.has_stored_square_picture_flow_in_row(table, row)
         {
             // 이 형상의 첫 조각이 이미 행의 패딩을 소유한다. continuation에 같은
             // top/bottom padding을 다시 예약하면 다음 중첩 표 atom이 한 쪽 일찍
             // 이월되어 한컴보다 물리 쪽 수가 늘어난다.
-            return 0.0;
+            return vec![0.0; Self::row_cut_cell_order(table, row).len()];
         }
         let row_cells: Vec<&crate::model::table::Cell> = Self::row_cut_cell_order(table, row)
             .into_iter()
             .filter_map(|idx| table.cells.get(idx))
             .collect();
 
-        let mut max_padding = 0.0f64;
+        let mut padding = Vec::with_capacity(row_cells.len());
         for (i, cell) in row_cells.iter().enumerate() {
             let units = self.cell_units(cell, table, styles);
             let su = start_cut.get(i).copied().unwrap_or(0).min(units.len());
@@ -22389,12 +22409,56 @@ impl LayoutEngine {
                 Self::cell_unit_has_visible_content(cell, unit)
                     || Self::empty_unit_owns_flow_line_box(cell, table, unit)
             }) {
+                padding.push(0.0);
                 continue;
             }
             let (_, _, pad_top, pad_bottom) = self.resolve_cell_padding(cell, table);
-            max_padding = max_padding.max(pad_top + pad_bottom);
+            padding.push(pad_top + pad_bottom);
         }
-        max_padding
+        padding
+    }
+
+    /// Select units within the physical row band using each owner's padding.
+    /// Measure the selected cut through the same per-cell content/padding and
+    /// mixed-nested geometry that partial paint consumes, then refit if needed.
+    pub(crate) fn advance_row_cut_for_physical_band(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        start_cut: &[usize],
+        physical_budget: f64,
+        styles: &ResolvedStyleSet,
+    ) -> (RowCutResult, f64) {
+        let padding = self.row_remaining_visible_cell_padding(table, row, start_cut, styles);
+        let max_padding = padding.iter().copied().fold(0.0, f64::max);
+        let content_budget = (physical_budget - max_padding).max(0.0);
+        if padding.iter().all(|value| *value == max_padding) {
+            return self.advance_row_cut_with_mixed_nested_reserve(
+                table,
+                row,
+                start_cut,
+                content_budget,
+                styles,
+            );
+        }
+        let deltas: Vec<f64> = padding.iter().map(|value| max_padding - value).collect();
+        let mut budget = content_budget;
+        let mut cut =
+            self.advance_row_cut_inner(table, row, start_cut, budget, styles, Some(&deltas));
+        loop {
+            let visible = self.row_cut_content_height(table, row, start_cut, &cut.end_cut, styles);
+            let excess = (visible - physical_budget).max(0.0);
+            if excess <= ROW_CUT_CAPACITY_FP_EPSILON_PX || budget <= 0.0 {
+                return (cut, budget);
+            }
+            budget = (budget - excess).max(0.0);
+            let next =
+                self.advance_row_cut_inner(table, row, start_cut, budget, styles, Some(&deltas));
+            if next.end_cut == cut.end_cut {
+                return (next, budget);
+            }
+            cut = next;
+        }
     }
 
     /// [#5585] 행을 처음부터 그리는 조각의 위 안 여백 — 보이는 내용이 있는 `row_span == 1`

@@ -448,11 +448,11 @@ impl TypesetEngine {
             // Stored vpos-frame resets are source-owned physical fragment boundaries.
             // First take the ordinary budget cut, then extend only to the end of
             // the recorded source frame when that exact CellUnit boundary is known.
-            let (mut res, mut budget) = layout_engine.advance_row_cut_with_mixed_nested_reserve(
+            let (mut res, mut budget) = layout_engine.advance_row_cut_for_physical_band(
                 table,
                 r,
                 row_start_cut,
-                content_budget,
+                content_budget + padding,
                 styles,
             );
             if std::env::var("RHWP_DIAG_SCAN").is_ok() {
@@ -1178,14 +1178,13 @@ impl TypesetEngine {
                     } else {
                         (budget - over - 0.5).max(0.0)
                     };
-                    let (res2, retry_budget) = layout_engine
-                        .advance_row_cut_with_mixed_nested_reserve(
-                            table,
-                            r,
-                            row_start_cut,
-                            retry_budget,
-                            styles,
-                        );
+                    let (res2, retry_budget) = layout_engine.advance_row_cut_for_physical_band(
+                        table,
+                        r,
+                        row_start_cut,
+                        retry_budget + padding,
+                        styles,
+                    );
                     let mut retried = false;
                     if !res2.fully_consumed {
                         let split_total2 = layout_engine.row_cut_content_height(
