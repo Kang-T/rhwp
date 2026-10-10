@@ -1468,6 +1468,28 @@ pub(crate) fn char_width_decision<'a>(
             latin.map_or(style.font_metric_trusted, |l| l.font_metric_trusted),
             latin.is_none() && style.hft_hangul_face,
         );
+        // Paint에 전달한 선언 체인에서만 결측 글리프를 찾는다. 일반 OS 폴백이나
+        // DB에 존재한다는 사실만으로 설치를 추정하지 않는다. 원 face의 hit와
+        // HFT 폭 계약은 유지하고, fallback 자체에는 원 face의 HFT 규칙을 옮기지 않는다.
+        if embedded.width_source == "metricCharacterMiss" && !c.is_whitespace() {
+            let paint_family = latin.map_or(&style.font_family, |l| &l.font_family);
+            for family in paint_family.split(',').skip(1).map(str::trim) {
+                let fallback = measure_char_width_embedded_decision_for_font(
+                    family,
+                    style.bold,
+                    style.italic,
+                    c,
+                    font_size,
+                    false,
+                    false,
+                );
+                if fallback.width_px.is_some() {
+                    embedded = fallback;
+                    embedded.width_source = "declaredGlyphFallbackMetric";
+                    break;
+                }
+            }
+        }
         // 행의 공통 측정 규칙으로 폭을 고르며 원문의 useFontSpace 속성을 바꾸지 않는다.
         // 일반 공백과 NBSP는 메트릭 조회 출처를 보존하고 명시한 글꼴 공백이 우선한다.
         if style.layout_half_space

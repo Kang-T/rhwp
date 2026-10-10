@@ -2120,7 +2120,7 @@ impl CenteredTextLineMeasure {
                 });
             if style.underline != crate::renderer::UnderlineType::None
                 || style.strikethrough
-                || style.shade_color != 0xFFFFFF
+                || crate::model::color::char_shade(style.shade_color).is_some()
                 || painted_border
             {
                 break;

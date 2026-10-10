@@ -931,3 +931,13 @@ batch153의 같은 기본 글꼴/독립 Print 선택 비교는1/2/10/19/118/119�
 batch155는 실제 HMKMM/Windows Batang 프로그램에 U+231C/U+231F가 없고 HCR Batang은0.97em, Haansoft Batang은1.0em임을 확인했다. 같은 canonical font 공급을 유지한 Chrome CDP는19쪽 두 기호를 **HCR Batang/HCRBatang**, 자연 전진16.160187px(@16.6667px)로 실제 출력한다고 보고했다. 새 ID만 부여한 probe PNG는 기존 canonical PNG와 bytes/hash가 동일하다. 기존 배치의 반각8.33px와 paint의 자연 전진이 갈린다는 증거이며, 다음 수정은 actual fallback 프로그램/선택과 메트릭을 공유해야 한다. 특정 기호에1em/고정 px를 넣거나 주 font 전체를 바꾸지 않았다. 초기 probe의 SVGRect.toJSON 미지원 오류는 별도 파일에 보존했고 지원하는 필드를 읽어 다시 실행했으며 렌더링 회귀로 세지 않는다. Print의1/2/19쪽 폰트도 FontFile2가 포함되어 있음을 확인해 비임베드 PDF라는 추정으로 차이를 면제하지 않았다.
 
 종료한24 batch137 driver의 실제 종료를 확인하고 raw SVG142개만 ledger 후 제거했다(**9.73GiB**). PNG/TSV/JSON/log/외부화 SVG 등 나머지 **814파일의 크기/해시를 재확인**했으며 원본/기준 PDF·새 진단·공유 target·공용 font pool을 보존했다. cleanup ledger는 `batch137-svg-removal-ledger.json`이며 증적을 source PR에 stage하지 않았다.
+
+### 음영 없음의 줄 끝 점유와 결측 글리프 체인 — 검증 전
+
+batch156의 PDF FontFile2와 실제 HMKMM 비교에서 표지 F1의 `가·맹·괄호·공백`은 전진폭과 glyph outline 명령이 동일했다. 첫 느슨한 ToUnicode 정규식이 bfrange의 숫자 구간을 닫는 괄호로 오독한 결과는 폐기하고 bfchar를 구분한 `bfchar-corrected-outline-comparison.json`으로 교정했다. F2 HCR Batang은 다른 프로그램이다. 이 자료는 글꼴 예외나 전체 출력 일치의 근거가 아니다. batch157은 최신49의 첫 줄 전진25.222667px와 두 번째 줄 시작147.2004px를 실제 SVG에서 읽어, 독립 Print의 각 낱말 시작점과 여전히 차이가 있음을 확인했다.
+
+줄 끝 helper는 `shade_color != 0xFFFFFF`로 투명 sentinel을 장식으로 분류했다. 원본 `shadeColor=none`과 출력의 `model::color::char_shade` 계약에 따라 같은 공통 판정을 소비하도록 바꿨다. 실제 음영·밑줄·취소선·border/background가 있는 공백은 보존한다. 생산/소비는 기존 가운데 줄 끝 공유 경로 그대로이며 원본 특정 문서나 좌표를 분기로 쓰지 않는다. 일반 작업공간의 오래된 generated suite 때문에 첫 `cargo fmt --all`은 실패했다. 제품 실행 실패로 세지 않고 변경 파일만 rustfmt로 정리했으며 최종 review worktree에서 suite 준비 후 전체 fmt를 다시 확인한다.
+
+결측 기호는 세션 `FontEnvironment.glyphFallbacks`에 호출자가 실제 공급을 확인한 최종 face의 순서를 선언하도록 했다(기본값 없음, IR 저장 없음, 최대256 키/키당16개, 단일 face/중복·자기 참조 거절). 원 face와 source substFont는 보존한다. `스타일 해소의 동일 face 체인 → char_width_decision의 원 face character-miss에서만 다음 선언 face의 실제 DB 폭 → emit_line_runs의 전진 → SVG/Canvas의 같은 체인`을 연결했다. 공백·primary hit·원 HFT 메트릭은 변경하지 않고 fallback에 원 face의 HFT 속성을 옮기지 않는다. SVG는 체인 전체를 한 글꼴 이름으로 임베드하던 문제를 고쳐 각 face를 따로 공급한다. Native Skia도 체인을 단일 이름으로 조회하지 않고 선언 순서를 따르며, 뒤 face의 custom 공급이 앞 face의 system 공급을 앞지르지 않게 했다. 이름 선언 자체는 backend 설치 증명이 아니므로 actual glyph 선택과 font hash를 재검증해야 한다. 고정 기호폭·주 font 전체 치환·기준 PDF 변경은 없다.
+
+현재는 source 변경과 잘못된 선언 거절 검사만 추가한 상태다. 최신 Native/fresh WASM의 전체 페이지·확대 판독, 정상 대조군, Skia 및 최종 lint/회귀는 미검증이다. 새 실물 배치 회귀·기대값·baseline은 추가하지 않았다. 선택쪽 진단을 47입력/175글꼴 영향 범위의 통과로 대신하지 않으며 PR 생성·승인·통합은 보류한다.

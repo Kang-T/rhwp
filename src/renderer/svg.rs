@@ -688,18 +688,25 @@ impl SvgRenderer {
                     // SVG 본문에서 `font-weight="bold"`를 내보내는 것과 같은
                     // 조건을 쓴다. CharShape.bold 외에 family 이름에 명시된 Bold
                     // face도 실제 Bold outline을 선택해야 synthetic bold가 되지 않는다.
-                    if run.style.is_visually_bold() {
-                        self.font_bold_families
-                            .insert(run.style.font_family.clone());
-                    }
-                    let codepoints = self
-                        .font_codepoints
-                        .entry(run.style.font_family.clone())
-                        .or_default();
-                    // 그려지는 글자로 모은다 — 필드는 표시값이 나간다 (Task #3216).
-                    for ch in run.display_or_text().chars() {
-                        if !ch.is_control() {
-                            codepoints.insert(ch);
+                    // 체인 전체를 한 face 이름으로 임베딩하면 CSS가 실제 선택하는
+                    // 각 face에는 공급되지 않는다. 측정과 같은 선언 순서의 face를 모은다.
+                    for family in run
+                        .style
+                        .font_family
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                    {
+                        if run.style.is_visually_bold() {
+                            self.font_bold_families.insert(family.to_string());
+                        }
+                        let codepoints =
+                            self.font_codepoints.entry(family.to_string()).or_default();
+                        // 그려지는 글자로 모은다 — 필드는 표시값이 나간다 (Task #3216).
+                        for ch in run.display_or_text().chars() {
+                            if !ch.is_control() {
+                                codepoints.insert(ch);
+                            }
                         }
                     }
                 }

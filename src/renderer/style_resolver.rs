@@ -567,9 +567,18 @@ pub(crate) fn resolve_styles_with_environment(
                     let target = primary_font_name(&style.font_families[lang]);
                     let explicit_true_type =
                         environment.is_some_and(|env| env.selects_true_type(target));
-                    style.font_families_metric_trusted[lang] = explicit_true_type
-                        && (metric_widths_verified_face(target)
-                            || matches!(target, "휴먼명조" | "HumanMyeongJo"));
+                    let explicit_replacement = environment.is_some_and(|env| {
+                        decision
+                            .requested_face
+                            .as_deref()
+                            .is_some_and(|face| env.replacement(face).is_some())
+                    });
+                    // 결측 글리프 체인만 추가한 세션은 원 face의 TTF/HFT 신뢰를 바꾸지 않는다.
+                    if explicit_true_type || explicit_replacement {
+                        style.font_families_metric_trusted[lang] = explicit_true_type
+                            && (metric_widths_verified_face(target)
+                                || matches!(target, "휴먼명조" | "HumanMyeongJo"));
+                    }
                     if explicit_true_type {
                         style.font_families_hft_hangul[lang] = false;
                         style.font_families_hft_fullwidth_dot[lang] = false;
@@ -1054,6 +1063,25 @@ pub(crate) fn lookup_font_name_in_environment(
         })
     {
         decision.environment_profile_id = environment.map(|env| env.id().to_string());
+    }
+    if decision.embedded != Some(true) {
+        if let Some((environment, fallbacks)) = environment.and_then(|env| {
+            decision
+                .normalized_face
+                .as_deref()
+                .and_then(|face| env.glyph_fallbacks(face))
+                .map(|fallbacks| (env, fallbacks))
+        }) {
+            // 호출자가 검증한 체인은 일반 OS 폴백보다 먼저 사용한다.
+            // 기본 face·원본 substFont를 보존하고 중복만 제거한다.
+            let source_fallbacks = decision.css_family_chain.split_off(1);
+            for face in fallbacks.iter().chain(&source_fallbacks) {
+                if !decision.css_family_chain.contains(face) {
+                    decision.css_family_chain.push(face.clone());
+                }
+            }
+            decision.environment_profile_id = Some(environment.id().to_string());
+        }
     }
     decision
 }
