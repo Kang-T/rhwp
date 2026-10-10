@@ -93,28 +93,43 @@ pub fn count_unintended_overlaps(doc: &DocumentCore, anomalies: &DocAnomalies) -
         let tree = doc.build_page_render_tree(page).expect("응시원서 페이지");
         let mut seals = Vec::new();
         let mut photo_runs = Vec::new();
-        collect(&tree.root, doc, None, None, None, &mut seals, &mut photo_runs);
+        collect(
+            &tree.root,
+            doc,
+            None,
+            None,
+            None,
+            &mut seals,
+            &mut photo_runs,
+        );
         assert_eq!(seals.len(), [3, 0, 1, 0][page as usize]);
         for &(owner, cell, _) in &photo_runs {
             assert!(
-                seals.iter().any(|&(seal_owner, bbox)| {
-                    seal_owner == owner && contains(cell, bbox)
-                }),
+                seals
+                    .iter()
+                    .any(|&(seal_owner, bbox)| { seal_owner == owner && contains(cell, bbox) }),
                 "사진 설명과 날인은 같은 원본 문단의 사진 셀 안에 있어야 한다"
             );
         }
         if let Some(anomaly_page) = anomalies.pages.iter().find(|p| p.page == page) {
-            remaining += anomaly_page.text_overlap.iter().filter(|overlap| {
-                let intended_pair = |a: BoundingBox, b: BoundingBox| {
-                    seals.iter().any(|&(owner, seal_bbox)| {
-                        contains(seal_bbox, a) && photo_runs.iter().any(|&(photo_owner, cell, run_bbox)| {
-                            photo_owner == owner && contains(cell, seal_bbox) && contains(run_bbox, b)
+            remaining += anomaly_page
+                .text_overlap
+                .iter()
+                .filter(|overlap| {
+                    let intended_pair = |a: BoundingBox, b: BoundingBox| {
+                        seals.iter().any(|&(owner, seal_bbox)| {
+                            contains(seal_bbox, a)
+                                && photo_runs.iter().any(|&(photo_owner, cell, run_bbox)| {
+                                    photo_owner == owner
+                                        && contains(cell, seal_bbox)
+                                        && contains(run_bbox, b)
+                                })
                         })
-                    })
-                };
-                !intended_pair(overlap.bbox_a, overlap.bbox_b)
-                    && !intended_pair(overlap.bbox_b, overlap.bbox_a)
-            }).count() as u64;
+                    };
+                    !intended_pair(overlap.bbox_a, overlap.bbox_b)
+                        && !intended_pair(overlap.bbox_b, overlap.bbox_a)
+                })
+                .count() as u64;
         }
     }
     remaining

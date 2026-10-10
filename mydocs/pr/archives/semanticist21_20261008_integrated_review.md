@@ -1478,3 +1478,5 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 ### 진행 80: 보정 체크포인트 커밋과 동기화
 
 - 보정77~79와 교육과정 검사/원본 이관·필수 lint/현재 Native·fresh WASM·Skia·Studio 증거·추가 Print 준비를 일반 commit `81ff2fe4a362b8585fe24f824282e6db7332c0bb`에 고정했다. ignored output/generated suite와 지침은 stage하지 않았고 필요한 PDF/현재 API 입력/대표 PNG는 보존했다. Stage diff 검사에서 새 helper의 EOF 빈 줄을 검출했으나 commit은 이미 진행됐으므로 기능 변경 없이 EOF만 교정하고 이 기록과 함께 별도 일반 commit으로 고정한다. amend나 기존 증적의 source 변경은 하지 않는다. 이후 fetch/devel ff/rebase 결과를 기록한다.
+
+- 새 include! helper는 cargo fmt --all이 직접 순회하지 않는 파일이어서 별도 rustfmt --check에서 줄 구성 차이를 검출했다. 해당 파일에 rustfmt를 적용하고 직접 check/전체 diff check의 exit0을 확인했다. 기능·기대값·product source는 바뀌지 않았으며 별도 형식 교정 commit으로 보존한다. 이후 PR/push 전에 고정 base lint/policy를 갱신한다.
