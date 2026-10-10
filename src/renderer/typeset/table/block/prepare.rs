@@ -571,19 +571,19 @@ impl TypesetEngine {
         // 일반 행 강제 배치 경로가 통째로 밀어넣어 본문 초과(예: pi=242 vert_off 38px,
         // 잔여 65.4px 로 보였으나 실가용 23.4px < 행0 34.9px). 루프 내 page_avail
         // (host_before_overhead/vert_offset_overhead) 와 동일 overhead 를 가드에도 적용.
-        let first_frag_overhead = {
-            let (host_before, fragment_outer_bottom) = partial_rowbreak_fragment_spacing_px(
+        let (first_fragment_host_before, first_fragment_outer_bottom) = partial_rowbreak_fragment_spacing_px(
+            table,
+            ft.host_spacing.before,
+            false,
+            ft.strict_following_plain_text_fit,
+            crate::renderer::float_placement::native_empty_host_cellbreak_fragment_repeats_outer_margin(
+                self.profile.get().hwp5_stored_pagination_layout(),
+                para,
                 table,
-                ft.host_spacing.before,
-                false,
-                ft.strict_following_plain_text_fit,
-                crate::renderer::float_placement::native_empty_host_cellbreak_fragment_repeats_outer_margin(
-                    self.profile.get().hwp5_stored_pagination_layout(),
-                    para,
-                    table,
-                ),
-                self.dpi,
-            );
+            ),
+            self.dpi,
+        );
+        let first_frag_overhead = {
             let vert_off = {
                 use crate::model::shape::VertRelTo as VR;
                 let is_para_relative_table =
@@ -595,7 +595,7 @@ impl TypesetEngine {
                     0.0
                 }
             };
-            host_before + vert_off + fragment_outer_bottom
+            first_fragment_host_before + vert_off + first_fragment_outer_bottom
         };
         // 다음 쪽 저장 줄이 잔여 셀 밴드를 닫으면 첫 조각 예산만 개체 프레임으로
         // 한정한다. 뒤 조각은 기존 완료 컷과 빈 밴드 높이를 이어받는다.
@@ -619,7 +619,10 @@ impl TypesetEngine {
             |p| {
                 (table_available
                     - p.table_top
-                    - hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi)
+                    // 첫 조각도 공통 분할 예산과 같은 아래 여백만 예약한다.
+                    // 통째 개체의 아래 여백을 여기서 따로 빼면 실제로 들어가는
+                    // 시작 유닛까지 이월하고 다음 쪽에 빈 줄을 다시 그리게 된다.
+                    - first_fragment_outer_bottom
                     - table
                         .caption
                         .as_ref()
