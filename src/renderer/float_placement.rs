@@ -79,6 +79,98 @@ pub(crate) fn native_empty_topbottom_rewind_anchor_saved_para_y(
     (bottom <= col_area.y + col_area.height + 0.5).then_some(saved_para_y)
 }
 
+/// 원본 HWP5·HWPX에서 새 쪽으로 이월한 빈 그림 표는 저장 셀 프레임이
+/// 실제 그림·아래 캡션보다 클 수 있다. 표 프레임을 보존하면서 흐름만 다음
+/// 저장 글줄 원점에서 재개하는 형상을 확인한다. 반환값은 본문 상대 좌표다.
+pub(crate) fn stored_relocated_picture_successor_origin(
+    stored_layout: bool,
+    host_para: &Paragraph,
+    table: &crate::model::table::Table,
+    next_para: Option<&Paragraph>,
+    dpi: f64,
+) -> Option<f64> {
+    if !stored_layout
+        || host_para.stored_text_partition_is_dirty()
+        || host_para.cell_format_vpos_dirty
+        || host_para
+            .text
+            .chars()
+            .any(|c| c > '\u{001F}' && c != '\u{FFFC}')
+        || host_para.controls.len() != 1
+        || table.row_count != 1
+        || table.col_count != 1
+        || table.cells.len() != 1
+        || !matches!(table.page_break, TablePageBreak::RowBreak)
+        || !is_para_topbottom_float(&table.common)
+        || !matches!(table.common.vert_rel_to, VertRelTo::Para)
+    {
+        return None;
+    }
+    let host_seg = host_para
+        .line_segs
+        .iter()
+        .find(|seg| seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0)?;
+    let next_para = next_para?;
+    if next_para.stored_text_partition_is_dirty() || next_para.cell_format_vpos_dirty {
+        return None;
+    }
+    let next_seg = next_para
+        .line_segs
+        .iter()
+        .find(|seg| seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0)?;
+    if host_seg.vertical_pos <= 0
+        || next_seg.vertical_pos <= 0
+        || next_seg.vertical_pos >= host_seg.vertical_pos
+    {
+        return None;
+    }
+
+    let cell = table.cells.first()?;
+    if cell.row != 0
+        || cell.col != 0
+        || cell.row_span != 1
+        || cell.col_span != 1
+        || cell.height <= table.common.height
+        || cell.paragraphs.len() != 1
+    {
+        return None;
+    }
+    let cell_para = cell.paragraphs.first()?;
+    let cell_seg = cell_para
+        .line_segs
+        .iter()
+        .find(|seg| seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0)?;
+    let Control::Picture(picture) = cell_para.controls.first()? else {
+        return None;
+    };
+    if !cell_para.text.trim().is_empty()
+        || cell_para.controls.len() != 1
+        || cell_para.line_segs.len() != 1
+        || cell_seg.vertical_pos != 0
+        || picture.common.treat_as_char
+        || !picture.common.flow_with_text
+        || !matches!(picture.common.text_wrap, TextWrap::TopAndBottom)
+        || !matches!(picture.common.vert_rel_to, VertRelTo::Para)
+        || !picture.caption.as_ref().is_some_and(|caption| {
+            matches!(
+                caption.direction,
+                crate::model::shape::CaptionDirection::Bottom
+            ) && !caption.paragraphs.is_empty()
+        })
+    {
+        return None;
+    }
+
+    let boundary_sum = i64::from(host_seg.vertical_pos)
+        + i64::from(signed_hwpunit(table.common.vertical_offset))
+        + i64::from(signed_hwpunit(picture.common.vertical_offset));
+    if boundary_sum.abs() > 8 {
+        return None;
+    }
+
+    Some(hwpunit_to_px(next_seg.vertical_pos, dpi))
+}
+
 /// 글자 없는 셀 문단의 흐름 그림과 오버레이 도형은 하나의 문단 원점을 공유한다.
 /// 셀 콘텐츠 측정은 이미 이 개체들의 끝점을 함께 사용한다. 그림 하나만 다시
 /// 셀 가운데/아래로 정렬하면 함께 저장된 그림 틀에서 분리된다.
