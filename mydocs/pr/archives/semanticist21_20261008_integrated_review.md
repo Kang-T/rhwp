@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-10
+last_verified: 2026-10-11
 ---
 
 # semanticist21 비 draft PR 통합 검토
@@ -14,7 +14,7 @@ last_verified: 2026-10-10
 - 브랜치: `review/semanticist21-20261008`
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 현재 통합 base: `21ed64071f81f35f37618717693bd30f727392c9` (진행63의 fetch·devel 동기화·rebase 확인; 원격 최신 상태는 제출 직전 재조회). 이전 base `79abd9e49675f4286eaed38197f7e837afb744e7`은진행54–58의역사검증기준이다. 이전 base `6f66932a73ee6fd05a74a83bdc438c9499a89a12`는 진행42–53의 역사 검증 기준이다. 이전base `5168e3256ad58eda425d84fdd4d67e9b47bb74b1`는진행39–42의검증기준이다. 이전base `f0e7228f6dd2ea1437724e53ad640c40c56d204b`는역사검증의기준이다. 최초 검토 base `60efc4b7b380b2a183c20c3ee0ab24a60bc2d832`는 역사 검증의 기준이다.
-- 직전 일반 커밋 체크포인트는 `f56ceec135f28aa6a8eb424bd74551aba0c7831f`이다. 진행89의 표 뒤 쪽 경계·인접 원본 앵커 보정과 실제 검증을 커밋했으며 후속 보정은 진행90에 기록한다. 이전 체크포인트는 `c43b98e9b0bcdb8ddee6a9f049baf703f0babc21`이다. 진행88의 직접 HWPX 원점 경계 전달을 커밋하고 `upstream/devel` 동기화·리베이스를 확인했다. 후속 보정은 진행89에 기록한다. 이전 체크포인트는 `fd4e242c9e4fafb2441f8d743d01746e26d15078`이다. 진행81~87의 저장 표 보정·시험지 원본 보존과 회귀 연결 제거·주석 번역을 커밋했고, `upstream/devel` fetch와 로컬 `devel` 동기화·리베이스를 확인했다. 후속 CGMP 보정과 실제 검증 범위는 진행88에 기록한다. 이전 일반 커밋 `81ff2fe4a362b8585fe24f824282e6db7332c0bb`(보정77~79의 교육과정 이관/clip 진단/중첩 source frame 보정과 현재 시각 증거)이다. 이전 `12d96686cdd24017b44becead2c4dfeb46867bf3`는 #7700 이관 체크포인트다. 현재 단계의 동기화·rebase와 다음 편집 검증은 진행80에 연결한다. 이전 production 코드 체크포인트 `9b53bd699126205b7a93fff326167f575252f1ea`는 저장 표의 수용 행 원장과 기존 회귀 검토 증거 보정이다. 진행70의 v86 retry2 두 Rust 파일을 이 커밋으로 고정했다. 실제 Native/fresh WASM 빌드는 부모 `3874bc4be037e84998d548e7755bc689af9d871b` 위 당시 미커밋 변경에서 수행했고 커밋된 production source와 동일하다. 이후 변경은 #7700 검사·자산 경로의 이관이며 진행74에서 검증한다. `cbaf53f3fa8fc8511ac82e5bd7481cfa56f8d922`와 진행61–62는 v78/retry1의 역사 체크포인트다. `e8ae5204d1b8e61851142f22b229de38f1867816`은 진행59의 rebase 체크포인트다. 이전 `3505cb8cd8d09f3c125fdb08c9ccec6efece78ff`는 진행55–56의 v73 검증·커밋·동기화 체크포인트다. 이전 `f3c8cd7d370668e36322db71c1c2c820260124ae`는 진행54의 v72 커밋·리베이스 체크포인트다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
+- 직전 일반 커밋 체크포인트는 `a09fc8b968dd7bb67e74fa6ffb185c586bd19d56`이다. 설계 전7쪽 Native/fresh WASM 검증과 관계 회귀를 고정했으며 후속 #5877 보정은 진행100의 v118 이후 기록에 연결한다. 이전 체크포인트는 `004bab229877d6b8f05dff9d98410161de135e09`와 `da70ea0258ab094ed67750a813ea465840f427f4`이며 각 설계 첫 조각/CGMP 단계의 검증 근거를 따른다. 이전 체크포인트 `f56ceec135f28aa6a8eb424bd74551aba0c7831f`는 역사 단계다. 진행89의 표 뒤 쪽 경계·인접 원본 앵커 보정과 실제 검증을 커밋했으며 후속 보정은 진행90에 기록한다. 이전 체크포인트는 `c43b98e9b0bcdb8ddee6a9f049baf703f0babc21`이다. 진행88의 직접 HWPX 원점 경계 전달을 커밋하고 `upstream/devel` 동기화·리베이스를 확인했다. 후속 보정은 진행89에 기록한다. 이전 체크포인트는 `fd4e242c9e4fafb2441f8d743d01746e26d15078`이다. 진행81~87의 저장 표 보정·시험지 원본 보존과 회귀 연결 제거·주석 번역을 커밋했고, `upstream/devel` fetch와 로컬 `devel` 동기화·리베이스를 확인했다. 후속 CGMP 보정과 실제 검증 범위는 진행88에 기록한다. 이전 일반 커밋 `81ff2fe4a362b8585fe24f824282e6db7332c0bb`(보정77~79의 교육과정 이관/clip 진단/중첩 source frame 보정과 현재 시각 증거)이다. 이전 `12d96686cdd24017b44becead2c4dfeb46867bf3`는 #7700 이관 체크포인트다. 현재 단계의 동기화·rebase와 다음 편집 검증은 진행80에 연결한다. 이전 production 코드 체크포인트 `9b53bd699126205b7a93fff326167f575252f1ea`는 저장 표의 수용 행 원장과 기존 회귀 검토 증거 보정이다. 진행70의 v86 retry2 두 Rust 파일을 이 커밋으로 고정했다. 실제 Native/fresh WASM 빌드는 부모 `3874bc4be037e84998d548e7755bc689af9d871b` 위 당시 미커밋 변경에서 수행했고 커밋된 production source와 동일하다. 이후 변경은 #7700 검사·자산 경로의 이관이며 진행74에서 검증한다. `cbaf53f3fa8fc8511ac82e5bd7481cfa56f8d922`와 진행61–62는 v78/retry1의 역사 체크포인트다. `e8ae5204d1b8e61851142f22b229de38f1867816`은 진행59의 rebase 체크포인트다. 이전 `3505cb8cd8d09f3c125fdb08c9ccec6efece78ff`는 진행55–56의 v73 검증·커밋·동기화 체크포인트다. 이전 `f3c8cd7d370668e36322db71c1c2c820260124ae`는 진행54의 v72 커밋·리베이스 체크포인트다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
@@ -1805,3 +1805,113 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 정식 generated `regression_suite_014`의 신규 관계 회귀는 **1/1PASS**, exit0/15.984초이다(`design-body-frame-official-v117b-exit.json`). 최초 정식 빌드에서 직접 dev dependency가 아닌 tempfile 사용이 실패해 표준 라이브러리의 전용 임시 경로/Drop 정리로 고치고, 동일 최종 case의 수정 전후 증거와 정식 suite를 다시 실행했다. 최초 빌드 실패는 결함 재현 증거로 세지 않는다. 파생 suite/manifest는 stage하지 않는다. 앞서 관련163/163PASS와 함께 이 단계의 증거이며 전체 Rust 회귀 통과로 확대하지 않는다.
 - #5877의 실제 v117 호출 경로를 원본/Print와 대조했다(`ghost-frame-trace-v118-exit.json`, `ghost-remaining-consumption-analysis-v118.json`). 11쪽의 `complete_block_next_height`가 병합 셀 잔여47.6px으로 미소비 새 완전 행의 원본 최소4960HU/66.133px을 제한한다. 독립 Print 첫 행 높이는66.008px이다. 다음 보정은 병합 잔여와 새 행의 요구 높이를 같은 예약/paint 경로에서 계상한다. 14쪽의 두0→0 소유자와 걸침 셀, 18쪽의 일반 셀 완료/병합 셀 마지막 유닛의 소유는 계속 분석하며, 빈 꼬리를 단순 제거하지 않는다. 이 분석만으로 #5877 완료 또는 회귀 변경을 선언하지 않는다.
 - 최종 Native/WASM32/workspace Clippy·정책 검사·전체 Rust 회귀·실제 편집 검증과 초기18개 개별 기록/오늘할일/통합 PR/CI/merge/후속 처리는 미완료다. #5877 11·14·18쪽의90% 미달은 여전히 보정 대상이다.
+
+
+### v118 적용 전 원인·반례와 배치 보정 범위
+
+- v117 완료 커밋 `a09fc8b968dd7bb67e74fa6ffb185c586bd19d56` 이후 fetch한 `upstream/devel`은 `21ed64071f81f35f37618717693bd30f727392c9`로 동일하므로 rebase하지 않았다.
+- #5877 새 완전 행의 최소 높이와 이어받기 본문 프레임 원점 두 원인을 함께 보정한다. 빈 `next_cut`의 `complete_block_next_height`는 앞 병합 칸의 잔여를 반환하지만, 새 완전 행의 내용/선언 높이는 미소비다. 같은 `row_cut_content_height(row,[],[])` 요구 높이와 병합 잔여 중 큰 값을 커서에서 생산하고 행 스캔·paint가 그대로 소비하게 한다. 컷이 있는 부분 행에는 이 완전 행 규칙을 적용하지 않는다.
+- 원본의 `common.height`·저장 host·바깥여백이 기존100HU 본문 프레임 하단을 닫는 Native HWP5의 이어받기에서도 HWPX와 같은 상단 바깥여백을 예약/paint가 한 번 연다. #5877 pi20 common66800HU + outer141HU는 기존 본문 종료66942HU에 정수 반올림1HU로 맞고, 독립 Print 14·18쪽 표 원점115.233px는 현재113.373px + 원본 outer141HU/1.88px에 대응한다. 원본 인증 helper를 budget/paint 양쪽에 같은 조건으로 사용한다. 이미 여백을 연 Design 및 반복 제목행/중첩/편집본은 기존 분기와 중복 계상하지 않는다.
+- 이 두 보정만으로 #5877 14·18쪽의 종료 컷/병합 소유 문제가 해결된다고 주장하지 않는다. 다음 후보의 영향9·11·14·18쪽과 Design 전7쪽, 관련 의미/정상 대조군을 한 묶음으로 실행한다. #5877 whole31 Native/fresh WASM90% 선행 조건 전에는 그 기존 회귀를 변경하지 않는다.
+
+
+### v118 Native 묶음 결과와 v119 물리 소유 분석
+
+- Native immutable SHA `4273b8f0b134ef2174d2ddaded74d2c3e825575794202e62c820dc37a3090ff0`, build exit0/89.772초·source불변이다. Design 전7쪽은 exit0/63.624초·최저5쪽96.39917%이며 v117의 TSV를 유지했다. 관련 정식/의미/대조군은 신규 관계 검사까지 **164/164PASS**, exit0/296.360초다. 전체 Rust 회귀 통과는 아니다.
+- #5877 영향4쪽은 exit1/232.987초·9쪽99.54633%, **11쪽98.68404%**, 14쪽80.64127%,18쪽82.75637%다. 직접 `native-ghost-direct-v118/ghost5877/review/review_011.png`·`review_014.png`·`review_018.png`를 대조했다. 11쪽 첫 미소비 행은47.6→66.1px로 복구하고 뒤 본문을 보존한다. 14쪽은 첫 행과 그 뒤 행의 높이 차이가 남으며18쪽은 첫 일반 행의 빈 꼬리와 병합 최소 높이 잔여가 어긋난다. 현재 후보를 전체 문서 시각 통과로 판정하지 않는다.
+- 원본/Print와 실제 Page/Cell 출력으로 내용을 확인했다. 14쪽의 row18 col0 병합 내용은13쪽에 모두 존재하고14쪽은 비어 있다. 18쪽의 row76 col0 병합 셀은17쪽에 `11./소화/용수`,18쪽에 마지막 `설비`를 소유한다. 모든31쪽 텍스트 multiset은 v117/v118 동일하다. 따라서 일반 행의 완료와 병합 셀의 내용 완료를 분리해야 한다(`ghost-v118-geometry-preservation.json`).
+- 다음 묶음은 본문 하단 상한을 **스캔 전에** 같은 원본 인증 결과에서 제한하고, 실제 일반 컷의 공동0→0 재시작/병합 소유자의 양수→0 저장 재시작을 대조해 해당 컷만 본문 물리 밴드를 소유하게 한다. 걸침 셀은 같은 `rowbreak_straddle_cut_units`의 실제 종료 유닛을 조회한다. 이미 완료한 걸침 내용은 컷의 미소비 소유자로 세지 않는다. 일반 행이 완료됐지만 병합 마지막 유닛이 다음 쪽에 남는 경우에도 실제 수용한 마지막 행 상자를 원장에 기록하고 다음 완전 행으로 전진시켜 병합 마지막 유닛을 보존한다.
+- 경로는 `원본 host/common 본문 종료 인증 → budget 상한 → scan 컷/실제 마지막 행 높이 → accepted_row_boxes → continuation 실제 잔여 → 동일 measured row의 paint`다. 첫0→0 컷의 원본 행 최소 잔여는 유지하고, 완료된 일반 행은 이전 행의 빈 꼬리로 새 행을 대체하지 않는다. Design 3쪽의 단독 일반 셀 재시작·중첩/편집본은 본문 채우기의 독립 증거가 없으므로 기존 동작을 유지한다. #5877 whole31 Native/fresh WASM·관계 회귀 선행 조건은 계속 미완료다.
+
+
+### v119 생산 결과와 v120 소비 연결 보정
+
+- immutable Native SHA `3fdf5b456cfc96177557bbff67d15abb85a1e932481b6c88778c1bbaee5a8e9e`·build exit0/122.386초·source불변이다. Design 전7쪽은 exit0/67.384초로 min96.39917%를 유지했고, 관련 **164/164PASS** exit0/327.560초다.
+- #5877 6쪽은9=99.54633,11=98.68404,13=94.76563,14=81.64369,17=96.17432,18=73.52430%다(exit1/304.749초). 이 후보는 통과가 아니다. 실제 스캔은13쪽 last27.027/17쪽 last58.493px의 본문 종료 상자를 생산했지만 후속 소비 연결은 미완료다.
+- 14쪽 row23은 원본 높이7676HU/102.347px에서 앞 조각27.027px을 뺀75.320px을 소유해야 한다. 기존 `first_fragment_blank_band`가 일반 잔여 전달을 제외해 남은 내용71.947px만 그렸다. 반대로 row37 원본4682HU/62.427px은 다음 쪽의 내용 높이보다 작으므로, 동일 RowCut의 미소비 내용 요구를 잔여보다 큰 하한으로 유지해야 한다(`ghost-partial-minimum-source-v120.log`). 이 조건을 실제 첫0→0 컷에 한정해 명시적으로 전달한다.
+- 18쪽 전환의 일반 종료 컷[1,1,1,1,3]은 모든 일반 셀을 끝냈지만 `StoredFragmentEnd.complete_cut`이 빈 내용 컷만 완료로 세어 실제58.493px 행 상자를 원장에 넣지 않았다. 걸침 유닛의 원본 양수→0 재시작과 독립 Print를 확인한 본문 종료 상자의 완료 행만 기록한다. `accepted_row_boxes → stored_fragment_row_plan`가 다음 완전 행의 최소/병합 종료 잔여를 다시 계산하고, 다음 쪽의 `설비` 유닛을 그대로 보존하도록 한다. 실제 소유 컷을 건너뛰거나 glyph만 숨기지 않는다.
+- 다음 candidate는 이 두 소비 연결을 함께 보정하고 동일6쪽/Design7쪽/관련164개를 확인한다. 전체31쪽 Native/fresh WASM·정식 관계 회귀 선행 조건과 최종 lint/전체 회귀/PR 절차는 계속 남아 있다.
+
+
+### v120 선행 소비 경계 관측과 v121 완료/정렬 계약
+
+- Native SHA `dbdd47e9c5da5f40c4d9275c3232e9d84ec3b22daf0c9363db466f7cf910a40f`·build exit0/105.587초·source불변이며 CLI 전31쪽 진단은 exit0/5.791초다. 18쪽은 row77 원점115.3, row80 높이69.8로 복구하고 `설비`를 보존했다. 14쪽 row23은 여전히71.9px이며 가운데 정렬 한 줄이 셀 머리115.3px에 남는다. 이 후보는 시각 통과로 판정하지 않았고 비용이 큰 묶음 회귀는 아직 실행하지 않았다.
+- `advance_row_cut(start=cut,budget=MAX).fully_consumed`는 **남은 유닛이 무제한 예산 안에 다 들어간다**는 뜻이지, 그 컷에서 유닛이 이미 없다는 뜻이 아니다. 기존 `complete_physical_end_cut`은 이를 혼동했고 v120의 미소비 잔여 전달을 건너뛰었다. 실제 컷 인덱스가 각 일반 소유자의 전체 유닛 수와 같은지 확인하는 완료 계약으로 바꾼다. 빈/개체 유닛도 인덱스로 검사해 `보이지 않음/높이0`을 완료의 대용으로 사용하지 않는다.
+- 동일 원본의 `rowspan_declared_overflow_shrink`는 전150행0이다(`ghost-grid-shrink-source-v121.log`). 14쪽의 선언 높이 누락 원인은 선언을 줄이는 모델 보정이 아니라 위 완료 의미의 혼동이다. 원본 값에 대한 예외를 추가하지 않는다.
+- 원본 본문 프레임·실제0→0 소유 컷·전달된 시작/끝 높이가 확인된 일반 행은 해당 물리 조각의 원본 `Center` 정렬도 소유한다. 이 같은 행 소유를 셀 composition window와 `effective_align` 소비 지점에 전달한다. 기준 Print 14쪽의 한 줄은 셀 중앙,13쪽의 첫 줄도 앞 조각 상자 중앙이다. 중첩/편집본·일반 양수 되감김의 단독 셀은 이 계약에 포함하지 않는다. 이 두 소비 경계를 한 번에 보정한 뒤6쪽/Design7쪽/관련164개를 묶어 확인한다.
+
+
+### v121 선행 좌표·정렬 대조와 최종 경계 묶음
+
+- v121 Native SHA `179a8c1fc88e10b33fa8e1b682cfff2e19a34bb7ba202a2dc0e86540e01eb850`·build exit0/86.323초, 전31쪽 CLI 진단 exit0/5.839초·source불변이다. 14쪽 row23 높이는75.3px, 선택한 한 줄의 원점146.9px로 복구했다. 독립 Print의 같은 글줄 bbox는147.371px이다. 18쪽 row80 높이69.8px과 마지막 `설비` 유닛도 보존했다.
+- 독립 `pdftotext -bbox`를 원본 Print의13·14·17·18쪽에 실행했다(`ghost-independent-text-alignment-v121.json`, 각 html). Glyph bbox와 line box의 미세 메트릭 차이를 구분하며, Native14쪽 머리115.3px vs 독립147.371px의 큰 정렬 차이는 해소됐다.
+- 17쪽의 실제 원본 병합 컷은 다음 쪽의 마지막 `설비`를 남기므로 기존 마지막 병합 조각 정렬 경로에 포함되지 않았다. 이 앞 조각도 확인된 본문 프레임과 양수→0 소유 컷을 공유한다. Native `11./소화/용수` 원점947.4/966.5/985.6px vs 독립949.921/969.100/988.119px의 차이를 확인했다. 같은 종료 행 인증을 병합 셀의 실제 종료 유닛 조회와 연결해 선택한 앞 조각만 원본 Center로 정렬한다. 다음 유닛을 앞 조각 구성에 포함하지 않고 마지막 조각의 기존 정렬을 보존한다.
+- 선행 CLI 경계 진단 뒤 이 최종 정렬 연결까지 묶어 Native6쪽/Design7쪽/관련164개를 확인한다. 부분 점수 통과로 Ghost 전31쪽 또는 fresh WASM 완료를 주장하지 않는다.
+
+
+### 원 PR 상태 재조회 (2026-10-11, v122)
+
+- `gh pr list --repo edwardkim/rhwp --author semanticist21 --state all --limit100 --json ...`의 API 결과를 초기18개 번호에 대조했다(`semanticist21-pr-states-v122.json`). #7612는2026-10-08T21:00:28Z에 이미MERGED이며 나머지17개는OPEN/비draft다. 통합 scope는 초기18개 고유41개 contributor commit 그대로다.
+- #7615의 현재 remote head는 `4a6c27c5ffa54e4988a7e0e7956115d933725aca`로 최초 선택 head와 다르다. 최신 head의 후속 의존 변경을 새로 적용하지 않으며, 원 PR의 최종 close 판정은 실제 통합한 원 commit 범위와 남은 최신 diff를 대조해야 한다. 이 조회는 remote 변경이나 추가 체리픽이 아니다.
+
+
+### v122 최종 선행 묶음 통과·전쪽 검증 시작
+
+- immutable Native SHA `0047b6492df08f132042aa93b58096acc382fa852eb0f60481c802b2295df0c7`·build exit0/84.616초·production불변이다. 공식 관련/정상 대조군 **164/164PASS**, exit0/397.314초이며 전제 base/생성 suite를 바꾸지 않았다. Design 전7쪽은 exit0/67.132초·최저5쪽96.39917%·미달/누락0으로 v117 점수를 유지한다.
+- #5877 영향6쪽은 exit0/279.171초·9=99.54633%,11=98.68404%,13=95.02698%,14=96.93008%,17=96.15809%,18=93.45386%이며 전부90% 이상이다. 현재 Native13/14/17/18쪽 `native-ghost-direct-v122/ghost5877/review/`를 직접 표시/판독했다. 상단·하단 외곽과 다음 행 위치,14쪽 한 줄의 Center,17쪽 앞 세 유닛과18쪽 마지막 `설비`/뒤 내용의 보존을 대조했다. 괘선 명도/글리프 메트릭과 미세한 내부 열/줄 차이는 남고 기준 PDF와 픽셀 동일하다고 주장하지 않는다.
+- actual CLI 전31쪽은 source불변/exit0이며 모든4570 텍스트 노드 multiset이 v117과 동일하다(`ghost-content-preservation-v122.json`). 새 유닛 소유·스캔/예약/paint 연결의 결과이며 독립 Print의 시각 통과를 대신하지 않는다.
+- ignored `issue_5877_source_frame_relations_candidate_v122.rs`의3개 관계 후보는 같은 case/원본을 frozen 수정 전 v113 CLI / 현재 v122 CLI에 실행해 **3FAIL→3PASS**를 확인했다(`ghost-source-frame-before-after-v122.json`, 각 compile/test log). 본문 내 같은 문단의 두 표, 새 완전 행 vs 이전 잔여, 선택한 한 줄의 가운데 포함·병합 유닛의 쪽 소속·뒤 종료 행의 상대 높이를 검사한다. 절대 위치/고정 영역/해시 pin을 기대값으로 쓰지 않는다. 아직 정식 regression source·fixture·golden을 등록하거나 기존 #5877 px 검사를 변경하지 않았다.
+- 같은 production을 고정해 Native 전31쪽 비교와 표준 fresh WASM build를 시작했다. 현재 source hash와 이미 성공한6쪽만으로 전31쪽/fresh WASM90%를 단정하지 않는다. source 파일을 변경하지 않은 채 결과를 기다리고, 필요한 대표/미달 쪽 PNG를 대조한 뒤 관계 회귀를 등록한다. 최종 lint·전체Rust·실제 편집 검증·초기18개 개별 기록/오늘할일/통합PR/CI/merge/후속 처리는 계속 남는다.
+
+## 104. v122 전쪽 결과와 v123 물리 행 누적 보정 근거
+
+- Native31쪽은 exit1/1071.363초·누락0·미달1이며15쪽79.49738%가 새로 검출됐다. 나머지30쪽은90% 이상이다. 영향6쪽 통과를 전쪽 통과로 승격하지 않는다. `native-ghost-whole-v122/ghost5877/silhouette.tsv`와 새 `native-ghost-direct-whole-v122/ghost5877/review/review_015.png`를 직접 표시/판독했다.
+- fresh WASM 빌드는exit0/1128.892초·production 불변이며 frozen package/root pkg/Studio public JS·WASM의 SHA-256이 모두 같다. 실패15쪽을 fresh WASM으로 재현했고exit1/154.077초·79.49738%·Native와PNG 바이트 동일이다. Native에서 전쪽 gate가 이미 실패했으므로 같은 후보의WASM31쪽을 반복하지 않고 원인 수정으로 진행한다. v122의fresh 전쪽 통과나Studio 실제 동작 검증을 주장하지 않는다.
+- 독립 Print15쪽의 `pdftocairo -svg` 괘선(`ghost-independent-p15-grid-v122.json`)은 시작115.234px, 첫 행 끝167.974px, 병합 종료 행 끝237.021px이다. 원본34행 병합 높이24522HU=326.960px인데 앞 조각37행 실제21.387px과 뒤 조각52.853px을 함께 차감하지 않아 종료38행에 기존 전역 잔여71.333px을 재사용했다. 실제 합74.240px을 쓰면 종료 요구는69.040px이며 독립 Print의69.047px에 대응한다.
+- 생산/소비 연결: `emit.rs`가 확정한 원본 재시작 컷의 실제 마지막 상자 → continuation cursor의 아직 완료되지 않은 같은 행 누적 → `physical_rows.rs`의 이어받기 첫 상자와 이후 병합 종료 행 요구 → 동일 fragment_row_heights를 소비하는 scan/측정/paint. 미완료 컷은 완료 행 장부와 분리하며 큰 예산에 들어가는지로 완료를 추정하지 않는다. 신규 회귀 추가 및기존 #5877 픽셀 검사 변경은 Native/fresh 전31쪽90%와직접 판독 전까지 보류한다.
+- v123 첫 후보는 양수 reset의 공동 컷 계약과 달리 첫0→0 뒤 정상 저장 줄 사다리로 입증된 재시작에서 미소비 소유자 수가1이어도 프레임을 보존하도록 수정했다. 동시에 넣은 동일 문단 제한은 아래 실행에서 원본 문단 간 전역 사다리를 거부한 것으로 확인되어 v124에서 제거했다. 특정 쪽이나 문서 ID로 분기하지 않으며 코드 변경 뒤에는 v122 결과를 현재 결과로 재사용하지 않는다.
+- v123 첫 빌드의 새 StoredFragmentEnd 초기자 누락은 보완해 재빌드exit0/111.032초로 해소했다. 이어받기 트리는exit0/5.682초지만 같은 문단 여부로0→0을 제한한 새 가정 때문에 원본의 문단 간 셀 전역 저장 재시작도 거부해14쪽 잔여가71.9px로 되돌아갔다. 이 가정을 제거한 v124로 재검증한다. 앞 행의 실제 유닛이 두 번째 원본 저장 줄을 소유하는지와 뒤 양수 사다리/원본 본문 프레임 증거는 유지하며 문단 인덱스 동일성으로 쪽을 추정하지 않는다. v123 트리나빌드 성공을 시각 성공으로 보고하지 않는다.
+- v124 Native 빌드는exit0/47.555초·production 불변이며CLI SHA256 `2f725838570d232614f5cd6f2a4970ca5c3561bd979ad04d3e5b06439d41ec8c`다. 실제31쪽 트리에서14쪽 첫 잔여75.3px을 유지하고15쪽38행은69.0px,34행 병합 앞/뒤 상자205.1+121.9px로 원본24522HU 최소 높이를 보존한다.15쪽 마지막49행은27.1px로 실제 저장 재시작 프레임을 수용한다. 아직 점수·시각 통과의 대용으로 쓰지 않는다.
+- 같은최종 관계 후보4개(`issue_5877_source_frame_relations_candidate_v123.rs`)를 frozen CLI로 실행했다. v113은3FAIL/1PASS, v122는이번 누적 검사1FAIL/3PASS, v124는4PASS이며모든compile exit0·run101/101/0이다(`ghost-source-frame-four-before-after-v124.json`). 이는 ignored 진단 후보이고 전쪽 Native/fresh gate 전에는 정식tests/cases로 추가하지 않는다.
+- 설계평가기준 Native7쪽은exit0/54.673초·최저5쪽96.39917%·미달/누락0이며 기존v117과TSV 값이 같다. 현재production의fresh WASM7쪽은 별도 실행할 예정이다.
+- 종료 증적을 확인한 이전 #5877 SVG106개를 삭제해5.099GiB를 확보했다(`completed-ghost-svg-cleanup-v124.json`). 실패15쪽 조사용SVG3개와 PNG/TSV/원본/Print/실행기록은 보존했고 압축하지 않았다.
+- v124 영향8쪽 Native는exit0/209.368초·9=99.54633%,11=98.68404%,13=95.02698%,14=96.93008%,15=96.15582%,16=95.99031%,17=96.15809%,18=93.45386%·미달/누락0이다. 새 `native-ghost-direct-v124/ghost5877/review/review_015.png`와`review_016.png`를 실제 표시/판독해 병합 종료 높이와 뒤 내용·하단 프레임을 대조했다. 나머지6쪽도현재재출력PNG가v122와바이트동일이다. 괘선 명도·미세한 열/글리프 차이는 남으며픽셀 동일을 주장하지 않는다. Native 전체31쪽과현재fresh WASM31/설계7쪽이 아직 남아 있다.
+- 기존 #5877 고정 x/y 검사 대신 실제 첫 밴드의 셀 경계와 출력 괘선의 대응을 검사하는 ignored 관계 후보는1PASS/exit0/6.462초다(`ghost-column-grid-relations-v124-exit.json`). 원본 지오메트리를 고정 숫자로 복제하지 않으며전쪽 gate 전에는 기존 정식 검사를변경하지 않는다. Native Clippy `-- -D warnings`도exit0/97.806초·production 불변이다. WASM32/워크스페이스lint 및최종전체Rust는별도필수검증으로남는다.
+- Native31쪽과새WASM 빌드를 시작했고현재production을v124 SHA inventory로 고정했다. 진행중작업의로그/TSV/PNG는새v124경로에보존하며과거전쪽을현재통과로쓰지않는다.
+- v124 원본 내용 보존: 31쪽 전쪽 트리의 각 쪽 텍스트 multiset4570개가v122와 모두동일하며 트리 변경은15/16쪽뿐이다(`ghost-content-preservation-v124.json`). 실제 입력/독립Print도수정하지않았다. 내용 보존은 시각 gate를 대체하지 않는다.
+
+## 105. 고용지원기준 기존 회귀의 원본 진단 — v124 읽기 전용
+
+- 실패 #6950의 실제 입력은 `samples/issue6025/3232693_employment_support_criteria.hwpx`이며 같은파일의다른 합성 검사가읽는20260909-para-table과구분했다. 고정base21ed Native4쪽은86.51725/81.14196/93.69061/95.86258%·exit1,현재v124는89.49447/81.14196/93.69061/95.86258%·exit1/48.515초다. 기준에서도미달인원본이지만동일 #7445 이관을 확인하지못해기존검사를유지했다. 현재1/2쪽 review PNG를 실제 표시/판독했다(`native-employment-direct-v124/employment6025/review/`).
+- 원본ZIPXML(`employment-source-cuts-v124.json`),독립Print벡터/텍스트(`employment-independent-p1/p2-v124.svg/html`),실제경로trace(`employment-source-frame-trace-v124`·exit0/0.617초)를대조했다. 첫표common69352HU=924.693px,7행16170HU=215.6px·CENTER·10800→0뒤1600원본사다리다. Print7행앞175.489px+뒤39.797px=215.286px인데현재앞161.1px+뒤38.4px이며앞글은911.7px대Print918.625px이다. 현재다음쪽원점75.6px대Print77.354px이다.
+- 예산은926.6px라첫저장924.693px이들어가지만trace에서source_frame=None이다. budget.rs는글줄저장원점과preemit뒤문단원점을비교하고,stored_frame_budget.rs는일반미완료컷의물리확장을거부한다. 문단앞간격20px과실제해석된host_placement의좌표계를추적한뒤같은원점/요구/수용/정렬결과로고치는것이원인후보다(`employment-shared-first-frame-diagnosis-v124.json`). 부분컷의미소비내용과빈띠는분리하고다음최소상자는실제앞상자를차감한뒤남은내용요구를하한으로삼는다. 본문/다음조각위여백도예산과paint가같은술어를써야한다.
+- #5877 검증 source는v124로고정중이므로이진단에서production을수정하지않았다. 고용지원기준의원본/기존테스트를삭제하거나회귀기대값을완화하지않으며먼저같은원본Native/fresh4쪽을90%이상으로만든뒤독립관계로검사를변경한다.
+- GitHub 현재 #7445 직계 하위 이슈79개의본문/제목을읽기전용으로재조회했고3232693/employment/6950/취업취약/고용지원/취업지원서비스/수급요건의직접일치는없었다(`issue7445-subissues-employment-check-v124.json`·`issue7445-employment-check-v124-result.json`). 하위이슈코멘트는전수검색하지않았으므로동일이관이없다는확정판정은하지않는다. 기존검사를삭제할근거로쓰지않는다. 현재79개와기존77개스냅샷의차이는 #7803/#7804이며이번읽기에서추가수정/삭제하지않았다.
+
+## 106. v124 Native 전쪽 통과와 fresh WASM 비교 시작
+
+- Native31쪽은exit0/1075.438초·production 불변·최저18쪽93.45386%·미달/누락0이다(`native-ghost-whole-v124/ghost5877/silhouette.tsv`). 동일원본과31쪽독립Print를끝까지비교했다. 앞서직접표시한현재영향쪽review와연결하며Native전쪽을WASM통과로대신하지않는다.
+- fresh WASM build는exit0/1116.358초·production 불변이다. frozen/root pkg/Studio public의JS SHA256은모두4628f097cddafb073362cc2ff03d19744de3e037aa62d311b4bd4386528c7a20,WASM은모두bb879fa64ea41da9521f2f1c9a00eb94b4b52b6c06c3cbf710988029532ad063이다. Studio실제브라우저동작이나WASM전쪽gate통과의대용이아니다.
+- 같은frozen package로fresh WASM #5877 전31쪽과설계평가기준전7쪽비교를시작했다. 신규관계4검사추가/기존격자픽셀검사관계변경은이최종전쪽gate와직접PNG확인뒤에수행한다. Native Clippy완료뒤현재WASM32libClippy를순차검증하며Cargo동시실행은없다.
+
+## 107. v124 fresh 전쪽 완료와 관계 회귀 등록
+
+- #5877 fresh WASM31쪽은exit0/1062.349초·production 불변·최저18쪽93.45386%·미달/누락0이다. Native전31쪽과TSV/전31PNG바이트가동일하다(`ghost-native-fresh-wasm-whole-v124-parity.json`). 현재fresh15/18쪽 review PNG를실제표시/판독했고17쪽도생성했다(`wasm-ghost-direct-v124/ghost5877/review/`).15쪽병합종료와뒤행,18쪽마지막병합유닛과후속내용소속을대조했으며미세한선/글리프차이는남는다.
+- Native/fresh전쪽선행조건확인뒤 `tests/cases/issue_5877_source_frame_relations.rs`에ignored진단의동일4검사를등록했다. v113의3FAIL/v122의추가1FAIL/v124의4PASS를검출증거로연결한다. 기존 `issue_5877_fragment_ghost_vrules.rs`의고정GHOST_X/REAL_X/y상한은실제첫밴드의셀경계와그밴드를가로지르는괘선의쌍방향대응으로교체했다. 격자검사이전오류의수정전검출을이번4검사로대신주장하지않는다.
+- 설계평가기준fresh7쪽은exit0/60.705초·최저5쪽96.39917%·미달/누락0이며Native7쪽과TSV/전7PNG바이트동일이다. 현재fresh2/3쪽review도실제표시/판독했다. `issue_5885_nested_host_row_ladder_end.rs`의고정위치/선택밴드/마지막본문y값을원본행소유·실제부모셀의두중첩표포함·다음행접속·선택글줄상자+원본안여백의첫종료·예약/paint공통끝·실제Body포함으로변경했다. 원본안여백값은컷helper반환값으로재계산하지않는다. 같은최종원본의직접컴파일/2검사는exit0/9.727초이다. 최초진단compile의Body구조패턴과standalone serde중복타입문제는보완했고그실패를결함재현으로세지않았다.
+- WASM32libClippy는exit0/89.201초·production불변이다. Native/WASM32Clippy성공만으로workspaceall-targets/최종전체Rust/통합PR승인을선언하지않는다. 이제최종정식suite·필수lint·고정base정책검사를검증한뒤보정단계를커밋한다.
+- 최종 전체 Rust 검증 시작: `cargo nextest run --cargo-profile release-test --target-dir /home/tsjang/rhwp/target/pr-review --tests --test-threads 12 --no-fail-fast`를현재production/최종정식검사로시작했다(`whole-default-rust-source-frame-v124-command.json`,timeout5400초). 기존v103의27실패목록을현재결과로재사용하지않고종료summary를확인한다. Cargo/Rust실행중에는production/검사/파생suite를변경하지않는다.
+
+- 같은최종source의고정base21ed manifest정책은exit0/6.361초,unit-tier정책은exit0/32.386초다.59개시험지/HML원본은v112SHA와전부동일하며삭제하지않았다(`exam-originals-preserved-v124.json`).현재Rust AST감사에서직접원본참조와같은파일helper/상위상수의전이참조후보는0개다(`exam-regression-consumer-audit-v124.json`).이감사는동적전수탐색의모든경로를입증하지않으므로기존전수탐색제외정책과구분한다.전체nextest는진행중이며대형#2063은444.937초뒤PASS,기존격자1/설계관계2도현재정식suite에서PASS다.현재fresh#5877최저18쪽review를다시표시/판독했고하단선/글리프의미세차이도남는다고기록한다.
+
+- 종료exit0을확인한현재Native/fresh31쪽비교의SVG124개를정확한두output경로에서삭제해4.616GiB를확보했다(`completed-whole-ghost-svg-cleanup-v124.json`).압축하지않으며전쪽PNG/TSV/실행기록/대표직접review/원본/Print는보존한다.공유Cargo산출물은이정리대상이아니다.
+
+
+## 108. v124 전체 Rust 종료 — 남은 17실패 유지
+
+- 정식 전체 nextest는 exit100/1509.650초이며 production과 최종 검사는 불변이다. `Summary [ 966.843s] 10344 tests run: 10327 passed (13 slow), 17 failed, 45 skipped`. `whole-default-rust-terminal-failures-v124.json`에 모든 실패명, 현재 #5877·#5885 검사 8개의 실제 PASS, 실행 명령·exit·log를 연결했다. 전체 실행을 통과로 보고하지 않는다. v103의 27개와 비교하면 같은 검사명으로 현재 PASS인 6개와 새 실패명 0개다. 과거 실패명 4개는 현재 실행 목록에 없으므로 통과로 세지 않는다. v103은 원본 복구 시점도 달랐으므로 이 이름 비교를 동일 입력의 수정 전후 검출 증거로 승격하지 않는다. 파싱은 Summary 뒤 반복 실패 목록을 제외해 10,344개의 고유 실행을 확인했다.
+- 남은 실패: overflow-cell partition1/2/7/8/9, #6860 수동 대조군, #4882 HWPX 왕복, #6950 고용지원기준, #5966 각주 fresh page, #7009 편람 2개, oracle 쪽수 partition0, #1891 외부 링크, #1156 KPS, #3820 저장 쪽 꼬리, #6718 되감김, #1133 쪽번호 각주다. 새 관계 검사를 위해 기존 실패를 삭제하거나 완화하지 않았으며 원본 Native/fresh 90%와 같은 #7445 이관 여부를 각각 판정한다.
+- 전체 Rust 프로세스 종료를 확인한 뒤 같은 source/검사에서 fmt/workspace build/all-target Clippy를 순차 실행한다. 현재 단계 커밋은 보정 범위와 남은 실패를 함께 고정하는 체크포인트이며 통합 PR 준비 완료가 아니다.
+
+- 최종 lint: fmt 실행 27.196초·fmt check 26.554초, workspace build 168.070초, workspace all-target Clippy 125.610초가 모두 exit0이며 production/정식 case는 불변이다. Native Clippy 97.806초·WASM32 lib Clippy 89.201초와 고정 base21ed의 두 정책 검사를 함께 `source-frame-checkpoint-gates-v124.json`에 각 exit 기록으로 연결했다.
+- 실제 보정 원본 2개와 독립 Print PDF 2개는 HEAD의 커밋된 blob SHA256과 모두 일치한다(`source-frame-original-print-commit-verification-v124.json`). CGMP 기존 관계 검사 5개도 이번 전체 정식 실행에서 모두 PASS다. 새 CGMP 전쪽 검증으로 확대하지 않는다. 초기18개 최종 전체 gate, 실제 편집/Studio, 남은 실패 원본의 보정과 Native/fresh 시각 증거, 개별 PR 기록/오늘할일/통합 PR/CI/merge/후속 처리는 계속 남아 있다.

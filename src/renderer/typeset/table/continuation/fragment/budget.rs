@@ -157,14 +157,19 @@ impl TypesetEngine {
                     input.source.styles,
                 );
         let source_body_frame_opens_outer_top = st.current_height <= 0.5
-            && crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
+            && (crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
                 para,
                 table,
                 st.layout.body_area.height,
                 self.dpi,
                 st.profile.hwpx_stored_layout(),
                 st.profile.session_edited(),
-            );
+            ) || (is_continuation
+                && prepared.layout_engine.original_body_closed_table_frame(
+                    para,
+                    table,
+                    st.layout.body_area.height,
+                )));
         let fragment_opens_outer_top = std::ptr::eq(row_geometry_table, table)
             && (source_body_frame_opens_outer_top
                 || crate::renderer::float_placement::column_rowbreak_fragment_opens_outer_top(
@@ -1525,6 +1530,32 @@ impl TypesetEngine {
                 source_first_fragment_overflow_allowance,
                 source_complete_frame_last_row,
             )
+        };
+
+        // 원본 개체가 본문 프레임을 닫으면 내용 컷도 그 물리 상한 안에서
+        // 먼저 선택한다. paint에서 줄이는 높이를 앞 조각 원장에 남기지 않는다.
+        // 단독 셀의 내용 종료는 이 예산을 채울 의무가 없다.
+        let avail_for_rows = if is_continuation
+            && st.current_height <= 0.5
+            && st.current_zone_y_offset == 0.0
+            && std::ptr::eq(row_geometry_table, table)
+            && prepared.layout_engine.original_body_closed_table_frame(
+                para,
+                table,
+                st.layout.body_area.height,
+            ) {
+            let top = fragment_placement.map_or(
+                st.current_height + host_before_overhead + vert_offset_overhead,
+                |placement| placement.table_top,
+            ) + caption_extra;
+            let bottom = crate::renderer::float_placement::single_cell_page_fragment_bottom(
+                table,
+                st.layout.body_area.height,
+                self.dpi,
+            );
+            avail_for_rows.min((bottom - top - header_overhead).max(0.0))
+        } else {
+            avail_for_rows
         };
 
         // [Task #1046 Stage 2 진단] 첫/연속 fragment 의 가용공간 분해 — 렌더러

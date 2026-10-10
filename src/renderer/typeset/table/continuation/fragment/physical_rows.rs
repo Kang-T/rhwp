@@ -13,6 +13,7 @@ pub(super) struct StoredFragmentEnd {
     pub(super) complete_cut: bool,
     pub(super) block_start: Option<usize>,
     pub(super) last_height: Option<f64>,
+    pub(super) restart_frame_closes_body: bool,
 }
 
 impl TypesetEngine {
@@ -91,15 +92,23 @@ impl TypesetEngine {
             return None;
         }
         let table = source.row_geometry_table;
+        // 이 높이는 앞 emit이 생산해 시작 행 스캔과 paint에 그대로 넘긴
+        // 물리 상자다. 앞 쪽 상자와 합쳐 이후 병합 종료 행의 요구를 잰다.
+        let resumed_row_box = cursor.stored_restart_row_box.and_then(|(row, before)| {
+            (row == cursor.row && !cursor.start_cut.is_empty())
+                .then_some(cursor.start_row_height_override?)
+                .map(|current| before + current)
+        });
         // A cut's start owner subtracts every preceding physical row of its
         // spanning cell. Do not mix accepted boxes with original estimates for
         // unknown partial rows: that can repeat already consumed source units.
         let prefix_known = |first: usize, end: usize| {
             (first..end).all(|row| {
-                cursor
-                    .accepted_row_boxes
-                    .get(row)
-                    .is_some_and(Option::is_some)
+                (row == cursor.row && resumed_row_box.is_some())
+                    || cursor
+                        .accepted_row_boxes
+                        .get(row)
+                        .is_some_and(Option::is_some)
             })
         };
         if table.cells.iter().any(|cell| {
@@ -122,6 +131,10 @@ impl TypesetEngine {
                 *target = *height;
             }
         }
+        if let Some(height) = resumed_row_box {
+            heights[cursor.row] = height;
+        }
+        let accepted_prefix_end = cursor.row + usize::from(resumed_row_box.is_some());
         // A resumed first row owns a cut, not a complete source row. Keep its
         // existing cut/remaining-band contract while later whole rows consume
         // the accepted physical prefix from earlier fragments.
@@ -140,12 +153,12 @@ impl TypesetEngine {
                     cell.row_span > 1
                         && cell.height < 0x8000_0000
                         && cell.row as usize + cell.row_span as usize == row + 1
-                        && prefix_known(usize::from(cell.row), cursor.row.min(row))
+                        && prefix_known(usize::from(cell.row), accepted_prefix_end.min(row))
                 })
                 .collect();
             if !closing.iter().any(|cell| {
                 let first = cell.row as usize;
-                (first..cursor.row.min(row))
+                (first..accepted_prefix_end.min(row))
                     .any(|prior| (heights[prior] - original[prior]).abs() > 0.5)
             }) {
                 continue;
@@ -214,6 +227,26 @@ impl TypesetEngine {
                 end.row.saturating_sub(1)
             }
         });
+        cursor.accepted_row_boxes.resize(heights.len(), None);
+        if let Some((row, before)) = cursor.stored_restart_row_box {
+            if row == input.start.cursor_row && row + 1 < end.row {
+                if let Some(current) = input.start.start_row_height_override {
+                    cursor.accepted_row_boxes[row] = Some(before + current);
+                    cursor.stored_restart_row_box = None;
+                }
+            }
+        }
+        // 아직 끝내지 않은 행의 컷은 완료 행으로 기록하지 않는다. 원본
+        // 본문 프레임에서 실제 확정한 상자만 다음 같은 행에 전달한다.
+        if end.restart_frame_closes_body && !end.complete_cut && end.block_start.is_none() {
+            if let (Some(row), Some(height)) = (end.row.checked_sub(1), end.last_height) {
+                let before = cursor
+                    .stored_restart_row_box
+                    .filter(|&(owner, _)| owner == row)
+                    .map_or(0.0, |(_, height)| height);
+                cursor.stored_restart_row_box = Some((row, before + height));
+            }
+        }
         if first >= whole_end {
             return;
         }
@@ -223,7 +256,6 @@ impl TypesetEngine {
                 input.source.para_index, first, whole_end, end.last_height, heights
             );
         }
-        cursor.accepted_row_boxes.resize(heights.len(), None);
         for (row, &height) in heights.iter().enumerate().take(whole_end).skip(first) {
             cursor.accepted_row_boxes[row] = Some(if row + 1 == end.row {
                 end.last_height.unwrap_or(height)

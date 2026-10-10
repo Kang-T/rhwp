@@ -1123,6 +1123,8 @@ impl LayoutEngine {
         center_pinned_single_cell: bool,
         center_saved_spanning_cell: Option<usize>,
         align_saved_opening_frame: bool,
+        // 원본 쪽 재시작과 전달된 물리 높이를 함께 확인한 시작/끝 행.
+        original_restart_alignment_rows: [Option<usize>; 2],
         // [#6976] 접기 대상 행(모델 행 인덱스)과 그 행이 남긴 여분의 최솟값 수집기.
         fold_last_row: Option<usize>,
         fold_slack: &mut f64,
@@ -1373,6 +1375,11 @@ impl LayoutEngine {
                         && end >= units.len()
                         && self.stored_plain_text_span_frame(table, cell)
                 });
+            let original_restart_span_owns_alignment = original_restart_alignment_rows[1]
+                .is_some_and(|row| cell_row <= row && row < cell_end_row)
+                && straddle_cut_units.is_some_and(|(_, end)| {
+                    self.original_restart_span_cut_owns_alignment(table, cell, end, styles)
+                });
             let full_width_frame_owns_alignment = end_row_height_override.is_some()
                 && cell_row + 1 == end_row
                 && !end_cut.is_empty()
@@ -1472,11 +1479,12 @@ impl LayoutEngine {
             let ordinary_source_frame_owns_alignment = cell.row_span == 1
                 && !is_block_split
                 && !start_cut_is_block
-                && ((end_row_height_override.is_some()
-                    && cell_row + 1 == end_row
-                    && self.stored_ordinary_row_frame_owns_alignment(
-                        table, cell_row, end_cut, styles,
-                    ))
+                && (original_restart_alignment_rows.contains(&Some(cell_row))
+                    || (end_row_height_override.is_some()
+                        && cell_row + 1 == end_row
+                        && self.stored_ordinary_row_frame_owns_alignment(
+                            table, cell_row, end_cut, styles,
+                        ))
                     || (is_continuation
                         && start_row_height_override.is_some()
                         && cell_row == start_row
@@ -1547,7 +1555,7 @@ impl LayoutEngine {
                 && (ordinary_source_frame_owns_alignment || complete_plain_suffix_frame
                     || full_width_frame_owns_alignment
                     || cut_frame_owns_alignment
-                    || stored_span_frame_owns_alignment);
+                    || stored_span_frame_owns_alignment || original_restart_span_owns_alignment);
             let saved_frame_needs_alignment =
                 (align_saved_opening_frame && cell_row + 1 == end_row || frame_owns_alignment)
                     && cell.vertical_align != crate::model::table::VerticalAlign::Top;
@@ -2032,6 +2040,12 @@ impl LayoutEngine {
                         self.stored_ordinary_cell_cut_content_height(
                             table, cell, start, end, styles,
                         )
+                    })
+                    .unwrap_or(total_content_height)
+            } else if original_restart_span_owns_alignment {
+                cut_units
+                    .map(|(start, end)| {
+                        self.cell_cut_visible_height(cell, table, styles, start, end)
                     })
                     .unwrap_or(total_content_height)
             } else if full_width_frame_owns_alignment {
@@ -5407,7 +5421,9 @@ impl LayoutEngine {
                     || self.profile.get().hwp5_stored_pagination_layout(),
                 self.profile.get().session_edited(),
             );
-        let stored_body_frame_opens_outer_top = body_filling_source_frame
+        let stored_body_frame_opens_outer_top = (body_filling_source_frame
+            || (is_continuation && self.original_body_closed_table_frame(
+                &paragraphs[para_index], table, col_area.height)))
             && col_node.children.is_empty()
             && (y_start - col_area.y).abs() <= 0.5;
         // 저장 HWP5의 반복 제목행을 가진 다행 RowBreak 표도 첫 저장 앵커와
@@ -6332,7 +6348,51 @@ impl LayoutEngine {
             })
             && end_row.checked_sub(1).is_some_and(|row| {
                 self.row_cut_closes_shared_original_frame(table, row, end_cut, styles)
+                    || self.row_cut_closes_original_restart_frame(
+                        table,
+                        row,
+                        end_cut,
+                        &resolved_row_heights,
+                        styles,
+                    )
             });
+        // 같은 원본 프레임 소유를 줄 구성과 최종 셀 정렬에 넘긴다.
+        // 컷으로 고른 내용만 전달된 물리 상자 안에서 정렬하며 전체 셀 내용은
+        // 다음 조각의 유닛까지 이 조각에 포함하지 않는다.
+        let original_restart_alignment_rows = if is_continuation
+            && enclosing_cell_ctx.is_none()
+            && !is_block_split
+            && !start_cut_is_block
+            && paragraphs.get(para_index).is_some_and(|host| {
+                self.original_body_closed_table_frame(host, table, col_area.height)
+            }) {
+            [
+                start_row_height_override
+                    .filter(|_| {
+                        self.row_cut_closes_original_restart_frame(
+                            table,
+                            start_row,
+                            start_cut,
+                            &resolved_row_heights,
+                            styles,
+                        )
+                    })
+                    .map(|_| start_row),
+                end_row_height_override.and_then(|_| {
+                    let row = end_row.checked_sub(1)?;
+                    self.row_cut_closes_original_restart_frame(
+                        table,
+                        row,
+                        end_cut,
+                        &resolved_row_heights,
+                        styles,
+                    )
+                    .then_some(row)
+                }),
+            ]
+        } else {
+            [None, None]
+        };
         let fold_last_row = render_rows.last().copied().filter(|&fold_row| {
             (end_row < table.row_count as usize
                 || end_cut.iter().any(|&unit| unit > 0)
@@ -6413,6 +6473,7 @@ impl LayoutEngine {
             center_pinned_single_cell,
             center_saved_spanning_cell,
             align_saved_opening_frame,
+            original_restart_alignment_rows,
             fold_last_row,
             &mut fold_slack,
         );

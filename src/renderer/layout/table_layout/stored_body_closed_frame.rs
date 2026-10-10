@@ -4,6 +4,152 @@ use super::{LayoutEngine, ResolvedStyleSet};
 use crate::model::{control::Control, paragraph::Paragraph, shape::VertAlign, table::Table};
 
 impl LayoutEngine {
+    /// 실제 병합 종료 컷이 다음 저장 쪽을 열면 앞 조각도 독립된 정렬 상자다.
+    /// 본문 프레임 소유 확인은 호출자가 공유하며, 여기서는 같은 실제 유닛을 읽는다.
+    pub(in crate::renderer::layout) fn original_restart_span_cut_owns_alignment(
+        &self,
+        table: &Table,
+        cell: &crate::model::table::Cell,
+        end: usize,
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        let units = self.cell_units(cell, table, styles);
+        cell.row_span > 1
+            && end > 0
+            && end < units.len()
+            && self
+                .native_multirow_saved_reset_frame_cut(table, cell, &units, end, styles)
+                .is_some()
+    }
+
+    /// 컷 인덱스가 모든 일반 소유자의 끝에 있는가. 남은 내용이 큰 예산에
+    /// 들어가는 것과 이미 모든 유닛을 소비한 것은 서로 다른 상태다.
+    pub(crate) fn row_cut_consumes_all_ordinary_units(
+        &self,
+        table: &Table,
+        row: usize,
+        cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        let owners = Self::row_cut_cell_order(table, row);
+        !owners.is_empty()
+            && owners.len() == cut.len()
+            && owners.iter().zip(cut).all(|(&index, &end)| {
+                end == self.cell_units(&table.cells[index], table, styles).len()
+            })
+    }
+
+    /// 실제 일반 컷과 걸침 컷이 소유하는 원본 쪽 재시작을 대조한다.
+    /// 처음부터0인 줄 하나로 쪽을 추측하지 않으며, 완료 셀의 빈 높이와
+    /// 다음 쪽에 남은 병합 셀의 유닛을 별도로 확인한다.
+    pub(crate) fn row_cut_closes_original_restart_frame(
+        &self,
+        table: &Table,
+        row: usize,
+        cut: &[usize],
+        row_heights: &[f64],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        let owners = Self::row_cut_cell_order(table, row);
+        if owners.is_empty() || owners.len() != cut.len() || row >= row_heights.len() {
+            return false;
+        }
+        let mut unfinished = 0;
+        let mut advances_after_restart = false;
+        for (index, &cell_index) in owners.iter().enumerate() {
+            let cell = &table.cells[cell_index];
+            let units = self.cell_units(cell, table, styles);
+            let end = cut[index];
+            if end > units.len() {
+                return false;
+            }
+            if end == units.len() {
+                continue;
+            }
+            unfinished += 1;
+            // 첫 줄의 공동0→0 슬롯만 이 경로가 소유한다. 이후 양수
+            // 되감김은 기존 공동 프레임 계약에서 판정한다.
+            let lines: Vec<_> = cell
+                .paragraphs
+                .iter()
+                .flat_map(|para| para.line_segs.iter().map(move |line| (para, line)))
+                .collect();
+            if end != 1
+                || units[0].para_idx != 0
+                || units[0].vis_start != 0
+                || units[0].vis_end != 1
+                || lines.len() < 2
+                || lines[..2].iter().any(|(para, line)| {
+                    !para.controls.is_empty()
+                        || line.vertical_pos != 0
+                        || line.line_height <= 0
+                        || line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                            != 0
+                })
+            {
+                return false;
+            }
+            // 다음 실제 유닛이 바로 두 번째 저장 줄을 소유해야 한다.
+            let next = &units[end];
+            let Some(next_line) = cell
+                .paragraphs
+                .get(next.para_idx)
+                .and_then(|para| para.line_segs.get(next.vis_start))
+            else {
+                return false;
+            };
+            if !std::ptr::eq(next_line, lines[1].1) {
+                return false;
+            }
+            advances_after_restart |= lines.get(2).is_some_and(|(para, line)| {
+                para.controls.is_empty()
+                    && line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                    && i64::from(line.vertical_pos)
+                        == i64::from(next_line.line_height)
+                            + i64::from(next_line.line_spacing.max(0))
+            });
+        }
+        let mut spanning_restart = false;
+        for cell in table.cells.iter().filter(|cell| {
+            let first = usize::from(cell.row);
+            first <= row && row + 1 < first + usize::from(cell.row_span)
+        }) {
+            let first = usize::from(cell.row);
+            let physical = row_heights[first..=row].iter().sum::<f64>()
+                + crate::renderer::hwpunit_to_px(table.cell_spacing as i32, self.dpi)
+                    * (row - first) as f64;
+            let (_, end) = self.rowbreak_straddle_cut_units(
+                table,
+                cell,
+                0,
+                row + 1,
+                &[],
+                false,
+                None,
+                cut,
+                false,
+                physical,
+                row_heights,
+                styles,
+            );
+            let units = self.cell_units(cell, table, styles);
+            if end == units.len() {
+                continue;
+            }
+            if self
+                .native_multirow_saved_reset_frame_cut(table, cell, &units, end, styles)
+                .is_none()
+            {
+                return false;
+            }
+            spanning_restart = true;
+        }
+        // 미소비 소유자가 하나여도 같은 셀의0→0 뒤 정상 사다리가
+        // 이어지면 실제 저장 쪽 재시작이다. 완료 소유자의 수는 쪽
+        // 프레임을 줄이지 않으며, 양수 reset의 공동 계약과 구분한다.
+        (unfinished > 0 && advances_after_restart) || (unfinished == 0 && spanning_restart)
+    }
+
     /// 저장 호스트·개체 높이로 첫 본문 프레임의 종료를 독립적으로 확인한다.
     /// 내용 높이 또는 현재 출력 좌표를 증거로 쓰지 않는다. 한컴의 정수 HU
     /// 저장 반올림 두 단위만 허용하며, 편집·재조판한 원본에는 적용하지 않는다.

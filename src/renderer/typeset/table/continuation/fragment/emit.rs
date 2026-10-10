@@ -920,6 +920,7 @@ impl TypesetEngine {
                         complete_cut: split_end_cut.is_empty() && split_end_limit <= 0.0,
                         block_start: split_block_start,
                         last_height: end_row_height_override,
+                        restart_frame_closes_body: false,
                     },
                 );
                 st.append_item(PageItem::PartialTable {
@@ -1105,21 +1106,35 @@ impl TypesetEngine {
             && end_row_height_override.is_some()
             && !split_end_cut.is_empty()
             && end_row > cursor_row
-            && layout_engine
-                .advance_row_cut(
-                    row_geometry_table,
-                    end_row - 1,
-                    &split_end_cut,
-                    f64::MAX,
-                    styles,
-                )
-                .fully_consumed;
+            && layout_engine.row_cut_consumes_all_ordinary_units(
+                row_geometry_table,
+                end_row - 1,
+                &split_end_cut,
+                styles,
+            );
         let complete_source_row_frame = split_block_start.is_none()
             && split_end_cut.is_empty()
             && split_end_limit <= 0.0
             && budget
                 .source_complete_frame_last_row
                 .is_some_and(|(row, _)| row + 1 == end_row);
+        let source_restart_frame_closes_body = is_continuation
+            && split_block_start.is_none()
+            && end_row_height_override.is_some()
+            && layout_engine.original_body_closed_table_frame(
+                input.source.paragraph,
+                table,
+                st.layout.body_area.height,
+            )
+            && end_row.checked_sub(1).is_some_and(|row| {
+                layout_engine.row_cut_closes_original_restart_frame(
+                    table,
+                    row,
+                    &split_end_cut,
+                    input.fragment_row_heights.unwrap_or(&mt.row_heights),
+                    styles,
+                )
+            });
         self.record_stored_fragment_rows(
             st,
             continuation,
@@ -1128,9 +1143,11 @@ impl TypesetEngine {
                 row: end_row,
                 // 내용을 모두 소비해도 물리 행 전체가 끝났다는 뜻은 아니다.
                 // 병합 셀의 소유 유닛은 같은 행 안에서 계속 이어질 수 있다.
-                complete_cut: split_end_cut.is_empty() && split_end_limit <= 0.0,
+                complete_cut: (split_end_cut.is_empty() && split_end_limit <= 0.0)
+                    || (complete_physical_end_cut && source_restart_frame_closes_body),
                 block_start: split_block_start,
                 last_height: end_row_height_override,
+                restart_frame_closes_body: source_restart_frame_closes_body,
             },
         );
         st.append_item(PageItem::PartialTable {
@@ -1303,6 +1320,8 @@ impl TypesetEngine {
         };
         // 빈 컷의 블록 경계는 모든 앞 행의 내용을 끝낸 상태다. 병합 셀의
         // 저장 물리 높이에서 실제 그린 밴드를 빼 다음 완전 행 상자로 넘긴다.
+        // 이 잔여는 병합 칸의 최소 점유다. 다음 행의 자체 내용·선언 높이도
+        // 아직 소비하지 않았으므로 같은 행 요구와 함께 예약하고 그대로 그린다.
         let complete_block_next_height = split_block_start
             .filter(|_| split_end_limit == 0.0 && next_cut.is_empty())
             .and_then(|bs| {
@@ -1316,7 +1335,15 @@ impl TypesetEngine {
                     .sum::<f64>()
                     + mt.cell_spacing * end_row.saturating_sub(bs + 1) as f64
                     + last_height;
-                Some(hwpunit_to_px(source.height as i32, self.dpi) - used)
+                let span_remaining = hwpunit_to_px(source.height as i32, self.dpi) - used;
+                let whole_row = layout_engine.row_cut_content_height(
+                    row_geometry_table,
+                    end_row,
+                    &[],
+                    &[],
+                    styles,
+                );
+                Some(span_remaining.max(whole_row))
             });
         let source_first_frame_remaining = (!is_continuation
             && cursor_row == 0
@@ -1345,6 +1372,14 @@ impl TypesetEngine {
             )
             && end_row.checked_sub(1).is_some_and(|row| {
                 layout_engine.row_cut_closes_shared_original_frame(table, row, &next_cut, styles)
+                    || (complete_physical_end_cut
+                        && layout_engine.row_cut_closes_original_restart_frame(
+                            table,
+                            row,
+                            &next_cut,
+                            input.fragment_row_heights.unwrap_or(&mt.row_heights),
+                            styles,
+                        ))
             });
         let next_start_row_height_override = source_opening_row_frame
             .as_ref().map(|(_, _, remaining)| *remaining)
@@ -1366,6 +1401,21 @@ impl TypesetEngine {
                     .flatten().map(|(_, opening, remaining)| opening + remaining))?;
                 let remaining = (full - used - height).max(0.0);
                 (remaining > 0.5).then_some(remaining)
+            })
+            .or_else(|| {
+                if !source_restart_frame_closes_body || complete_physical_end_cut {
+                    return None;
+                }
+                let row = end_row.checked_sub(1)?;
+                // 첫0→0 재시작의 미소비 일반 행은 원본 최소 상자의 잔여도
+                // 소유한다. 남은 유닛이 더 크면 그 같은 요구 높이를 하한으로
+                // 예약한다. 완료 행의 빈 꼬리는 이 경로로 전달하지 않는다.
+                let full = layout_engine.row_cut_content_height(table, row, &[], &[], styles);
+                let remaining = full - end_row_height_override?;
+                let content = layout_engine.row_cut_content_height(
+                    table, row, &next_cut, &[], styles,
+                );
+                Some(remaining.max(content))
             })
             .or_else(|| {
                 let row = end_row.checked_sub(1)?;

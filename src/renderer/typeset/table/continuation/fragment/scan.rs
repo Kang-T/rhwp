@@ -250,6 +250,12 @@ impl TypesetEngine {
                         row,
                         &scan.split_end_cut,
                         styles,
+                    ) || layout_engine.row_cut_closes_original_restart_frame(
+                        table,
+                        row,
+                        &scan.split_end_cut,
+                        input.fragment_row_heights.unwrap_or(&mt.row_heights),
+                        styles,
                     )
                 })
             {
