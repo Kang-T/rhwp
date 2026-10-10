@@ -1489,8 +1489,19 @@ impl LayoutEngine {
                                             table, cell, &units, start, styles,
                                         ))
                             })));
+            // 문단 사이의 원본 쪽 경계도 유한한 조각 상자를 소유한다.
+            // 측정이 인증한 같은 끝 컷을 사용하여 Top 전용 프로브가 가시
+            // 내용 높이를 생략하거나 선언된 수직 정렬을 버리지 않게 한다.
+            let paragraph_frame_owns_alignment = source_body_frame
+                && cell.row_span == 1
+                && cell_row + 1 == end_row
+                && !is_block_split
+                && !end_cut.is_empty()
+                && self.row_cut_starts_original_paragraph_frame(table, cell_row, end_cut, styles);
             // 저장 앞 프레임과 이어받기 프레임의 소유를 배치까지 공유한다.
-            let frame_owns_alignment = full_width_frame_owns_alignment || cut_frame_owns_alignment;
+            let frame_owns_alignment = full_width_frame_owns_alignment
+                || cut_frame_owns_alignment
+                || paragraph_frame_owns_alignment;
             let saved_frame_needs_alignment =
                 (align_saved_opening_frame && cell_row + 1 == end_row || frame_owns_alignment)
                     && cell.vertical_align != crate::model::table::VerticalAlign::Top;
