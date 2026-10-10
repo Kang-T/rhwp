@@ -95,3 +95,30 @@ document.setFontEnvironment(undefined); // 기본 조판 복원
 임베드 검사·Native/fresh WASM PNG를 확인한다. EBDT/EBLC 제거는 임베드 사본에만 적용한다.
 프로필이나 메트릭 지원 자체는 글꼴 설치·출력 일치 인증이 아니며, HFT 기준 PDF에는 적용하지 않는다.
 검증 기록에는 JSON과 글꼴 SHA-256, PDF의 실제 글꼴 형식, 임베드 결과를 남긴다.
+
+## 결측 글리프의 명시적 폴백
+
+원 face는 그대로 쓰되 일부 글자만 다른 프로그램에서 그려야 하면 `glyphFallbacks`로
+공급을 확인한 face 순서를 선언한다. 키는 치환 후의 최종 face 이름이다. 일반 OS 폴백보다
+먼저 조회하고, 원본의 `substFont`는 그 뒤에 보존한다. 기본값은 비어 있으며 자동으로 설치
+글꼴을 찾아 채우지 않는다.
+
+```json
+{
+  "id": "verified-primary-and-glyph-provider",
+  "substitutions": {},
+  "glyphFallbacks": {"휴먼명조": ["Haansoft Batang"]}
+}
+```
+
+위 예시는 두 프로그램의 실제 공급과 문자 지원을 확인한 세션에만 적용한다. 기본 face의
+메트릭에서 해당 글자가 빠진 경우에만 선언 체인의 다음 메트릭을 찾는다. primary hit·공백·
+문서의 HFT 폭 규칙은 유지하며, 뒤 face에 앞 face의 HFT 속성을 복제하지 않는다.
+SVG는 체인 구성 face를 각각 임베드하고 Canvas와 Native Skia도 같은 선언 순서를 사용한다.
+미지의 OS 선택을 메트릭 DB의 이름만으로 추정하지 않는다. DB에 없는 글자의 기존 보충 측정
+계약도 유지한다.
+
+최대256개 key, key마다1~16개의 단일 face 이름을 허용한다. 빈 목록·중복·자기 참조·CSS 삽입
+문자열은 거절한다. 이 설정만으로 설치·선택·PDF 일치를 입증할 수 없다. 실제 출력 프로그램,
+glyph cmap/전진폭, 공급 파일의 SHA-256과 backend 선택을 확인하고 동일 설정의
+Native/fresh WASM 전체 페이지와 확대 판독으로 검증한다. 설정은 원본 문서에 저장하지 않는다.
