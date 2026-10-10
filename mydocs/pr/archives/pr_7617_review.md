@@ -845,3 +845,11 @@ batch112는 원본 OLE와 실제 RenderTree를 연결했다. 각주65 prefix는6
 batch111은 선행 source `48a667bda`의 fresh canonical Native41쪽과 같은 SHA의 독립 Print 기준 PNG를 비교했고 **98.54779%**다. review_041.png를 직접 판독해 6×3 표와 앞6줄·뒤 각주32 보존, 표 상하단과 뒤 각주 baseline의 이전 줄간격 차이 해소를 확인했다. 문자 outline 차이는 남으며 선택한 한 쪽으로 전쪽/fresh WASM 통과를 선언하지 않는다. 기존90.88544% 그림과 구분된 새 PNG다.
 
 68쪽 표 물리 높이/왼쪽 가운데 정렬은 별도 미해결이다. batch112의 원본 row0 cell 높이는49088/49342HU로 서로 다르고 row1은15117HU다. batch113의 원본 common.height는1710HU이고 왼쪽 문단은 보이는 첫 줄 다음에0→0 저장 재시작을 가진다. 이를 빈 줄 컷으로 추정하지 않는다. 실제 Native68쪽 row0 높이595.0px/row1 201.6px와 Print의 가운데 라벨·괘선을 대조하며, 같은 높이·모든 칸 가운데 정렬을 요구하는 기존 물리 frame helper가 이 원본을 수용하지 않는 경로를 확인했다. 아직 인증되지 않은 숫자를 frame fallback으로 넣지 않았으며 검사/baseline을 변경하지 않았다. 증적은 ignored batch111/112/113에 보존한다.
+
+### 실제 미주 정상 대조군과 원본 물리 행 프레임
+
+batch117은 원본 `samples/endnote-01.hwp` OLE에서6개의 실제 미주 control을 확인한 뒤, 역할 보정 전 `8a7a2cff8`와 보정 후 `3159a2238`의 같은 입력/프로필로 전체 page plan과 모든 RenderTree를 출력했다. 두 실행 명령 모두 exit0이며 **page plan 및 전쪽 RenderTree bytes/hash가 동일**하다. 실제 등록된 미주의 출처를 계속 인정하고 각주를 배제하는 positive control이다. 같은 출력이라는 결과를 독립 Print/fresh WASM 시각 통과나 새 regression expectation으로 승격하지 않는다.
+
+batch118은 parser와 동일한 original CTRL_HEADER 높이 offset20을 직접 읽어 ¶642의 원본 첫 object frame이1710HU(22.8px)임을 확인했다. 원본 row0 최대 cell height49342HU에서 첫 물리 상자를 뺀 잔여는635.093333px다. 독립 Print 벡터에서67쪽 상자886.550667→909.405333,68쪽 row0 136.010667→770.357333, row1→971.737333을 확인했다. 즉 전체 row의 선언 공간과 첫 조각에 수용한 내용 높이를 혼동해서는 안 되며, 첫 상자/남은 상자는 같은 원본 공간을 나눈다. 기존 Native의67쪽26.4px/68쪽595.0px는 그 계약과 다르다. 이 px는 원인 진단 자료이며 고정 회귀 assertion으로 추가하지 않았다. 단순 Center 복원·clamp보다 source frame → accepted physical box → remaining row → 배치 정렬 소비 연결의 보정이 필요하며 아직 구현/시각 수용은 완료되지 않았다.
+
+`9f4671e51`의 새 쪽 vpos 보정은 batch114/115/116에서 검증 중이다. Native Clippy exit0/2분26초, suite/fmt exit0이며 Native 빌드 실제 driver5712/Cargo18792/Rust18332의 실행을 확인했다. runtime observer가 producer의 최초 provenance 생성 전에 시작해 FileNotFoundError로 종료한 흔적을 보존하고, 해당 handle 종료와 output 미생성을 확인한 뒤 observer만 재개했다. Native/Cargo를 재실행하지 않았다. 현재 기록은 전체 회귀·전쪽/fresh WASM 수용을 의미하지 않는다.
