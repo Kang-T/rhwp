@@ -254,6 +254,24 @@ impl TypesetEngine {
             - st.current_footnote_height
             - st.current_zone_y_offset
             - st.current_bottom_fixed_exclusion;
+        let source_single_cell_row_frames = paragraphs_all.get(para_idx + 1).and_then(|next| {
+            layout_engine.native_single_cell_source_row_frames(para, next, table, styles)
+        });
+        let source_single_cell_first_frame_fits = st.col_count == 1
+            && std::ptr::eq(table, row_geometry_table)
+            && ft.table_footnotes.is_empty()
+            && source_single_cell_row_frames.is_some_and(|frame| {
+                let base = st.vpos_page_base.unwrap_or(0);
+                frame.opening_anchor_hu >= base
+                    && frame.opening_table_top_hu >= frame.opening_anchor_hu
+                    && frame
+                        .opening_table_top_hu
+                        .checked_sub(base)
+                        .is_some_and(|top| {
+                            hwpunit_to_px(top, self.dpi) + frame.opening_height
+                                <= actual_first_boundary
+                        })
+            });
         let empty_opening_row_frame = (st.col_count == 1
             && std::ptr::eq(table, row_geometry_table))
         .then(|| paragraphs_all.get(para_idx + 1))
@@ -680,6 +698,10 @@ impl TypesetEngine {
                 self.dpi,
             );
         if empty_opening_row_frame.is_none()
+            // The same authenticated opening box that scan/paint consume fits
+            // the real note boundary. An earlier safety-band probe must not
+            // discard its page owner before that shared plan is consulted.
+            && !source_single_cell_first_frame_fits
             && (stored_page_top_tac_table
                 || (remaining_on_page < split_unit_h && !st.current_items.is_empty()))
         {
@@ -1102,9 +1124,6 @@ impl TypesetEngine {
             &st.inline_flow_column(),
             styles,
         );
-        let source_single_cell_row_frames = paragraphs_all.get(para_idx + 1).and_then(|next| {
-            layout_engine.native_single_cell_source_row_frames(para, next, table, styles)
-        });
         // The authenticated cut and both boxes also own their original first
         // anchor. Reusing only the cut while keeping a drifted sequential
         // cursor places a correct fragment in the wrong part of the page.
