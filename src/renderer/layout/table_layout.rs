@@ -16797,9 +16797,9 @@ impl LayoutEngine {
     /// 그려지지 않는 마지막 줄간격과 문단 뒤 간격.
     ///
     /// `CellUnit` 전체 높이는 표를 통째로 측정할 때 필요하므로 변경하지 않는다.
-    /// 실제 컷이 control-free 문단 경계의 `양수 vpos -> 0 이하`에서 끝날 때만
+    /// 실제 컷이 control-free 종료 문단의 `양수 vpos -> 0 이하`에서 끝날 때만
     /// 이 값을 빼서, 마지막 가시 줄은 현 쪽에 남기고 그 뒤의 공백은 물리 쪽
-    /// 경계에서 버린다. control 문단의 로컬 좌표 reset은 물리 경계가 아니다.
+    /// 경계에서 버린다. 다음 문단의 control 유무 대신 저장 경계의 소유를 확인한다.
     /// 표의 감싸기 방식은 저장 문단의 쪽 경계 소유를 바꾸지 않는다(#6756).
     fn native_multirow_saved_reset_trailing_trim(
         &self,
@@ -16809,6 +16809,20 @@ impl LayoutEngine {
         end_cut: usize,
         styles: &ResolvedStyleSet,
     ) -> f64 {
+        self.native_multirow_saved_reset_frame_cut(table, cell, units, end_cut, styles)
+            .unwrap_or(0.0)
+    }
+
+    /// 저장 경계와 종료 간격의 공통 판정. Some(0)은 유효한 프레임이지만
+    /// 버릴 간격이 없는 경우이며, None인 로컬 reset과 구분한다.
+    fn native_multirow_saved_reset_frame_cut(
+        &self,
+        table: &crate::model::table::Table,
+        cell: &crate::model::table::Cell,
+        units: &[CellUnit],
+        end_cut: usize,
+        styles: &ResolvedStyleSet,
+    ) -> Option<f64> {
         let profile = self.profile.get();
         let direct_hwpx_frame = profile.hwpx_stored_layout()
             && !profile.hwp5_origin_hwpx()
@@ -16827,7 +16841,7 @@ impl LayoutEngine {
             || end_cut == 0
             || end_cut >= units.len()
         {
-            return 0.0;
+            return None;
         }
 
         let previous_unit = &units[end_cut - 1];
@@ -16835,40 +16849,43 @@ impl LayoutEngine {
         if next_unit.para_idx < previous_unit.para_idx
             || (previous_unit.vis_start >= previous_unit.vis_end && !previous_unit.empty_spacer)
         {
-            return 0.0;
+            return None;
         }
-        let Some(previous_para) = cell.paragraphs.get(previous_unit.para_idx) else {
-            return 0.0;
-        };
-        let Some(next_para) = cell.paragraphs.get(next_unit.para_idx) else {
-            return 0.0;
-        };
+        let previous_para = cell.paragraphs.get(previous_unit.para_idx)?;
+        let next_para = cell.paragraphs.get(next_unit.para_idx)?;
         let same_paragraph = next_unit.para_idx == previous_unit.para_idx;
         if (same_paragraph || previous_unit.empty_spacer) && !Self::cell_has_stored_line_segs(cell)
         {
-            return 0.0;
+            return None;
         }
+        // 개체 문단의 로컬 좌표 reset은 물리 쪽 경계가 아니다. 실제 저장
+        // 쪽 프레임을 여는 그림·표는 앞 문단의 종료 줄간격을 소유하지 않는다.
         if !previous_para.controls.is_empty()
-            || !next_para.controls.is_empty()
+            || (!next_para.controls.is_empty() && !next_unit.page_frame_reset_before)
             || (same_paragraph
                 && (!next_unit.stored_frame_break_before
                     || !Self::cut_has_shared_stored_frame(cell, table, units, end_cut)))
             || (!same_paragraph
                 && !previous_unit.empty_spacer
                 && previous_unit.vis_end != previous_para.line_segs.len())
-            || (previous_unit.empty_spacer && previous_para.line_segs.len() != 1)
+            // CellUnit already merges stored left/right fragments into one
+            // physical row. An empty spacer may own that same paired row;
+            // requiring one raw LineSeg rejects its actual page boundary.
+            || (previous_unit.empty_spacer
+                && (previous_para.line_segs.is_empty()
+                    || (1..previous_para.line_segs.len()).any(|index| {
+                        !crate::renderer::height_measurer::stored_seg_is_row_fragment(
+                            previous_para,
+                            index,
+                        )
+                    })))
         {
-            return 0.0;
+            return None;
         }
-        let Some(previous_seg) = previous_para
+        let previous_seg = previous_para
             .line_segs
-            .get(previous_unit.vis_end.saturating_sub(1))
-        else {
-            return 0.0;
-        };
-        let Some(next_seg) = next_para.line_segs.get(next_unit.vis_start) else {
-            return 0.0;
-        };
+            .get(previous_unit.vis_end.saturating_sub(1))?;
+        let next_seg = next_para.line_segs.get(next_unit.vis_start)?;
         // 셀의 저장 프레임은 문단 앞 간격을 포함한 양수 원점에서도 시작한다.
         // 0으로의 되감김과 같은 원점으로의 되감김을 같은 물리 경계로 처리한다.
         // 중간 양수 좌표의 로컬 재시작에는 마지막 줄 간격을 버리지 않는다.
@@ -16888,7 +16905,7 @@ impl LayoutEngine {
             || previous_seg.vertical_pos <= 0
             || (next_seg.vertical_pos > 0 && !returns_to_positive_origin)
         {
-            return 0.0;
+            return None;
         }
 
         if !next_unit.hard_break_before
@@ -16913,7 +16930,7 @@ impl LayoutEngine {
                 || table.common.height == 0
                 || (i64::from(table.common.height) - frame_end).abs() > 2
             {
-                return 0.0;
+                return None;
             }
         }
 
@@ -16951,7 +16968,7 @@ impl LayoutEngine {
                         })
                 })
             {
-                return 0.0;
+                return None;
             }
             let (_, _, top, bottom) = self.resolve_cell_padding(cell, table);
             let prefix =
@@ -16976,10 +16993,10 @@ impl LayoutEngine {
                             > prefix + 0.5
                     })
             {
-                return 0.0;
+                return None;
             }
         }
-        trim
+        Some(trim)
     }
 
     /// 첫 줄0 다음에도0으로 재시작하는 저장 프레임의 끝 간격이다.
@@ -19074,6 +19091,8 @@ impl LayoutEngine {
                 start_cut,
                 end_cut,
                 styles,
+            ) || self.row_cut_ends_at_native_saved_page_frame(
+                table, end_row - 1, start_cut, end_cut, styles,
             ) || self.row_cut_starts_intra_paragraph_stored_frame(
                 table, end_row - 1, end_cut, styles,
             )))
@@ -22069,6 +22088,37 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
     ) -> bool {
         self.row_cut_ends_at_plain_text_reset(table, row, start_cut, end_cut, styles, true)
+    }
+
+    /// 다음 개체 문단이 실제 저장 쪽을 여는 경계. 개체의 로컬0은 제외하며,
+    /// 줄간격 측정과 같은 원본 줄·프레임 소유 판정을 사용한다.
+    pub(crate) fn row_cut_ends_at_native_saved_page_frame(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        start_cut: &[usize],
+        end_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        Self::row_cut_cell_order(table, row)
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, cell_index)| table.cells.get(cell_index).map(|cell| (index, cell)))
+            .any(|(index, cell)| {
+                if cell.row as usize != row || cell.row_span != 1 {
+                    return false;
+                }
+                let units = self.cell_units(cell, table, styles);
+                let end = end_cut.get(index).copied().unwrap_or(units.len());
+                let start = start_cut.get(index).copied().unwrap_or(0);
+                end > start
+                    && units
+                        .get(end)
+                        .is_some_and(|unit| unit.page_frame_reset_before)
+                    && self
+                        .native_multirow_saved_reset_frame_cut(table, cell, &units, end, styles)
+                        .is_some()
+            })
     }
 
     fn row_cut_ends_at_plain_text_reset(

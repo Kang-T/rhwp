@@ -100,7 +100,6 @@ fn a_table_cell_paragraph_keeps_its_style_after_another_style_is_deleted() {
 /// 한컴 문서에서 1번 스타일을 지운다. 그 스타일을 쓰던 문단만 바탕글이 되고 나머지는 지우기 전
 /// 스타일 이름을 그대로 가리킨다.
 ///
-/// - `exam_social.hwp`: 표·중첩 표·캡션·글상자, 머리말 안 표, HWP 원본 바탕쪽
 /// - `SO-SUEOP.hwpx`: 미주·머리말·꼬리말
 /// - `143E433F503322BD33.hwp`: 각주
 #[test]

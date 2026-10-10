@@ -146,83 +146,8 @@ class Target:
     pdf: Path
 
 
-TARGETS = {
-    "2022-09": Target(
-        "2022-09",
-        Path("samples/3-09월_교육_통합_2022.hwp"),
-        Path("pdf/3-09월_교육_통합_2022.pdf"),
-    ),
-    "2023-09": Target(
-        "2023-09",
-        Path("samples/3-09월_교육_통합_2023.hwp"),
-        Path("pdf/3-09월_교육_통합_2023.pdf"),
-    ),
-    "2024-09-below20": Target(
-        "2024-09-below20",
-        Path("samples/3-09월_교육_통합_2024-구분선아래20.hwp"),
-        Path("pdf/3-09월_교육_통합_2024-구분선아래20-2024.pdf"),
-    ),
-    "2024-09-between20": Target(
-        "2024-09-between20",
-        Path("samples/3-09월_교육_통합_2024-미주사이20.hwp"),
-        Path("pdf/3-09월_교육_통합_2024-미주사이20-2024.pdf"),
-    ),
-    "2024-09-below20-above20": Target(
-        "2024-09-below20-above20",
-        Path("samples/3-09월_교육_통합_2024-구분선아래20구분선위20.hwp"),
-        Path("pdf/3-09월_교육_통합_2024-구분선아래20구분선위20.pdf"),
-    ),
-    "2022-10": Target(
-        "2022-10",
-        Path("samples/3-10월_교육_통합_2022.hwp"),
-        Path("pdf/3-10월_교육_통합_2022.pdf"),
-    ),
-    "2022-11-practice": Target(
-        "2022-11-practice",
-        Path("samples/3-11월_실전_통합_2022.hwp"),
-        Path("pdf/3-11월_실전_통합_2022.pdf"),
-    ),
-    "2024-11-practice-shape987": Target(
-        "2024-11-practice-shape987",
-        Path("samples/3-11월_실전_통합_2024-구분선위9미주사이8구분선아래7.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위9미주사이8구분선아래7.pdf"),
-    ),
-    "2024-11-practice-above0-between0-below0": Target(
-        "2024-11-practice-above0-between0-below0",
-        Path("samples/3-11월_실전_통합_2024-구분선위0미주사이0구분선아래0.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위0미주사이0구분선아래0.pdf"),
-    ),
-    "2024-11-practice-above0-between7-below2": Target(
-        "2024-11-practice-above0-between7-below2",
-        Path("samples/3-11월_실전_통합_2024-구분선위0미주사이7구분선아래2.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위0미주사이7구분선아래2.pdf"),
-    ),
-    "2024-11-practice-above0-between7-below20": Target(
-        "2024-11-practice-above0-between7-below20",
-        Path("samples/3-11월_실전_통합_2024-구분선위0미주사이7구분선아래20.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위0미주사이7구분선아래20.pdf"),
-    ),
-    "2024-11-practice-above0-between20-below2": Target(
-        "2024-11-practice-above0-between20-below2",
-        Path("samples/3-11월_실전_통합_2024-구분선위0미주사이20구분선아래2.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위0미주사이20구분선아래2.pdf"),
-    ),
-    "2024-11-practice-above20-between0-below20": Target(
-        "2024-11-practice-above20-between0-below20",
-        Path("samples/3-11월_실전_통합_2024-구분선위20미주사이0구분선아래20.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위20미주사이0구분선아래20.pdf"),
-    ),
-    "2024-11-practice-above20-between7-below2": Target(
-        "2024-11-practice-above20-between7-below2",
-        Path("samples/3-11월_실전_통합_2024-구분선위20미주사이7구분선아래2.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선위20미주사이7구분선아래2.pdf"),
-    ),
-    "2024-11-practice-no-separator-above20-between20-below20": Target(
-        "2024-11-practice-no-separator-above20-between20-below20",
-        Path("samples/3-11월_실전_통합_2024-구분선없음구분선위20미주사이20구분선아래20.hwp"),
-        Path("pdf/3-11월_실전_통합_2024-구분선없음구분선위20미주사이20구분선아래20.pdf"),
-    ),
-}
+# 시험지 기본 대상은 사용자 지시에 따라 제거했다. --file-target으로 명시한다.
+TARGETS: dict[str, Target] = {}
 
 
 def run(
@@ -5500,7 +5425,7 @@ def main() -> None:
         choices=[*TARGETS.keys(), "all"],
         help=(
             "검증할 preset target입니다. 여러 번 지정할 수 있습니다. "
-            "target과 일반 파일 입력을 모두 생략하면 전체 preset을 실행합니다."
+            "기본 대상이 비어 있으면 --file-target으로 입력과 기준 PDF를 지정해야 합니다."
         ),
     )
     parser.add_argument(
@@ -5607,13 +5532,15 @@ def main() -> None:
             raise SystemExit("실루엣 보조값 90% 미만: TSV를 확인하고 직접 검토하세요.")
         return
 
+    custom_targets = custom_targets_from_args(args)
+    if not TARGETS and not custom_targets:
+        parser.error("기본 검증 대상이 없습니다. --file-target KEY DOC PDF로 원본과 기준 PDF를 지정하세요.")
     root = Path.cwd()
     if args.wasm_pkg is not None:
         args.wasm_pkg = resolve_input_path(root, args.wasm_pkg)
         wasm_package_provenance(root, args.wasm_pkg)
     ensure_tools(args.svg_rasterizer)
     ensure_default_rhwp_binary_is_current(root, args.rhwp_bin)
-    custom_targets = custom_targets_from_args(args)
     requested_targets = args.target
     if requested_targets and "all" in requested_targets:
         selected = list(TARGETS.values())

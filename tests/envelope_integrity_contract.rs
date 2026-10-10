@@ -81,6 +81,7 @@ fn first_sample(ext: &str) -> Option<std::path::PathBuf> {
             .filter(|p| {
                 !exam_fixtures::is_exam_fixture(p)
                     && p.is_file()
+                    && corpus_scope::sample_is_in_scope(p)
                     && p.extension()
                         .and_then(|e| e.to_str())
                         .is_some_and(|e| e.eq_ignore_ascii_case(ext))

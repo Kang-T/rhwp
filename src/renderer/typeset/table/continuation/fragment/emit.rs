@@ -1,4 +1,4 @@
-//! Commit an accepted fragment, queued notes and cursor advance in their original order.
+//! 수용한 표 조각, 대기 중인 주석, 커서 이동을 원래 순서대로 반영한다.
 
 use crate::renderer::typeset::{
     hwpunit_to_px, is_synthetic_line_seg, row_geometry_table, table, BlockTableRowScan, PageItem,
@@ -418,6 +418,12 @@ impl TypesetEngine {
                 start_cut,
                 &split_end_cut,
                 styles,
+            ) || layout_engine.row_cut_ends_at_native_saved_page_frame(
+                table,
+                end_row.saturating_sub(1),
+                start_cut,
+                &split_end_cut,
+                styles,
             ) || layout_engine.row_cut_starts_intra_paragraph_stored_frame(
                 table,
                 end_row.saturating_sub(1),
@@ -448,12 +454,25 @@ impl TypesetEngine {
                 st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
                 st.profile.session_edited(),
             );
+        // 선언된 셀 최소 높이는 대체값이며, 저장된 첫 개체 프레임과 구분한다.
+        // 유효성이 확인된 프레임으로 예약과 실제 그리기의 대체값을 함께 교체한다.
+        // 스캔이 소유한 상자나 확인된 완전한 점유 범위는 자체 소유권을 유지하므로 여기서 교체하지 않는다.
+        let declared_row_minimum_owns_override = stored_row_frame.is_some()
+            && stored_complete_extent.is_none()
+            && !source_frame_trailing_trim_applied;
+        // 선택한 컷이 들어가더라도 대체 최소 높이는 저장 프레임보다 클 수 있다.
+        // 프레임은 스캔이 수용한 내용 요구 높이와 비교한다. 대체 상자를 새 내용 요구 높이로 사용하지 않는다.
+        let opening_frame_required_height = if declared_row_minimum_owns_override {
+            consumed + header_overhead
+        } else {
+            partial_height
+        };
         let first_fragment_blank_band = !is_continuation
             && (opening_frame_has_source_boundary
                 || saved_block_opening_frame.is_some()
                 || body_filling_source_frame)
             && (split_block_start.is_none() || saved_block_opening_frame.is_some())
-            && end_row_height_override.is_none()
+            && (end_row_height_override.is_none() || declared_row_minimum_owns_override)
             && std::ptr::eq(table, row_geometry_table)
             && (crate::renderer::float_placement::object_only_saved_table_anchor(
                 input.source.paragraph,
@@ -471,8 +490,7 @@ impl TypesetEngine {
                     styles,
                 )))
             && saved_opening_frame.is_some_and(|frame_height| {
-                (frame_height > partial_height + 0.5
-                    || (body_filling_source_frame && frame_height >= partial_height)
+                (frame_height >= opening_frame_required_height
                     || saved_block_opening_frame.is_some())
                     && frame_height <= avail_for_rows + header_overhead
             });
@@ -579,8 +597,8 @@ impl TypesetEngine {
         if (stored_complete_extent.is_some() || first_fragment_blank_band)
             && fragment_placement.is_none()
         {
-            // The authenticated first object box owns its origin and unused
-            // band together, including when a title line preceded the table.
+            // 유효성이 확인된 첫 개체 상자는 원점과 사용하지 않은 띠를 함께 소유한다.
+            // 표 앞에 제목 줄이 있는 경우에도 같은 소유 관계를 적용한다.
             let top =
                 st.current_height + caption_extra + host_before_overhead + vert_offset_overhead;
             fragment_placement = Some(crate::renderer::float_placement::ParagraphFloatPlacement {
@@ -799,8 +817,8 @@ impl TypesetEngine {
 
         if end_row >= row_count && split_end_limit == 0.0 {
             let skip_terminal_empty_sliver = is_continuation
-                // A reflowed declared tail owns real physical space even after its
-                // final content unit. Do not erase that frame as an empty sliver.
+                // 재조판한 선언 꼬리는 마지막 내용 유닛 뒤에도 실제 물리 공간을 소유한다.
+                // 이 프레임을 빈 잔여 조각으로 판단해 제거하지 않는다.
                 && !(start_row_height_override.is_some()
                     && layout_engine.row_uses_reflow_physical_frame(table, cursor_row))
                 && !start_cut.is_empty()
@@ -1108,8 +1126,8 @@ impl TypesetEngine {
             input,
             super::physical_rows::StoredFragmentEnd {
                 row: end_row,
-                // Content completion does not certify the whole physical row:
-                // a spanning owner can still resume inside the same row.
+                // 내용을 모두 소비해도 물리 행 전체가 끝났다는 뜻은 아니다.
+                // 병합 셀의 소유 유닛은 같은 행 안에서 계속 이어질 수 있다.
                 complete_cut: split_end_cut.is_empty() && split_end_limit <= 0.0,
                 block_start: split_block_start,
                 last_height: end_row_height_override,
@@ -1360,9 +1378,8 @@ impl TypesetEngine {
                 if end_row_height_override != Some(opening) {
                     return None;
                 }
-                // The blank opening consumed physical space, not picture units.
-                // Carry the remaining owners' full height rather than subtracting
-                // the opening from the overlapping complete-row content box.
+                // 첫 빈 조각은 그림 유닛이 아니라 물리 공간을 소비했다.
+                // 겹치는 완전한 행의 내용 상자에서 첫 조각을 차감하지 않고 남은 소유 유닛의 전체 높이를 이어받는다.
                 Some(layout_engine.row_cut_content_height(table, row, &next_cut, &[], styles))
             })
             .or_else(|| {
@@ -1374,9 +1391,8 @@ impl TypesetEngine {
                 let full = if let Some(height) = carried {
                     height
                 } else {
-                    // A minimum creates a physical tail only when it exceeds the
-                    // complete content occupancy. Content-driven height is already
-                    // represented by the remaining units and must not be carried twice.
+                    // 최소 높이가 전체 내용의 점유 높이를 넘을 때만 물리 꼬리를 생성한다.
+                    // 내용이 요구하는 높이는 남은 유닛에 이미 반영되어 있으므로 중복해서 이어받지 않는다.
                     layout_engine.reflow_row_physical_minimum(table, row, styles)?
                 };
                 let start = if row == cursor_row { start_cut.as_slice() } else { &[] };
@@ -1442,9 +1458,8 @@ impl TypesetEngine {
                     .then_some(height)
                 })();
                 base_remaining.or_else(|| {
-                // A stored opening frame owns blank space without consuming
-                // the next frame's units. Its source row minimum is shared
-                // with scan and paint through the continuation cursor.
+                // 저장된 첫 프레임은 다음 프레임의 유닛을 소비하지 않고 빈 공간을 소유한다.
+                // 원본 행의 최소 높이는 이어받기 커서를 통해 스캔과 실제 그리기에 공유한다.
                 if !first_fragment_blank_band || !st.profile.hwp5_stored_pagination_layout() {
                     return None;
                 }
@@ -1493,9 +1508,8 @@ impl TypesetEngine {
                 })
             })
             .or_else(|| end_row_height_override
-            // A certified complete source row advances to a new row. Its
-            // accepted prefix already accounts for the merged owner's space;
-            // the previous row's blank tail cannot replace the new row's box.
+            // 완전히 소비한 것으로 확인된 원본 행은 다음 행으로 전진한다.
+            // 수용한 앞부분에 병합 셀 소유자의 공간이 이미 반영되어 있으므로 이전 행의 빈 꼬리로 새 행의 상자를 대체하지 않는다.
             .filter(|_| !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
                 && !layout_engine.row_uses_reflow_physical_frame(table, end_row.saturating_sub(1)))
             .and_then(|limit| {
