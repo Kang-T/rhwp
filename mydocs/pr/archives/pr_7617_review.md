@@ -875,3 +875,13 @@ batch118은 parser와 동일한 original CTRL_HEADER 높이 offset20을 직접 �
 batch123은 공유 target/jobs8의 suite/fmt와 Native Clippy를 통과했다(Clippy2분31초). 실제 Native 빌드는 driver9928/Cargo16804/Rust15720으로 실행 중이며 batch124 runtime과 batch125 visual이 같은 source를 기다린다. batch125는 실제 source query 적용과142쪽을 확인하기 전 전쪽 raster를 시작하지 않으며 완료된 source9f의 visual과 I/O를 순차 사용한다. 새 canonical/pool font control에는67/68/69쪽 opening/closing/suffix 경계도 포함했다.
 
 선행 source9f의 전체142쪽 Native/29 PNG는9미달·최저44.39375%로 종료했다(1,2,10,19,68,91,95,118,119). 68쪽을 직접 읽어 각주65 prefix 복원은 확인했지만, 왼쪽 label의 Top 정렬·early row border/본문을 실제 결함으로 남겼다. batch127의 원본 parser-view charPr72는 일곱 언어 슬롯 모두 휴먼명조를 지정한다. 19쪽 U+231C/U+231F 문제를 언어 슬롯 교체로 해결할 근거가 없다. 실제 원본/PDF/TTF의 missing glyph와 fallback natural advance를 확인해야 하며 전체 face를 대체하거나 일반1em/PX 폭을 넣지 않았다. Canvas supplemental session은 portable export와 구분되므로 그 측정만 켜서 SVG 수용 근거를 만드는 우회도 하지 않았다.
+
+### 첫 행 프레임의 실행·직접 판독·정상 대조군
+
+같은 `a9c25f39b`의 Native 빌드는 **exit0/553.31초**로 종료했고 frozen binary SHA-256은 `1688695e35cca9d2a920b0d375b36e71677abe0b97bf2d12209c9293402a672e`다. batch124의 실제 출력은142/Print142쪽이며 ¶642의 source query는 `[1,1]` 컷과22.8px opening을 실제 사용한다. 68쪽 row0/row1은635.1/201.6px이고 왼쪽 라벨 baseline은440.5667px/Print440.64px다. 이 좌표는 독립 원인·실행 진단이며 정식 회귀 expectation으로 고정하지 않았다.
+
+batch125의6쪽 canonical/file-transport/browser-pool pixel·PNG byte 대조가 통과했다. 그중 새67/68/69쪽과 SHA가 같은 독립 Print 기준 PNG로 만든 batch126의 비교값은 **93.35654 / 99.67505 / 98.70757%**다. 세 review PNG를 직접 읽어 opening 상자, 왼쪽 가운데 정렬/두 행 경계, 이어받는 본문·표·각주65 prefix/suffix 및66을 확인했다. 작게 보이는 본문 번호도 canonical SVG에서65)임을 확인했다. 괘선 두께·문자 outline·67쪽 인용 부호 전진·69쪽 첫 행 배경색 차이는 남으며, 선택한 세 쪽의 수치로 전142쪽/fresh WASM의 수용을 선언하지 않는다.
+
+batch128은 source9f→a9의 정상6문서312쪽과 실제 미주 문서5쪽에서 전체 page plan 및 **모든 RenderTree bytes/hash 동일**을 확인했다. 실행 명령 모두 exit0다. batch129는 같은 a9 runtime과 원본 OLE 각주65/66을 대조해6/7줄,65의68쪽1줄+69쪽5줄과66의69쪽7줄, 전체 텍스트 hash, 각 번호1회와 각 쪽 separator1개를 다시 확인했다. 출력 동일성/내용 보존을 독립 Print/fresh WASM의 시각 통과로 대신하지 않는다. 증적은 ignored batch124/125/126/128/129에 보존한다.
+
+다음 미달 원인 batch130은 원본 각주8의6×2 TAC 표, 저장12872HU 글줄(`12592+140+140`)과 Print10쪽 괘선822.94→990.596px, 실제 a9 FootnoteArea 안의 Table0개를 연결했다. 일반 본문의 `is_tac_table_inline_in_para`는 단독 전면 폭 표를 블록으로 분류하지만, 현재 각주 block plan은 non-TAC만 처리하므로 높이를 예약하고 표를 출력하지 않는다. 기존31의 non-TAC 계획,43의 실제 인라인 TAC 대조군과 구분해 저장 전용 글줄의 소유·바깥여백·다음 줄간격을 같은 측정/paint 결과로 전달해야 한다. 이 후속 보정은 아직 구현/검증 전이며 원본/회귀 검사 삭제·이관·baseline 완화 없이 진행한다.
