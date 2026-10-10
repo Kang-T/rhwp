@@ -13277,6 +13277,8 @@ impl LayoutEngine {
                                 | crate::model::shape::TextWrap::BehindText
                         );
                         // 저장 소유 줄과 실제 표 외곽이 같은 프레임으로 닫혔다.
+                        // 표 pen은 문단 앞 간격과 위 바깥여백을 이미 소비했다.
+                        // 문단 원점에서 인증하면 앞 간격이 있는 정상 프레임도 거부한다.
                         // 이 하단을 사다리 target으로 다시 키우면 이미 소비한 상하
                         // 바깥여백을 중복한다. 줄간격과 아래 여백은 뒤 경로가 한 번 소비한다.
                         let owned_stored_tac_frame = !overlay_tac
@@ -13295,11 +13297,8 @@ impl LayoutEngine {
                                     + i64::from(t.outer_margin_top)
                                     + i64::from(t.outer_margin_bottom)
                             && (table_y_end
-                                - para_y_for_table
-                                - hwpunit_to_px(
-                                    seg.line_height - i32::from(t.outer_margin_bottom),
-                                    self.dpi,
-                                ))
+                                - table_y_before
+                                - hwpunit_to_px(t.common.height as i32, self.dpi))
                             .abs()
                                 <= self.dpi / 7200.0;
                         if owned_stored_tac_frame {
