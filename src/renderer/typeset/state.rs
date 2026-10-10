@@ -376,6 +376,7 @@ impl TypesetState {
         TableControlPage {
             has_items: !self.data.current_items.is_empty(),
             col_count: self.data.col_count,
+            profile: self.data.profile,
         }
     }
 

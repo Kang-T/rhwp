@@ -517,6 +517,23 @@ impl DocumentCore {
                 .map(|a| a.width)
                 .unwrap_or(layout.body_area.width);
 
+            // 합성/캐시 보정 전에 원본 TAC 상자가 소유한 내부 쪽 경계를 고정한다.
+            let body_height_hu = (layout.body_area.height * 7200.0 / dpi).round() as i32;
+            let source_tac_frames: Vec<_> = section
+                .paragraphs
+                .iter()
+                .map(|para| {
+                    source_table_frames
+                        .then(|| {
+                            crate::renderer::stored_control_frame::following_first_tac_frame(
+                                para,
+                                body_height_hu,
+                            )
+                        })
+                        .flatten()
+                })
+                .collect();
+
             let mut body_line_seg_changed = false;
             // [Issue #1920] vpos 재계산(아래) 시 저장 vpos 의 새 쪽 시작 신호를 보존하기
             // 위해, 이번 패스에서 LINE_SEG 가 합성(reflow)된 문단 — 저장 vpos 신뢰 불가 —
@@ -784,7 +801,6 @@ impl DocumentCore {
                 // 끼워 넣더라도 뒤의 원본 앵커가 확보한 공간을 삭제하지 않는다.
                 // 합성 내용이 자랐으면 이미 소비한 끝점을 유지하여 되감지 않는다.
                 let mut source_anchor_end: Option<(i32, i32)> = None;
-                let body_height_hu = (layout.body_area.height * 7200.0 / dpi).round() as i32;
                 for (pi, para) in section.paragraphs.iter_mut().enumerate() {
                     let was_reflowed = reflowed_paras.contains(&pi);
                     // 필드는 저장 글줄 안의 텍스트 범위를 표시할 뿐 별도 높이를
@@ -1005,7 +1021,7 @@ impl DocumentCore {
                         .map(|line| line.vertical_pos)
                         .collect();
                     let preserve_source_frames = !was_reflowed
-                        && para.controls.is_empty()
+                        && (para.controls.is_empty() || source_tac_frames[pi].is_some())
                         && !para.stored_text_partition_dirty
                         && para.line_segs.iter().all(|line| {
                             line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
@@ -1023,6 +1039,9 @@ impl DocumentCore {
                         let source_vpos = source_positions[line_index];
                         if preserve_source_frames
                             && line_index > 0
+                            && (para.controls.is_empty()
+                                || source_tac_frames[pi]
+                                    .is_some_and(|frame| frame.line == line_index))
                             && source_vpos == 0
                             && previous_source_end.is_some_and(|end: i32| {
                                 end > 0 && end.saturating_add(seg.line_height) > body_height_hu
