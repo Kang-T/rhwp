@@ -406,10 +406,11 @@ pub(in crate::renderer::typeset) fn stored_body_reset_fragment_matches_current_f
                 }
             })
     });
-    // HWP3 변환의 로컬 0 cursor와 구분하려면 뒤 조각 개체 프레임도 입증되어야 한다.
+    // 저장 조각과 현재 흐름의 일치가 물리 경계를 입증한다. HWP3 유래라는
+    // 이유로 뒤 조각의 그림까지 요구하면 정상 본문의 쪽 재시작도 놓친다.
     if !(page.profile.hwpx_stored_layout()
         || page.profile.hwp5_stored_pagination_layout()
-        || (page.profile.hwp3_layout() && continuation_pictures))
+        || page.profile.hwp3_layout())
         || para.stored_text_partition_is_dirty()
         || para.cell_format_vpos_dirty
         || page.col_count != 1
