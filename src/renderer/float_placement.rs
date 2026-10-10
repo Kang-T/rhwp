@@ -1770,8 +1770,29 @@ pub(crate) fn stored_empty_control_table_frame(
     } else {
         i64::from(anchor_vpos)
     };
-    let top = anchor_origin + positioned_offset + i64::from(table.outer_margin_top);
-    let bottom = top + measured_extent as i64 + i64::from(table.outer_margin_bottom);
+    // 원본 사다리가 전체 바깥 상자를 닫는 기존 계약은 여백의 예약 높이와
+    // 가시 괘선의 inset을 구분한다. 좌우 여백 없는 표의 vpos에 위여백을
+    // 다시 더하면 제목 표만 아래로 내려가 다음 표의 간격을 잠식한다.
+    let paint_inset = if table.caption.is_none()
+        && anchor_origin == i64::from(anchor_vpos)
+        && positioned_offset == 0
+        && crate::renderer::stored_float_anchor::stored_topbottom_flow_advance_hu(
+            host,
+            Some(successor),
+            table,
+        ) == Some(object_extent)
+    {
+        crate::renderer::stored_float_anchor::stored_topbottom_object_span(
+            host,
+            Some(successor),
+            table,
+        )
+        .0
+    } else {
+        i64::from(table.outer_margin_top)
+    };
+    let top = anchor_origin + positioned_offset + paint_inset;
+    let bottom = anchor_origin + object_extent;
     if bottom != i64::from(next_vpos) {
         return None;
     }
