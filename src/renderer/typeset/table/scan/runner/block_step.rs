@@ -212,7 +212,28 @@ impl TypesetEngine {
                     &block_row_offsets,
                     &band_fill,
                 );
-                end_row = selected.end_row(&block);
+                let selected_end_row = selected.end_row(&block);
+                if selected
+                    .stored_picture_frame_height(
+                        &block_query,
+                        &block,
+                        blk_start_cut,
+                        selected_end_row,
+                    )
+                    .is_some_and(|height| height > budget)
+                {
+                    // 내용만 들어가고 보존할 물리 행이 안 들어가면 그 컷을 수용하지 않는다.
+                    // 앞 행이 있으면 블록을 이월하고, 첫 행이면 기존 원자 블록 진행을 따른다.
+                    if r == cursor_row {
+                        consumed += cs_before + block_h;
+                        r = b_end;
+                        end_row = r;
+                        return true;
+                    }
+                    end_row = r;
+                    return false;
+                }
+                end_row = selected_end_row;
                 if let Some(band) = selected.complete_row_boundary_band(
                     &block_query,
                     &block,

@@ -1581,6 +1581,7 @@ pub struct HeightMeasurer {
     is_hwp3_variant: bool,
     legacy_hwp3_stored_geometry: bool,
     is_native_hwp5: bool,
+    hwp5_origin_hwpx: bool,
     hwpx_stored_layout: bool,
     session_edited: bool,
     use_hwp3_origin_flow_spacing_before: bool,
@@ -1685,6 +1686,7 @@ impl HeightMeasurer {
             is_hwp3_variant: false,
             legacy_hwp3_stored_geometry: false,
             is_native_hwp5: false,
+            hwp5_origin_hwpx: false,
             hwpx_stored_layout: false,
             session_edited: false,
             use_hwp3_origin_flow_spacing_before: false,
@@ -1726,6 +1728,12 @@ impl HeightMeasurer {
     /// 저장 HWPX의 배경 표 역할을 실제 배치와 같은 프로파일로 판정한다.
     pub fn with_hwpx_stored_layout(mut self, enabled: bool) -> Self {
         self.hwpx_stored_layout = enabled;
+        self
+    }
+
+    /// HWP5에서 변환한 저장 그림 사다리도 배치와 같은 출처로 측정한다.
+    pub(crate) fn with_hwp5_origin_hwpx(mut self, enabled: bool) -> Self {
+        self.hwp5_origin_hwpx = enabled;
         self
     }
 
@@ -3484,7 +3492,16 @@ impl HeightMeasurer {
                             })
                     })
                     .flatten();
-                let content_height = if let Some(plan) = source_nested_frames {
+                let source_picture_end = ((self.is_native_hwp5
+                    || self.hwpx_stored_layout
+                    || self.hwp5_origin_hwpx)
+                    && !self.session_edited
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| crate::renderer::float_placement::stored_picture_cell_content_end_hu(cell))
+                .flatten();
+                let content_height = if let Some(end) = source_picture_end {
+                    hwpunit_to_px(end, self.dpi)
+                } else if let Some(plan) = source_nested_frames {
                     // 두 viewport의 여백과 마지막 빈 줄까지 원본 상자가 소유한다.
                     // 아래 행 조합이 부모 안 여백을 한 번 더하므로 그 몫만 분리한다.
                     let padding = cell.effective_padding(&table.padding);
@@ -4469,7 +4486,16 @@ impl HeightMeasurer {
                         .paragraphs
                         .iter()
                         .all(|p| !crate::renderer::para_has_no_stored_line_segs(p));
-                let required_height = if relaxed_pad_mirror {
+                let source_picture_end = ((self.is_native_hwp5
+                    || self.hwpx_stored_layout
+                    || self.hwp5_origin_hwpx)
+                    && !self.session_edited
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| crate::renderer::float_placement::stored_picture_cell_content_end_hu(cell))
+                .flatten();
+                let required_height = if let Some(end) = source_picture_end {
+                    hwpunit_to_px(end, self.dpi) + pad_top + pad_bottom
+                } else if relaxed_pad_mirror {
                     let object_based = non_inline_h.max(nested_bottom).max(wrap_bottom);
                     let object_req = if object_based > 0.0 {
                         object_based + pad_top + pad_bottom

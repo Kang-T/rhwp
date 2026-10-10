@@ -2053,6 +2053,62 @@ impl LayoutEngine {
             } else {
                 cell.vertical_align
             };
+            let stored_picture_band = (self.profile.get().hwp5_stored_pagination_layout()
+                && !self.profile.get().session_edited()
+                && !self
+                    .render_normalization
+                    .borrow()
+                    .table_text_reflowed(table))
+            .then(|| crate::renderer::float_placement::stored_picture_cell_flow(cell))
+            .flatten()
+            .and_then(|flow| {
+                let mut top = i32::MAX;
+                let mut bottom = i32::MIN;
+                for (pi, para) in cell.paragraphs.iter().enumerate() {
+                    for (ci, control) in para.controls.iter().enumerate() {
+                        if cut_units.is_some_and(|(su, eu)| {
+                            !self.cell_cut_starts_non_inline_control(
+                                cell, table, styles, su, eu, pi, ci,
+                            )
+                        }) {
+                            continue;
+                        }
+                        let Control::Picture(picture) = control else {
+                            unreachable!();
+                        };
+                        let start = flow.picture_start_hu(pi, ci);
+                        top = top.min(start);
+                        bottom = bottom.max(start + picture.common.height as i32);
+                    }
+                    let visible_line = line_ranges.as_ref().is_none_or(|ranges| {
+                        ranges.get(pi).is_some_and(|&(start, end)| start < end)
+                    });
+                    if visible_line {
+                        let line = &para.line_segs[0];
+                        let start = flow.line_start_hu(pi, line.vertical_pos);
+                        top = top.min(start);
+                        bottom = bottom.max(start + line.line_height);
+                    }
+                }
+                if top >= bottom {
+                    return None;
+                }
+                let height = hwpunit_to_px(bottom - top, self.dpi);
+                let free = (inner_height - height).max(0.0);
+                let align = match cell.vertical_align {
+                    VerticalAlign::Top => 0.0,
+                    VerticalAlign::Center => free / 2.0,
+                    VerticalAlign::Bottom => free,
+                };
+                let origin = cell_y + pad_top + align
+                    - if cell.vertical_align == VerticalAlign::Top {
+                        // 위 정렬의 원본 음수 오프셋은 정렬 여유로 상쇄하지 않는다.
+                        0.0
+                    } else {
+                        hwpunit_to_px(top, self.dpi)
+                    };
+                Some((flow, origin))
+            });
             // 온전한 셀은 그림 띠와 빈 마지막 줄의 닫힌 원본 프레임을 함께 소비한다.
             // 실제 내용 컷은 그 조각의 기존 유닛 소유를 유지한다.
             let stored_empty_picture_frame = (!cell_was_split && !is_rowbreak_straddle)
@@ -3448,7 +3504,12 @@ impl LayoutEngine {
                                             .then(|| para.line_segs.first())
                                             .flatten()
                                             .filter(|seg| seg.vertical_pos > 0)
-                                            .map(|seg| hwpunit_to_px(seg.vertical_pos, self.dpi));
+                                            .map(|seg| {
+                                                let origin = crate::renderer::float_placement::stored_picture_cell_flow(cell)
+                                                    .and_then(|flow| flow.paragraph_origins_hu.get(cp_idx).copied())
+                                                    .unwrap_or(seg.vertical_pos);
+                                                hwpunit_to_px(origin, self.dpi)
+                                            });
                                         if let Some(vpos_px) = stored_flow_vpos {
                                             content_top + vpos_px + v_off
                                         } else {
@@ -3527,6 +3588,16 @@ impl LayoutEngine {
                                     };
                                     // 같은 그림 띠의 공통 원점과 각 개체 오프셋을 소비한다.
                                     // 각 그림 높이로 하단을 역산하거나 화면 이탈 뒤에 되돌리지 않는다.
+                                    let pic_y = stored_picture_band
+                                        .as_ref()
+                                        .map(|(flow, origin)| {
+                                            origin
+                                                + hwpunit_to_px(
+                                                    flow.picture_start_hu(cp_idx, ctrl_idx),
+                                                    self.dpi,
+                                                )
+                                        })
+                                        .unwrap_or(pic_y);
                                     let pic_y = stored_empty_picture_frame
                                         .map(|frame| {
                                             text_y_start
@@ -6298,6 +6369,26 @@ impl LayoutEngine {
                             .is_some())
             });
         let fold_last_row = render_rows.last().copied().filter(|&fold_row| {
+            // 예약과 행 배치가 온전히 소비한 형제 행의 물리 높이를 보존했다면,
+            // 걸침 칸에 다음 쪽 그림이 남아 있어도 그 높이는 줄간격 여분이 아니다.
+            let source_block_row_owns_height = is_block_split
+                && measured_table.is_some()
+                && self.row_block_cut_uses_measured_height(
+                    table,
+                    rowspan_block_range(table, fold_row),
+                    fold_row,
+                    if start_cut_is_block
+                        && rowspan_block_range(table, start_row)
+                            == rowspan_block_range(table, fold_row)
+                    {
+                        start_cut
+                    } else {
+                        &[]
+                    },
+                    end_cut,
+                    styles,
+                )
+                && row_heights.get(fold_row) == resolved_row_heights.get(fold_row);
             let source_physical_split_owns_height = !is_block_split
                 && self
                     .stored_row_physical_split_heights(
@@ -6327,9 +6418,14 @@ impl LayoutEngine {
                     <= 2.0 * self.dpi / 7200.0
                     || (table_y + partial_table_height - page_cap).abs()
                         <= 2.0 * self.dpi / 7200.0);
-            (end_row < table.row_count as usize
-                || end_cut.iter().any(|&unit| unit > 0)
-                || page_cap_fold > 0.5)
+            // 높이 0인 미소비 행에는 회수할 줄간격이 없다. 그 행을 통해
+            // 앞의 완전 소비한 물리 행이나 병합 상자를 다시 줄이지 않는다.
+            row_heights
+                .get(fold_row)
+                .is_some_and(|height| *height > 0.0)
+                && (end_row < table.row_count as usize
+                    || end_cut.iter().any(|&unit| unit > 0)
+                    || page_cap_fold > 0.5)
                 && enclosing_cell_ctx.is_none()
                 && !align_saved_opening_frame
                 // A carried source row owns its accepted blank band, too.
@@ -6338,6 +6434,7 @@ impl LayoutEngine {
                         cut.as_slice() == start_cut && start_row_height_override == Some(*remaining)
                     }))
                 && !owns_declared_row_frame
+                && !source_block_row_owns_height
                 && !source_physical_split_owns_height
                 && !source_body_frame_owns_height
                 && budget_row_height_0.is_none()
@@ -6409,12 +6506,32 @@ impl LayoutEngine {
         // 조각에서 상자가 내용 아래로 내려간다. ②만 빼면 내용이 적은 선언 높이 행이 무너진다.
         if let Some(fold_row) = fold_last_row {
             let mut trail: f64 = 0.0;
-            let (su, eu) = (
-                start_cut.first().copied().unwrap_or(0),
-                end_cut.first().copied().unwrap_or(0),
-            );
-            if eu > 0 {
+            if !end_cut.is_empty() {
                 for cell in table.cells.iter().filter(|c| c.row as usize == fold_row) {
+                    // 병합 블록의 첫 슬롯은 걸침 칸의 컷이다. 마지막 행의
+                    // 다른 칸이 미소비인데 그 첫 슬롯으로 줄간격을 회수하지 않는다.
+                    let start_block =
+                        start_cut_is_block.then(|| rowspan_block_range(table, start_row));
+                    let end_block = is_block_split.then(|| rowspan_block_range(table, fold_row));
+                    let (su, eu) = cell_cut_window(
+                        table,
+                        cell,
+                        start_cut_is_block,
+                        is_block_split,
+                        start_block.is_some_and(|(start, end)| start <= fold_row && fold_row < end)
+                            || (!start_cut_is_block && fold_row == start_row),
+                        start_block,
+                        true,
+                        end_block,
+                        start_cut,
+                        end_cut,
+                        Some(self.cell_units(cell, table, styles).len()),
+                        start_row,
+                        fold_row,
+                    );
+                    if su == eu {
+                        continue;
+                    }
                     let ranges = self.cell_line_ranges_from_cut(cell, table, styles, su, eu);
                     let Some(pi2) = ranges
                         .iter()
