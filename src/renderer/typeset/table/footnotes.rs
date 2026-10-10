@@ -196,8 +196,12 @@ impl TypesetEngine {
         }
 
         while let Some(note) = notes.get(continuation.next_table_footnote) {
-            if st.profile.hwpx_stored_layout()
-                && !terminal_fragment
+            // A content cut owns the marker before a page budget can own its
+            // note. This is the same consumed CellUnit contract for HWP5 and
+            // HWPX; container format does not allow future markers to enter
+            // an earlier fragment's footnote lane. Keep source order so later
+            // notes cannot overtake a marker that is still on a future page.
+            if !terminal_fragment
                 && !queued_fresh_page
                 && !layout_engine.table_footnote_path_precedes_cut(
                     table,

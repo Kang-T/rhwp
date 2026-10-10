@@ -689,3 +689,12 @@ code head `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 owned review worktree에
 이 추가 source는 fmt·공백 확인만 끝났으며 컴파일·독립 Print의 해당5쪽/정상 대조군·Native/fresh WASM·관계형 회귀는 아직 미검증이다. 현재 보정 중인 입력은 최신 사용자 지시대로 #7445에 새로 이관하지 않으며, 전쪽90%와 직접 판독 전에 baseline/기대값을 바꾸지 않는다.
 
 `dc5fcb59f`의 Native Clippy와 Native 빌드는 exit0/438.83초로 끝났다. 실제 실행에서 `TERMINAL_SOURCE_OWNER ... next=30`으로 이미 배치된28을 제외하고, `DEFERRED_TERMINAL_GAP ... next=38 flow=358.267 gap=3.773`으로 원본 빈 줄의 물리 등식이 닫힐 때만283HU를 소비했다.35쪽을 유지하며 해당5쪽 새 review98.41635%를 직접 읽어 위 표의 끝과 아래 표 시작·외곽선 및 내용 순서가 Print와 맞음을 확인했다. 원본 HWPX·PDF의 working bytes와 검토 commit bytes 일치 및 실행 파일·PNG 해시·명령·결과를 `batch52-terminal-flow-proof/provenance.json`에 기록했다. 이는 선택 Native 한 쪽의 결과이며 전체35쪽/fresh WASM 및 뒤에 보정한8af777a20의 최종 출력 통과를 대신하지 않는다.
+
+
+## 각주 표시의 조각 소유 대조 — 2026-10-11
+
+`8af777a20` Native는 가맹사업 보고서의 전체 page plan을 독립 Print와 같은142쪽으로 복원했다. 그러나 새70쪽80.69136%·71쪽66.59059%는 미달이며 직접 review 판독에서도 남은 표 위치·후속 본문·각주 차이를 확인했다. 특히 표시67은71쪽 본문에 있지만 각주67의 등록은 첫 표 조각의 앞쪽 lane에서 실행됐다. 원본/PDF는 바꾸지 않고 `batch53-current-frame-and-flow-boundaries`의 새 PNG와 `batch54-current-franchise-routing`의 실제 호출 로그를 보존했다.
+
+소비 경로는 `emit_table_fragment → register_queued_table_footnotes → table_footnote_path_precedes_cut → 실제 compose/cell unit·부모/자식 컷`이다. HWPX만 컷 소유를 검사하던 조건을 제거해 HWP5도 표시가 실제 수용된 조각에서만 새 각주를 등록하고, 아직 수용되지 않은 표시 앞에서 source 순서의 큐를 멈추도록 보정했다. 이미 소유한 각주의 밀린 tail·모든 내용을 소비한 끝 조각·전용 각주 새 쪽의 기존 경로는 유지한다. 새 코드의 컴파일·두 backend 시각·일반/중첩/병합 경계·관계형 검사·전체 회귀는 아직 미검증이다.142쪽만으로 완료 판정하거나143쪽 기대값을 수정하지 않는다.
+
+편람의 최신 Native 실제 흐름은 구역10의 표13 뒤 `cur_h=545.52`이며 원본 `22269 + 18045 + 600 = 40914HU`와 일치한다. 예전9ded 캡처에서 관측한600HU 누락을 최신 코드의 미해결 결함으로 단정하지 않는다. Print profile의 새284쪽 캡처와 확대 판독은 별도로 확인한다.
