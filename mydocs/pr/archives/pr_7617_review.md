@@ -687,3 +687,5 @@ code head `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 owned review worktree에
 지연 큐가 가진 Before/After/SectionEnd 문단 cursor를 마지막 조각의 후속 조회에 전달하고 기존 prefill 소유 정보를 함께 소비하도록 보정했다. 끝 조각의 두 native successor 경로와 빈 끝줄 경로는 같은 `table_flow_successor`를 사용한다. 실제 후속 빈 줄이 아직 없으면 표 소유·끝 높이·쪽·단을 보존하고, 같은 물리 흐름의 원본 저장 줄이 기존 `stored_terminal_empty_line_gap` 등식을 입증할 때만 여백을 소비한다. 사이 문단이 공간을 소비하거나 쪽/단이 바뀌면 폐기하며, 기존 문단 fit·빈 줄 상자·명시적 나눔은 유지한다. 문서 ID·문단38·고정 px 위치를 분기나 assertion으로 넣지 않았다.
 
 이 추가 source는 fmt·공백 확인만 끝났으며 컴파일·독립 Print의 해당5쪽/정상 대조군·Native/fresh WASM·관계형 회귀는 아직 미검증이다. 현재 보정 중인 입력은 최신 사용자 지시대로 #7445에 새로 이관하지 않으며, 전쪽90%와 직접 판독 전에 baseline/기대값을 바꾸지 않는다.
+
+`dc5fcb59f`의 Native Clippy와 Native 빌드는 exit0/438.83초로 끝났다. 실제 실행에서 `TERMINAL_SOURCE_OWNER ... next=30`으로 이미 배치된28을 제외하고, `DEFERRED_TERMINAL_GAP ... next=38 flow=358.267 gap=3.773`으로 원본 빈 줄의 물리 등식이 닫힐 때만283HU를 소비했다.35쪽을 유지하며 해당5쪽 새 review98.41635%를 직접 읽어 위 표의 끝과 아래 표 시작·외곽선 및 내용 순서가 Print와 맞음을 확인했다. 원본 HWPX·PDF의 working bytes와 검토 commit bytes 일치 및 실행 파일·PNG 해시·명령·결과를 `batch52-terminal-flow-proof/provenance.json`에 기록했다. 이는 선택 Native 한 쪽의 결과이며 전체35쪽/fresh WASM 및 뒤에 보정한8af777a20의 최종 출력 통과를 대신하지 않는다.
