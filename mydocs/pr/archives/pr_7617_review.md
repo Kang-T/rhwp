@@ -863,3 +863,15 @@ batch118은 parser와 동일한 original CTRL_HEADER 높이 offset20을 직접 �
 완료된 batch104 driver 종료·TSV/29 PNG 보존·경로/소유와 파일 hash를 확인하고 오래된 중간 SVG142개만 제거해9.73GiB를 확보했다. `batch104-svg-removal-ledger.json`에 기록하며 모든 PNG/TSV/JSON/log/원본/PDF/frozen binary와 공유 target은 보존했다.
 
 전체 source frame 원인 분석은 batch119를 두 section으로 확장했다. ¶642의 서로 다른 row0 cell heights와 첫1710HU physical frame 외에도 section1 ¶461의107–142쪽 이어받기를 구분했다. 현재 수정 입력의 검사를 이관/삭제하거나 허용치·baseline을 바꾸지 않았다. 최신 upstream/devel fetch는 기존 `21ed64071f81f35f37618717693bd30f727392c9`와 같고 rebase는 up to date였다. batch122에서 원7 PR이 모두 open/unmerged이고 이전 검토 head와 같음을 API로 재확인했다. 개별7 review·47입력/fresh WASM·고비용 전체 회귀·최종 Rust 묶음·통합 PR/CI/merge/후속 처리는 완료되지 않았다.
+
+## 첫 행 저장 물리 프레임 공유 — 2026-10-11
+
+메인터너 code head `a9c25f39b544d372eef9f3c3d67fe066f39c1247`는 첫 object frame이 첫 source row 안에서 닫힐 때, 동기화된 실제 CellUnit reset과 저장 LineSeg 범위가 인증한 `(컷, opening, remaining)`을 같은 query에서 만든다. source cutoff는 실제 유닛의 첫 frame reset이며 raw 행 높이의 최대값은 같은 격자 행의 물리 공간이다. owner들의 높이/정렬이 같아야 한다는 가정으로 이를 거절하지 않는다. 다른 source reset·수정/재조판·중첩/걸침/객체 단위·비영 cell spacing 등 별도 공간 계약은 기존 경로이며 이번 query의 충족으로 보증하지 않는다. 저장 줄 상자 하단과 다음 전진 범위가 첫 object frame을 닫는지 확인하고, 새 측정 내용이 source tail보다 크면 수용하지 않는다. 저장 LineSeg 높이를 실제 글리프 잉크 정확성의 보증으로 쓰지는 않으며 실제 glyph/spacing은 Print 시각 검증에서 확인한다.
+
+생산/소비 연결은 `original common.height + raw first-row max + CellUnit synchronized cuts → saved_first_row_opening_frame → scan_table_fragment의 실제 opening 요구 높이/수용 컷 → emit_table_fragment의 같은 컷/높이 확인 → 실제 accepted box ledger + remaining cursor → RowScanQuery::whole_row_height의 같은 물리 tail 요구 높이 → PartialTable의 start/end override 및 source alignment → accepted source box에 대한 paint-only fold 제외`다. opening이 현재 예산에 안 맞으면 현재 내용/각주가 있는 쪽을 이월하며 새 빈 쪽에서 이월만 반복하지 않는다. 다른 행의 fragment와 row-span block에서는 그 경계의 기존 수용/컷 경로를 유지한다. 이후 컷이 필요할 때 ledger는 실제 수용한 box만 누적한다. row count/특정 수치/파일 ID에 따른 분기를 추가하지 않았다.
+
+독립 원본/Print 근거는 batch112/113/118이며, 원본1710HU opening 및49342−1710HU remaining을 Native의26.4/595.0px 대신 같은 물리 상자로 전달한다. 아래쪽 표 괘선과 뒤 본문까지 확인해야 하고 Center 하나의 복원으로 완료하지 않는다. field/caption/비영 cell spacing 및 multi-reset 소유는 이 추가 query에서 미검증/비적용이며 source 반례를 지침보다 축소해서 검사를 갱신하지 않는다. 이번 코드의 실제 경계·정상 대조군과 전쪽 Native/fresh WASM은 아직 미검증이다. 새 정식 regression/expectation/baseline은 변경하지 않았다.
+
+batch123은 공유 target/jobs8의 suite/fmt와 Native Clippy를 통과했다(Clippy2분31초). 실제 Native 빌드는 driver9928/Cargo16804/Rust15720으로 실행 중이며 batch124 runtime과 batch125 visual이 같은 source를 기다린다. batch125는 실제 source query 적용과142쪽을 확인하기 전 전쪽 raster를 시작하지 않으며 완료된 source9f의 visual과 I/O를 순차 사용한다. 새 canonical/pool font control에는67/68/69쪽 opening/closing/suffix 경계도 포함했다.
+
+선행 source9f의 전체142쪽 Native/29 PNG는9미달·최저44.39375%로 종료했다(1,2,10,19,68,91,95,118,119). 68쪽을 직접 읽어 각주65 prefix 복원은 확인했지만, 왼쪽 label의 Top 정렬·early row border/본문을 실제 결함으로 남겼다. batch127의 원본 parser-view charPr72는 일곱 언어 슬롯 모두 휴먼명조를 지정한다. 19쪽 U+231C/U+231F 문제를 언어 슬롯 교체로 해결할 근거가 없다. 실제 원본/PDF/TTF의 missing glyph와 fallback natural advance를 확인해야 하며 전체 face를 대체하거나 일반1em/PX 폭을 넣지 않았다. Canvas supplemental session은 portable export와 구분되므로 그 측정만 켜서 SVG 수용 근거를 만드는 우회도 하지 않았다.
