@@ -881,6 +881,7 @@ impl TypesetEngine {
                     eprintln!("DIAG_SCAN FLOW_END pi={para_idx} row={cursor_row} cont={is_continuation} current={:.3} occupied={occupied:.3} terminal_spacing={terminal_spacing:.3} outer={} terminal_flow={:.3} reserved={terminal_outer_bottom_overhead:.3} host_tags={:?} next_line={:?}", st.current_height, table.outer_margin_bottom, input.prepared.terminal_outer_bottom_flow, input.source.paragraph.line_segs.iter().map(|line| line.tag).collect::<Vec<_>>(), input.source.paragraphs_all.get(para_idx + 1).and_then(|para| para.line_segs.first()).map(|line| (line.vertical_pos, line.tag)));
                 }
                 st.advance_flow_by(occupied + terminal_spacing);
+                self.consume_stored_terminal_empty_line_gap(st, &input, is_continuation);
             }
             commit_fragment(
                 st,
@@ -1089,6 +1090,7 @@ impl TypesetEngine {
                 })
                 .unwrap_or(host_spacing_after_only + terminal_host_spacing);
             st.advance_flow_by(terminal_spacing);
+            self.consume_stored_terminal_empty_line_gap(st, &input, is_continuation);
             commit_fragment(st, caption_extra + partial_height, true);
             continuation.finish(row_count, true);
             return TableContinuationIteration::Complete;
@@ -1362,5 +1364,61 @@ impl TypesetEngine {
         }
 
         TableContinuationIteration::Emitted
+    }
+
+    /// 다음 실제 흐름 문단이 증언한 마지막 표 여백만 수용한다.
+    /// deferred float 앞에서 이미 채운 문단은 이 조각의 후속 문단이 아니다.
+    fn consume_stored_terminal_empty_line_gap(
+        &self,
+        st: &mut TypesetState,
+        input: &FragmentInput<'_>,
+        is_continuation: bool,
+    ) {
+        let host = input.source.paragraph;
+        if !is_continuation
+            || st.col_count != 1
+            || host.stored_text_partition_is_dirty()
+            || host.cell_format_vpos_dirty
+            || input.source.control_index + 1 != host.controls.len()
+            || host
+                .text
+                .chars()
+                .any(|ch| ch > '\u{001F}' && ch != '\u{FFFC}' && !ch.is_whitespace())
+        {
+            return;
+        }
+        let Some((index, next)) = input
+            .source
+            .paragraphs_all
+            .iter()
+            .enumerate()
+            .skip(input.source.para_index + 1)
+            .find(|(index, _)| {
+                !st.prefilled_paras.contains(index) && !st.pre_emitted_host_paras.contains(index)
+            })
+        else {
+            return;
+        };
+        if st.prefilled_line_prefixes.contains_key(&index) {
+            return;
+        }
+        let Some(gap) = crate::renderer::float_placement::stored_terminal_empty_line_gap(
+            next,
+            input.source.table,
+            input.source.styles,
+            st.profile,
+            st.current_height,
+            self.dpi,
+        ) else {
+            return;
+        };
+        if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+            eprintln!(
+                "DIAG_SCAN TERMINAL_SOURCE_GAP pi={} next={} current={:.3} gap={:.3} resolved={:.3}",
+                input.source.para_index, index, st.current_height, gap, st.current_height + gap,
+            );
+        }
+        st.advance_flow_by(gap);
+        st.record_stored_paragraph_flow_end(input.source.para_index, st.current_height);
     }
 }

@@ -1700,6 +1700,55 @@ impl StoredParagraphSuccessorFlow {
     }
 }
 
+/// 끝 조각 뒤 빈 글줄의 원본 시작이 표 아래 바깥여백을 독립적으로 증언한다.
+/// 이미 여백을 소비했거나 저장 축이 현재 쪽과 다르면 등식이 닫히지 않는다.
+pub(crate) fn stored_terminal_empty_line_gap(
+    next: &Paragraph,
+    table: &Table,
+    styles: &super::style_resolver::ResolvedStyleSet,
+    profile: crate::model::provenance::LayoutCompatibilityProfile,
+    flow_end: f64,
+    dpi: f64,
+) -> Option<f64> {
+    use crate::model::paragraph::LineSeg;
+    let [line] = next.line_segs.as_slice() else {
+        return None;
+    };
+    if profile.session_edited()
+        || !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
+        || !is_para_topbottom_float(&table.common)
+        || table.outer_margin_bottom <= 0
+        || !next.text.trim().is_empty()
+        || !next.controls.is_empty()
+        || next.stored_text_partition_is_dirty()
+        || next.cell_format_vpos_dirty
+        || line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || line.line_height <= 0
+        || !flow_end.is_finite()
+        || flow_end < 0.0
+    {
+        return None;
+    }
+    let source_top = match &next.source_line_seg_vertical_pos {
+        Some(source) if source.len() == 1 => source[0],
+        Some(_) => return None,
+        None => line.vertical_pos,
+    };
+    let before = styles
+        .para_styles
+        .get(next.para_shape_id as usize)?
+        .spacing_before;
+    if source_top < 0 || !before.is_finite() || before < 0.0 {
+        return None;
+    }
+    let before_hu = super::px_to_hwpunit(before, dpi);
+    let cursor_hu = super::px_to_hwpunit(flow_end, dpi);
+    let margin_hu = i32::from(table.outer_margin_bottom);
+    let delta =
+        i64::from(source_top) - i64::from(before_hu) - i64::from(cursor_hu) - i64::from(margin_hu);
+    (delta.abs() <= 1).then(|| hwpunit_to_px(margin_hu, dpi))
+}
+
 pub(crate) fn stored_paragraph_successor_flow(
     para: &Paragraph,
     next: &Paragraph,
