@@ -528,3 +528,11 @@ rowbreak14쪽은 여전히59.31517%, 전체19/Print18쪽이다. `batch32-correct
 `stored_text_paragraphs_share_vpos_frame`과 `stored_plain_text_paragraph_frame_reset`의 control-free 원본 줄 판정에서 빈 문자열 자체를 제외 근거로 사용하지 않도록 수정했다. 저장 줄의 전진·원점 reset, dirty·합성 제외, 원본 행 상자가 선언 object frame보다 길다는 기존 인증은 유지한다. 그 인증으로 얻은 동일 첫 원점·선언 frame 상한을 cut과 paint에 전달하고, 첫 frame 예산은 실제 기존 각주 경계를 소비한다. 새 각주는 기존 물리 fit 큐를 그대로 따른다. 현재 cut·좌표를 기대값으로 복사하지 않았으며 이 추가 보정의 정상 대조군·전쪽 Native/fresh WASM·관계형 회귀·lint는 아직 미완료다.
 
 별도 frozen `9dedca104` 편람은 Native383쪽과 WASM383쪽 TSV가 모두 완료됐고 각 최저90.42728%/미달0쪽이었다. 이후 source 변경 감지 assertion으로 driver가 종료됐음을 실제 stderr와 사라진 process handle로 확인했다(`batch38-franchise-source-notes/old-whole-terminal-observation.json`). 원 provenance를 덮어쓰지 않고 종료 관측을 별도로 보존했다. 제목의 직접 판독 차이는 미해결이고 이 오래된 head 결과를 새 head 통과로 쓰지 않는다. 나머지46입력과 활성47입력 전체3,628쪽·두 backend 범위는 그대로 남아 있다.
+
+### 중첩 셀 각주의 원본 소유 경로 보존 — 2026-10-10
+
+`4232ba8b3` Native 빌드는 exit0/608.53초로 끝났다. 가맹사업의 원본 표650에는 바깥 셀의 각주67·68과 안쪽 표 셀의69·70이 실제 control level3·5에 존재하고 독립 Print71쪽에도 네 번호의 본문이 모두 있다. `d970fb1b3`의 실행 진단은 `TABLE_FOOTNOTE_QUEUE pi=650 ... notes=2`이며 현재 수집기는 최상위 셀 control만 방문한다. 같은70쪽 render tree에는68만 있고71·72쪽에는 각주 영역 자체가 없다. `batch42-nested-footnote-audit/provenance.json`에 원본 해시·실행 진단·선택 render tree를 연결했다. 이는 표 높이 문제와 구별되는 실제 내용 누락이며 기존 차이라는 이유로 면제하거나 #7445로 이관하지 않는다.
+
+`table_cell_footnotes`가 원본 셀·문단·control 순서대로 내부 표를 재귀 방문해 각주와 소유 경로를 함께 반환하도록 보정했다. Typeset format의 측정, fragment 큐와 비큐 등록, legacy Paginator의 측정·등록이 이 동일한 결과를 소비한다. 최상위 셀은 기존 `TableCell` source를 유지하고 내부 셀은 `NestedTableCell`에 경로를 보존하며, 출력은 동일 원문을 그 경로로 조회한다. 증분 pagination의 최상위 문단 offset 변경도 내부 경로를 보존한다. 각주 원본을 새 문서·가짜 최상위 control로 복사하지 않는다.
+
+HWPX 큐의 컷 전 marker 검사에는 부모 컷에서 paint가 사용하는 `mixed_nested_split_from_cut`, `nested_table_split_from_cut_units`, `nested_row_range_from_cut_units`의 자식 컷을 재사용해 내부 각주 줄까지 소유를 확인한다. 원자 인라인 개체는 동일 composed 줄과 cell-unit 순서로 수용 여부를 확인하며 픽셀 구역이나 marker 번호로 선택하지 않는다. 단일 깊이 경로는 기존 marker 검사를 그대로 사용한다. 실제 한컴 출력과 수정 전 누락은 확인했지만 이 추가 source의 컴파일·Native/fresh WASM·편집/증분 경계·관계형 회귀는 아직 미검증이다. 시각 선행 조건이 충족되기 전 새 fixture/golden이나143쪽 검사 기대값을 변경하지 않는다.

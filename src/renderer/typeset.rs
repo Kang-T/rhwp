@@ -195,12 +195,10 @@ struct TableBreakToken {
 ///
 /// `fragment_split`은 native HWP5 cell-footnote의 실제 stored vpos reset을 그대로
 /// 옮긴 경우에만 채운다. 단순 capacity 부족은 일반 각주처럼 원자적으로 유지한다.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct TableCellFootnote {
     number: u16,
-    cell_index: usize,
-    cell_para_index: usize,
-    cell_control_index: usize,
+    cell_path: Vec<crate::renderer::pagination::TableFootnotePathEntry>,
     row: usize,
     /// Renderer가 실제 줄바꿈·trailing line-spacing까지 합산한 높이. RowBreak
     /// fragment queue는 이 값을 써야 URL 각주가 본문 위로 침범하지 않는다.

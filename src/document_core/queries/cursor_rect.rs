@@ -6196,6 +6196,11 @@ impl DocumentCore {
                 para_index,
                 table_control_index,
                 ..
+            }
+            | FootnoteSource::NestedTableCell {
+                para_index,
+                table_control_index,
+                ..
             } => (*para_index, *table_control_index, "table"),
             FootnoteSource::ShapeTextBox {
                 para_index,

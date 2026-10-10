@@ -406,6 +406,15 @@ impl ActiveHeaderFooter {
     }
 }
 
+/// 표 안에서 각주까지 내려가는 실제 control 경로의 한 단계.
+/// 마지막 단계는 각주 control, 앞 단계들은 중첩 표 control을 가리킨다.
+#[derive(Debug, Clone, Copy)]
+pub struct TableFootnotePathEntry {
+    pub cell_index: usize,
+    pub cell_para_index: usize,
+    pub control_index: usize,
+}
+
 /// 각주 출처 (본문 문단 또는 표 셀 내)
 #[derive(Debug, Clone)]
 pub enum FootnoteSource {
@@ -422,6 +431,12 @@ pub enum FootnoteSource {
         cell_para_index: usize,
         cell_control_index: usize,
     },
+    /// 표 셀 안의 중첩 표에 있는 각주. 최상위 host와 내부 소유 경로를 함께 보존한다.
+    NestedTableCell {
+        para_index: usize,
+        table_control_index: usize,
+        cell_path: Vec<TableFootnotePathEntry>,
+    },
     /// 글상자(Shape TextBox) 내 각주
     ShapeTextBox {
         para_index: usize,
@@ -429,6 +444,69 @@ pub enum FootnoteSource {
         tb_para_index: usize,
         tb_control_index: usize,
     },
+}
+
+impl FootnoteSource {
+    pub(crate) fn table_cell_path(
+        para_index: usize,
+        table_control_index: usize,
+        cell_path: &[TableFootnotePathEntry],
+    ) -> Self {
+        match cell_path {
+            [entry] => Self::TableCell {
+                para_index,
+                table_control_index,
+                cell_index: entry.cell_index,
+                cell_para_index: entry.cell_para_index,
+                cell_control_index: entry.control_index,
+            },
+            _ => Self::NestedTableCell {
+                para_index,
+                table_control_index,
+                cell_path: cell_path.to_vec(),
+            },
+        }
+    }
+}
+
+/// 저장 셀/control 순서를 유지하면서 중첩 표 안의 각주도 같은 수집 경로로 반환한다.
+pub(crate) fn table_cell_footnotes(
+    table: &crate::model::table::Table,
+) -> Vec<(
+    Vec<TableFootnotePathEntry>,
+    &crate::model::footnote::Footnote,
+)> {
+    fn collect<'a>(
+        table: &'a crate::model::table::Table,
+        path: &mut Vec<TableFootnotePathEntry>,
+        notes: &mut Vec<(
+            Vec<TableFootnotePathEntry>,
+            &'a crate::model::footnote::Footnote,
+        )>,
+    ) {
+        for (cell_index, cell) in table.cells.iter().enumerate() {
+            for (cell_para_index, para) in cell.paragraphs.iter().enumerate() {
+                for (control_index, control) in para.controls.iter().enumerate() {
+                    path.push(TableFootnotePathEntry {
+                        cell_index,
+                        cell_para_index,
+                        control_index,
+                    });
+                    match control {
+                        crate::model::control::Control::Footnote(note) => {
+                            notes.push((path.clone(), note));
+                        }
+                        crate::model::control::Control::Table(child) => collect(child, path, notes),
+                        _ => {}
+                    }
+                    path.pop();
+                }
+            }
+        }
+    }
+    let mut notes = Vec::new();
+    collect(table, &mut Vec::new(), &mut notes);
+    notes
 }
 
 /// 한 각주를 물리 페이지 경계에서 나눈 line fragment.
@@ -1129,6 +1207,15 @@ impl PaginationResult {
                                 shape_control_index: *shape_control_index,
                                 tb_para_index: *tb_para_index,
                                 tb_control_index: *tb_control_index,
+                            },
+                            FootnoteSource::NestedTableCell {
+                                para_index,
+                                table_control_index,
+                                cell_path,
+                            } => FootnoteSource::NestedTableCell {
+                                para_index: (*para_index as i64 + offset as i64).max(0) as usize,
+                                table_control_index: *table_control_index,
+                                cell_path: cell_path.clone(),
                             },
                         };
                         FootnoteRef {

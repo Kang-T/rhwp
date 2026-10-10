@@ -128,34 +128,27 @@ pub(super) fn format(
 
     // 표 셀 내 각주 높이 사전 계산 (Paginator engine.rs:565-581 동일)
     let mut table_footnote_height = 0.0;
-    let mut table_footnote_count = 0usize;
+    let source_notes = crate::renderer::pagination::table_cell_footnotes(table);
+    let table_footnote_count = source_notes.len();
     let mut table_footnotes = Vec::new();
-    for (cell_idx, cell) in table.cells.iter().enumerate() {
-        for (cp_idx, cp) in cell.paragraphs.iter().enumerate() {
-            for (cc_idx, cc) in cp.controls.iter().enumerate() {
-                if let Control::Footnote(fn_ctrl) = cc {
-                    let fn_height = estimate_footnote_note_height(fn_ctrl, dpi);
-                    table_footnote_height += fn_height;
-                    table_footnote_count += 1;
-                    // 두 저장 컨테이너 모두 같은 명시적 각주 줄 재시작을 보존한다.
-                    // 조회는 저장 줄과 구성 줄의 일대일 대응을 확인하며,
-                    // 편집·합성 메타데이터를 분할 신호로 쓰지 않는다.
-                    let fragment_split = (profile().hwp5_stored_pagination_layout()
-                        || (profile().hwpx_stored_layout() && !profile().session_edited()))
-                    .then(|| native_hwp5_footnote_reset_fragments(fn_ctrl, dpi))
-                    .flatten();
-                    table_footnotes.push(TableCellFootnote {
-                        number: fn_ctrl.number,
-                        cell_index: cell_idx,
-                        cell_para_index: cp_idx,
-                        cell_control_index: cc_idx,
-                        row: cell.row as usize,
-                        content_height: queued_table_footnote_content_height(fn_ctrl, dpi),
-                        fragment_split,
-                    });
-                }
-            }
-        }
+    for (cell_path, fn_ctrl) in source_notes {
+        let owner = cell_path[0];
+        let fn_height = estimate_footnote_note_height(fn_ctrl, dpi);
+        table_footnote_height += fn_height;
+        // 두 저장 컨테이너 모두 같은 명시적 각주 줄 재시작을 보존한다.
+        // 조회는 저장 줄과 구성 줄의 일대일 대응을 확인하며,
+        // 편집·합성 메타데이터를 분할 신호로 쓰지 않는다.
+        let fragment_split = (profile().hwp5_stored_pagination_layout()
+            || (profile().hwpx_stored_layout() && !profile().session_edited()))
+        .then(|| native_hwp5_footnote_reset_fragments(fn_ctrl, dpi))
+        .flatten();
+        table_footnotes.push(TableCellFootnote {
+            number: fn_ctrl.number,
+            row: table.cells[owner.cell_index].row as usize,
+            cell_path,
+            content_height: queued_table_footnote_content_height(fn_ctrl, dpi),
+            fragment_split,
+        });
     }
 
     FormattedTable {

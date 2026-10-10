@@ -1963,6 +1963,40 @@ fn get_footnote_paragraphs<'a>(
             }
             &[]
         }
+        FootnoteSource::NestedTableCell {
+            para_index,
+            table_control_index,
+            cell_path,
+        } => {
+            let Some(Control::Table(table)) = paragraphs
+                .get(*para_index)
+                .and_then(|para| para.controls.get(*table_control_index))
+            else {
+                return &[];
+            };
+            let mut table = table.as_ref();
+            for (index, entry) in cell_path.iter().enumerate() {
+                let Some(control) = table
+                    .cells
+                    .get(entry.cell_index)
+                    .and_then(|cell| cell.paragraphs.get(entry.cell_para_index))
+                    .and_then(|para| para.controls.get(entry.control_index))
+                else {
+                    return &[];
+                };
+                if index + 1 == cell_path.len() {
+                    return match control {
+                        Control::Footnote(note) => &note.paragraphs,
+                        _ => &[],
+                    };
+                }
+                let Control::Table(child) = control else {
+                    return &[];
+                };
+                table = child;
+            }
+            &[]
+        }
         FootnoteSource::ShapeTextBox {
             para_index,
             shape_control_index,

@@ -11903,6 +11903,129 @@ impl LayoutEngine {
 
     /// 확정한 끝 컷 이전에 실제 각주 마커의 CellUnit이 소비됐는지 조회한다.
     /// 앞 조각에서 이미 소비한 마커의 밀린 각주도 허용하지만 미래 행/줄은 금지한다.
+    /// 중첩 각주도 실제 paint가 소비하는 부모/자식 컷의 같은 경계에서 소유를 확인한다.
+    /// 부모 표 control이 먼저 보였다는 이유로 아직 안 놓인 자식 줄의 각주를 등록하지 않는다.
+    pub(crate) fn table_footnote_path_precedes_cut(
+        &self,
+        table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+        path: &[crate::renderer::pagination::TableFootnotePathEntry],
+        end_row: usize,
+        end_cut: &[usize],
+    ) -> bool {
+        let Some((entry, remaining)) = path.split_first() else {
+            return false;
+        };
+        if remaining.is_empty() {
+            return self.table_footnote_marker_precedes_cut(
+                table,
+                styles,
+                entry.cell_index,
+                entry.cell_para_index,
+                entry.control_index,
+                end_row,
+                end_cut,
+            );
+        }
+        let Some(cell) = table.cells.get(entry.cell_index) else {
+            return false;
+        };
+        let Some(para) = cell.paragraphs.get(entry.cell_para_index) else {
+            return false;
+        };
+        let Some(Control::Table(child)) = para.controls.get(entry.control_index) else {
+            return false;
+        };
+        if cell.row as usize >= end_row {
+            return false;
+        }
+        if end_cut.is_empty() || cell.row as usize + 1 < end_row {
+            return true;
+        }
+        let cut_index = table
+            .cells
+            .iter()
+            .filter(|other| other.row == cell.row && other.row_span == 1 && other.col < cell.col)
+            .count();
+        let Some(&end_unit) = end_cut.get(cut_index) else {
+            return false;
+        };
+        let mixed = self.mixed_nested_split_from_cut(
+            cell,
+            table,
+            styles,
+            0,
+            end_unit,
+            entry.cell_para_index,
+        );
+        let nested = self.nested_table_split_from_cut_units(
+            cell,
+            table,
+            styles,
+            0,
+            end_unit,
+            entry.cell_para_index,
+        );
+        if let Some(cut) = mixed
+            .as_ref()
+            .and_then(|split| split.recursive_cut.as_ref())
+            .or_else(|| {
+                nested
+                    .as_ref()
+                    .and_then(|split| split.recursive_cut.as_ref())
+            })
+        {
+            return self.table_footnote_path_precedes_cut(
+                child,
+                styles,
+                remaining,
+                cut.end_row,
+                &cut.end_cut,
+            );
+        }
+        if let Some((_, child_end_row)) = self.nested_row_range_from_cut_units(
+            cell,
+            table,
+            styles,
+            0,
+            end_unit,
+            entry.cell_para_index,
+        ) {
+            return self.table_footnote_path_precedes_cut(
+                child,
+                styles,
+                remaining,
+                child_end_row,
+                &[],
+            );
+        }
+        // 원자 인라인 개체는 부모의 해당 구성 줄이 수용된 경우에만 통째 소유된다.
+        // 기존 compose/cell-unit 투영을 사용하며 픽셀 영역으로 줄을 고르지 않는다.
+        let (pad_left, pad_right, _, _) = self.resolve_cell_padding(cell, table);
+        let width = if cell.width < 0x8000_0000 {
+            hwpunit_to_px(cell.width as i32, self.dpi) * self.render_table_width_scale(table)
+        } else {
+            0.0
+        };
+        let inner =
+            crate::renderer::composer::cell_inner_text_width(width, pad_left, pad_right, self.dpi);
+        let composed = self.compose_cell_unit_paragraph(para, cell.text_direction, inner, styles);
+        let Some(position) = para
+            .control_text_positions()
+            .get(entry.control_index)
+            .copied()
+        else {
+            return false;
+        };
+        let line = composed
+            .lines
+            .iter()
+            .rposition(|line| line.char_start <= position)
+            .unwrap_or(0);
+        self.cell_unit_ordinal_for(cell, table, styles, entry.cell_para_index, line)
+            .is_some_and(|unit| unit < end_unit)
+    }
+
     pub(crate) fn table_footnote_marker_precedes_cut(
         &self,
         table: &crate::model::table::Table,

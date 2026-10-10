@@ -93,13 +93,7 @@ impl TypesetEngine {
         let body_bottom_queue = st.profile.hwpx_stored_layout() && st.col_count == 1;
         let note_ref = |note: &TableCellFootnote, fragment| FootnoteRef {
             number: note.number,
-            source: FootnoteSource::TableCell {
-                para_index: para_idx,
-                table_control_index: ctrl_idx,
-                cell_index: note.cell_index,
-                cell_para_index: note.cell_para_index,
-                cell_control_index: note.cell_control_index,
-            },
+            source: FootnoteSource::table_cell_path(para_idx, ctrl_idx, &note.cell_path),
             fragment,
         };
         let painted_height = |st: &TypesetState, candidate: Option<FootnoteRef>| {
@@ -164,13 +158,7 @@ impl TypesetEngine {
                         content_height: f64| {
             st.record_current_footnote(FootnoteRef {
                 number: note.number,
-                source: FootnoteSource::TableCell {
-                    para_index: para_idx,
-                    table_control_index: ctrl_idx,
-                    cell_index: note.cell_index,
-                    cell_para_index: note.cell_para_index,
-                    cell_control_index: note.cell_control_index,
-                },
+                source: FootnoteSource::table_cell_path(para_idx, ctrl_idx, &note.cell_path),
                 fragment,
             });
             let draw_separator = fragment
@@ -211,12 +199,10 @@ impl TypesetEngine {
             if st.profile.hwpx_stored_layout()
                 && !terminal_fragment
                 && !queued_fresh_page
-                && !layout_engine.table_footnote_marker_precedes_cut(
+                && !layout_engine.table_footnote_path_precedes_cut(
                     table,
                     styles,
-                    note.cell_index,
-                    note.cell_para_index,
-                    note.cell_control_index,
+                    &note.cell_path,
                     fragment_end_row,
                     end_cut,
                 )
