@@ -3595,12 +3595,28 @@ impl LayoutEngine {
                                         .flatten();
                                     let stored_float_frame = (start_line == 0)
                                         .then(|| {
+                                            // A snapped empty host starts at its
+                                            // stored line, after paragraph-before.
+                                            // The block frame consumes the origin
+                                            // before that band, as whole-cell paint does.
+                                            let origin = if table_host_line_only_fragment
+                                                && (table_host_has_stored_origin
+                                                    || single_column_snap_spacing_before)
+                                            {
+                                                para_y_before_lines
+                                                    - styles
+                                                        .para_styles
+                                                        .get(para.para_shape_id as usize)
+                                                        .map_or(0.0, |style| style.spacing_before)
+                                            } else {
+                                                para_y_before_lines
+                                            };
                                             self.stored_nested_float_placement(
                                                 table,
-                                                para,
+                                                (&cell.paragraphs, cp_idx),
                                                 nested_table,
                                                 ctrl_idx,
-                                                para_y_before_lines,
+                                                origin,
                                                 styles,
                                             )
                                         })

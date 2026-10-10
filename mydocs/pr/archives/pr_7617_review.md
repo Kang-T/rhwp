@@ -731,3 +731,15 @@ HWP 실제 paint 로그(`batch61-current-handbook-paint-flow`)는 표13이444.3�
 `005fab000`의 fmt·Native Clippy와 Native 빌드가 exit0/521.69초로 끝났다. 실행 파일 SHA-256은 `aa7fa5201564f394d7ce194ee13e3f9cba0407b61de3b07366d63a47060ba284`다. 실제 새 render tree는 문제 행의100.5→102.4px 성장과 전체142쪽 유지를 보여 준다(`batch73-padding-runtime-check`). 표 원점489.0px는 그대로이므로 행 여백 보존과 표 원점의 남은 차이를 구분한다. 이 수치는 진단 관측값이며 회귀의 절대 px assertion으로 추가하지 않았다.
 
 새 가맹사업70쪽과 기존 최소 높이 표1쪽에서 전체 임베딩 글꼴의 byte-identical file transport·browser pool과 canonical raster가 모든 픽셀과 PNG bytes까지 같음을 다시 입증했다(`batch75-current-font-raster-control/control.json`). 같은 원본 font cmap 검사·글꼴 공급·페이지별 지표·gate를 유지하는 기존 실행 wrapper로 새 전체142쪽 TSV와 최소 높이 두 독립 Print 대조군을 `batch76-current-padding-visual`에서 생성 중이다. 기존 #5751·#7234의 두 suite만 선택한 nextest는 공유 cache의 Native 빌드 종료 뒤 jobs8/threads10으로 실행 중이다(`batch74-padding-focused-regression/focused-regression.log`). 아직 전체47입력·fresh WASM·최종 전체 회귀·PR 완료를 입증하지 않는다.
+
+집중 nextest의 첫 batch74는 기본 checkout의 오래된 generated suite 번호를 사용해0개를 선택했고 exit4로 끝났다. 코드 회귀 FAIL이나 PASS가 아니다. 실제 review worktree에서 재준비한 generated 원본을 조회해 #7234는004, #5751은006으로 확인했다. 번호를 고정하지 않고 해당 worktree에서 원본 파일명으로 suite를 찾는 batch77로 다시 실행해 **6 PASS/430 skipped**, exit0/61.56초(테스트0.176초)를 확인했다. 원본 검사와 기대값은 바꾸지 않았다. 모든 최종 검사는 같은 review worktree에서 prepare한 목록을 사용한다.
+
+## 중첩 빈 호스트의 저장 바깥 프레임 소비 — 2026-10-11
+
+원본650의 빈 호스트12는25920HU, 후속13은61657HU다. 실제 자식 표의 세로 offset0·선언 높이35171HU·위/아래 바깥여백283HU씩은 `61657 − 25920 = 35171 + 283 + 283`을 정확히 만족한다. 독립 Print와005fab000의 실제 행 높이는 이제 맞지만 표 원점은 아직489.0px 대492.10133px다. 원본 레코드와 기존 호출을 ignored `batch78-empty-host-source-proof/provenance.json`에 보존했다.
+
+루트 조판은 기존 `ParagraphFloatPlacement::from_empty_stored_ladder_host`에서 같은 저장 등식·문단 앞 간격·온전한 물리 높이를 검증한다. 중첩 경로는 보이는 텍스트가 있어야 하는 `from_stored_host`만 사용해 빈 호스트의 프레임을 받지 못했다. 중첩 공통 조회에 원본 셀 문단 slice와 cursor를 전달하고 같은 기존 빈 호스트 계약을 fallback으로 소비하도록 보정했다. 전체 셀 paint·분할 셀 paint·mixed 유닛 조회가 같은 원본 후속 문단을 참조한다. 분할 경로가 저장 줄 상단으로 snap한 빈 호스트는 앞 간격 이전의 문단 원점으로 환산한다. 최종 resolved table top·점유 끝을 기존 소비 지점에 전달하므로 바깥여백을 paint에서 별도로 중복 추가하지 않는다.
+
+원본이 아닌 줄·편집/재조판·되감긴 후속 좌표·내용 혼재·캡션·선언과 실제 높이가 다른 표·후속 문단이 없는 경우는 기존 계약이 거부하거나 기존 경로를 유지한다. 다행/재귀 컷의 각 행 유닛 높이와 바깥여백 회계는 기존 경로를 별도로 확인한다. 새 임의 수치·문서 식별자·고정 px 보정은 넣지 않았으며 새 회귀와 baseline을 추가하지 않았다. 이 추가 source의 실제 활성화·앞 간격 및 첫/끝/분할 경계·Native/fresh WASM 전쪽·확대 판독은 아직 미검증이다.
+
+기본 checkout의 `cargo fmt --all`은 오래된 ignored generated suite가 이미 제외된 원본을 참조해 실패했다. tracked 변경은 위 두 source만이며 standalone rustfmt로 포맷했다. 제출용 전체 fmt·Clippy와 정책 검사는 prepare된 review worktree에서 새 source로 수행한다. 이 환경 실패를 formatter 통과나 제품 회귀로 바꾸어 기록하지 않는다.

@@ -8186,7 +8186,7 @@ impl LayoutEngine {
                             .flatten();
                         let stored_float_frame = self.stored_nested_float_placement(
                             table,
-                            para,
+                            (&cell.paragraphs, cp_idx),
                             nested_table,
                             ctrl_idx,
                             para_y_before_compose,
@@ -14144,7 +14144,14 @@ impl LayoutEngine {
                         let Control::Table(child) = c else {
                             return None;
                         };
-                        self.stored_nested_float_placement(table, p, child, ci, 0.0, styles)
+                        self.stored_nested_float_placement(
+                            table,
+                            (&cell.paragraphs, pi),
+                            child,
+                            ci,
+                            0.0,
+                            styles,
+                        )
                     });
                     for (li, line) in comp.lines.iter().enumerate() {
                         let h = corrected_h(line, li);
@@ -19446,12 +19453,14 @@ impl LayoutEngine {
     pub(super) fn stored_nested_float_placement(
         &self,
         parent: &crate::model::table::Table,
-        para: &Paragraph,
+        host: (&[Paragraph], usize),
         child: &crate::model::table::Table,
         control: usize,
         origin: f64,
         styles: &ResolvedStyleSet,
     ) -> Option<crate::renderer::float_placement::ParagraphFloatPlacement> {
+        let (paragraphs, para_index) = host;
+        let para = paragraphs.get(para_index)?;
         if !self.profile.get().hwp5_stored_pagination_layout()
             || self.profile.get().session_edited()
             || self
@@ -19467,14 +19476,32 @@ impl LayoutEngine {
         {
             return None;
         }
+        let body_height = self.nested_table_body_height(child, styles);
         crate::renderer::float_placement::ParagraphFloatPlacement::from_stored_host(
             para,
             child,
             control,
             origin,
-            self.nested_table_body_height(child, styles),
+            body_height,
             self.dpi,
         )
+        .or_else(|| {
+            // The independently stored successor can close an empty block
+            // host too. Reuse its before/body/after frame in units and paint,
+            // instead of placing the body at the host line's outer origin.
+            crate::renderer::float_placement::ParagraphFloatPlacement::from_empty_stored_ladder_host(
+                para,
+                paragraphs.get(para_index + 1)?,
+                child,
+                origin,
+                styles
+                    .para_styles
+                    .get(para.para_shape_id as usize)
+                    .map_or(0.0, |style| style.spacing_before),
+                body_height,
+                self.dpi,
+            )
+        })
     }
 
     /// 같은 문단 안의 저장 쪽 경계를 현재 행 컷이 소유하는지 확인한다.
