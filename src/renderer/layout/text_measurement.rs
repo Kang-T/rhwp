@@ -1259,9 +1259,11 @@ fn measure_char_width_embedded_decision_for_font<'a>(
         // 독립 Print의 같은 glyph outline과 이웃 글자 원점도 전각 전진을 입증한다.
         // 같은 이름의 HFT 출력은 좁은 호환 폭을 쓰므로 확인된 프로그램 선택에서만
         // raw hmtx 값을 소비한다. 단일 따옴표·다른 face의 기존 계약은 유지한다.
-        let human_true_type_punct = font_metric_trusted
+        let human_true_type_width = (font_metric_trusted
             && matches!(primary_name, "휴먼명조" | "HumanMyeongJo")
-            && matches!(c, '\u{00B7}' | '\u{201C}' | '\u{201D}');
+            && matches!(c, '\u{00B7}' | '\u{201C}' | '\u{201D}'))
+        .then(|| font_metrics_data::verified_program_punctuation_width(mm.metric, c))
+        .flatten();
         // [#7051] HWP3 변환본의 HFT 한글 전용 face 는 ASCII 를 반각(`em/2`)으로 전진시킨다.
         //
         // HWP3 시절 HFT 글꼴(`명조`·`신명 세명조`·`한양신명조` 등)은 한글 전용이고 ASCII
@@ -1323,8 +1325,8 @@ fn measure_char_width_embedded_decision_for_font<'a>(
             && glyph_w >= mm.metric.em_size
             && !is_monospace_metric(mm.metric)
             && (!font_metric_trusted || latin1_table_is_uninformative(mm.metric));
-        if human_true_type_punct {
-            (glyph_w, "metricTrueTypeGlyph")
+        if let Some(width) = human_true_type_width {
+            (width, "metricTrueTypeGlyph")
         } else if hft_hangul_halfwidth_ascii {
             (mm.metric.em_size / 2, "metricHftHangulHalfwidthAscii")
         } else if (is_narrow_unicode_punct && glyph_w >= mm.metric.em_size) || is_b7_notdef_artifact

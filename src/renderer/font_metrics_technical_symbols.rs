@@ -97,3 +97,26 @@ fn verified_technical_symbol_width(metric: &FontMetric, ch: char) -> Option<u16>
     let (present, width) = verified_technical_symbol_entry(metric, ch)?;
     (present && width > 0).then_some(width)
 }
+
+// HFT 보정이 섞인 기존 표와 별개인 원 프로그램의 실제 hmtx.
+pub(crate) fn verified_program_punctuation_width(metric: &FontMetric, ch: char) -> Option<u16> {
+    match (
+        metric.name,
+        metric.em_size,
+        metric.bold,
+        metric.italic,
+        ch as u32,
+    ) {
+        ("Haansoft Batang", 1024, false, false, 183) => Some(341),
+        ("Haansoft Batang", 1024, false, false, 8216) => Some(276),
+        ("Haansoft Batang", 1024, false, false, 8217) => Some(276),
+        ("Haansoft Batang", 1024, false, false, 8220) => Some(379),
+        ("Haansoft Batang", 1024, false, false, 8221) => Some(379),
+        ("HumanMyeongJo", 512, false, false, 183) => Some(512),
+        ("HumanMyeongJo", 512, false, false, 8216) => Some(512),
+        ("HumanMyeongJo", 512, false, false, 8217) => Some(512),
+        ("HumanMyeongJo", 512, false, false, 8220) => Some(512),
+        ("HumanMyeongJo", 512, false, false, 8221) => Some(512),
+        _ => None,
+    }
+}

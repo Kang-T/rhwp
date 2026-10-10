@@ -39,6 +39,11 @@ def extract(path, family):
             "end": 0x23FF,
             "widths": values,
             "present": present,
+            "punctuationWidths": {
+                str(codepoint): font["hmtx"][cmap[codepoint]][0]
+                for codepoint in (0x00B7, 0x2018, 0x2019, 0x201C, 0x201D)
+                if codepoint in cmap and font.getGlyphID(cmap[codepoint]) != 0
+            },
         }
 
 
@@ -74,6 +79,13 @@ def main():
     source += "        _ => return None,\n    };\n    let index = (ch as u32 - 0x2300) as usize;\n    Some((present[index], widths[index]))\n}\n"
     source += "\npub(crate) fn verified_program_has_glyph(metric: &FontMetric, ch: char) -> Option<bool> {\n    verified_technical_symbol_entry(metric, ch).map(|(present, _)| present)\n}\n"
     source += "\nfn verified_technical_symbol_width(metric: &FontMetric, ch: char) -> Option<u16> {\n    let (present, width) = verified_technical_symbol_entry(metric, ch)?;\n    (present && width > 0).then_some(width)\n}\n"
+    source += "\n// HFT 보정이 섞인 기존 표와 별개인 원 프로그램의 실제 hmtx.\n"
+    source += "pub(crate) fn verified_program_punctuation_width(metric: &FontMetric, ch: char) -> Option<u16> {\n"
+    source += "    match (metric.name, metric.em_size, metric.bold, metric.italic, ch as u32) {\n"
+    for record in records:
+        for codepoint, width in record["punctuationWidths"].items():
+            source += f'        ("{record["metricName"]}", {record["em"]}, false, false, {codepoint}) => Some({width}),\n'
+    source += "        _ => None,\n    }\n}\n"
     args.rust_output.write_text(source, encoding="utf8")
     args.evidence_output.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
 
