@@ -13786,6 +13786,12 @@ impl LayoutEngine {
                                       source_line: usize|
          -> bool {
             let profile = self.profile.get();
+            // 공통 판별자가 원본 줄의 물리 경계를 입증했다면 직접 HWPX의
+            // 선언 셀 span 휴리스틱과 무관하게 같은 경계를 유닛에 전달한다.
+            // 원점0으로 시작하는 짧은 첫 프레임도 이어받는 줄을 소유한다.
+            if self.stored_zero_origin_text_frame_break(table, cell, prev, cur) {
+                return true;
+            }
             if cell.paragraphs.get(current_para).is_some_and(|para| {
                 self.stored_plain_zero_origin_line_boundary(cell, table, para, source_line)
             }) {
@@ -13874,9 +13880,7 @@ impl LayoutEngine {
             {
                 return true;
             }
-            if self.stored_row_reset_closes_declared_frame(cell, table, prev)
-                || self.stored_zero_origin_text_frame_break(table, cell, prev, cur)
-            {
+            if self.stored_row_reset_closes_declared_frame(cell, table, prev) {
                 return true;
             }
             // HWPX 저장 lineseg의 reset은 중첩 셀 로컬 좌표계일 수 있다
