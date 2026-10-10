@@ -452,7 +452,7 @@ impl TypesetEngine {
                 table,
                 r,
                 row_start_cut,
-                content_budget + padding,
+                (avail_for_rows - consumed - cs_before + source_cell_rounding_slack).max(0.0),
                 styles,
             );
             if std::env::var("RHWP_DIAG_SCAN").is_ok() {
@@ -1173,16 +1173,21 @@ impl TypesetEngine {
                     let painted_tail = (split_total - res.consumed_height - padding).max(0.0);
                     let retry_uses_painted_tail =
                         mixed_nested_owner_guard || native_split_continuation_row_tail;
-                    let retry_budget = if retry_uses_painted_tail {
-                        (budget - over - painted_tail - 0.5).max(0.0)
+                    // Keep the actual row band. Adding padding back to a
+                    // clamped content budget can invent space when the band
+                    // is smaller than a cell's padding.
+                    let physical_band =
+                        avail_for_rows - consumed - cs_before + source_cell_rounding_slack;
+                    let retry_physical_budget = if retry_uses_painted_tail {
+                        (physical_band - over - painted_tail - 0.5).max(0.0)
                     } else {
-                        (budget - over - 0.5).max(0.0)
+                        (physical_band - over - 0.5).max(0.0)
                     };
                     let (res2, retry_budget) = layout_engine.advance_row_cut_for_physical_band(
                         table,
                         r,
                         row_start_cut,
-                        retry_budget + padding,
+                        retry_physical_budget,
                         styles,
                     );
                     let mut retried = false;

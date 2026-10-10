@@ -22441,23 +22441,26 @@ impl LayoutEngine {
                 styles,
             );
         }
-        let deltas: Vec<f64> = padding.iter().map(|value| max_padding - value).collect();
-        let mut budget = content_budget;
-        let mut cut =
-            self.advance_row_cut_inner(table, row, start_cut, budget, styles, Some(&deltas));
+        let mut physical_cut_budget = physical_budget;
+        let mut previous_cut = None;
         loop {
+            let budget = (physical_cut_budget - max_padding).max(0.0);
+            let deltas: Vec<f64> = padding
+                .iter()
+                .map(|value| (physical_cut_budget - value).max(0.0) - budget)
+                .collect();
+            let cut =
+                self.advance_row_cut_inner(table, row, start_cut, budget, styles, Some(&deltas));
             let visible = self.row_cut_content_height(table, row, start_cut, &cut.end_cut, styles);
             let excess = (visible - physical_budget).max(0.0);
-            if excess <= ROW_CUT_CAPACITY_FP_EPSILON_PX || budget <= 0.0 {
+            if excess <= ROW_CUT_CAPACITY_FP_EPSILON_PX
+                || physical_cut_budget <= 0.0
+                || previous_cut.as_ref() == Some(&cut.end_cut)
+            {
                 return (cut, budget);
             }
-            budget = (budget - excess).max(0.0);
-            let next =
-                self.advance_row_cut_inner(table, row, start_cut, budget, styles, Some(&deltas));
-            if next.end_cut == cut.end_cut {
-                return (next, budget);
-            }
-            cut = next;
+            previous_cut = Some(cut.end_cut);
+            physical_cut_budget = (physical_cut_budget - excess).max(0.0);
         }
     }
 

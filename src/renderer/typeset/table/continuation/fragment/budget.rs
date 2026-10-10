@@ -74,10 +74,12 @@ impl TypesetEngine {
         // 저장된 첫 조각의 원점은 paint와 같은 값으로 예약한다.
         // trailing trim으로 얻은 컷만 공유하고 이전 flow 원점을 유지하면
         // 실제 표 상자와 페이지 예산이 서로 다른 높이를 소비한다.
-        if !is_continuation && cursor_row == 0 && start_cut.is_empty() {
-            if let Some(offset) = prepared.first_fragment_saved_offset {
-                st.align_flow_to(offset);
-            }
+        let accepted_first_fragment_origin =
+            (!is_continuation && cursor_row == 0 && start_cut.is_empty())
+                .then_some(prepared.first_fragment_saved_offset)
+                .flatten();
+        if let Some(offset) = accepted_first_fragment_origin {
+            st.align_flow_to(offset);
         }
         // 닫힌 원본 프레임은 안내 줄까지 이미 소유한 전체 물리 상자다.
         // 같은 조회 결과의 원점과 아래 여백을 예산·확정 배치에 함께 전달한다.
@@ -382,6 +384,14 @@ impl TypesetEngine {
             && !table.common.treat_as_char
             && vert_offset_overhead > 0.0
             && !para_has_non_whitespace_text(para);
+        // A preceding inline control advances flow but does not change the
+        // paragraph-relative float anchor. Both capacity boundaries below must
+        // consume this same origin, as partial paint's paragraph anchor does.
+        let fragment_flow_origin = if is_empty_host_column_float {
+            budget_para_start_height.min(st.current_height)
+        } else {
+            st.current_height
+        };
         let page_avail = if is_continuation {
             // [Task #1937] 연속 페이지는 신선 full-page 를 기준으로 한다(레퍼런스
             // Paginator engine.rs:2502-2503 과 정합). table_available 은 표 *시작*
@@ -422,7 +432,7 @@ impl TypesetEngine {
             // para_start 583.8 차감 → 예산 −584px → 조기 분할 +1쪽). 참 para_start 는
             // 현재 흐름 높이를 초과할 수 없으므로 current_height 로 상한한다.
             (table_available
-                - budget_para_start_height.min(st.current_height)
+                - fragment_flow_origin
                 - caption_extra
                 - host_before_overhead
                 - vert_offset_overhead
@@ -466,7 +476,7 @@ impl TypesetEngine {
             );
             page_avail.min(
                 (bottom
-                    - st.current_height
+                    - fragment_flow_origin
                     - caption_extra
                     - host_before_overhead
                     - vert_offset_overhead)
@@ -706,6 +716,23 @@ impl TypesetEngine {
                         occupied_bottom: top,
                     }
                 })
+        });
+        // The saved origin has already been accepted in this physical frame.
+        // Carry that result to paint rather than querying it again against a
+        // potentially different column after the row cut has been reserved.
+        let fragment_placement = fragment_placement.or_else(|| {
+            accepted_first_fragment_origin.map(|origin| {
+                let top = origin + host_before_overhead + vert_offset_overhead;
+                crate::renderer::float_placement::ParagraphFloatPlacement {
+                    flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+                    anchor_y: origin,
+                    stored_host_origin: None,
+                    stored_successor_line_origin: None,
+                    table_left: None,
+                    table_top: top,
+                    occupied_bottom: top,
+                }
+            })
         });
         // 저장 줄 없는 표 전용 호스트는 계산 흐름 원점을 소유한다.
         // 각 조각 예산이 예약한 앞 여백과 오프셋을 paint에도 같은 원점으로 전달한다.
