@@ -7234,6 +7234,7 @@ impl LayoutEngine {
             overlay_cuts: Vec::new(),
             inline_placements: placements.inline_placements,
             inline_flow_plans: placements.inline_flow_plans,
+            stored_paragraph_flow_ends: placements.stored_paragraph_flow_ends,
             paragraph_float_placements: placements.paragraph_float_placements,
             float_pushed_line_spacings: placements.float_pushed_line_spacings,
         };
@@ -17320,6 +17321,7 @@ fn compute_tac_leading_width(
 /// 실제 렌더는 단을 닫을 때 같은 값을 `ColumnContent` 로 받는다.
 #[derive(Default)]
 pub(crate) struct EndnoteColumnPlacements {
+    pub(crate) stored_paragraph_flow_ends: std::collections::HashMap<usize, f64>,
     pub(crate) wrap_anchors:
         std::collections::HashMap<usize, crate::renderer::pagination::WrapAnchorRef>,
     pub(crate) inline_placements: std::collections::HashMap<
