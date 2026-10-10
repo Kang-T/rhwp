@@ -273,9 +273,13 @@ pub(super) fn prepare(
             // 판단할 수 없다. 앞 본문과 후속 줄이 같은 원본 축에서 닫히는
             // 경우에만 block 경로의 원본 프레임을 사용한다. 그 외에는
             // 원본 호스트 기준 상자를 현재 흐름에 평행 이동한다.
+            // 선행 밴드와 뒤 저장 줄이 복구한 원본 상자를 증명한 경우는
+            // 이미 쪽 원점이 확정됐다. 이를 이전 호스트 흐름에 다시 옮기면
+            // 표 뒤의 저장 줄·앞 간격도 원본 프레임과 갈라진다.
             let uses_host_flow_origin = table.caption.is_none()
                 && para.column_type == crate::model::paragraph::ColumnBreakType::None
-                && !original_frame_follows_body;
+                && !original_frame_follows_body
+                && !restored_stored_outer_box;
             let frame_vpos = if uses_host_flow_origin {
                 para.source_line_seg_vertical_pos
                     .as_ref()
@@ -523,7 +527,10 @@ pub(super) fn prepare(
                 .filter(|zone| zone.para_index < para_idx)
                 .map(|zone| zone.top..zone.bottom + outer_top),
         );
-        if cleared.table_top != placement.table_top {
+        if (cleared.table_top - placement.table_top).abs()
+            > placement.table_top.abs().max(1.0) * 1e-9
+        {
+            // 부동소수 끝자리만 다른 동일 원점은 이동으로 세지 않는다.
             // 이동한 상자는 뒤 저장 줄의 원래 간격을 이미 소비했다는 증거가 아니다.
             cleared.stored_successor_line_origin = None;
         }
