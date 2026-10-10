@@ -64,6 +64,8 @@ impl TypesetState {
                 float_pushed_line_spacings: std::collections::HashMap::new(),
                 inline_box_flow_bottom: 0.0,
                 deferred_table_controls: Vec::new(),
+                deferred_table_successor_start: None,
+                pending_table_terminal_gap: None,
                 deferred_next_page_square_pictures: Vec::new(),
                 page_start_square_pictures: Vec::new(),
                 deferred_next_page_stored_frames: Vec::new(),

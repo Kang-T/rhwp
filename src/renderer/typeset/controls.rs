@@ -380,7 +380,13 @@ pub(super) fn flush_deferred_tables(
             remaining.push(deferred);
             continue;
         }
+        // 지연 표의 원래 host 뒤 문단은 이미 출력됐을 수 있다. 배치 시점의
+        // 실제 문단 cursor를 마지막 조각의 후속 줄 조회에 전달한다.
+        let previous = st.replace_deferred_table_successor_start(Some(
+            flush_point.successor_start(paragraphs.len()),
+        ));
         place(st, deferred);
+        st.replace_deferred_table_successor_start(previous);
     }
     st.restore_deferred_table_controls(remaining);
 }

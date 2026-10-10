@@ -4,6 +4,8 @@ use crate::renderer::typeset::{
     FootnoteRef, PageContent, PageItem, PageLayoutInfo, Paragraph, VisibleFloatExclusion,
 };
 pub(in crate::renderer::typeset) struct StateView {
+    pub(in crate::renderer::typeset) deferred_table_successor_start: Option<usize>,
+    pub(super) pending_table_terminal_gap: Option<DeferredTableTerminalGap>,
     /// 완성된 페이지 목록
     pub(in crate::renderer::typeset) pages: Vec<PageContent>,
     /// 현재 단에 쌓이는 항목
@@ -338,4 +340,12 @@ pub(in crate::renderer::typeset) struct StateView {
     /// [#6753] 직전 문단이 `#2279 ①` 트림으로 흐름에서 뺀 `spacing_before`(px).
     /// lazy 기준 역산이 그 트림분을 기준점에 싣지 않도록 `HeightCursor` 로 넘긴다.
     pub(in crate::renderer::typeset) vpos_prev_trimmed_sb_px: f64,
+}
+
+pub(super) struct DeferredTableTerminalGap {
+    pub(super) para_index: usize,
+    pub(super) control_index: usize,
+    pub(super) flow_end: f64,
+    pub(super) page_index: usize,
+    pub(super) column_index: u16,
 }

@@ -864,9 +864,9 @@ impl TypesetEngine {
                     + bottom_caption_extra
                     + terminal_outer_bottom_overhead;
                 let terminal_spacing = is_continuation
-                    .then(|| input.source.paragraphs_all.get(para_idx + 1))
+                    .then(|| st.table_flow_successor(para_idx, input.source.paragraphs_all))
                     .flatten()
-                    .and_then(|next| {
+                    .and_then(|(_, next)| {
                         layout_engine.native_text_frame_terminal_successor_gap(
                             input.source.paragraph,
                             next,
@@ -1076,9 +1076,9 @@ impl TypesetEngine {
         );
         if terminal_cut_consumed {
             let terminal_spacing = is_continuation
-                .then(|| input.source.paragraphs_all.get(para_idx + 1))
+                .then(|| st.table_flow_successor(para_idx, input.source.paragraphs_all))
                 .flatten()
-                .and_then(|next| {
+                .and_then(|(_, next)| {
                     layout_engine.native_text_frame_terminal_successor_gap(
                         input.source.paragraph,
                         next,
@@ -1400,15 +1400,8 @@ impl TypesetEngine {
         {
             return;
         }
-        let Some((index, next)) = input
-            .source
-            .paragraphs_all
-            .iter()
-            .enumerate()
-            .skip(input.source.para_index + 1)
-            .find(|(index, _)| {
-                !st.prefilled_paras.contains(index) && !st.pre_emitted_host_paras.contains(index)
-            })
+        let Some((index, next)) =
+            st.table_flow_successor(input.source.para_index, input.source.paragraphs_all)
         else {
             return;
         };
@@ -1439,6 +1432,12 @@ impl TypesetEngine {
             st.current_height,
             self.dpi,
         ) else {
+            if st.deferred_table_successor_start.is_some()
+                && input.source.table.outer_margin_bottom > 0
+                && !st.profile.session_edited()
+            {
+                st.defer_table_terminal_gap(input.source.para_index, input.source.control_index);
+            }
             return;
         };
         if std::env::var_os("RHWP_DIAG_SCAN").is_some() {

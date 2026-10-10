@@ -679,3 +679,11 @@ code head `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 owned review worktree에
 실제 Print 배치 로그에는 `VPOS_SOURCE_CONTINUOUS: pi=39 ... source_base=0 plain_line_consumed=true`가 있다. 새 terminal source gap 분기의 적용 로그는 이 원본에서 없으므로, 그 분기가 표 여백을 해결했다고 주장하지 않는다. 초기 dev PNG·원본/Print/실행 파일 해시·직접 판독은 ignored `batch18-debug-pr1674-boundary/provenance.json`에 연결했다. 최종 release-test Native/fresh WASM 빌드·영향 페이지 재검증과 전체 회귀는 별도 진행 중이며, 이 초기 한 쪽을 전쪽 통과로 승격하지 않는다.
 
 삭제 후 재구성한 고정 base의6입력 Native 전체209쪽에는 누락·쪽수 차이가 없다. Native 최저값은 caption1853 49.33810%, pr1674 62.93877%, scattered41.11436%, sample4514 2.70444%, 정상 대조군 empty-band96.34172%·large-frame96.75116%다. base WASM package 빌드는 성공했지만 당시 공개 API에 compat setter가 없어 canonical exporter 실행은 중단됐다. 이것은 측정 실패이며90% 미만 결과가 아니다. 재구성 실행의 WASM은 미검증으로 유지한다. canonical `visual_fixture_evidence.md`는 Native만으로 고정 base의 미달이 입증돼도 이관을 허용하므로, 기존-at-base 검사·동일 원본/Print·현재 추가 회귀 해소를 함께 확인한 범위만 사용자 지정 기존 #7445로 이관할 수 있다. 이 단계에서 추가 검사/자료 이관, 새 회귀 추가, 기대값 완화, 원격 push·PR 생성은 하지 않았다.
+
+## 2026-10-10 지연 표의 실제 후속 흐름 보존
+
+`batch48-frozen-next-owner-diagnosis/`의 고정5b04 Native 실행에서 pr-1674 HWPX의 문단28은 먼저3쪽에 배치되고, 문단29 처리 뒤 원래 host27의 두 번째 표가5쪽에서 끝난다. 그런데 마지막 표 여백 조회는 이미 출력된28을 선택한다. 원본38의 빈 줄 시작27153HU는 실제 조각 끝26870HU + 표 바깥여백283HU에 대응한다. 30~37의 원본 빈 줄은 저장 LineSeg를 가진다. 빈 글자라는 이유로 이 줄들을 삭제하거나 가짜 무점유 문단으로 재분류하지 않는다.
+
+지연 큐가 가진 Before/After/SectionEnd 문단 cursor를 마지막 조각의 후속 조회에 전달하고 기존 prefill 소유 정보를 함께 소비하도록 보정했다. 끝 조각의 두 native successor 경로와 빈 끝줄 경로는 같은 `table_flow_successor`를 사용한다. 실제 후속 빈 줄이 아직 없으면 표 소유·끝 높이·쪽·단을 보존하고, 같은 물리 흐름의 원본 저장 줄이 기존 `stored_terminal_empty_line_gap` 등식을 입증할 때만 여백을 소비한다. 사이 문단이 공간을 소비하거나 쪽/단이 바뀌면 폐기하며, 기존 문단 fit·빈 줄 상자·명시적 나눔은 유지한다. 문서 ID·문단38·고정 px 위치를 분기나 assertion으로 넣지 않았다.
+
+이 추가 source는 fmt·공백 확인만 끝났으며 컴파일·독립 Print의 해당5쪽/정상 대조군·Native/fresh WASM·관계형 회귀는 아직 미검증이다. 현재 보정 중인 입력은 최신 사용자 지시대로 #7445에 새로 이관하지 않으며, 전쪽90%와 직접 판독 전에 baseline/기대값을 바꾸지 않는다.

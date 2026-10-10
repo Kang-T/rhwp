@@ -6,6 +6,77 @@ use crate::renderer::typeset::{
 };
 
 impl TypesetState {
+    pub(in crate::renderer::typeset) fn replace_deferred_table_successor_start(
+        &mut self,
+        start: Option<usize>,
+    ) -> Option<usize> {
+        std::mem::replace(&mut self.data.deferred_table_successor_start, start)
+    }
+
+    pub(in crate::renderer::typeset) fn defer_table_terminal_gap(
+        &mut self,
+        para_index: usize,
+        control_index: usize,
+    ) {
+        self.data.pending_table_terminal_gap = Some(super::data::DeferredTableTerminalGap {
+            para_index,
+            control_index,
+            flow_end: self.data.current_height,
+            page_index: self.data.pages.len(),
+            column_index: self.data.current_column,
+        });
+    }
+
+    /// 지연 표 뒤 줄은 원래 host가 아니라 현재 물리 흐름에서 증명한다.
+    /// 사이 문단이 공간을 소비하거나 쪽/단이 바뀌면 그 계약은 종료한다.
+    pub(in crate::renderer::typeset) fn consume_pending_table_terminal_gap(
+        &mut self,
+        para_index: usize,
+        paragraphs: &[Paragraph],
+        styles: &crate::renderer::style_resolver::ResolvedStyleSet,
+        dpi: f64,
+    ) {
+        let Some(witness) = self.data.pending_table_terminal_gap.take() else {
+            return;
+        };
+        if witness.page_index != self.data.pages.len()
+            || witness.column_index != self.data.current_column
+            || witness.flow_end != self.data.current_height
+        {
+            return;
+        }
+        let Some(para) = paragraphs.get(para_index) else {
+            return;
+        };
+        let Some(crate::model::control::Control::Table(table)) = paragraphs
+            .get(witness.para_index)
+            .and_then(|host| host.controls.get(witness.control_index))
+        else {
+            return;
+        };
+        if let Some(gap) = crate::renderer::float_placement::stored_terminal_empty_line_gap(
+            para,
+            table,
+            styles,
+            self.data.profile,
+            witness.flow_end,
+            dpi,
+        ) {
+            if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+                eprintln!(
+                    "DIAG_SCAN DEFERRED_TERMINAL_GAP pi={} ci={} next={} flow={:.3} gap={:.3}",
+                    witness.para_index, witness.control_index, para_index, witness.flow_end, gap,
+                );
+            }
+            self.advance_flow_by(gap);
+            self.record_stored_paragraph_flow_end(witness.para_index, self.data.current_height);
+        } else if para.controls.is_empty() && !super::super::para_has_visible_text(para) {
+            // 글자가 없다고 줄 상자를 없애지 않는다. 기존 문단 fit가 그 줄을
+            // 수용하면 실제 흐름 전진으로 다음 호출에서 witness가 폐기된다.
+            self.data.pending_table_terminal_gap = Some(witness);
+        }
+    }
+
     pub(in crate::renderer::typeset) fn discard_terminal_blank_only_page(
         &mut self,
         paragraphs: &[Paragraph],
