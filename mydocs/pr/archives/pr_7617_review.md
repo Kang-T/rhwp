@@ -901,3 +901,11 @@ batch128은 source9f→a9의 정상6문서312쪽과 실제 미주 문서5쪽에�
 종료된 a9 batch125 driver의 실제 종료를 확인하고 raw SVG142개만 SHA-256 ledger 후 제거했다(`batch125-svg-removal-ledger.json`,9.73GiB). 나머지672파일의 크기/hash를 재확인했으며 PNG/TSV/JSON/log/원본/기준 PDF/바이너리·공유 target은 보존했다. 새24의 전142쪽 시각은 batch137에서 진행 중이다.
 
 다음 표지 분석 batch140/145는 원본¶4/charPr100의3개 저장 줄·가운데 정렬·자간−17%를 구분했다. 첫 줄의 마지막 공간은 저장 wrap 경계의 원문 separator다. TTF 메트릭으로 계산한 총 전진572.7px/줄폭566.933333px의 선형 압축−0.2306667px가 실제 Native 첫 두 글자의 전진25.2226667px와 정확히 일치한다. separator 전진을 뺀 뒤 음수 tracking의 마지막 전진 상자를 복원한 보수적인 범위565.186667px는 줄폭 안에 든다. 현재 fit은 말미 공간을 포함하고 뒤 정렬은 그 공간을 빼는 소비 차이가 후보 원인이다. 이는 실제 glyph 잉크/Print 일치의 완료 증거가 아니라 다음 보정 가설이며, 장식된 공간·inline 객체 소유·측정/실제 배치의 공통 결과를 대조한 후 구현해야 한다. 최초 whole-paragraph/단일-title-line 혼동 assertion 실패도 ignored 진단에 보존하고 원본3줄 경계로 수정했다.
+
+### 가운데 정렬의 줄 끝 폭 공유 — 실행 검증 전
+
+`71a3b0015eaefd3ac40446843c49e02ca704f57d`는 순수 가운데 정렬 글줄의 장식 없는 말미 공백을 줄 끝 측정에서 제외하고, 마지막 가시 글자의 음수 자간 뒤 전진 점유를 함께 계산한다. 문서 ID·특정 폭·픽셀 위치를 선택 조건으로 쓰지 않는다. 저장 wrap과 문단 끝이 같은 폭 결과를 사용한다. 밑줄·취소선·음영·실제 border/background가 있는 공백은 남기고, 공백뿐인 줄·TAC 개체·탭·겹침·각주 마커·생성된 soft-wrap separator는 각자의 기존 계약으로 보낸다. Right/Justify/Distribute의 분배 규칙은 변경하지 않았다. 기존 여섯 source 단위 검사에는 새 선택 인자 `None`만 전달하며 assertion/기준값을 바꾸지 않았다.
+
+생산/소비는 `원래 ComposedLine의 표시 문자열/실제 run style → CenteredTextLineMeasure의 동일 run 범위 → compute_line_extra_spacing의 수용 폭/문자 수 → 필요한 압축에서 같은 measure.width(extra)의 반복 실측 → 실제 Center 시작점의 같은 measure.width(extra) → emit_line_runs의 같은 extra_char_sp`다. 장식 공백을 제거하지 않고, 개체 소유를 텍스트 공백으로 추정하지 않는다. 말미 음수 자간 복원은 보수적인 glyph advance 상자이며 실제 외형/Print 일치의 보증은 시각 대조에서 별도로 확인한다. 마지막 위치를 clamp하여 제목을 맞추는 별도 보정을 추가하지 않았다.
+
+공유 target/jobs8의 batch146이 같은 source에서 suite/fmt/source-unit-tier 및 고정 base manifest 검사, Native Clippy와 Native 빌드를 진행한다. 이전 각주 source24의 전체142쪽 batch137은 별도로 계속 실행 중이다. 새 표지/장식 공백·개체 대조군/전쪽 Native·fresh WASM 및 관계형 정식 회귀는 아직 미검증이며, 소스 커밋을 시각 통과로 보고하지 않는다. 새 expectation/baseline/test를 추가하지 않았다.
