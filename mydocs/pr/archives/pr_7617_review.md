@@ -712,3 +712,8 @@ HWP 실제 paint 로그(`batch61-current-handbook-paint-flow`)는 표13이444.3�
 `7859f790a` Native Clippy·빌드가 exit0/411.12초로 끝났지만 가맹사업은 여전히142쪽과69쪽78.89077%·70쪽80.69136%·71쪽66.59059%다. 새69·71쪽 review를 직접 읽고 원본 각주67의 표시가69쪽 첫 표 글에도 있음을 확인했다. 소유 검사만으로71쪽에 두어야 한다는 앞선 추정은 성립하지 않으며, 추가 guard를 각주 배치 해결로 표시하지 않는다. 원본 각주67~70의 내용·계층, 실제 큐, Print의65·66/67~70 물리 lane 구분을 `batch60-franchise-marker-diagnosis`에서 대조했다.
 
 단일 단의 HWP5 표 각주 fit만 추정 높이와 footer-band reclaim을 사용해 이미 수용한 표 조각과 새 각주가 같은 물리 영역을 차지하는 상태를 허용했다. HWPX의 기존 경로는 `estimate_footnote_area_height_with_metrics → 실제 본문 영역의 capacity/표 끝 → reserve_painted_footnote_area`로 출력과 동일한 높이를 소비한다. 이 단일 단 공통 경로를 컨테이너 구분 없이 사용하도록 보정했다. 표시 컷 검사는 별개의 소유 계약으로 유지하고, 다단의 기존 lane 정책·순서·저장 note reset/suffix 경로는 그대로다. 표 번호·각주 번호·임의 최소 개수나 고정 px 보정은 추가하지 않았다. 이 추가 source는 아직 재빌드/시각/관계형 회귀 전이며 원본·기준값과 현재 보정 문서 범위를 유지한다.
+
+
+`edb086255` Native Clippy·빌드 exit0/396.39초 뒤 같은 HWP284쪽 새 Print-profile review를 직접 읽었다.7번 제목·괘선·본문의8px 조기 배치가 해소됐고90.42728%→98.26895%,전체 count383/383이다. HWPX281·284쪽 새 PNG는 직전에 읽은8af 출력과 byte-identical이며 비교/hash 기록을 `batch64-edb-handbook-panels/provenance.json`에 남겼다. 이는 선택 Native 판독이며 전체383쪽·fresh WASM·현재 추가 각주 보정689484afb의 최종 검증은 아니다.
+
+현재689484afb에서 fmt·Native Clippy는 exit0이고 Native 빌드가 공유 cache에서 jobs8로 실행 중이다. 종료 뒤 `batch67-physical-note-lane-verification`이 같은 frozen binary로 가맹사업 전142쪽 TSV를 먼저 산출하고 실제69~72쪽·정상 대조군을 재출력한다. 현재는 실행 대기이며 전쪽 결과를 완료로 표시하지 않는다.8af777a20의 별도 순차 WASM Clippy·workspace build/all-targets Clippy·두 base 고정 정책 검사·fresh WASM 빌드는 exit0으로 끝났지만 이후 source 변경의 최종 gate를 대신하지 않는다.
