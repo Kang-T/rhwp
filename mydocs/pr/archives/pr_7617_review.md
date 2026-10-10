@@ -641,3 +641,30 @@ upstream/devel fetch SHA는 같고 rebase는 최신 상태라 기존 기여 커�
 `batch17-fixed-base-evidence/`, `recovery-base-21ed64071-*-full-failure-fidelity/`,
 `restored-boundary-print-pixel-parity/`에 연결한다. base와 현재의 동일 Print·전쪽
 Native/fresh WASM 검증이 끝나기 전에는 #7445로 추가 이관하지 않는다.
+
+### 2026-10-10 추가 넘침의 새 실행 결과
+
+`5e4429302ebbeaf02ea971785543edbfbbd01324`의 Native 빌드 jobs8·866.62초와
+fresh WASM 빌드478.62초는 모두 exit0이다. source·실행파일·package 해시는
+ignored `candidate-5e4429302-build/build.json`에 고정했다. default anomaly 재실행에서
+caption1853은 overflow0/textOverlap0, scattered는5/0, sample4514는0/0으로,
+추가된 caption10·scattered36/37/38/45의 넘침은 해소됐다. pr1674는7/0이며5쪽의
+2.8px 하단 넘침이 남았다. 기존 가로 넘침과 신규 하단 넘침을 구분한다.
+
+새 Native 경계6쪽은 caption10 96.06109%, pr1674 p5 91.06418%, scattered
+p36/37/38/45는58.54279/52.35599/49.04563/51.37458%다. caption10을 직접 판독해
+표 뒤 본문의 간격이 독립 Print와 연결되는 것을 확인했고, scattered36은 넘침 해소와
+별개로 첫 표의 행 소속·뒤 표 시작이 Print와 다르므로 계속 미충족이다.
+`batch17-candidate-boundaries/`의 TSV·PNG는 이 code head의 Native 부분 검증이며,
+WASM 빌드 성공이나 다른 head의 PNG로 fresh WASM 비교를 대신하지 않는다.
+
+후속 `09d53474a058fd957e98ed4dfd1fea84690d6232`는 재계산 스냅샷이 없는 정상 저장
+줄도 원본 좌표로 확인하며 dirty·합성 줄을 제외한다. `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`는
+끝 조각 이후 실제 다음 문단에서 원본 빈 줄의 시작이 현재 끝+표 아래 여백으로 닫힐 때만
+그 여백을 소비한다. pr1674의38번 빈 문단은27153HU이고 앞 조각의 끝26870HU+
+아래 여백283HU와 정확히 닫힌다. 이미 prefill한28~37번 문단을 후속 문단으로 재사용하지
+않는지 새 실행에서 확인한다. 확정 끝은 같은 column map으로 배치에 전달하고 실제 표
+상자를 축소하지 않는다. assertion·baseline은 유지하며, 이 후속 head의 Native/WASM·
+시각·전체 회귀는 아직 미검증이다. 비싼 재빌드 전에 준비한 review worktree에서 Clippy
+세 단계와 workspace build·정책 검사를 순차 실행한다. 로그는
+`candidate-aa07ccc9e-validation/`에 남긴다.
