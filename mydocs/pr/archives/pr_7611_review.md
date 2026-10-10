@@ -536,3 +536,7 @@ rowbreak14쪽은 여전히59.31517%, 전체19/Print18쪽이다. `batch32-correct
 `table_cell_footnotes`가 원본 셀·문단·control 순서대로 내부 표를 재귀 방문해 각주와 소유 경로를 함께 반환하도록 보정했다. Typeset format의 측정, fragment 큐와 비큐 등록, legacy Paginator의 측정·등록이 이 동일한 결과를 소비한다. 최상위 셀은 기존 `TableCell` source를 유지하고 내부 셀은 `NestedTableCell`에 경로를 보존하며, 출력은 동일 원문을 그 경로로 조회한다. 증분 pagination의 최상위 문단 offset 변경도 내부 경로를 보존한다. 각주 원본을 새 문서·가짜 최상위 control로 복사하지 않는다.
 
 HWPX 큐의 컷 전 marker 검사에는 부모 컷에서 paint가 사용하는 `mixed_nested_split_from_cut`, `nested_table_split_from_cut_units`, `nested_row_range_from_cut_units`의 자식 컷을 재사용해 내부 각주 줄까지 소유를 확인한다. 원자 인라인 개체는 동일 composed 줄과 cell-unit 순서로 수용 여부를 확인하며 픽셀 구역이나 marker 번호로 선택하지 않는다. 단일 깊이 경로는 기존 marker 검사를 그대로 사용한다. 실제 한컴 출력과 수정 전 누락은 확인했지만 이 추가 source의 컴파일·Native/fresh WASM·편집/증분 경계·관계형 회귀는 아직 미검증이다. 시각 선행 조건이 충족되기 전 새 fixture/golden이나143쪽 검사 기대값을 변경하지 않는다.
+
+`5b04c55e5`의 fmt·Native Clippy와 Native 빌드는 exit0으로 끝났다(빌드504.38초, jobs8). `4232ba8b3`의 새48쪽 review를 직접 읽어 각주43의 그림이 Print와 같은 쪽·영역에 복원됐고99.19%임을 확인했다. 이는 이전 head의 선택 Native 결과이며 중첩 각주·전체 쪽수와 fresh WASM 통과 증거를 대신하지 않는다.
+
+`batch45-source-frame-routing/`의 고정4232 진단에서 표650 첫 컷은 `[6,8]`/193.68px, 그 뒤 컷은 `[6,11]`/58.69px인데 두 번째 조각에873.08px를 예약해 여분 쪽을 만든다. 다음 실제 저장 프레임은857.32px로 독립 원본 빈 끝줄과 패딩에 대응한다. 준비 경로가 legacy 원점의 존재를 이유로 `native_text_frame_first_fragment_saved_top` 조회를 생략해 `source_frame=None`과 실제 기존 각주 경계 미설정을 만드는 소비 경로를 확인했다. 인증한 원본 text frame을 먼저 조회하고 그 원점을 fit과 paint에 같이 전달하도록 보정했다. helper의 원본·dirty·소유·줄 상자 조건을 유지하며 문서 번호나 임의 픽셀 상한을 추가하지 않는다. 이 추가 보정은 새 head 빌드·시각/관계형 회귀 전이고, 원본·Print142쪽·143쪽 기존 검사와47개 전쪽 검증 범위는 보존한다.

@@ -1091,18 +1091,17 @@ impl TypesetEngine {
                 &st.inline_flow_column(),
                 self.dpi,
             );
-        let source_text_frame_top = legacy_source_top
-            .is_none()
-            .then(|| {
-                layout_engine.native_text_frame_first_fragment_saved_top(
-                    para,
-                    para_idx.checked_sub(1).and_then(|i| paragraphs_all.get(i)),
-                    table,
-                    &st.inline_flow_column(),
-                    styles,
-                )
-            })
-            .flatten();
+        // 원본 text-frame 계약은 원점뿐 아니라 선언 상한과 기존 각주의 물리
+        // 경계도 소유한다. legacy 원점이 있다고 이 조회를 생략하면 후속 컷은
+        // safety band에서 먼저 잘려 원본 frame 중간에 여분 쪽을 만든다.
+        // 인증한 text frame을 우선하고 같은 원점을 fit과 paint에 전달한다.
+        let source_text_frame_top = layout_engine.native_text_frame_first_fragment_saved_top(
+            para,
+            para_idx.checked_sub(1).and_then(|i| paragraphs_all.get(i)),
+            table,
+            &st.inline_flow_column(),
+            styles,
+        );
         let prepared = BlockTableContinuationPreparedState {
             first_anchor_offset_consumed,
             host_placement: fragment_host_placement,
@@ -1162,8 +1161,8 @@ impl TypesetEngine {
             source_next_positive_rewind: next_rewinds_after_table && !next_starts_new_page,
             first_fragment_saved_offset: {
                 let column = st.inline_flow_column();
-                legacy_source_top
-                    .or(source_text_frame_top)
+                source_text_frame_top
+                    .or(legacy_source_top)
                     .map(|top| top - column.y)
                     .or_else(|| {
                         // HWPX의 한 줄 캡션 다음에 오는 빈 호스트의 Square RowBreak 표는
