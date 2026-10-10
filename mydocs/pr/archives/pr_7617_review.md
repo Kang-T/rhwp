@@ -523,3 +523,53 @@ probe가 같은 조회를 소비한다. rowspan 블록 스캐너는 별도 블�
 baseline은 추가하지 않았다. 같은 원본·Print의 해당 줄·앞뒤 조각·다른 여백의 정상
 대조군을 재캡처하고 관련 Native/fresh WASM 90% 이상을 확인한 뒤 정식 관계 검사를
 보완한다. 전체 쪽수·전체 TSV·최종 회귀·lint와 나머지 원본의 추가 회귀는 계속 보류다.
+
+### 2026-10-10 재구축 결과와 확정 조각 원점 후속 보완
+
+삭제 뒤 새로 빌드한 source `c99f8bd66f97156fb865a710b598f6e4ca0cc83f`의
+Native 빌드와 fresh WASM 빌드는 모두 exit 0이다. Native는 build jobs 8로 실행했고,
+WASM은 잠금 파일과 일치하는 wasm-bindgen 0.2.127을 사용했다. 실제 실행파일·package·
+source 해시는 새 `candidate-c99f8bd66-build/build.json`에 고정했다. 이 결과는 아래의
+후속 code head에 적용하지 않는다.
+
+새 Native 전체 페이지 비교는 6입력 209쪽이며 누락·추가 쪽은 없다.
+
+| 입력 | 비교 쪽 | 90% 미만 쪽 수 | 최저 일치율 |
+| --- | ---: | ---: | ---: |
+| caption1853 | 52 | 5 | 34.60991% |
+| pr1674 | 35 | 2 | 82.86858% |
+| scattered | 52 | 40 | 41.11436% |
+| sample4514 | 46 | 18 | 3.01807% |
+| empty-band-control | 17 | 0 | 97.12321% |
+| large-frame-control | 7 | 0 | 96.75116% |
+
+caption1853の13/14/37/38쪽과 pr1674의4쪽은 Native/fresh WASM 모두 각각
+97.20426/96.73474/96.08718/95.85736/94.17980%이고 같은 PNG bytes다.
+반면 caption1853의45쪽은 두 출력 모두34.60991%라 보류다. 이6쪽만의 WASM 비교를
+전체 WASM 검증으로 보고하지 않는다. font data URI와 같은 font bytes의 file URI,
+canonical raster와 동일 helper를 사용하는 pooled raster의 새 대조군은 모든 픽셀이
+같았다. 메트릭·gate는 canonical 도구를 그대로 사용했다.
+
+직접 판독한 새 PNG는 pr1674의4/5쪽, caption1853의13/44/45쪽,
+empty-band-control의17쪽, large-frame-control의7쪽이다. pr1674의4쪽 큰 배치 회귀와
+caption1853의13쪽 마지막 줄 소유는 개선됐지만, pr1674의표 아래 괘선과
+large-frame-control의선택 상자 세로 위치에는 작은 차이가 남는다. 점수로 이 차이를
+면제하지 않는다. 새 TSV·로그·PNG는 ignored `candidate-c99f8bd66-native-full-failure-fidelity/`
+및 `candidate-c99f8bd66-wasm-focused-fidelity/`에 있으며 과거 삭제된 자료와 구분한다.
+
+후속 code head `386d8deab86aade6064b607578a54fc49cd463f1`은 다음 네 소비 경계를 함께
+보완했다. 첫째, caption1853 pi371처럼 선행 inline 캡션이 흐름을 전진시켜도 문단 기준
+float의 실제 원점은 그대로이므로 일반 예산과 물리 프레임 하단 제한이 같은
+`fragment_flow_origin`을 사용한다. 둘째, 최초·재시도 ordinary-row 컷에 clamped 내용
+예산+여백을 전달하지 않고 실제 남은 물리 밴드를 전달한다. 셋째, 칸별 여백 차이도
+재시도 때의 실제 물리 밴드에서 다시 계산해 여백보다 작은 예산에 공간을 만들어내지 않는다.
+넷째, `prepare.first_fragment_saved_offset`에서 이미 수용한 원점을 조각 배치 결과로
+전달한다. `align_flow_to`로 예산만 옮긴 뒤 paint가 별도 column에서 원점 query를 다시
+실행하면 sample4514 pi763처럼 컷은655.5에서, 배치는684.6에서 시작할 수 있었다.
+같은 확정 원점 → 예산·컷 → emit의 배치 계획 → `layout_partial_table_item`의
+resolved top → 실제 괘선으로 연결하며 기존 확정 배치가 있으면 보존한다.
+
+이 후속 head의 실행 검증은 아직 진행 전이며 기대값·baseline·회귀 테스트를 바꾸지 않았다.
+pr1674의빈 글줄 후 lazy 기준이180HU를 재가산하는 현상, scattered의rowspan 컷 예약과
+paint의 요구 높이 차이, caption1853의표 뒤 본문 흐름 차이는 여전히 추가 조사 대상이다.
+고정 base의 새 재출력 전에는 이 네 원본의 미달을 #7445 이관 근거로 삼지 않는다.
