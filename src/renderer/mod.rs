@@ -71,6 +71,7 @@ pub mod skia;
 pub(crate) mod static_svg;
 pub(crate) mod stored_control_frame;
 pub(crate) mod stored_float_anchor;
+pub(crate) mod stored_page_origin;
 pub mod style_resolver;
 pub mod supplemental_metrics;
 pub mod svg;

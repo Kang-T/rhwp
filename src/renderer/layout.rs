@@ -23,6 +23,7 @@ use super::pagination::{
     ColumnContent, EndnoteParaSource, FootnoteRef, FootnoteSource, PageContent, PageItem,
 };
 use super::render_tree::*;
+use super::stored_page_origin::stored_first_margin_is_page_relative;
 use super::style_resolver::ResolvedStyleSet;
 use super::{
     format_number, hwpunit_to_px, px_to_hwpunit, ArrowStyle, AutoNumberCounter, LineStyle,
