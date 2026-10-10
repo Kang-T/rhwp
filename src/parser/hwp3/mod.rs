@@ -4038,6 +4038,23 @@ fn parse_paragraph_list_inner(
             }
         }
 
+        // HWP3 표 12의 bit 15는 단/페이지 구분 정보의 유효성이다. 그 비트만으로
+        // 줄 전체를 버리지 않는다. 글자 높이만 남고 줄 시작·좌표·구분이 모두
+        // 비어 있는 레코드는 저장된 줄 구성을 인증하지 않는다. 이를 저장 줄로
+        // 수용하면 실제 너비로 감겨야 하는 본문과 셀을 한 줄로 고정한다.
+        // 문단/개체 속성은 보존하고 공통 composer가 줄 구성과 높이를 정한다.
+        if !line_infos.is_empty()
+            && line_infos.iter().all(|line| {
+                line.start_pos == 0
+                    && line.space_correction == 0
+                    && line.pgy == 0
+                    && line.sx == 0
+                    && line.psx == 0
+                    && line.break_flag == 0
+            })
+        {
+            para.line_segs.clear();
+        }
         paragraphs.push(para);
     }
 
@@ -4516,8 +4533,13 @@ fn parse_hwp3_inner(
         // HWP3 last-line tolerance: 한글97은 마지막 줄이 본문 영역을 약간 넘어도 해당 페이지에 배치한다.
         // margin_bottom 을 직접 줄이면 쪽 테두리/페이지 번호 위치까지 영향받으므로
         // pagination_bottom_tolerance 로 paginator 에게만 추가 공간을 허용한다.
-        // min(1600, margin_bottom) 으로 clamp: 기존 saturating_sub 동작과 동일한 상한 유지.
-        pagination_bottom_tolerance: 1600u32.min((doc_info.bottom_margin as u32) * 4),
+        // 유효한 저장 줄이 없는 문서는 공통 composer의 재조판 결과를 사용한다.
+        // 한글97 저장 배치를 보존할 근거가 없으므로 본문 밖 추가 예산을 주지 않는다.
+        pagination_bottom_tolerance: if paragraphs.iter().any(|para| !para.line_segs.is_empty()) {
+            1600u32.min((doc_info.bottom_margin as u32) * 4)
+        } else {
+            0
+        },
         landscape: doc_info.paper_direction != 0,
         ..Default::default()
     };

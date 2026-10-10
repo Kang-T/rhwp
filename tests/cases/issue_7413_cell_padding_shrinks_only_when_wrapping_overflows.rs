@@ -11,29 +11,14 @@
 //! 통째로 끄고 `samples/**` 전수를 재면 겹침이 4건 늘고, 그 넷이 전부 **줄바꿈 결과가
 //! 행 높이를 넘는** 자리였다.
 //!
-//! ```text
-//! 20099369_yeongwol_forms 3쪽   칸 w=41.9 h=43.6 가 2줄 45px 를 요구
-//! issue5169 12쪽 Cell5          칸 h=59.2 가 4줄 83.2px (바닥 21.1px 초과)
-//! issue5169 12쪽 Cell51         칸 h=29.4 가 2줄 46.7px (17.3px 초과)
-//! ```
+//! 기존 영월군 검사는 `월별누계`를 한 줄로 요구했다. 원본 HWP3의 해당 줄은
+//! 시작·좌표·구분 정보가 모두 비어 있는 글자 높이 레코드라 저장 줄 구성의 근거가 아니다.
+//! 독립 한컴 2020 Print와 같은 원본의 한컴 HWPX 변환본은 `월별` / `누계` 두 줄이다.
+//! 마지막 줄 뒤 간격을 제외한 두 줄은 원본 셀 높이에 들어간다.
 //!
-//! 그래서 묻는 것을 바꿨다 — **줄바꿈한 결과가 칸 높이를 넘는가.** 넘지 않으면 줄바꿈이
-//! 답이고 선언 여백을 그대로 둔다.
-//!
-//! # 이 검사가 잠그는 것
-//!
-//! 양방향을 함께 잠근다. 한쪽만 잠그면 규칙이 한 방향으로 무너져도 통과한다.
-//!
-//! 1. **깎지 말아야 할 칸** — 줄바꿈이 칸 높이에 들어가면 선언 여백이 남는다.
-//! 2. **깎아야 할 칸** — 줄바꿈이 칸 높이를 넘으면 종전대로 깎아 글자가 칸 밖으로
-//!    새지 않는다.
-//!
-//! # 기대값의 출처
-//!
-//! 두 입력 모두 대응하는 한/글 출력 PDF 가 없다. 그래서 기대값을 **정본이 아니라 기하
-//! 계약**에서 가져온다 — 문서가 선언한 안 여백과, 글자가 칸 안에 머무는가. 정본 대조가
-//! 가능한 문서들(`80168`·`2022 국립국어원`)에서 이 변경이 한/글에 가까워진다는 증거는
-//! 이슈 `#7413` 의 Visual Sweep 기록에 있다.
+//! 영월군 전4쪽 Native/fresh WASM 최저 99.53097% 확인 후 기존 두번째 검사만
+//! 원본 셀 소속·두 줄 내용 순서·셀 내부 포함 관계로 교정했다. 다른 입력의 첫번째
+//! 여백 계약은 유지한다. 증거는 `stored-anchor-repair/validation.json`의 V14 기록이다.
 
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -42,8 +27,8 @@ use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
 
 /// 줄바꿈이 칸 높이에 들어가는 칸 — 선언 여백이 남아야 한다.
 const FITS: &str = "samples/hwpx/table-text.hwpx";
-/// 줄바꿈이 칸 높이를 넘는 칸 — 종전대로 깎여 글자가 칸 밖으로 안 나가야 한다.
-const OVERFLOWS: &str = "samples/issue5699/20099369_yeongwol_forms.hwp";
+/// 저장 줄 구성이 없는 HWP3 셀 — 독립 Print의 두 줄을 셀 안에 보존한다.
+const REFLOWED_HWP3: &str = "samples/issue5699/20099369_yeongwol_forms.hwp";
 
 fn load(rel: &str) -> DocumentCore {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(rel);
@@ -76,25 +61,6 @@ fn cell_text_extents(
 }
 
 /// `(칸 x, 칸 y, 칸 폭, 그 칸의 TextLine 수)`.
-fn cell_line_counts(node: &RenderNode, out: &mut Vec<(f64, f64, f64, usize)>) {
-    if let RenderNodeType::TableCell(_) = node.node_type {
-        let mut count = 0usize;
-        fn walk(n: &RenderNode, count: &mut usize) {
-            if matches!(n.node_type, RenderNodeType::TextLine(_)) {
-                *count += 1;
-            }
-            for c in &n.children {
-                walk(c, count);
-            }
-        }
-        walk(node, &mut count);
-        out.push((node.bbox.x, node.bbox.y, node.bbox.width, count));
-    }
-    for child in &node.children {
-        cell_line_counts(child, out);
-    }
-}
-
 /// 줄바꿈으로 해결되는 칸은 선언 안 여백을 지킨다.
 #[test]
 fn a_cell_that_wraps_within_its_height_keeps_its_declared_padding() {
@@ -131,31 +97,124 @@ fn a_cell_that_wraps_within_its_height_keeps_its_declared_padding() {
     );
 }
 
-/// 줄바꿈이 칸 높이를 넘는 칸은 종전대로 깎여 **한 줄**로 담긴다.
-///
-/// 이 칸(y=865.4, h=43.6, w=41.9)은 줄바꿈하면 22.5px 두 줄 = 45px 로 행 높이를 넘는다.
-/// 축소를 끄면 둘째 줄이 표 바닥을 9.4px 지나 아래 본문 줄과 겹친다(이슈 `#7413` 기록).
+/// 원본 셀과 독립 Print의 내용 구성을 보호하고 과거 페이지/y 좌표를 선택자로 쓰지 않는다.
 #[test]
-fn b_cell_that_cannot_wrap_within_its_height_still_shrinks() {
-    let core = load(OVERFLOWS);
-    let page = core.build_page_render_tree(2).expect("3쪽 render tree");
-    let mut lines = Vec::new();
-    cell_line_counts(&page.root, &mut lines);
+fn b_uncomputed_hwp3_cell_preserves_the_oracle_wrapped_content() {
+    use rhwp::model::control::Control;
 
-    let target: Vec<_> = lines
-        .iter()
-        .filter(|(cx, cy, cw, _)| {
-            (*cw - 41.9).abs() < 0.3 && (*cy - 865.4).abs() < 1.0 && *cx > 0.0
-        })
+    fn text(node: &RenderNode) -> String {
+        if !node.visible || node.editor_only {
+            return String::new();
+        }
+        let mut s = match &node.node_type {
+            RenderNodeType::TextRun(run) => run.display_or_text().to_owned(),
+            _ => String::new(),
+        };
+        for child in &node.children {
+            s.push_str(&text(child));
+        }
+        s
+    }
+    fn locate<'a>(
+        node: &'a RenderNode,
+        owner: (usize, usize, usize),
+        in_owner: bool,
+        cell_index: usize,
+        found: &mut Vec<&'a RenderNode>,
+    ) {
+        if !node.visible || node.editor_only {
+            return;
+        }
+        let in_owner = match &node.node_type {
+            RenderNodeType::Table(t) => {
+                (t.section_index, t.para_index, t.control_index)
+                    == (Some(owner.0), Some(owner.1), Some(owner.2))
+                    && t.cell_context.is_none()
+            }
+            _ => in_owner,
+        };
+        if let RenderNodeType::TableCell(cell) = &node.node_type {
+            if in_owner && cell.model_cell_index == Some(cell_index as u32) {
+                found.push(node);
+            }
+        }
+        for child in &node.children {
+            locate(child, owner, in_owner, cell_index, found);
+        }
+    }
+    fn lines<'a>(node: &'a RenderNode, found: &mut Vec<&'a RenderNode>) {
+        if !node.visible || node.editor_only {
+            return;
+        }
+        if matches!(node.node_type, RenderNodeType::TextLine(_)) && !text(node).trim().is_empty() {
+            found.push(node);
+        }
+        for child in &node.children {
+            lines(child, found);
+        }
+    }
+
+    let core = load(REFLOWED_HWP3);
+    let mut source = Vec::new();
+    for (si, section) in core.document().sections.iter().enumerate() {
+        for (pi, para) in section.paragraphs.iter().enumerate() {
+            for (ci, control) in para.controls.iter().enumerate() {
+                if let Control::Table(table) = control {
+                    for (index, cell) in table.cells.iter().enumerate() {
+                        if cell
+                            .paragraphs
+                            .iter()
+                            .map(|p| p.text.as_str())
+                            .collect::<String>()
+                            == "월별누계"
+                        {
+                            source.push(((si, pi, ci), index, cell));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(source.len(), 1, "원본의 월별누계 셀을 식별한다");
+    let (owner, index, original) = source[0];
+    let trees: Vec<_> = (0..core.page_count())
+        .map(|p| core.build_page_render_tree(p).unwrap())
         .collect();
+    let mut cells = Vec::new();
+    for tree in &trees {
+        locate(&tree.root, owner, false, index, &mut cells);
+    }
+    assert_eq!(cells.len(), 1, "원본 셀 내용의 누락·중복 방지");
+    let cell = cells[0];
+    let RenderNodeType::TableCell(meta) = &cell.node_type else {
+        unreachable!()
+    };
+    assert_eq!((meta.row, meta.col), (original.row, original.col));
+    assert_eq!(text(cell), "월별누계");
+    let mut content_lines = Vec::new();
+    lines(cell, &mut content_lines);
     assert_eq!(
-        target.len(),
-        1,
-        "정답지 전제가 깨졌다 — 대상 칸(y=865.4, w=41.9)을 하나로 못 집었다. 쪽 구성이          바뀌었으면 이 검사의 좌표부터 다시 정해야 한다. 후보={target:?}"
+        content_lines
+            .iter()
+            .map(|line| text(line))
+            .collect::<Vec<_>>(),
+        ["월별", "누계"],
+        "독립 한컴 Print의 두 줄 순서"
     );
-    let (_, _, _, line_count) = target[0];
-    assert_eq!(
-        *line_count, 1,
-        "줄바꿈이 칸 높이(43.6px)를 넘는 칸이 두 줄로 나뉘었다 — 여백을 깎아 한 줄로 담아야          둘째 줄이 표 바닥을 지나 아래 본문과 겹치지 않는다."
+    for line in &content_lines {
+        assert!(line.bbox.y >= cell.bbox.y - 0.5);
+        assert!(
+            line.bbox.y + line.bbox.height <= cell.bbox.y + cell.bbox.height + 0.5,
+            "글줄은 소유 셀 안에 있어야 한다"
+        );
+        for run in &line.children {
+            if matches!(run.node_type, RenderNodeType::TextRun(_)) && !text(run).is_empty() {
+                assert!(run.bbox.x >= cell.bbox.x - 0.5);
+                assert!(run.bbox.x + run.bbox.width <= cell.bbox.x + cell.bbox.width + 0.5);
+            }
+        }
+    }
+    assert!(
+        content_lines[0].bbox.y + content_lines[0].bbox.height <= content_lines[1].bbox.y + 0.5
     );
 }
