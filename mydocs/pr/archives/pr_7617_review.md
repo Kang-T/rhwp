@@ -590,7 +590,54 @@ job `3c027504-500b-4010-9e03-fde6485d69e5`의 실제 결과는 engine2020,
 download의 크기·SHA와 PDF signature·EOF를 확인했다. 새 PDF는
 [같은 HWPX의 독립 Print](../../../pdf/float_push_spacing_before/float_push_spacing_before_boundaries-hwpx-2020.pdf)에
 등재했고 SHA-256은 `d92e138dd6e147dd223acd205cad9cc008b51b2a0ec633dcc3b0ad49f57766b9`다.
-이전 Downloads 보존본과 전4쪽의 텍스트·MediaBox는 같지만 아직 새 PDF의 실제 raster를
-대조하지 않았으므로 이를 geometry 일치 증거로 사용하지 않는다. 원 HWP의 대응 PDF를
+이전 Downloads 보존본과 전4쪽의 텍스트·MediaBox는 같다. 이후 두 PDF를 같은 96dpi로
+각각 새로 raster화해 전4쪽 모든 픽셀의 일치도 확인했다. 이 PDF 대조는 rhwp 출력의
+통과 판정과 구분한다. 원 HWP의 대응 PDF를
 HWPX 자체의 Print 증거로 대신하지 않는다. sanitized receipt와 bytes 확인은 ignored
 `batch16-pr7617-boundary-print.json`, `restored-boundary-print-verification.json`에 남겼다.
+
+### 2026-10-10 확정 문단 끝과 앞 간격의 좌표계 보완
+
+검증 code head `d970d831558d0cebdaaaf02d9e66f2bed45fd99e`의 Native/fresh WASM
+빌드는 모두 exit0이다. 원 PR 경계 입력 HWP·HWPX 각각4쪽을 두 backend에서 비교한
+총16쪽은 누락·추가 쪽이 없으며 최저는 HWP99.43997%, HWPX96.45793%다.
+새 HWPX Print 기준을 사용했고 일부 대표 PNG는 직접 판독했지만 나머지 확대 판독과
+아래 후속 source 검증은 남아 있으므로 최종 승인으로 보고하지 않는다.
+
+같은 code head의 Native6입력 전209쪽 비교는 완료됐다. 최저값은 caption1853
+49.33810%, pr1674 82.86858%, scattered41.11436%, sample4514 3.01807%,
+empty-band-control97.12321%, large-frame-control96.75116%다. 누락·추가 쪽은 없다.
+caption1853의44쪽은94.77088%로 개선됐으나45쪽은49.33810%라 보류이며,
+후속 전체 WASM 비교와 최종 head의 증거로 대신하지 않는다.
+
+고정 base `21ed64071f81f35f37618717693bd30f727392c9`도 삭제 뒤 Native/fresh WASM을
+다시 빌드해 각각 exit0을 확인했다. 동일 원본의 default `layout-anomaly`에서 base는
+caption1853 overflow0/textOverlap5, pr1674 overflow6/textOverlap0,
+scattered overflow5/textOverlap0, sample4514 overflow0/textOverlap0이다.
+d970은 각각1/0,7/0,9/0,0/0이며 추가 하단 넘침은 caption1853의10쪽,
+pr1674의5쪽, scattered의36/37/38/45쪽이다. 가로 넘침·기존 하단 넘침과 구분했고,
+이 수량 대조만으로 #7445 이관이나 시각 통과를 판정하지 않는다.
+
+보완 source `5176c7bfb721c49c073636a2a234e0b3b8c45277`와
+`5e4429302ebbeaf02ea971785543edbfbbd01324`는 다음 세 원인을 함께 수정한다.
+
+- `HeightCursor::source_continuous_base`에서 원본→모델 차이가0인 정상 저장 줄도
+  수용하고, 앞 빈 글줄이 소비한 간격을 뒤 문단의 개체 유무로 부정하지 않는다.
+- `stored_successor_flow`가 수용한 단 상대 문단 끝 → state 기록 → 단 전환·문단 인덱스
+  remap·미주 scratch 계측 → `ColumnContent::stored_paragraph_flow_ends` → 문단의 마지막
+  항목 paint로 전달한다. scattered의36쪽은 조판이 lazy base2814로 끝826.6을 수용했으나
+  배치가 아직 없는 base를0으로 다시 투영해 끝864.08로 옮겼다. helper 뒤에서 기준을
+  다시 고르지 않도록 확정 결과를 공유하며, 실제 Shape 끝을 잘라내지 않는다.
+- `vpos_corrected_end_y`의 뒤 문단 앞 간격 사전 차감은 실제 첫 줄의 후방 이동과
+  구분한다. 차감 전 저장 첫 줄이 순차 끝 이후이면 pre-spacing 커서만 되감겨도 같은
+  첫 줄로 판단한다. 개체 호스트·사전 차감을 생략한 경로에는 적용하지 않는다.
+
+기존 테스트에는 새 필드의 초기화만 추가했고 assertion·baseline·시각 기대값은 바꾸지
+않았다. 아직 새 회귀를 추가하지 않는다. 첫5176 빌드는 누락한 미주 scratch 전달 필드를
+발견해 소유 프로세스를 중지했으며 성공·제품 결함 재현으로 세지 않는다. 5e442 source의
+공유 target 빌드·Native/fresh WASM 시각 검증·필수 lint·전체 회귀는 진행 중/미검증이다.
+upstream/devel fetch SHA는 같고 rebase는 최신 상태라 기존 기여 커밋 순서를 바꾸지 않았다.
+증적은 ignored `candidate-5e4429302-build/`, `batch17-diagnostic-paths/`,
+`batch17-fixed-base-evidence/`, `recovery-base-21ed64071-*-full-failure-fidelity/`,
+`restored-boundary-print-pixel-parity/`에 연결한다. base와 현재의 동일 Print·전쪽
+Native/fresh WASM 검증이 끝나기 전에는 #7445로 추가 이관하지 않는다.
