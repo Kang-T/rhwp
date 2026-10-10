@@ -1753,3 +1753,24 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - #5885 실패는 독립 PDF 상단·하단 비교가 아니라 실제 paint보다 긴 본문 점유 검사에서 발생한다. 첫 바깥 표의 bbox 끝1013.3px와 실제 괘선 끝1003.7px 사이에9.6px 차이가 남으며, 같은 바이트를 쓰는 issue6126/5885 본문 넘침 실패와 함께 추적한다(`design-physical-frame-diagnostic-v112.json`). `table_partial.rs`의 배치 후 줄간격 접기, 이후 자식 포섭으로 높이를 다시 확장하는 소비 위치와 pagination 예약을 함께 대조한다. 그리기만 숨기거나 실패한 관계 계약을 약화하지 않는다.
 - 고용지원 평가기준 `samples/issue6025/3232693_employment_support_criteria.hwpx` SHA `b53e9a83a79903b9c7cf69521519dcdf7b128348ac26ec21e6ac7b8fc6c0e441`, 독립 Print SHA `985dab08280f0cb7a2489c796614337e230871428bc0ac98b5cd3be4b5abd579`를 같은 production의 Native/fresh WASM 전4쪽으로 비교했다. 두 경로 모두1쪽89.49447%·2쪽81.14196%로 미달/exit1이다. #6950의 원본 외곽 위여백141HU 누락 의심은 아직 검사 변경 근거로 채택하지 않는다. 고정base의 같은 원본 시각 증거와 동일 기존 하위 이슈도 확인되지 않았으므로 검사를 임의 제거·이관하지 않는다.
 - 양 문서의 실제 TSV·해시·범위는 `cgmp-and-pending-regressions-qualification-v112.json`에 연결한다. 이후 구현을 바꾸면 영향받은 Native/fresh WASM 전쪽과 대표 review를 새 production에서 다시 산출한다. 초기18개 통합 범위와 후속6개 체리픽 금지는 유지한다.
+
+
+## 99. v113 — 설계업자 평가기준의 공통 첫 줄 컷과 물리 예약 보정
+
+- 실제 원본의4행0열 병합 셀과 같은 시작 행의 일반 형제들은 첫 세 저장 줄이 `0 → 0 → 1920HU`이고, 줄 높이1200HU·줄간격720HU·위아래 안여백 각141HU다. 같은 source 쪽 경계인데 병합 셀에 같은 rowspan 형제를 추가 요구해 종료 줄간격9.6px이 예약에 남았다. PDF 첫 조각 하단1002.902667px·source 컷 `[1,1,1,1,0,0,0]`와 실제 로그를 함께 대조했다. 입력·독립 Print SHA는 진행98과 동일하다.
+- `stored_first_line_restart.rs`로 기존 판정을 분리하고 Native HWP5에서는 같은 시작 행의 진짜 저장 첫 줄 재시작을 공유하도록 잘못된 rowspan 동일성 가정을 제거했다. 첫 줄 다음에 전진하는 저장 사다리를 확인하므로 원점0만 반복하는 입력·끝난 형제·개체 로컬 원점은 근거로 승격하지 않는다. 편집/재조판/글자처럼취급 제외와 HWPX의 동일 span 소유자 확인은 유지한다.
+- 실제 소비 연결은 `native_saved_reset_cut_trailing_trim → CellCutFrame::height → offset 컷 walk의 physical_height → SelectedBlockCut::occupied_height → block_step의 누적 consumed`이며, paint는 같은 trim을 `row_cut_content_height/cell_cut_visible_height → table_partial의 per-row/병합셀 요구 높이 → grid·bbox·반환 높이`에 적용한다. 내용 유닛 전진25.6px와 물리 점유19.76px를 구분했다. 수정 후 모든 해당 시작 셀이19.76px을 예약하며 paint 후 접기 로그가 사라졌다. 첫 표 bbox는823.7px에서814.3px(획 포함)으로 바뀌고 실제 외곽선·글자 raster는 전7쪽 모두 이전 정상 출력과 바이트 동일하다. 그리기 숨김이나 bbox clamp 변경은 없다.
+- 기존 정식 `issue_5885_nested_host_row_ladder_end`의 두 검사를 수정하지 않고 공식 suite020으로 실행해2PASS/exit0/전체147.204초·실제0.958초·202필터skip을 확인했다. 수정 전 현재 production의 첫 조각 검사는 paint보다 긴 본문 점유에서FAIL이었다. 수정 후 예약 끝과 실제 괘선의 관계, 동일 cut의 이어받기, 중첩 표 포함·뒤 행 순서·마지막 문단 보존까지 기존 검사가 통과한다. 새 fixture/golden/기대값 완화는 없다.
+- 새 Native binary SHA `dabfbdd5ef9346f40c516d7d58a73e9255d594583ef00a756177dff5843c22de`, 빌드 exit0/107.272초다. 새 전7쪽 Native Visual Sweep은 exit0/71.617초·최저5쪽96.39917%·미달/누락0이며1/2/5쪽 review를 새로 만들고1쪽을 직접 표시했다.2쪽의 짧은 하단 외곽선은 여전히 미충족이다. 독립 PDF의 해당 행882.394667→1002.902667px과 현재980.2px 하단을 기록했고, 내용 종료 이후 실제 빈 물리 밴드의 소유를 먼저 조사한다. 점수로 이 차이를 면제하지 않는다.
+- 표준 fresh WASM 빌드는 공유 target에서 진행 중이다. 그 결과·새 WASM 전쪽·정상 대조군·필수 lint·최종 전체 Rust와초기18개 통합PR/CI/merge/후속처리는 아직 완료가 아니다. 검증은 `design-shared-first-line-stage-validation-v113.json`·명령/exit/log와 Native 직접 review provenance에 연결한다. Rust 검증 도중 파생 suite를 갱신하거나 다른 Cargo를 동시에 실행하지 않는다.
+
+
+### v113 fresh WASM와 후속 프레임 근거
+
+- 표준 fresh WASM build가 exit0/1092.476초로 끝났다. Rust compile9분41초 후 wasm-opt까지 완료했으며 입력 source hash는 Native와 같다. 새 package·root `pkg`·Studio public의 WASM SHA는 모두 `91bbf9f43ff7d1314dde1d12ef85fac6b2ab1df7e087c0b68a97593412575b18`다. package 공급을 실제 Studio 편집/Canvas 실행으로 보고하지 않는다.
+- fresh WASM 전7쪽 비교는 exit0/80.014초·최저5쪽96.39917%·미달/누락0이다. Native와 전7쪽 raster와 TSV가 바이트 동일하다(`design-shared-first-line-native-wasm-parity-v113.json`).2쪽의 하단 외곽선 차이는 양쪽에 그대로 남는다.
+- 후속 source frame의 근거를 원본 공개 API 진단으로 확인했다. `host.vpos6720 + object.offset129 + outMargin.top283 + common.height61085 = 68217HU`, 원본 본문 높이68601HU에서 기존 바깥 아래여백283HU와 기존 쪽 경계 inset100HU를 빼면68218HU다. 차이는−1HU다. 원본 용지는59528×84188HU이고 독립 Print의841pt 용지 크기에 대응시키면 예측 하단1002.990497px과 실제1002.902667px의 차이는0.087831px다. 구현에서 PDF 좌표를 기준값으로 주입하는 것이 아니라 원본 첫 프레임이 본문 경계를 소유함을 입증하는 근거다(`design-body-closed-source-frame-plan-v114.json`, `logs/design-body-closed-source-diagnostic-v114.log`). 같은 source 컷 뒤의 실제 빈 밴드 예약·paint와 각주 refit/종료/비적용 경계는 아직 구현·검증 전이다.
+- 정상 대조군 묶음은 과거 suite target 목록을 먼저 실행했으나 현재 case 배정과 대조해5개 integration target 누락을 발견했다. 현재 manifest에서 도출한 누락 target 추가 검증을 준비했으며 기존 묶음이 끝난 뒤 순차 실행한다. 전체158PASS로 미리 보고하지 않는다(`shared-first-line-related-counters-v113-coverage.json`).
+- #5877 현재 원본은31쪽/off-canvas1/본문 넘침3, #1891 원본은70쪽/off-canvas6/본문 넘침15/글자 겹침2를 최신 immutable CLI로 다시 확인했다(`pending-overflow-originals-current-v113.json`). 과거 v95의 같은 두 원본·고정base 관측과 구분하며, 아직 동일 #7445 하위 이슈 이관 근거를 확인하지 못했으므로 기존 검사 제거의 근거로 쓰지 않는다. #5877의 독립 Print는 기존 `pr_7275_review.md`에 실제2020 MCP job·무전처리·원본/SHA/31쪽 출처가 기록돼 있음을 재확인했다. 현재 전31쪽 Native Sweep은 진행 중이다.
+
+- 정상 대조군은 현재배정의 누락16개까지 실제 실행해 합계158/158PASS다. 첫142개 exit0/전체216.151초·실제89.376초/6026필터skip, 추가16개 exit0/전체41.813초·실제13.674초/1086필터skip이다. 두 실행과2개 #5885 검사 원본/생산 code의 SHA는 불변이며 phase99 전체 Rust10k 통과로 확대하지 않는다. 추가 target을 실제 실행한 뒤에만158PASS로 기록한다.
