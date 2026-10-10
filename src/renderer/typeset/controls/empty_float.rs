@@ -27,6 +27,7 @@ pub(in crate::renderer::typeset) struct EmptyFloatPage<'a> {
     pub current_height: f64,
     pub current_items: &'a [PageItem],
     pub visible_float_exclusions: &'a [super::super::VisibleFloatExclusion],
+    pub original_column_origin: bool,
 }
 
 pub(in crate::renderer::typeset) struct EmptyFloatPlacement {
@@ -235,18 +236,46 @@ pub(super) fn prepare(
             dpi,
         )
         .map(|origin| origin - column_area.y);
+    let original_frame_follows_body = page.original_column_origin
+        && para.source_line_seg_vertical_pos.is_none()
+        && para.column_type == crate::model::paragraph::ColumnBreakType::None
+        // 앞뒤 줄이 서로 다른 쪽에 속하면 닫힌 상자는 새 쪽 원점이다.
+        // 이전 본문 뒤의 호스트라는 사실만으로 현재 쪽에 수용할 수 없다.
+        && para.line_segs.first().is_some_and(|host| {
+            next_para.is_some_and(|next| {
+                next.source_line_seg_vertical_pos.is_none()
+                    && next.line_segs.first().is_some_and(|after| {
+                        after.vertical_pos > host.vertical_pos
+                    })
+            })
+        })
+        && prev_para.is_some_and(|previous| {
+            previous.controls.is_empty()
+                && !previous.stored_text_partition_is_dirty()
+                && previous.source_line_seg_vertical_pos.is_none()
+                && previous
+                    .line_segs
+                    .last()
+                    .zip(para.line_segs.first())
+                    .is_some_and(|(before, host)| {
+                        !is_synthetic_line_seg(before)
+                            && !is_synthetic_line_seg(host)
+                            && i64::from(before.vertical_pos) + i64::from(before.line_height)
+                                <= i64::from(host.vertical_pos)
+                    })
+        });
     let closed_control_frame = (!page.profile.session_edited()
         && (page.profile.hwp5_stored_pagination_layout() || page.profile.hwpx_stored_layout())
         && page.layout.column_areas.len() == 1
         && !table_reflowed)
         .then(|| {
-            // 재계산으로 누적 축에 옮긴 저장 줄은 원본 스냅샷을 기준으로
-            // 현재 호스트에 평행 이동한다. 원본 쪽 상대 줄이 그대로 남은
-            // 경우는 block 경로와 같은 원본 프레임을 사용한다. 누적 flow는
-            // 앞 float의 호스트 줄까지 포함할 수 있어 원본 앵커를 대신하지 못한다.
+            // 스냅샷 부재만으로 현재 저장 좌표가 이 쪽의 물리 원점이라고
+            // 판단할 수 없다. 앞 본문과 후속 줄이 같은 원본 축에서 닫히는
+            // 경우에만 block 경로의 원본 프레임을 사용한다. 그 외에는
+            // 원본 호스트 기준 상자를 현재 흐름에 평행 이동한다.
             let uses_host_flow_origin = table.caption.is_none()
                 && para.column_type == crate::model::paragraph::ColumnBreakType::None
-                && para.source_line_seg_vertical_pos.is_some();
+                && !original_frame_follows_body;
             let frame_vpos = if uses_host_flow_origin {
                 para.source_line_seg_vertical_pos
                     .as_ref()
@@ -275,33 +304,6 @@ pub(super) fn prepare(
             Some(frame)
         })
         .flatten();
-    let original_frame_follows_body = para.source_line_seg_vertical_pos.is_none()
-        && para.column_type == crate::model::paragraph::ColumnBreakType::None
-        // 앞뒤 줄이 서로 다른 쪽에 속하면 닫힌 상자는 새 쪽 원점이다.
-        // 이전 본문 뒤의 호스트라는 사실만으로 현재 쪽에 수용할 수 없다.
-        && para.line_segs.first().is_some_and(|host| {
-            next_para.is_some_and(|next| {
-                next.source_line_seg_vertical_pos.is_none()
-                    && next.line_segs.first().is_some_and(|after| {
-                        after.vertical_pos > host.vertical_pos
-                    })
-            })
-        })
-        && prev_para.is_some_and(|previous| {
-            previous.controls.is_empty()
-                && !previous.stored_text_partition_is_dirty()
-                && previous.source_line_seg_vertical_pos.is_none()
-                && previous
-                    .line_segs
-                    .last()
-                    .zip(para.line_segs.first())
-                    .is_some_and(|(before, host)| {
-                        !is_synthetic_line_seg(before)
-                            && !is_synthetic_line_seg(host)
-                            && i64::from(before.vertical_pos) + i64::from(before.line_height)
-                                <= i64::from(host.vertical_pos)
-                    })
-        });
     if !original_frame_follows_body
         && closed_control_frame.is_some_and(|frame| frame.table_top + 0.5 < page.current_height)
     {
@@ -482,9 +484,12 @@ pub(super) fn prepare(
         };
         frame.table_top += lane_shift;
         frame.occupied_bottom += lane_shift;
-        frame.stored_successor_line_origin = frame
-            .stored_successor_line_origin
-            .map(|origin| origin + lane_shift);
+        // Lane이 밀어낸 실제 상자는 뒤 문단의 원본 앞 간격까지 소비했다는
+        // 증거가 아니다. 원본 종료식으로 확인한 후속 줄 원점을 실제 이동에
+        // 따라 재작성하면 우연히 current_y와 같아져 앞 간격을 잘못 지운다.
+        if lane_shift.abs() > frame.anchor_y.abs().max(1.0) * 1e-9 {
+            frame.stored_successor_line_origin = None;
+        }
         frame
     });
     // 같은 빈 호스트의 형제 자리차지 표는 파일 형식과 무관하게 각 표의

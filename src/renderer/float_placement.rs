@@ -2103,7 +2103,9 @@ pub(crate) fn stored_float_before_whitespace_line_frame(
         stored_successor_line_origin: Some(px(i64::from(after.vertical_pos))),
         table_left: None,
         table_top: px(top),
-        occupied_bottom: px(end),
+        // 호스트의 공백 줄은 표 뒤에서 실제 줄 상자와 간격을 점유한다.
+        // 표 끝만 예약하면 뒤 가시 호스트의 표가 자기 제목 위로 되감긴다.
+        occupied_bottom: px(i64::from(after.vertical_pos)),
     })
 }
 
