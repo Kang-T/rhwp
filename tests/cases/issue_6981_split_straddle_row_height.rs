@@ -7,7 +7,7 @@
 //! `row_span==1` 셀만 보고 정해진다. 어긋난 만큼 clip 이 글자를 지운다 — 렌더 트리에는
 //! 정상 좌표로 있는데 화면에 한 자도 안 나간다.
 //!
-//! `samples/task2287/1342000_edu_curriculum_map.hwp` 377쪽, 셀 `(62,8) row_span=2`:
+//! `mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp` 377쪽, 셀 `(62,8) row_span=2`:
 //!
 //! ```text
 //!   저장: 셀 3882 HU = 51.76px · 여백 141 HU = 1.88px · 문단 3개 vpos 0·1300·2600 HU
@@ -89,7 +89,8 @@ fn escaped_lines_all_pages(path: &str) -> Vec<String> {
     out
 }
 
-const TARGET: &str = "samples/task2287/1342000_edu_curriculum_map.hwp";
+const TARGET: &str =
+    "mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp";
 const NEEDLE: &str = "선언문 작성";
 
 /// 이 수정은 쪽수를 바꾼다(413 → 414). 쪽 번호에 묶지 않고 전 쪽을 훑는다.

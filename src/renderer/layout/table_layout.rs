@@ -3,6 +3,7 @@
 mod row_block_cut;
 mod stored_complete_block_cut;
 mod stored_intra_paragraph_frame;
+mod stored_nested_frame;
 mod stored_plain_cell_minimum;
 mod stored_plain_row_frame;
 mod stored_shared_cell_frame;
@@ -17756,6 +17757,11 @@ impl LayoutEngine {
         end_cut: usize,
         styles: &ResolvedStyleSet,
     ) -> f64 {
+        let nested_bottom =
+            self.nested_source_frame_bottom_padding(table, cell, units, start_cut, end_cut);
+        if nested_bottom > 0.0 {
+            return nested_bottom;
+        }
         let reflow_trim = self.reflow_cut_trailing_spacing(cell, table, units, end_cut, styles);
         if reflow_trim > 0.0 {
             return reflow_trim;

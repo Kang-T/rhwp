@@ -41,6 +41,10 @@ include!(concat!(
     "/tests/support/exam_fixtures.rs"
 ));
 
+mod printed_photo_seals {
+    include!("../common/printed_photo_seals.rs");
+}
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -270,7 +274,6 @@ const DEFERRED_TEXT_OVERLAP_FIXTURES: &[&str] = &[
     "issue5941/1480000-201900698-native-neartop-reset.hwp",
     "issue6764/1613000-202200037-air-traffic-controller-cbta.hwp",
     "issue6795/1341000-201100013-cyber-university-application.hwp",
-    "task2287/1342000_edu_curriculum_map.hwp",
     "task2319/20544835_jinan_apt_form.hwp",
 ];
 
@@ -402,11 +405,13 @@ fn count_doc(path: &Path) -> Option<u64> {
                 .iter()
                 .filter(|overlap| {
                     let number_endpoint = |path: &str, bbox: &BoundingBox| {
+                        // 진단은 paper clip 이후 남은 상자를 반환한다. 독립 Print로
+                        // 확인한 유일한 장식 런의 소유·레이어 계약은 그대로 유지한다.
                         path.starts_with("Page/MasterPage")
-                            && bbox.x == number.x
-                            && bbox.y == number.y
-                            && bbox.width == number.width
-                            && bbox.height == number.height
+                            && bbox.x >= number.x
+                            && bbox.y >= number.y
+                            && bbox.x + bbox.width <= number.x + number.width
+                            && bbox.y + bbox.height <= number.y + number.height
                     };
                     !number_endpoint(&overlap.path_a, &overlap.bbox_a)
                         && !number_endpoint(&overlap.path_b, &overlap.bbox_b)

@@ -3,10 +3,16 @@
 
 use std::path::{Path, PathBuf};
 
-const PRESERVED_HWP5_INPUTS: &[(&str, &str)] = &[(
-    "issue5679/10857_delegation_rules.hwp",
-    "mydocs/pr/assets/issue7700/delegation-rules/10857_delegation_rules.hwp",
-)];
+const PRESERVED_HWP5_INPUTS: &[(&str, &str)] = &[
+    (
+        "issue5679/10857_delegation_rules.hwp",
+        "mydocs/pr/assets/issue7700/delegation-rules/10857_delegation_rules.hwp",
+    ),
+    (
+        "task2287/1342000_edu_curriculum_map.hwp",
+        "mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp",
+    ),
+];
 
 pub(crate) fn hwp5_path(logical_name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));

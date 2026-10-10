@@ -7,7 +7,7 @@
 //! 그 행의 물리 밴드를 얼마나 소비했든 컷에 적을 자리가 없다 — 이어받는 조각은 빈
 //! `start_cut` 을 받아 같은 칸을 **첫 유닛부터 다시 칠한다.**
 //!
-//! `samples/task2287/1342000_edu_curriculum_map.hwp` 행 29 의 칸은 셋 다 걸침 칸이다
+//! `mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp` 행 29 의 칸은 셋 다 걸침 칸이다
 //! (`(29,2) (29,3) (29,4)` 모두 `row_span=2`).
 //!
 //! ```text
@@ -39,8 +39,9 @@
 //! # 전체 쪽수의 독립 기준
 //!
 //! 같은 원본의 한컴 Print PDF는 415쪽이다. 일부 구간의 쪽 정렬로 전체 413쪽을
-//! 정상값으로 고정할 수 없다. 내용의 소유·중복 검사와 전체 Print 쪽수를 함께 확인한다.
-//! 기준: `pdf/semanticist21-20261008/task2287-1342000_edu_curriculum_map-623b00d56bef-2020.pdf`.
+//! 정상값으로 고정할 수 없다. 부적합한 전체 쪽수 검사는 #7445로 이관하고 내용의
+//! 소유·중복 검사와 합성 예산 계약은 유지한다.
+//! 기준: `mydocs/pr/assets/issue7445/education-curriculum-map/current-source-hancom2020-print.pdf`.
 //! 전쪽 Native/fresh WASM 90% 적격성은 별도 시각 검증이며 이 검사 PASS로 대신하지 않는다.
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -48,7 +49,8 @@ use rhwp::diagnostics::layout_anomaly::{scan_page, AnomalyOptions};
 use rhwp::document_core::DocumentCore;
 use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
 
-const TARGET: &str = "samples/task2287/1342000_edu_curriculum_map.hwp";
+const TARGET: &str =
+    "mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp";
 /// 걸침 전용 행(모든 칸 `row_span=2`)의 시수 칸.
 const ROW: u16 = 29;
 const COL: u16 = 3;

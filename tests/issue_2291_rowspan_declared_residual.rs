@@ -1,8 +1,8 @@
 //! Issue #2291/#2237 (PR #2309) — 거대 rowspan 표 정밀도 회귀 oracle.
 //!
-//! `samples/task2287/1342000_edu_curriculum_map.hwp` s5 pi8 (244×10, 다층
+//! `mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp` s5 pi8 (244×10, 다층
 //! rowspan: c0 rs=67 / c1 rs=28 / c2 rs=9 / c3 rs=3~4) 기준. 정답지:
-//! `pdf/task2287/1342000_edu_curriculum_map-2022.pdf` (한글 2022 COM, 415쪽).
+//! `mydocs/pr/assets/issue7445/education-curriculum-map/existing-hancom2022-print.pdf` (한글 2022 COM, 415쪽).
 //!
 //! 고정하는 두 규칙 (행 괘선 실측 기반, #2291 코멘트):
 //! 1. **rowspan 병합 셀 선언-잔여의 마지막 걸침 행 가산** — r183: c3(rs=4)
@@ -19,7 +19,8 @@ use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
 
 fn core() -> DocumentCore {
     let repo_root = env!("CARGO_MANIFEST_DIR");
-    let path = Path::new(repo_root).join("samples/task2287/1342000_edu_curriculum_map.hwp");
+    let path = Path::new(repo_root)
+        .join("mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp");
     let bytes = fs::read(&path).unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
     DocumentCore::from_bytes(&bytes).expect("parse 1342000_edu_curriculum_map.hwp")
 }
