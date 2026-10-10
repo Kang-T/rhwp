@@ -450,3 +450,13 @@ rebase 전후 Rust source 차이는 위 source 보완의2파일뿐이며 기존 
 `faaac1609`의 fmt·Native/WASM Clippy·workspace build는 통과했다. all-targets Clippy는 `envelope_integrity_contract.rs`의 함수 안 `include!`가 함수 정의를 expression 위치로 확장해 exit101이었다. 같은 제외 helper를 모듈 범위로 옮기며 표본 선택·시험지 제외 조건과 일반 문서 assertion은 유지한다. 제품 Rust source·입력·기준 PDF는 이 정정으로 바뀌지 않는다. 실패한 integration lint부터 검증을 이어가고 새 head의 런타임 source 동등성을 기록한다. Native/fresh WASM 경계 판독과 전체 nextest는 여전히 미완료다.
 
 사용자 요청에 따라 완료·정지된 7개 실행 디렉터리의 중간 SVG 2,402개(85.21GiB)를 제거했다. 원본 샘플·PDF·PNG·TSV·로그·글꼴·빌드 캐시는 보존했고 나머지 5,455개 파일의 삭제 전후 SHA-256 일치를 확인했다. SVG를 그대로 보존 중이라고 주장하지 않으며 필요하면 기록된 실행 파일·입력으로 재생성한다. ignored `batch20-intermediate-svg-cleanup.json`에 정확한 제거 목록·source·바이트 수·보존 hash를 남긴다. AA07 전체 WASM은 caption1853의 52쪽만 완료한 뒤 디스크 여유 조건으로 중단됐고 나머지 다섯 입력은 미실행이다(`batch20-aa07-wasm-terminal-state.json`). 이전 실행의 stale `running` 표기를 완료 증거로 취급하지 않는다.
+
+### 셀 그림 정렬의 독립 출력 확인과 관계 검사 — 2026-10-10
+
+`9dedca104096a8d276c609a2d9259848f60fefe5`에서 fmt·세 Clippy·workspace build·base21 고정 manifest/unit-tier 검사가 모두 exit0이었다. Native release-test CLI 빌드는745.97초, fresh WASM은326.94초로 완료됐다. 같은 원본·Print PDF의 문제5쪽에서 Native/fresh WASM 모두 **99.24118%**로 회복했다. 두 review와 같은 좌표의 하드웨어 그림2배 확대를 직접 읽고 가운데 정렬 복원, 다이어그램 내용·소속·전후 제목 보존을 확인했다. 기존 bitmap 보간/선명도와 dashed 테두리 색 차이는 남으며 픽셀 완전 일치 또는 원문 전46쪽의 통과를 주장하지 않는다. source/binary/package/input/PDF/TSV/review hash와 명령은 ignored `candidate-9dedca104-validation-boundary-regression/` 및 `batch21-cell-picture-direct-read/`에 고정한다.
+
+시각 선행 조건이 확인된5쪽 범위에 `issue_4514_cell_picture_owner_alignment.rs`를 추가한다. 원문 가운데 정렬 속성 → 같은 셀의 owner TextLine과 그림 중심·가로 포함·개체 수 관계를 검사하며 절대 위치를 golden으로 고정하지 않는다. CLI bbox의 한 자리 소수 직렬화 정밀도만 상대 오차에 전파한다. 테스트 전용 `RHWP_4514_RENDER_BIN`으로 동일 정식 검사를 수정 전 frozen CLI에 실행할 수 있다. 현재는 진단 관계식의 수정 전 FAIL/수정 후 PASS만 확인했으며 정식 Rust 검사·전체 nextest는 아직 미완료다(`batch21-cell-picture-relation-draft-evidence.json`). 이전 orchestrator는 이 검사 추가 전 전체 nextest가 시작되지 않도록 경계 판독 대기 상태에서 종료했다. 이후 최신 test head를 검증하며, 테스트/문서만 바뀐 경우 기존 제품 source의 Native/WASM 결과와 구분해 연결한다.
+
+`scattered`41쪽의 `(GB-R)`은 삭제가 아니라42쪽 이월이었다. 독립 Print에도42쪽에 있고 원문 해당 문단의 저장 vpos가0으로 재시작한다. 이 줄을 새 누락 회귀라고 단정했던 설명을 철회한다. base/head의 표 owner·시작57/끝103행·컷과 측정/컷용 행 높이는 같지만 조각 요구/점유 높이에는9.78667px 차이가 남아 추가 분류가 필요하다. 소유 변경을 잘못된 base 위치로 되돌리지 않고 기존 낮은 출력과 현재 변경을 구분한다(`batch20-scattered-boundary-diagnosis/classification.json`).
+
+원래48개 쪽 나눔 영향 입력 중 이미 #7445로 이관된3쪽 입력1개를 별도로 보존하고, 활성47개 전3,628쪽의 Native/fresh WASM 비교를 준비했다. 각 문서를 비교한 뒤 generated SVG만 제거하고 PNG/TSV/log/JSON/font payloads를 보존하도록 대기 중이다. 준비 스크립트 존재를 실행 완료로 세지 않으며 전체 TSV·각 PR 판정·원격 통합은 아직 미완료다.
