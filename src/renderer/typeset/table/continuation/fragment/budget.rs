@@ -720,7 +720,7 @@ impl TypesetEngine {
         // The saved origin has already been accepted in this physical frame.
         // Carry that result to paint rather than querying it again against a
         // potentially different column after the row cut has been reserved.
-        let fragment_placement = fragment_placement.or_else(|| {
+        fragment_placement = fragment_placement.or_else(|| {
             accepted_first_fragment_origin.map(|origin| {
                 let top = origin + host_before_overhead + vert_offset_overhead;
                 crate::renderer::float_placement::ParagraphFloatPlacement {
