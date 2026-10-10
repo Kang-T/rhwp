@@ -1337,14 +1337,17 @@ impl LayoutEngine {
                 && cell_row + 1 == end_row
                 && !end_cut.is_empty()
                 && !is_block_split
-                && self
+                && (self
                     .stored_full_width_row_declared_height(
                         table,
                         cell_row,
                         styles,
                         self.current_body_area.get().3,
                     )
-                    .is_some();
+                    .is_some()
+                    || self
+                        .saved_nested_single_cell_frame_height(table, start_cut, end_cut, styles)
+                        .is_some());
             let cut_frame_owns_alignment = is_continuation
                 && start_row_height_override.is_some()
                 && cell_row == start_row
@@ -3959,6 +3962,19 @@ impl LayoutEngine {
                                         // `cell_units_cache`의 raw cell pointer가 allocator
                                         // 재사용으로 다른 clone을 가리킬 수 있다. 일반 wrapper가
                                         // 끝낸 table 해석 뒤의 구현을 원본 참조로 직접 호출한다.
+                                        let source_frame_height = (recursive_cut.start_row == 0
+                                            && recursive_cut.end_row == 1
+                                            && !recursive_cut.is_block_split
+                                            && !recursive_cut.start_cut_is_block)
+                                            .then(|| {
+                                                self.saved_nested_single_cell_frame_height(
+                                                    nested_table,
+                                                    &recursive_cut.start_cut,
+                                                    &recursive_cut.end_cut,
+                                                    styles,
+                                                )
+                                            })
+                                            .flatten();
                                         let rendered_bottom = self.layout_partial_table_resolved(
                                             tree,
                                             &mut cell_node,
@@ -3972,18 +3988,31 @@ impl LayoutEngine {
                                                 pre_emitted_host_content_height: 0.0,
                                                 host_line_spacing: 0.0,
                                                 predecessor_flow_bottom: None,
-                                                resolved_table_top: stored_float_frame
-                                                    .map(|f| f.table_top)
+                                                // 같은 원본 프레임의 바깥여백은 부모 흐름에 예약했다.
+                                                // 실제 표 원점에서는 위 여백만 한 번 소비한다.
+                                                resolved_table_top: source_frame_height
+                                                    .map(|_| {
+                                                        nested_y
+                                                            + hwpunit_to_px(
+                                                                nested_table.outer_margin_top
+                                                                    as i32,
+                                                                self.dpi,
+                                                            )
+                                                    })
                                                     .or_else(|| {
-                                                        self.reflow_nested_table_origin(
-                                                            para,
-                                                            nested_table,
-                                                            &ctrl_area,
-                                                            nested_w,
-                                                            nested_y,
-                                                            true,
-                                                        )
-                                                        .map(|(_, y)| y)
+                                                        stored_float_frame
+                                                            .map(|f| f.table_top)
+                                                            .or_else(|| {
+                                                                self.reflow_nested_table_origin(
+                                                                    para,
+                                                                    nested_table,
+                                                                    &ctrl_area,
+                                                                    nested_w,
+                                                                    nested_y,
+                                                                    true,
+                                                                )
+                                                                .map(|(_, y)| y)
+                                                            })
                                                     }),
                                             },
                                             section_index,
@@ -4005,8 +4034,10 @@ impl LayoutEngine {
                                             // 투영)이다. 투명 래퍼 벗기기는 별개 좌표계
                                             // 판정(#4326)이라 여기서는 항상 false.
                                             false,
-                                            None,
-                                            None,
+                                            source_frame_height
+                                                .filter(|_| !recursive_cut.end_cut.is_empty()),
+                                            source_frame_height
+                                                .filter(|_| !recursive_cut.start_cut.is_empty()),
                                             &[],
                                             0.0,
                                             0.0,
