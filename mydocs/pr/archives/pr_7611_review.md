@@ -516,3 +516,15 @@ rowbreak14쪽은 여전히59.31517%, 전체19/Print18쪽이다. `batch32-correct
 실제 오류 경로는 `register_body_footnote`의 `current_page_reset_fragments`다. prefix를 현재 쪽에 등록한 직후 `force_new_page()`로 suffix를 등록하면서 아직 현재 쪽에 들어가는 본문513·514까지 새 쪽으로 넘긴다. 각주 suffix의 소유와 본문 페이지 전환을 같은 상태로 취급한 오류다. 이를 다음 물리 쪽의 각주 큐로 분리했다. source fragment와 높이의 같은 결과를 큐에 보존하고, 실제 `push_new_page`가 본문·개체의 새 프레임을 준비한 뒤 lane에 예약한다. 그 뒤 번호도 같은 큐를 따라 순서를 보존하며, 구역 끝에는 미소비 suffix를 별도 각주 쪽으로 보존한다. 새 일반 source 가정·픽셀 상수·문서 ID 분기는 추가하지 않았다. 이 수정의 런타임 검증과 관계형 검사 교정은 아직 미완료이며 뒤쪽 표650의 추가 컷 차이도 따로 남는다.
 
 고정 `a52ba6fbe`의 `RHWP_DIAG_FN` 실행에서 prefix152.6px를 등록한 직후 새 쪽의 suffix275.1px와 뒤 각주12/12/36px를 등록하는 실제 경로를 확인했다(`before-body-note.stderr`; 진단의 page 카운터는 열린 page 개수+1이다). 원본 HWP30입력의 저장 각주 reset 후보는3개였으며 정책연구 문단421·1865와 가맹사업 문단512다(`source-note-reset-audit.json`). 이는 source 후보 조사이며 composer 대응·runtime routing·HWPX 검증이나 세 입력의 시각 통과 증거는 아니다. 정상 대조군과 suffix 뒤 새 번호·구역 끝을 포함한 최신 실행은 미검증으로 남긴다.
+
+### 각주 보정 재출력과 저장 빈 줄·개체 소비의 추가 보정 — 2026-10-10
+
+`d970fb1b3` Native 빌드가 exit0/706.45초로 완료됐다. 실행 파일 SHA-256은 `6b4935487bcbaaa59d56ceb85efe8aa2f426016b76a3d2ab2f7adcc81a14bf75`다. `batch37-body-note-boundaries/`의 새47·48·70·71·72쪽 review를 모두 직접 판독했다. 전체143쪽/Print142쪽이며47쪽은96.86%로 본문514와 각주42·43 prefix 소유가 복원됐지만,48쪽69.19%에서 각주43의 카카오 그림이 빠지고,70쪽29.91%·71쪽33.88%·72쪽7.11%의 표·후속 본문 소유 차이가 남는다. 각주 큐 변경을 전체 해결로 판정하지 않는다.
+
+누락 그림의 실제 경로는 `build_footnote_area → layout_footnote_area → layout_composed_paragraph_in_frame`이다. 선택 줄과 높이는 유지되지만 마지막 호출에서 원본 문단과 BinData를 모두 `None`으로 보내 TAC 표·그림의 출력 분기가 실행되지 않았다. 각주 렌더에도 같은 원본 문단·문서 BinData를 전달한다. 독립 Print48쪽의 그림과 저장19457HU 글줄을 근거로 하며 빈 공간을 감추거나 임의 좌표로 그림을 붙이지 않는다. 번호 없는 suffix와 일반 번호 줄 모두 공통 출력 경로를 사용한다. 아직 이 추가 보정의 런타임·시각 검증 전이다.
+
+표650은 원본 셀의 빈 줄15200HU 뒤에 본문 줄이0HU로 재시작하고, 다음 frame의63417HU 빈 줄 뒤에도0HU로 재시작한다. `batch38-franchise-source-notes/`의 원본67~70 각주 레코드와 Print69~71쪽에서 두 표 쪽 뒤의71쪽에 각주가 모이는 것을 확인했다. `batch39-franchise-cut-routing/routing.stderr`는 기존 각주197.3px를 예약한 상태에서 일반40px safety band까지 차감해 첫 컷이 `[6,9]`가 되고, 다음 조각에 앞 frame의 잔여 글줄이 섞여 중첩 표 말미가 한 쪽 늦어지는 실행을 보인다.
+
+`stored_text_paragraphs_share_vpos_frame`과 `stored_plain_text_paragraph_frame_reset`의 control-free 원본 줄 판정에서 빈 문자열 자체를 제외 근거로 사용하지 않도록 수정했다. 저장 줄의 전진·원점 reset, dirty·합성 제외, 원본 행 상자가 선언 object frame보다 길다는 기존 인증은 유지한다. 그 인증으로 얻은 동일 첫 원점·선언 frame 상한을 cut과 paint에 전달하고, 첫 frame 예산은 실제 기존 각주 경계를 소비한다. 새 각주는 기존 물리 fit 큐를 그대로 따른다. 현재 cut·좌표를 기대값으로 복사하지 않았으며 이 추가 보정의 정상 대조군·전쪽 Native/fresh WASM·관계형 회귀·lint는 아직 미완료다.
+
+별도 frozen `9dedca104` 편람은 Native383쪽과 WASM383쪽 TSV가 모두 완료됐고 각 최저90.42728%/미달0쪽이었다. 이후 source 변경 감지 assertion으로 driver가 종료됐음을 실제 stderr와 사라진 process handle로 확인했다(`batch38-franchise-source-notes/old-whole-terminal-observation.json`). 원 provenance를 덮어쓰지 않고 종료 관측을 별도로 보존했다. 제목의 직접 판독 차이는 미해결이고 이 오래된 head 결과를 새 head 통과로 쓰지 않는다. 나머지46입력과 활성47입력 전체3,628쪽·두 backend 범위는 그대로 남아 있다.

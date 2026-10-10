@@ -1347,6 +1347,7 @@ impl LayoutEngine {
     }
 
     /// 각주 영역 레이아웃 (구분선 + 각주 문단들)
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn layout_footnote_area(
         &self,
         tree: &mut PageLayoutContext,
@@ -1356,6 +1357,7 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
         fn_area: &LayoutRect,
         shape: &FootnoteShape,
+        bin_data_content: &[BinDataContent],
     ) {
         let mut y = fn_area.y;
 
@@ -1492,6 +1494,9 @@ impl LayoutEngine {
                     );
                 } else {
                     let composed = numbered.as_ref().unwrap_or(&composed);
+                    // 각주 줄도 원본 인라인 개체와 문서의 BinData를 소비한다.
+                    // 텍스트 줄만 전달하면 높이는 예약하면서 TAC 표·그림을
+                    // 출력하지 못한다. 이어받기에도 같은 글줄 소유를 사용한다.
                     let returned_y = self.layout_composed_paragraph_in_frame(
                         tree,
                         fn_node,
@@ -1508,8 +1513,8 @@ impl LayoutEngine {
                         false,
                         0.0,
                         None,
-                        None,
-                        None,
+                        Some(para),
+                        Some(bin_data_content),
                         None, // 각주 컨텍스트 — wrap zone 무관
                         false,
                         Some(placement.spacing),

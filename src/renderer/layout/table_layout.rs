@@ -2228,7 +2228,7 @@ fn stored_zero_restart_is_confirmed(
     })
 }
 
-/// Plain text paragraphs that advance the same original cell coordinate frame.
+/// Control-free line boxes that advance the same original cell coordinate frame.
 /// Paragraph-local zero origins alone do not establish this contract.
 fn stored_text_paragraphs_share_vpos_frame(
     cell: &crate::model::table::Cell,
@@ -2240,8 +2240,6 @@ fn stored_text_paragraphs_share_vpos_frame(
         let next = &pair[1];
         if !previous.controls.is_empty()
             || !next.controls.is_empty()
-            || previous.text.trim().is_empty()
-            || next.text.trim().is_empty()
             || previous.stored_text_partition_is_dirty()
             || next.stored_text_partition_is_dirty()
             || previous.cell_format_vpos_dirty
@@ -2281,7 +2279,8 @@ fn stored_text_paragraphs_share_vpos_frame(
     })
 }
 
-/// A rewind between unchanged plain-text paragraphs in an original cell stream.
+/// A rewind between unchanged control-free line boxes in an original cell stream.
+/// An empty paragraph can own a real stored line and close a physical frame.
 fn stored_plain_text_paragraph_frame_reset(
     previous: &crate::model::paragraph::Paragraph,
     next: &crate::model::paragraph::Paragraph,
@@ -2290,8 +2289,6 @@ fn stored_plain_text_paragraph_frame_reset(
 ) -> bool {
     previous.controls.is_empty()
         && next.controls.is_empty()
-        && !previous.text.trim().is_empty()
-        && !next.text.trim().is_empty()
         && !previous.stored_text_partition_is_dirty()
         && !next.stored_text_partition_is_dirty()
         && !previous.cell_format_vpos_dirty

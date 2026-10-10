@@ -4758,6 +4758,7 @@ impl LayoutEngine {
             footnote_shape,
             styles,
             layout,
+            bin_data_content,
         );
 
         // 꼬리말 + 쪽 번호 (감추기 설정 시 건너뜀)
@@ -6532,6 +6533,7 @@ impl LayoutEngine {
     }
 
     /// 각주 영역 노드를 생성하여 tree에 추가한다.
+    #[allow(clippy::too_many_arguments)]
     fn build_footnote_area(
         &self,
         tree: &mut PageRenderTree,
@@ -6540,6 +6542,7 @@ impl LayoutEngine {
         footnote_shape: &FootnoteShape,
         styles: &ResolvedStyleSet,
         layout: &PageLayoutInfo,
+        bin_data_content: &[BinDataContent],
     ) {
         let mut footnote_layout = layout.clone();
         if !page_content.footnotes.is_empty() {
@@ -6569,6 +6572,7 @@ impl LayoutEngine {
                 styles,
                 &footnote_layout.footnote_area,
                 footnote_shape,
+                bin_data_content,
             );
             tree.root.children.push(fn_node);
         }

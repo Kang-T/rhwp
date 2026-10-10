@@ -1145,6 +1145,13 @@ impl TypesetEngine {
                 (native_picture_caption_fits_actual_footnote_boundary
                     || stored_ordinary_rowbreak_rewind_uses_actual_footnote_boundary
                     || native_hwp5_internal_reset_rewind_needs_anchor_resync
+                    // An authenticated first text frame is capped by its source
+                    // object box. Reserve actual existing notes, rather than
+                    // shortening that box again by a heuristic safety band.
+                    // The cut and paint consume the same saved origin and cap;
+                    // queued new notes still require their own physical fit.
+                    || (st.profile.hwp5_stored_pagination_layout()
+                        && source_text_frame_top.is_some())
                     || empty_opening_row_frame.is_some())
                 .then(|| {
                     st.base_available_height()

@@ -203,6 +203,7 @@ fn footnote_separator_caller_uses_absolute_hwpunit_width() {
         &ResolvedStyleSet::default(),
         &area,
         &shape,
+        &[],
     );
 
     let line = footnote_area
