@@ -1375,6 +1375,19 @@ impl TypesetEngine {
         is_continuation: bool,
     ) {
         let host = input.source.paragraph;
+        if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+            eprintln!(
+                "DIAG_SCAN TERMINAL_SOURCE_CANDIDATE pi={} ci={} continuation={} columns={} host_dirty={} cell_dirty={} last_control={} current={:.3}",
+                input.source.para_index,
+                input.source.control_index,
+                is_continuation,
+                st.col_count,
+                host.stored_text_partition_is_dirty(),
+                host.cell_format_vpos_dirty,
+                input.source.control_index + 1 == host.controls.len(),
+                st.current_height,
+            );
+        }
         if !is_continuation
             || st.col_count != 1
             || host.stored_text_partition_is_dirty()
@@ -1401,6 +1414,22 @@ impl TypesetEngine {
         };
         if st.prefilled_line_prefixes.contains_key(&index) {
             return;
+        }
+        if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+            eprintln!(
+                "DIAG_SCAN TERMINAL_SOURCE_OWNER pi={} next={} text_len={} controls={} lines={} source_lines={:?} first_line={:?} current={:.3} margin={} hwp5={} hwpx={}",
+                input.source.para_index,
+                index,
+                next.text.len(),
+                next.controls.len(),
+                next.line_segs.len(),
+                next.source_line_seg_vertical_pos.as_ref().map(Vec::len),
+                next.line_segs.first().map(|line| (line.vertical_pos, line.line_height, line.tag)),
+                st.current_height,
+                input.source.table.outer_margin_bottom,
+                st.profile.hwp5_stored_pagination_layout(),
+                st.profile.hwpx_stored_layout(),
+            );
         }
         let Some(gap) = crate::renderer::float_placement::stored_terminal_empty_line_gap(
             next,

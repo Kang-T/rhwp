@@ -7118,7 +7118,26 @@ impl LayoutEngine {
                                                     _ => None,
                                                 })
                                                 .sum();
-                                            inline_x = row_box.x + preceding_width;
+                                            // The emitted TextLine bbox is the available line
+                                            // box, not the aligned ink/object origin. Use the
+                                            // same owning-line occupied width as the ordinary
+                                            // inline path, after composition has supplied its
+                                            // margins and stored column start.
+                                            let occupied_width = tac_line_widths
+                                                .get(owner)
+                                                .copied()
+                                                .unwrap_or(total_inline_width);
+                                            let free_width =
+                                                (row_box.width - occupied_width).max(0.0);
+                                            let alignment_offset = match para_alignment {
+                                                Alignment::Center | Alignment::Distribute => {
+                                                    free_width / 2.0
+                                                }
+                                                Alignment::Right => free_width,
+                                                _ => 0.0,
+                                            };
+                                            inline_x =
+                                                row_box.x + alignment_offset + preceding_width;
                                             tac_img_y = row_box.y;
                                         }
                                     }

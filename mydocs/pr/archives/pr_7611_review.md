@@ -438,3 +438,11 @@ rebase 전후 Rust source 차이는 위 source 보완의2파일뿐이며 기존 
 공통 시험지 제외 조건에 `21_언어_기출_편집가능본`을 추가하고, 빠져 있던 CFB 직렬화 전수 검사와 envelope 표본 선택에도 같은 조건을 적용했다. 실제 공유 Rust 조건을 실행해 사용자 경로 59개와 Windows 절대 경로 59개가 제외되고 일반 문서 대조군 3개가 유지됨을 확인했다. 이름·helper 연결에 따른 남은 전용 Rust 검사 후보는 0개다. 원본 HML과 fuzz seed도 보존하며 정식 전체 회귀에서는 fuzz target을 실행하지 않는다.
 
 도구 계약 검사는 시험지 이름의 checked-in placeholder를 순회하는 대신 일반 이름의 임시 placeholder 트리를 사용한다. 원래 mini_repo 파일을 삭제·변경하지 않았고 Python 계약 검사 45개가 통과했다. 상세 감사·제거된 검사 이름·원본 hash·비시험지 행 보존 증거는 ignored `output/pr-review/planet6897-20261008/batch19-exam-final-audit.json`에 있다. 이번 변경 뒤 Rust lint·정책 검사·전체 nextest는 아직 완료되지 않았으며 앞선 AA07 결과를 재사용한 통과로 표시하지 않는다. 이 정리는 사용자 지정 시험지 범위에 대한 지시이고, 다른 문서의 실패를 #7445로 넘길 때 필요한 고정 base 비교를 대체하지 않는다.
+
+### 209쪽 base 대조와 셀 그림 가로 정렬 회귀 — 2026-10-10
+
+고정 base `21ed64071f81f35f37618717693bd30f727392c9`와 렌더링 source `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 같은 입력·독립 Print PDF·글꼴·compat 조건으로 여섯 원본/대조군 전체 209쪽 Native TSV를 직접 짝지었다. 누락·추가 쪽은 없다. `caption1853`의 기존 미달 21쪽과 `pr-1674`의 기존 미달 5쪽이 90% 이상으로 개선됐고 두 정상 대조군은 전쪽 통과다. 이것을 다른 입력이나 fresh WASM의 통과로 승격하지 않는다. `sample1-repro.hwp` 5쪽은 base99.24118% → 현재88.33602%로 새 미달이다. 이미 낮은 문서라도 현재 수정으로 생긴 회귀는 #7445로 넘기지 않고 구현을 보정한다. `scattered`41쪽의 기존 미달에서도 추가 차이가 있어 별도 원인 대조가 남았다. 전쪽 수치와 입력/PDF/TSV hash는 ignored `batch20-native-base-head-fidelity-delta/`에 있다.
+
+같은 5쪽을 Print와 직접 읽고 base/head render tree를 대조했다. 부모 셀·그림 크기·세로 좌표는 같고 가운데 정렬된 TAC 그림의 가로 원점만102.7→91.4px로 이동했다. 기존 `3fb6118749` 보완은 TextLine bbox의 왼쪽을 정렬된 콘텐츠 원점으로 간주했다. 실제 생산 위치 `paragraph_layout.rs`의 bbox는 여백을 반영한 가용 줄 상자다. 이 상자 → `table_layout.rs`의 해당 owner 줄 점유 너비(`tac_line_widths`) → 정렬 여유와 앞 그림 점유 → 실제 `layout_picture` 원점 순서로 소비하도록 보정했다. source 문서 ID·수치 예외나 좌표 clamp로 맞추지 않는다. 보정 후 Native/fresh WASM 시각 확인 및 정식 관계 검사 추가는 아직 미완료다.
+
+시험지 정리 commit `479356f2f`에서 fmt·Native/WASM Clippy·workspace build는 통과했으나 all-targets Clippy는 유지한 일반 문서의 단일 원소 `for` 반복문 때문에 exit101이다. 해당 반복문만 직접 바인딩으로 바꾸고 기존 End/End-1 내용 보존 assertion은 유지했다. 이 실패로 전체 nextest는 시작되지 않았으며 PASS로 기록하지 않는다. 표 마지막 여백 진단에도 기존 `RHWP_DIAG_SCAN` 아래 실제 후보/후속 문단 상태 로그를 보강했다. p5의 기존 미세 괘선 차이를 해결했다고 주장하지 않으며 재빌드 이후 실제 선택·적용 경로를 확인한다.
