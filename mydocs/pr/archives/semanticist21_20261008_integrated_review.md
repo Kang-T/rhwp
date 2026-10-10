@@ -1689,3 +1689,67 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 수정 검사 실제 실행은 dev profile에서 **1run/1PASS/256filtered skip/exit0**이다(검사0.972초, compile 포함15.531초; `outline-source-offset-focused-v110-retry1-exit.json`, 해당 로그). 첫 선택은 정책 검사와 파생 suite 갱신 순서가 겹쳐 기존 suite013에서0run/exit4였으므로 통과로 세지 않았다. 정책 검사 종료 뒤 실제 등록된 suite008을 찾아 순차 재실행했다. prepare/고정base manifest check와 fmt/diff check도 통과했다. 전체Rust·필수 세 Clippy와 전체시각 gate 통과로 확대하지 않는다.
 - 시험지/HML59개 원본의 현재 바이트·실행 권한이 커밋된 원본과 동일한지 재확인했다(`exam-originals-preserved-v110.json`). 모든 WASM production source hash도 fresh build와 일치한다. 이번 단계는 기존 회귀 기대값 보정이며 CGMP 구현 계획은 아직 적용하지 않았다.
 - 수정한 기존 검사를 포함한 Native Clippy `--test regression_suite_008 -- -D warnings`도 exit0이다(`logs/outline-source-offset-test-clippy-v110.log`). 한정 Clippy이며 제출 전 필수 세 lint 단계를 대체하지 않는다.
+
+
+## 95. v111 — CGMP 일반 행 쪽 프레임의 공통 점유 보정
+
+- 진행94를 커밋한 뒤 fetch한 upstream/devel은21ed64071 그대로여서 checkout·rebase를 생략했다(`outline-source-offset-checkpoint-sync-v110.json`). 현재 출발 head는03616d394이며 CGMP는 현재 보정 범위를 유지한다.
+- 독립 Print의34/35쪽에는60행의 빈 이어받기 조각이 없지만 현재35쪽에는1.7px 꼬리가 생겨61행 이하를 민다(`cgmp-ordinary-frame-before-cells-v111.json`, 고정base의 실제 `base-cgmp-row60-trace-v110` 출력).60행 마지막 원본 글줄의 다음 줄 간격360HU/4.8px보다 작은 물리 꼬리는 새 내용·독립 빈 밴드의 소유자가 아니다. 반대로 #5585의 약17px 빈 밴드는 이 원본 줄 간격을 초과하며 기존 비반복제목행 계약을 유지한다.
+- 독립 Print36/37쪽의78행 상자는385.4974/177.2467px이고 현재는373.3/165.3px다.39쪽의97행 잔여도 선언된 물리 높이를 잃는다. 내용 컷·글줄 수만으로 선언 잔여를 대체하지 않고 원본 반복제목행의 쪽 상한에서 수용한 앞 상자와 남은 내용 포함 잔여 상자를 함께 전달한다.135행의 단일 줄도 글자를 나누지 않고 선언 높이의 빈 꼬리를 다음 쪽에 보존해야 한다. 일반 다중줄 가운데 행의 전체 이월 규칙을 완화하지 않는다.
+- 생산은 `stored_ordinary_row_frame`의 원본 행/컷 조회이며, 실제 컷과 각주 refit이 끝난 `scan_table_fragment`가 공통 끝 행 높이와 consumed를 수용한다. continuation은 같은 컷·앞 높이로 잔여를 계산해 start override로 전달하고 다음 스캔과 paint가 그 정확한 높이를 소비한다. paint의 정렬과 마지막 줄 간격 접기도 원본 프레임 소유를 소비한다. 소유 유닛 컷은 바꾸지 않는다. TAC·편집/reflow·중첩 controls·rowspan·원본이 아닌 줄 사다리는 이 경로에서 제외한다.
+- 먼저 하나의 구현 묶음과 Native build 뒤 CGMP 경계35/36/37/39/41/42쪽·기존 분할 대조 검사를 실행한다. 같은 원본 전48쪽 Native/fresh WASM90% 전에는 CGMP 기존 기대값·golden을 변경하지 않는다. 현재 단계의 구현·실행 결과는 아직 미검증이다.
+- 첫 묶음 dev build는 exit0/109.868초/source불변이며 frozen Native SHA256 `435bcb692cdd4f3a3745a8f4f9eee5c3d17e1e5b541a3bb1d863f32df2192723`다. Native 대조32쪽은 exit0/398.130초, 한국어2쪽 최저96.91813%, outline9쪽97.34742%, eogu21쪽93.26292%로 미달·누락0이다. 관련 기존 검사158개는 exit0/전부PASS(검사95.181초, compile 포함480.238초;1slow/6033filtered skip)이며 #5585의 실제 빈 밴드·#5714·#3308 대조를 포함한다. 전체Rust/freshWASM 완료로 확대하지 않는다.
+- 첫 CGMP 선택8쪽은 exit1/577.670초/source불변이며35쪽98.46451%,37쪽97.65544%로 개선됐지만38쪽76.14151%,39쪽74.83172%,42쪽48.58196%가 미달이다.35/37/38/39쪽 새 review를 직접 표시·판독했다. 전48쪽 fresh SVG는48대48쪽/exit0이며32~41쪽이 달라32/33/40쪽도 후속 확인 범위에 추가한다. 개선만으로 전체 승인하지 않는다.
+-38쪽 회귀는84행의 작은 선언 잔여36.6px가 일반 fallback을 통해 먼저 수용돼 남은 두 줄의 실제 요구40.5px를 잃은 것이다. 일반 per-row 컷의 이어받기 생산에서 선언 잔여와 같은 컷의 내용 요구 중 큰 값을 전달하도록 보정한다. 블록 컷의 별도 인덱스 공간과 완전히 소비된 #5585 빈 밴드는 유지한다.42쪽 단일 줄 진입은 기존 whole-row 측정이 이미 선언 높이를 포함해 `선언 > 내용`을 늘 거짓으로 만들었다. 같은 원본 유닛의 잉크+여백 점유로 판정하도록 수정한다. 현재 두 후속 보정은 새 build/검증 전이다.
+- retry1 build는 exit0/110.018초/source불변이며 관련158검사도 전부PASS/exit0(실제96.019초/총385.921초)다. 그러나 Native 영향11쪽은 exit1/530.379초이며33/38/39/40/41/42쪽이 미달이다. 공개 DocumentCore에 현재 cached Native rlib를 연결해 원본과 실제 page items를 직접 읽었다(`cgmp-public-source-diagnostic-v111-retry1.rs`, 해당 로그).84행의 세 셀 모두 row_span1이며 dirty/vposdirty/controls는 없었다. 병합 블록 소비라는 앞선 추정은 틀렸다.
+- 실제 누락은 생산자가 이미 입증한 문단 내부 원점0 경계를 일반 행 프레임 소비가 문단 간 리셋으로만 제한한 데 있었다.84행의0/0/1560,123행의0/1560/0은 독립 Print와 기존 저장 경계 생산 계약에 대응한다. 같은 원본 경계 판별자를 종료 상자·잔여·정렬에서 공통 소비하고, 선언 잔여의 최소 요구에는 같은 유닛의 잉크+유효 안 여백을 포함하도록 수정한다. 90% 미달을 이관하거나 기대값으로 덮지 않는다. 이 후속 수정은 아직 새 build/시각 확인 전이다.
+
+- retry2 build는 exit0/107.843초/source불변, frozen Native SHA256 `bf5148720d526ed9727d1c3e0716065d7f4f5e0d9cbef9b9bf75acffe21d514d`다. CGMP 영향32~42쪽11개는 모두90% 이상/exit0/515.601초이며 최저39쪽95.37856%다.38쪽98.52483%,42쪽98.77406%로 잔여 상자와 빈 이어받기 프레임의 위치가 복구됐다. 관련 기존158검사도 전부PASS/exit0(실제99.736초/compile 포함279.080초)다. 최신 Native 대조32쪽은 최저한국어96.91813%,outline97.34742%,eogu93.26292%로 미달·누락0/exit0/359.626초다.
+- retry2의33/35/37/38/39/41/42쪽 compare·overlay·review를 새로 생성해 직접 표시·판독했다(`native-cgmp-ordinary-row-frame-direct-v111-retry2/cgmp6035/direct-review-provenance.json`).35쪽에는 마지막 줄 전진만 남은60행의 독립 빈 꼬리가 없고,42쪽에는 원본135행의 실제 빈 밴드가 남아 뒤 본문이 Print와 대응한다.39쪽의 글자·작은 경계 차이는 남으며 픽셀 완전 일치로 보고하지 않는다. 기존 CGMP2검사는 HEAD와 같은바이트/sha256 `da83a6fb3c0e296b0e52ca72bda14362bbf1f083964afccc8c528329281ad4a2`로 유지한다. 전48쪽 Native와 새production의 표준fresh WASM build를 시작했으며 전체90%/최종gate는 아직 미검증이다.
+
+
+- v111 retry2의 같은 원본/Print 전48쪽 Native sweep이 exit0/1051.978초/source불변으로 종료됐다. 실제 TSV는48쪽 모두 누락·90%미달0이며 최저47쪽94.00342%다(`cgmp-ordinary-row-frame-native-whole-summary-v111-retry2.json`). 이는 Native 전체 확인이며 진행 중인fresh WASM 및 필수 최종gate를 대신하지 않는다. 기존2검사 기대값 변경은 아직 하지 않았다.
+
+- 같은 current production으로 표준 WASM wrapper가 exit0/1126.432초/source불변으로 종료됐다. frozen/rootpkg/Studio public의 wasm SHA256은 모두 `ef22409aad9a830d2cec2b4650fc2c4cdb7aba71f15dca03865276a548ec869a`다. 이는 package 공급 확인이며 Studio 실제 편집 동작 확인으로 보고하지 않는다. frozen fresh WASM의 CGMP48쪽과 일반대조32쪽 비교를 시작했다. Native 전쪽의1/47쪽 review도 새로 생성해 직접 표시·판독했고, 외곽·내용 소속은 대응하나47쪽 증명서의 제목·서명 글자 굵기/폭 차이는 남아 있다. 기존 CGMP2검사 기대값은 아직 변경하지 않았다.
+
+- 최신fresh WASM 일반대조32쪽은 exit0/272.432초/source불변, 미달·누락0이다. 최저한국어96.91813%,outline97.34742%,eogu93.26292%이며32개 실제 raster는 최신 Native와 바이트 동일하다(`wasm-ordinary-row-frame-counter-minima-v111.json`, `ordinary-row-frame-normal-native-wasm-raster-parity-v111.json`). CGMP 전48쪽 fresh WASM은 진행 중이며 이 대조32쪽으로 전체 CGMP 통과를 주장하지 않는다.
+
+## 96. 2026-10-10 — #7445 대표 이슈와 문제별 하위 이슈 정리
+
+- 사용자가 #7445를 대표 이슈로 바꾸고 첫 본문·전체 코멘트를 하위 이슈로 연결하도록 지시했다. 실제 기존 본문1개/코멘트103개/직계 하위 이슈0개를 snapshot으로 보존했다. GitHub의 직계100개 한도를 확인한 뒤 사용자가 같은 문제의 후속·정정 코멘트를 묶고 모든 원문을 연결하는 방식을 선택했다.
+- 기존 본문과103코멘트를 누락 없이77개 문제로 정리했다. 복수 문제를 다룬86/87/93/96번 등은 해당 하위 이슈들에 함께 연결한다. 입력 형식이 다른 문서는 독립 검증 범위를 보존하고, 원문·명령·수치·원 author/time·출처 링크를 각 하위 이슈에 그대로 보존한다. 당시 로컬 완료/이관 철회/미검증은 최신 완료로 승격하지 않는다. 기존 첫 본문은 #7716에 원문 전체를 등록했다.
+- CGMP는 #7764에서 현재 `review/semanticist21-20261008`의 메인터너 보정으로 추적한다. 과거 셀 넘침 원장 한 축의 이관 기록과 현재 작업의 범위를 구분했고, 잘못 제거한2검사 복구·Native 경계11쪽90% 및158검사PASS·전48쪽/fresh WASM 진행 상태를 명시했다. CGMP 코드·검사를 추가 제외하거나 이관하지 않는다.
+- GitHub 구조 변경 실행 원장은 ignored `issue7445-hub-remote-ledger-20261010.json`, 전체 source snapshot과77개 묶음은 `issue7445-hub-{source,comments,group-plan}-20261010.json`에 보존한다. 하위 이슈 생성→실제 부모 연결→본문·title·parent API 재확인 뒤 기존103코멘트에 연결번호를 추가하고 마지막으로 대표 본문을 목차로 갱신한다. 현재 실행 중이며 전체 완료·검증 결과는 terminal 후 이어 적는다.
+
+- 사용자 후속 요청에 따라 하위 이슈에 보존한 기존 코멘트103개도 삭제한다. 코멘트에 링크를 추가하던 자체 runner를 중단했고,77개 실제 하위 이슈에 본문1개+코멘트103개의 원문이 모두 남아 있음을 API로 먼저 대조했다. 대표 본문은 삭제된 댓글 URL 대신 하위 이슈와 원기록 순번의 목차로 바꿨다. 현재103개 원댓글을 시간순으로 정리 중이며, 삭제 후 전체 source-preservation/실제77개 부모 관계/댓글 잔여를 다시 검증한다.
+
+- #7445 구조 정리는 실제 API 재확인 후 완료했다. 대표 제목은「[대표 이슈] 문서 전체 피델리티 개선과 회귀 검사 재구축」이며77개 실제 직계 하위 이슈(#7716~#7792)를 연결했다. 기존 본문1개와103코멘트의 원문104개가 해당 하위 이슈들에 모두 남아 있음을 삭제 전후 대조했고, 원 코멘트103개는 삭제/잔여0이다. parent title/body·77개 실제 관계·원문 보존을 모두 재확인했다(`issue7445-hub-remote-ledger-20261010.json`의 audit, 최종parent/subissues/comments snapshots).
+- 추가 사용자 정정에 따라 대표 본문의「현재 메인터너 보정」섹션도 제거했고 API로 부재를 확인했다. 대표 본문은 문제별 하위 이슈 목차와 공통 완료 기준으로 유지한다. 이는 #7764의 현재 CGMP 보정 범위나 기존2검사의 유지 상태를 바꾸지 않는다. GitHub 구조 정리 완료를 CGMP fresh WASM·전체Rust·필수lint·통합PR/CI/merge 완료로 쓰지 않는다.
+
+## 97. v111/v112 — CGMP 전쪽 fresh WASM과 관계 회귀 보정
+
+- 같은 v111 retry2 production과 독립 Print의 fresh WASM 전48쪽 비교가 exit0/1858.12초/source불변으로 종료됐다. 최저47쪽94.00342%, 미달·누락0이며 Native48쪽과 TSV SHA `f08521aa545c81c87a9a33a74194cbaa004227153eae3c82d331b6a46dff1478` 및 모든48 raster가 바이트 동일하다(`cgmp-ordinary-row-frame-wasm-whole-summary-v111.json`, `cgmp-ordinary-row-frame-native-wasm-whole-parity-v111.json`). 전체 쪽 수48도 독립 Print와 같다. 이 결과는 SVG 경로의 확인이며 Studio Canvas·Native Skia와 최종 전체 회귀를 대신하지 않는다.
+- 최신 fresh WASM35/38/39/42/47쪽 compare·overlay·review를 별도로 생성했다(`wasm-cgmp-ordinary-row-frame-direct-v111/cgmp6035/direct-review-provenance.json`).35/39/42쪽 `review.png`를 직접 표시·판독했고 앞서 확인한 Native 경계와 같다.35쪽에서60행의 작은 줄 전진 꼬리가 제거됐고,42쪽에서135행의 실제 빈 밴드와 뒤136행은 보존된다.39쪽의 일부 글자 폭·작은 간격,47쪽 증명서 제목·서명의 글리프 두께 차이는 남는다. 점수 통과를 픽셀 완전 일치·최종 승인으로 쓰지 않는다.
+- 독립 Print35/36쪽의 실제 텍스트와 원본75행을 대조했다(`cgmp-print-water-supply-v112.txt`, `cgmp-public-source-diagnostic-v112.rs`와 로그). 물 공급 설비 제목의 원본 첫 문단은35쪽, 세 하위 항목은36쪽이다. 첫 문단과 다음 문단의 유효한 저장 원점0 경계를 같은 쪽으로 강제하던 기존2검사는 정본과 달랐다. 기존 검사를 제거하지 않고 제목/세 항목의 실제 셀 소속·내용 순서·완전 보존·셀 내부 포함, 앞 평가 행들의 존재와 같은 소유 컷 이어받기로 보정했다.
+- 같은 정식 `tests/cases/issue_6035_cell_split_empty_band.rs`에 실제 출력의 물리 관계 검사3개를 독립적으로 추가했다.60행의 완전한 내용 컷 뒤 다음 행으로 바로 전진하고,84행의 문단 내부 경계와97행의 문단 간 경계에서 원본 내용이 두 조각에 빠짐없이 나뉘고 글줄이 소유 셀 안에 있으며 두 조각이 원본 최소 행 높이를 잃지 않는지 확인한다.135행은 앞 제목과 뒤 빈 밴드 높이의 합이 원본 선언 높이를 정확히 한 번 소비하고, 뒤136행이 그 밴드 아래에 이어지는지 검사한다. 내부 helper 계산값이나 절대 px 기대값을 재인용하지 않는다.
+- 현재 코드의 공식 suite020에서3검사 모두PASS/exit0(실제2.295초/전체18.345초/199필터skip), production불변이다(`cgmp-relational-current-v112-exit.json`, 해당 로그). 최초 컴파일의 반환 타입 `&Box<Table>` 불일치는 `&Table`로 바로잡았다. 이는 구현 결함의 수정 전FAIL 증거로 세지 않는다. 고정base21ed 대조는 build/compile exit0 뒤 source 종료 컷 부재로3FAIL이다(`cgmp-relational-before-v112-exit.json`). 이 결과만을 v111 보정의 개별 결함 검출로 쓰지 않고, 아래의 보정 직전036 대조를 별도로 수행했다.
+- v111 production의 포맷 검사 exit0/27.963초, Native Clippy exit0/128.813초, WASM32 Clippy exit0/115.136초다. production SHA inventory는 불변이며 root/package/Studio 공급 SHA는 진행95의 표준 build 기록을 따른다. workspace build·all-target Clippy·최종 전체 회귀와 다른 문서 보정은 아직 남아 있다.
+- 시험지/HML 원본59개의 실제 바이트·실행 권한을 HEAD와 다시 대조했고 전부 보존됐다(`exam-originals-preserved-v112.json`). CGMP 원본과 독립 Print도 HEAD에 커밋된 내용과 바이트 동일하다. #7445 본문의 사용자 요청 문단 제거는 CGMP 보정 대상 제외를 뜻하지 않는다.
+
+### 보정 직전 대조와 최종 단계 확인
+
+- 보정 직전036 production을 소유한 별도 검증 worktree에서 같은 공유 `target/pr-review`의 release-test library로 빌드했다(exit0/218.615초). 동일 정식 검사 원본을 `rustc --test`로 연결했으며 build/compile 실패를 재현으로 세지 않는다. worktree는 확인 뒤21ed로 복구했다(`cgmp-relational-precise-before-v112-exit.json`). 강화한 최종5검사의 before 대조는 기존 의미 보정2PASS/새 물리 반례3FAIL이다(`cgmp-relational-precise-before-five-v112-retry1-exit.json`, 해당 로그). 실패 원인은60행의 빈 줄 전진 꼬리,135행의 한 줄 물리 분할 컷 부재, 원본 reset 행의 최소 물리 높이 손실이다. 기존2검사의 정상 기대값 정정과 새3검사의 구현 결함 검출을 구분한다.
+- 현재 production의 공식 suite008에서 강화한5검사 모두PASS/exit0, 실제2.227초/전체107.482초/223필터skip다(`cgmp-stage-gates-v112-retry1-exit.json` step3). before와 after의 정식 검사 원본 SHA는 동일한 `2f52aba0906860e852c7216668b4a3c915aeda9db4d61db3f8626e9956f4964a`다. 파생 suite의 배정은 준비 시점별로 달라지므로 과거 suite020/012를 현재 배정으로 재사용하지 않는다.
+- 필수 workspace build는 exit0/96.777초다. 전체 target Clippy에서 과거 시험지 HML 검사 제거 뒤 남은 `RELSIZE`·`ShadeColor`·`RATIO` fixture 설명 주석의 세 오류가 차례로 검출됐다. 해당 고아 주석만 정리했고 기존 정상 계약·원본·생산 코드는 변경하지 않았다. 같은 패턴을 전체 test source에서 함께 검색했으며 실행되지 않는 legacy pilot의 유효한 문서 주석을 삭제 대상으로 확대하지 않았다.
+- 최종 재실행 `cgmp-stage-gates-v112-retry2-exit.json`의 prepare/fmt/fmt-check/workspace all-target Clippy/고정base manifest/고정base unit-tier는 모두exit0이다. Clippy는15.571초, manifest5.683초, unit-tier26.854초이며 production과 최종 CGMP 검사 원본 모두불변이다. Native·WASM32 Clippy는 진행97의 같은 production 성공 기록을 결합한다. 최초 manifest drift는 마지막 검사 편집 뒤 파생 harness를 다시 준비해 해소했으며 정책 완화나 파생 파일 커밋은 없다. 최종 전체 release-test/Native Skia/다른 문서와 편집 증적은 계속 남아 있어 통합 준비 완료로 보고하지 않는다.
+- 종료된 CGMP Native/fresh WASM의 SVG143개를 해시 기록 뒤 삭제해6.092GiB를 확보했다(`cgmp-completed-svg-cleanup-v112.json`).47쪽 Native SVG 한 개는 글꼴 조사용으로 남겼고 실제 TSV·PNG·review·입력·PDF·실행 및 export provenance는 보존했다. 압축 보관하지 않았다.
+-47쪽 Print의 실제 GungsuhChe title은18pt, SVG는24px이며 첫 글자 원점은116.64/116.5267px, 기준선은234.88/234.8667px로 대응한다(`cgmp-certificate-print-font-transforms-v112.json`, `cgmp-certificate-source-font-attributes-v112.json`). 글리프 차이 원인은 이 좌표만으로 확정하지 않는다. 임베딩 CSS의 별칭으로 SVG 글꼴 실체를 식별하는 시도는 불완전하므로 글꼴 누락·해결 불가능 예외로 주장하지 않는다.
+- 정책연구 #7753의 최신 본문을 다시 읽어 이전 이관 철회와 #7505의 전215쪽90.01587% 확인 기록을 확인했다(`issue7753-policy-current-v112.json`). 현재 #4882 원본/왕복 쪽수 차이는 오래된 미달 기록만으로 제거할 수 없다. 같은 최신 고정base와 원본/독립 Print의 직접 증거를 확보하며 조판·저장 차이를 계속 조사한다.
+
+## 98. v112 — 남은 구조 회귀의 묶음 재현과 원본 시각 검토
+
+- 역사 전체 v103 실패 중 구조·쪽 소속 검사11개를 현재 공식 suite에서 한 묶음으로 다시 실행했다. exit100/98.604초, 실제50.441초/11FAIL/0PASS/2183필터skip이며 production불변이다(`pending-structural-regressions-current-v112-selection.json`, command/exit/log). 이11개만으로 남은 전체 실패 건수를 단정하지 않는다. 기존27FAIL 전체를 최종 head에서 다시 확인하는 검증은 남아 있다.
+- 설계업자 평가기준의 `samples/issue5885/3171199_design_capability_criteria.hwp`와 issue6126 경로는 SHA `6980eda2b04765cc8051da8581ee7f29fc9cb4780bb42ae14ab98883c1e90a69`로 동일하다. 독립2020 Print SHA `dabd9f8a992a80ff69916ff91ac0dcf65949739875712f470362aa472bec86d9`의 전7쪽 Native/fresh WASM 모두 최저5쪽96.39917%, 미달·누락0/exit0다.1/2/5쪽 대표 review를 양쪽으로 생성했고 Native1쪽·WASM2쪽을 직접 표시했다.2쪽 하단 외곽이 Print보다 짧게 남으므로 수치 통과와 별도로 구현 보정을 계속한다.
+- #5885 실패는 독립 PDF 상단·하단 비교가 아니라 실제 paint보다 긴 본문 점유 검사에서 발생한다. 첫 바깥 표의 bbox 끝1013.3px와 실제 괘선 끝1003.7px 사이에9.6px 차이가 남으며, 같은 바이트를 쓰는 issue6126/5885 본문 넘침 실패와 함께 추적한다(`design-physical-frame-diagnostic-v112.json`). `table_partial.rs`의 배치 후 줄간격 접기, 이후 자식 포섭으로 높이를 다시 확장하는 소비 위치와 pagination 예약을 함께 대조한다. 그리기만 숨기거나 실패한 관계 계약을 약화하지 않는다.
+- 고용지원 평가기준 `samples/issue6025/3232693_employment_support_criteria.hwpx` SHA `b53e9a83a79903b9c7cf69521519dcdf7b128348ac26ec21e6ac7b8fc6c0e441`, 독립 Print SHA `985dab08280f0cb7a2489c796614337e230871428bc0ac98b5cd3be4b5abd579`를 같은 production의 Native/fresh WASM 전4쪽으로 비교했다. 두 경로 모두1쪽89.49447%·2쪽81.14196%로 미달/exit1이다. #6950의 원본 외곽 위여백141HU 누락 의심은 아직 검사 변경 근거로 채택하지 않는다. 고정base의 같은 원본 시각 증거와 동일 기존 하위 이슈도 확인되지 않았으므로 검사를 임의 제거·이관하지 않는다.
+- 양 문서의 실제 TSV·해시·범위는 `cgmp-and-pending-regressions-qualification-v112.json`에 연결한다. 이후 구현을 바꾸면 영향받은 Native/fresh WASM 전쪽과 대표 review를 새 production에서 다시 산출한다. 초기18개 통합 범위와 후속6개 체리픽 금지는 유지한다.

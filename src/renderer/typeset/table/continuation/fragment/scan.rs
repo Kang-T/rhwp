@@ -604,6 +604,50 @@ impl TypesetEngine {
             }
         }
 
+        // 반복 제목행의 원본 쪽 프레임은 refit이 선택한 내용과 같은 물리 상자를 예약한다.
+        // 내용을 다 소비한 컷에도 마지막 줄 간격만 남은 꼬리를 별도 행으로 세지 않는다.
+        if split_block_start.is_none()
+            && split_end_limit > 0.0
+            && !split_end_cut.is_empty()
+            && end_row > cursor_row
+            && self.stored_header_physical_rows(st, input.source)
+        {
+            let row = end_row - 1;
+            let row_start = if row == cursor_row {
+                start_cut.as_slice()
+            } else {
+                &[]
+            };
+            let selected = end_row_height_override.unwrap_or_else(|| {
+                layout_engine.row_cut_content_height(
+                    row_geometry_table,
+                    row,
+                    row_start,
+                    &split_end_cut,
+                    styles,
+                )
+            });
+            let before_last = consumed - selected;
+            let physical = self.stored_header_fragment_row_budget(
+                st,
+                input,
+                budget.page_avail,
+                budget.host_before_overhead,
+            ) - header_overhead
+                - before_last;
+            if let Some(height) = layout_engine.stored_ordinary_row_end_frame(
+                row_geometry_table,
+                row,
+                row_start,
+                &split_end_cut,
+                physical.min(avail_for_rows - before_last),
+                styles,
+            ) {
+                consumed += height - selected;
+                end_row_height_override = Some(height);
+            }
+        }
+
         BlockTableRowScan {
             source_frame_band,
             consumed,

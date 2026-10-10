@@ -1366,6 +1366,17 @@ impl TypesetEngine {
                     table, row, &next_cut, &mt.row_heights, end_row_height_override, styles,
                 )
             })
+            .or_else(|| {
+                let row = end_row.checked_sub(1)?;
+                let opening = end_row_height_override?;
+                if split_block_start.is_some() || split_end_limit <= 0.0 { return None; }
+                let remaining = layout_engine.stored_ordinary_row_remainder(
+                    table, row, &next_cut, opening, styles,
+                )?;
+                (!layout_engine.stored_complete_row_tail_is_line_advance(
+                    table, row, &next_cut, remaining, styles,
+                )).then_some(remaining)
+            })
             .or(saved_closing_frame.filter(|_| first_fragment_blank_band))
             .or_else(|| {
                 let row = end_row.checked_sub(1)?;
@@ -1515,6 +1526,12 @@ impl TypesetEngine {
             .and_then(|limit| {
             let full = cut_row_h.get(end_row.saturating_sub(1)).copied()?;
             let tail = (full - limit).max(0.0);
+            if complete_physical_end_cut
+                && layout_engine.stored_complete_row_tail_is_line_advance(
+                    table, end_row - 1, &next_cut, tail, styles,
+                ) {
+                return None;
+            }
             // [#5714] 압축된 끝행의 빈 tail 밴드는 **물리적으로 이어지는
             // 것이 있을 때만** 다음 조각으로 넘어간다: intra-row 컷이면 그
             // 행 자신이 이어지고, 행 경계 끝이면 경계를 가로지르는 rowspan
@@ -1536,7 +1553,15 @@ impl TypesetEngine {
                     split_end_limit, tail_band_continues
                 );
             }
-            (tail > 0.5 && tail_band_continues).then_some(tail)
+            // 선언 잔여가 남은 소유 유닛의 실제 요구 높이보다 작을 수 있다.
+            // 작은 빈 상자를 수용한 뒤 paint에서 키우지 않고, 같은 컷의 요구를
+            // 이어받기 커서에서 생산해 다음 스캔과 실제 배치가 함께 소비한다.
+            let remaining = if split_block_start.is_none() && split_end_limit > 0.0
+                && !layout_engine.advance_row_cut(table, end_row - 1, &next_cut, f64::MAX, styles).fully_consumed
+            {
+                tail.max(layout_engine.row_cut_content_height(table, end_row - 1, &next_cut, &[], styles))
+            } else { tail };
+            (tail > 0.5 && tail_band_continues).then_some(remaining)
         }));
         // [#7531] 행 경계에서 끝난 조각의 쪽 끝 빈 띠는 그 경계를 넘는 걸침 칸이 차지한다.
         // 행 안에서 끊긴 조각도 남은 물리 공간은 같은 띠다(끝 행이 쪽을 채우면 0).

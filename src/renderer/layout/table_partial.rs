@@ -1469,6 +1469,20 @@ impl LayoutEngine {
                             })));
             // 유효한 저장 앞 프레임과 이어받기 프레임은 원본 정렬을 소유한다.
             // 줄 구성 창과 최종 배치 원점에서 같은 소유 결과를 사용한다.
+            let ordinary_source_frame_owns_alignment = cell.row_span == 1
+                && !is_block_split
+                && !start_cut_is_block
+                && ((end_row_height_override.is_some()
+                    && cell_row + 1 == end_row
+                    && self.stored_ordinary_row_frame_owns_alignment(
+                        table, cell_row, end_cut, styles,
+                    ))
+                    || (is_continuation
+                        && start_row_height_override.is_some()
+                        && cell_row == start_row
+                        && self.stored_ordinary_row_frame_owns_alignment(
+                            table, cell_row, start_cut, styles,
+                        )));
             let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment || is_rowbreak_straddle
                 && cell.row_span > 1
                 && cell.vertical_align != crate::model::table::VerticalAlign::Top
@@ -1530,7 +1544,7 @@ impl LayoutEngine {
                         start > 0 && end >= self.cell_units(cell, table, styles).len()
                     });
             let frame_owns_alignment = !descendant_owns_closing_band
-                && (complete_plain_suffix_frame
+                && (ordinary_source_frame_owns_alignment || complete_plain_suffix_frame
                     || full_width_frame_owns_alignment
                     || cut_frame_owns_alignment
                     || stored_span_frame_owns_alignment);
@@ -2012,6 +2026,14 @@ impl LayoutEngine {
                 // 인증한 프레임은 원본 잉크 경계에서 끝난다. 첫 빈 띠와 문단 사이 빈 띠도
                 // 내용에 속하며, 보이는 줄 전진량만 합산할 때 빠져도 소유를 보존한다.
                 height
+            } else if ordinary_source_frame_owns_alignment {
+                cut_units
+                    .and_then(|(start, end)| {
+                        self.stored_ordinary_cell_cut_content_height(
+                            table, cell, start, end, styles,
+                        )
+                    })
+                    .unwrap_or(total_content_height)
             } else if full_width_frame_owns_alignment {
                 // 실제로 그리는 컷을 정렬할 때 마지막 줄의 전진량은 제외한다.
                 // 수용 공간 계상은 이 전진량을 물리 공간으로 소유하지만, 조각 하단의 잉크는 아니다.
@@ -6312,6 +6334,10 @@ impl LayoutEngine {
                         cut.as_slice() == start_cut && start_row_height_override == Some(*remaining)
                     }))
                 && !owns_declared_row_frame
+                && !(end_row_height_override.is_some()
+                    && !is_block_split
+                    && self
+                        .stored_ordinary_row_frame_owns_alignment(table, fold_row, end_cut, styles))
                 && budget_row_height_0.is_none()
                 && probe.is_none_or(|p| {
                     table.cells.iter().enumerate().all(|(idx, cell)| {

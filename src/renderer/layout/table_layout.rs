@@ -4,6 +4,7 @@ mod row_block_cut;
 mod stored_complete_block_cut;
 mod stored_intra_paragraph_frame;
 mod stored_nested_frame;
+mod stored_ordinary_row_frame;
 mod stored_plain_cell_minimum;
 mod stored_plain_row_frame;
 mod stored_shared_cell_frame;

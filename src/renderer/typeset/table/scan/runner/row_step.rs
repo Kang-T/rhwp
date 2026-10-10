@@ -826,6 +826,26 @@ impl TypesetEngine {
                 if r == cursor_row {
                     consumed += cs_before + row_total;
                     end_row = r + 1;
+                } else if layout_engine.stored_single_line_row_is_fragmentable(table, r, styles)
+                    && !rowspan_touched[r]
+                    && layout_engine
+                        .stored_ordinary_row_cut_height(
+                            table,
+                            r,
+                            row_start_cut,
+                            &res.end_cut,
+                            styles,
+                        )
+                        .is_some_and(|height| height <= avail_for_rows - consumed - cs_before)
+                {
+                    // 한 줄은 온전히 소유하고, 선언 높이의 빈 꼬리만 다음 쪽으로 넘긴다.
+                    // 내용 컷과 실제 물리 상자는 refit 뒤 공통 쪽 경계에서 확정한다.
+                    let physical = avail_for_rows - consumed - cs_before;
+                    end_row = r + 1;
+                    split_end_cut = res.end_cut.clone();
+                    split_end_limit = res.consumed_height;
+                    end_row_height_override = Some(physical);
+                    consumed += cs_before + physical;
                 } else if whole_row_rounding_fits {
                     consumed += cs_before + row_total;
                     r += 1;
