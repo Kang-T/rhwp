@@ -1105,9 +1105,42 @@ impl TypesetEngine {
         let source_single_cell_row_frames = paragraphs_all.get(para_idx + 1).and_then(|next| {
             layout_engine.native_single_cell_source_row_frames(para, next, table, styles)
         });
+        // The authenticated cut and both boxes also own their original first
+        // anchor. Reusing only the cut while keeping a drifted sequential
+        // cursor places a correct fragment in the wrong part of the page.
+        let source_single_cell_first_placement = source_single_cell_row_frames.and_then(|frame| {
+            if st.col_count != 1
+                || !std::ptr::eq(table, row_geometry_table)
+                || host_frame
+                    != (
+                        st.pages.len(),
+                        st.current_column,
+                        st.current_zone_y_offset.to_bits(),
+                    )
+            {
+                return None;
+            }
+            let base = st.vpos_page_base.unwrap_or(0);
+            let anchor = hwpunit_to_px(frame.opening_anchor_hu.checked_sub(base)?, self.dpi);
+            let top = hwpunit_to_px(frame.opening_table_top_hu.checked_sub(base)?, self.dpi);
+            if anchor < 0.0 || top < anchor || top + frame.opening_height > actual_first_boundary {
+                return None;
+            }
+            // The shared first-fragment conversion opens outer_top once.
+            let pre_margin_top = top - hwpunit_to_px(table.outer_margin_top as i32, self.dpi);
+            Some(crate::renderer::float_placement::ParagraphFloatPlacement {
+                flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
+                anchor_y: anchor,
+                stored_host_origin: Some(anchor),
+                stored_successor_line_origin: None,
+                table_left: None,
+                table_top: pre_margin_top,
+                occupied_bottom: top + frame.opening_height,
+            })
+        });
         let prepared = BlockTableContinuationPreparedState {
             first_anchor_offset_consumed,
-            host_placement: fragment_host_placement,
+            host_placement: source_single_cell_first_placement.or(fragment_host_placement),
             host_frame,
             empty_opening_row_frame,
             row_count,
@@ -1155,7 +1188,8 @@ impl TypesetEngine {
                     // queued new notes still require their own physical fit.
                     || (st.profile.hwp5_stored_pagination_layout()
                         && source_text_frame_top.is_some())
-                    || empty_opening_row_frame.is_some())
+                    || empty_opening_row_frame.is_some()
+                    || source_single_cell_first_placement.is_some())
                 .then(|| {
                     st.base_available_height()
                         - st.current_footnote_height
@@ -1165,9 +1199,13 @@ impl TypesetEngine {
             source_next_positive_rewind: next_rewinds_after_table && !next_starts_new_page,
             first_fragment_saved_offset: {
                 let column = st.inline_flow_column();
-                source_text_frame_top
-                    .or(legacy_source_top)
-                    .map(|top| top - column.y)
+                source_single_cell_first_placement
+                    .map(|placement| placement.anchor_y)
+                    .or_else(|| {
+                        source_text_frame_top
+                            .or(legacy_source_top)
+                            .map(|top| top - column.y)
+                    })
                     .or_else(|| {
                         // HWPX의 한 줄 캡션 다음에 오는 빈 호스트의 Square RowBreak 표는
                         // 저장 LineSeg 사다리에서 표의 첫 원점이 확정된다. 앞 문단을

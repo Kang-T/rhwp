@@ -568,6 +568,8 @@ pub(crate) struct StoredEmptyOpeningRowFrame {
 /// by the following paragraph's stored origin.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct StoredSingleCellRowFrames {
+    pub opening_anchor_hu: i32,
+    pub opening_table_top_hu: i32,
     pub opening_end: usize,
     pub opening_height: f64,
     pub closing_height: f64,

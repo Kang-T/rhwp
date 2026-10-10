@@ -2316,6 +2316,35 @@ fn stored_plain_text_paragraph_frame_reset(
             })
 }
 
+/// A reset inside an unchanged paragraph is a source frame boundary, too.
+/// Paragraph-local zero origins do not establish a boundary between paragraphs.
+fn stored_plain_text_cell_has_frame_reset(
+    cell: &crate::model::table::Cell,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) -> bool {
+    cell.paragraphs
+        .windows(2)
+        .any(|pair| stored_plain_text_paragraph_frame_reset(&pair[0], &pair[1], styles, dpi))
+        || cell.paragraphs.iter().any(|para| {
+            para.controls.is_empty()
+                && !para.stored_text_partition_is_dirty()
+                && !para.cell_format_vpos_dirty
+                && para.line_segs.windows(2).any(|pair| {
+                    let stored = |line: &crate::model::paragraph::LineSeg| {
+                        line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                            == 0
+                            && line.line_height > 0
+                    };
+                    stored(&pair[0])
+                        && stored(&pair[1])
+                        && pair[1].text_start > pair[0].text_start
+                        && pair[0].vertical_pos > 0
+                        && pair[1].vertical_pos == 0
+                })
+        })
+}
+
 impl LayoutEngine {
     /// A stored object box smaller than its complete original row boxes describes
     /// a fragment. Share this source-space fact with both unit production and scan.
@@ -2371,11 +2400,7 @@ impl LayoutEngine {
                 usize::from(cell.row) == row
                     && cell.row_span == 1
                     && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi)
-                    && cell.paragraphs.windows(2).any(|pair| {
-                        stored_plain_text_paragraph_frame_reset(
-                            &pair[0], &pair[1], styles, self.dpi,
-                        )
-                    })
+                    && stored_plain_text_cell_has_frame_reset(cell, styles, self.dpi)
             })
     }
 
@@ -2388,11 +2413,7 @@ impl LayoutEngine {
             && table.cells.iter().any(|cell| {
                 cell.row_span == 1
                     && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi)
-                    && cell.paragraphs.windows(2).any(|pair| {
-                        stored_plain_text_paragraph_frame_reset(
-                            &pair[0], &pair[1], styles, self.dpi,
-                        )
-                    })
+                    && stored_plain_text_cell_has_frame_reset(cell, styles, self.dpi)
             })
     }
 
@@ -11954,6 +11975,13 @@ impl LayoutEngine {
         })?;
         Some(
             crate::renderer::float_placement::StoredSingleCellRowFrames {
+                opening_anchor_hu: anchor.vertical_pos,
+                opening_table_top_hu: i32::try_from(
+                    i64::from(anchor.vertical_pos)
+                        + i64::from(table.common.vertical_offset as i32)
+                        + i64::from(table.outer_margin_top),
+                )
+                .ok()?,
                 opening_end,
                 opening_height,
                 closing_height,
@@ -17457,11 +17485,7 @@ impl LayoutEngine {
                     usize::from(cell.row) == row
                         && cell.row_span == 1
                         && stored_text_paragraphs_share_vpos_frame(cell, styles, self.dpi)
-                        && cell.paragraphs.windows(2).any(|pair| {
-                            stored_plain_text_paragraph_frame_reset(
-                                &pair[0], &pair[1], styles, self.dpi,
-                            )
-                        })
+                        && stored_plain_text_cell_has_frame_reset(cell, styles, self.dpi)
                 }))
     }
 
