@@ -5427,6 +5427,18 @@ impl LayoutEngine {
         // `valign` 을 조각 내용으로 적용한다 — 정본 10쪽 첫 줄은 상자 위에서 9.8px 아래다.
         // [#7063 레인②] 상자를 쪽이 정할 때 **내용이 쓸 높이**(예산이 자른 값)를 따로 든다.
         let mut budget_row_height_0: Option<f64> = None;
+        let source_single_cell_row_frames = paragraphs
+            .get(para_index)
+            .zip(paragraphs.get(para_index + 1))
+            .and_then(|(host, next)| {
+                self.native_single_cell_source_row_frames(host, next, table, styles)
+            });
+        let source_single_cell_closing_frame = is_continuation
+            && end_cut.is_empty()
+            && source_single_cell_row_frames.is_some_and(|frame| {
+                start_cut == [frame.opening_end]
+                    && end_row_height_override == Some(frame.closing_height)
+            });
         // 종료 원점으로 입증된 마지막 저장 행은 컷 이후 내용의 정렬 프레임이다.
         // 페이지네이터가 예약한 같은 물리 높이일 때만 가운데 정렬을 재사용한다.
         let stored_terminal_frame = enclosing_cell_ctx.is_none()
@@ -5451,6 +5463,7 @@ impl LayoutEngine {
                     end_row_height_override.is_some_and(|limit| (limit - height).abs() < 0.01)
                 });
         let mut center_pinned_single_cell = stored_terminal_frame
+            || source_single_cell_closing_frame
             || (single_cell_page_fragment
                 && row_count == 1
                 && is_continuation
@@ -5742,6 +5755,14 @@ impl LayoutEngine {
 
         let saved_opening_alignment_height = self
             .saved_single_cell_full_prefix_frame_height(table, start_cut, end_cut, styles)
+            .or_else(|| {
+                source_single_cell_row_frames
+                    .filter(|frame| {
+                        end_cut == [frame.opening_end]
+                            && end_row_height_override == Some(frame.opening_height)
+                    })
+                    .map(|frame| frame.opening_height)
+            })
             .or_else(|| {
                 end_row_height_override.and_then(|_| {
                     self.saved_multirow_opening_frame_height(

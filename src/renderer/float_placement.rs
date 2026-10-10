@@ -564,6 +564,15 @@ pub(crate) struct StoredEmptyOpeningRowFrame {
     pub continuation_height: f64,
 }
 
+/// A source cut and the physical boxes on either side, closed independently
+/// by the following paragraph's stored origin.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct StoredSingleCellRowFrames {
+    pub opening_end: usize,
+    pub opening_height: f64,
+    pub closing_height: f64,
+}
+
 /// 빈 문단의 원본 어울림 형제 표가 공유하는 저장 호스트 프레임.
 /// 음수 세로 오프셋은 같은 저장 줄에 놓인 형제의 별도 상단이 아니다.
 /// 한컴 단일 속성 대조군에서 이를 0으로 바꿔도 전체 텍스트/그림 배치는 같다.
@@ -1876,14 +1885,23 @@ pub(crate) fn stored_two_frame_successor_origin_hu(
         {
             return None;
         }
-        for seg in &para.line_segs {
+        for (index, seg) in para.line_segs.iter().enumerate() {
             if seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
                 || seg.vertical_pos < 0
                 || seg.line_height <= 0
             {
                 return None;
             }
-            if previous.is_some_and(|pos| seg.vertical_pos < pos) {
+            // The first line on each side of a page may both have origin zero.
+            // Only a same-paragraph restart followed by the next complete
+            // stored line advance distinguishes this from local paragraph axes.
+            let zero_restart = index == 1
+                && para.line_segs[0].vertical_pos == 0
+                && seg.vertical_pos == 0
+                && para.line_segs.get(2).is_some_and(|next| {
+                    next.vertical_pos == seg.line_height.saturating_add(seg.line_spacing.max(0))
+                });
+            if previous.is_some_and(|pos| seg.vertical_pos < pos) || zero_restart {
                 if seg.vertical_pos != 0 {
                     return None;
                 }

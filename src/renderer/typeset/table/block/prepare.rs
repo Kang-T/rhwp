@@ -1102,6 +1102,9 @@ impl TypesetEngine {
             &st.inline_flow_column(),
             styles,
         );
+        let source_single_cell_row_frames = paragraphs_all.get(para_idx + 1).and_then(|next| {
+            layout_engine.native_single_cell_source_row_frames(para, next, table, styles)
+        });
         let prepared = BlockTableContinuationPreparedState {
             first_anchor_offset_consumed,
             host_placement: fragment_host_placement,
@@ -1121,6 +1124,7 @@ impl TypesetEngine {
             source_text_first_frame_height: source_text_frame_top
                 .filter(|_| st.profile.hwp5_stored_pagination_layout())
                 .map(|_| hwpunit_to_px(table.common.height as i32, self.dpi)),
+            source_single_cell_row_frames,
             rowspan_touched,
             cut_row_heights: cut_row_h,
             whole_row_fit_heights: whole_row_fit_h,

@@ -11837,27 +11837,47 @@ impl LayoutEngine {
         let Some(unit) = units.get(start_unit) else {
             return false;
         };
-        if unit.para_idx == 0
-            || unit.vis_start != 0
-            || cell
-                .paragraphs
-                .iter()
-                .any(|p| p.stored_text_partition_is_dirty() || p.cell_format_vpos_dirty)
+        let Some(previous_unit) = start_unit.checked_sub(1).and_then(|i| units.get(i)) else {
+            return false;
+        };
+        if cell
+            .paragraphs
+            .iter()
+            .any(|p| p.stored_text_partition_is_dirty() || p.cell_format_vpos_dirty)
         {
             return false;
         }
         let current = &cell.paragraphs[unit.para_idx];
-        let previous = &cell.paragraphs[unit.para_idx - 1];
-        let (Some(line), Some(last)) = (current.line_segs.first(), previous.line_segs.last())
-        else {
+        let previous = &cell.paragraphs[previous_unit.para_idx];
+        let (Some(line), Some(last)) = (
+            current.line_segs.get(unit.vis_start),
+            previous_unit
+                .vis_end
+                .checked_sub(1)
+                .and_then(|i| previous.line_segs.get(i)),
+        ) else {
             return false;
         };
+        let same_paragraph = unit.para_idx == previous_unit.para_idx;
+        let zero_restart = same_paragraph
+            && previous_unit.vis_start == 0
+            && previous_unit.vis_end == 1
+            && unit.vis_start == 1
+            && last.vertical_pos == 0
+            && current.line_segs.get(2).is_some_and(|next| {
+                next.vertical_pos == line.line_height.saturating_add(line.line_spacing.max(0))
+            });
         if (line.tag | last.tag) & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
             != 0
             || line.vertical_pos != 0
-            || last.vertical_pos <= 0
+            || (last.vertical_pos <= 0 && !zero_restart)
             || last.line_height <= 0
             || last.line_spacing < 0
+            || (same_paragraph && previous_unit.vis_end != unit.vis_start)
+            || (!same_paragraph
+                && (unit.para_idx != previous_unit.para_idx + 1
+                    || unit.vis_start != 0
+                    || previous_unit.vis_end != previous.line_segs.len()))
         {
             return false;
         }
@@ -11867,7 +11887,78 @@ impl LayoutEngine {
             + i64::from(padding.top)
             + i64::from(padding.bottom);
         let declared = i64::from(table.common.height);
-        occupied <= declared && declared <= occupied + i64::from(last.line_spacing)
+        occupied <= declared
+            && (same_paragraph || declared <= occupied + i64::from(last.line_spacing))
+    }
+
+    /// Original two-frame text cells can own blank space beyond the last ink.
+    /// Authenticate the complete row with its independent successor origin,
+    /// then keep the source cut and both physical boxes together.
+    pub(crate) fn native_single_cell_source_row_frames(
+        &self,
+        host: &Paragraph,
+        successor: &Paragraph,
+        table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+    ) -> Option<crate::renderer::float_placement::StoredSingleCellRowFrames> {
+        if !self.profile.get().hwp5_stored_pagination_layout()
+            || self.profile.get().session_edited()
+            || self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+            || table.common.treat_as_char
+            || !crate::renderer::float_placement::is_para_topbottom_float(&table.common)
+            || table.page_break != crate::model::table::TablePageBreak::RowBreak
+            || table.caption.is_some()
+            || !host.text.is_empty()
+            || !matches!(host.controls.as_slice(), [Control::Table(_)])
+            || host.stored_text_partition_is_dirty()
+            || host.cell_format_vpos_dirty
+        {
+            return None;
+        }
+        let [anchor] = host.line_segs.as_slice() else {
+            return None;
+        };
+        let next_origin = crate::renderer::float_placement::stored_two_frame_successor_origin_hu(
+            table, successor,
+        )?;
+        if anchor.vertical_pos <= next_origin
+            || anchor.line_height <= 0
+            || anchor.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        {
+            return None;
+        }
+        let cell = table.cells.first()?;
+        if cell.row != 0
+            || cell.col != 0
+            || cell.row_span != 1
+            || cell.col_span != 1
+            || cell.text_direction != 0
+            || cell.height <= table.common.height
+            || cell.paragraphs.iter().any(|p| !p.controls.is_empty())
+        {
+            return None;
+        }
+        let units = self.cell_units(cell, table, styles);
+        if self.cell_cut_has_projected_lines(cell, table, styles, 0, units.len()) {
+            return None;
+        }
+        let opening_height = hwpunit_to_px(table.common.height as i32, self.dpi);
+        let closing_height = hwpunit_to_px((cell.height - table.common.height) as i32, self.dpi);
+        let opening_end = (1..units.len()).find(|&end| {
+            self.stored_cut_closes_declared_opening_frame(cell, table, styles, end)
+                && self.row_cut_content_height(table, 0, &[], &[end], styles) <= opening_height
+                && self.row_cut_content_height(table, 0, &[end], &[], styles) <= closing_height
+        })?;
+        Some(
+            crate::renderer::float_placement::StoredSingleCellRowFrames {
+                opening_end,
+                opening_height,
+                closing_height,
+            },
+        )
     }
 
     /// 셀 컷과 각주 마커 소유 조회가 같은 폭/방향의 composed 줄을 사용한다.

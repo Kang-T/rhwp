@@ -66,6 +66,36 @@ impl TypesetEngine {
         });
         let cut_row_h = source_cut_heights.as_ref().unwrap_or(cut_row_h);
         let whole_row_fit_h = source_fit_heights.as_ref().unwrap_or(whole_row_fit_h);
+        // The original content cut and the two boxes are one accepted result.
+        // A blank band is reserved here, before emit and paint, and never
+        // consumed as an extra content unit on the following page.
+        if let Some(frames) = input.prepared.source_single_cell_row_frames.filter(|_| {
+            input.prepared.table_footnotes.is_empty()
+                && std::ptr::eq(table, row_geometry_table)
+                && cursor_row == 0
+        }) {
+            let opening = !is_continuation && start_cut.is_empty();
+            let closing = is_continuation && start_cut.as_slice() == [frames.opening_end];
+            let height = if opening {
+                frames.opening_height
+            } else {
+                frames.closing_height
+            };
+            if (opening || closing) && height <= avail_for_rows {
+                return BlockTableRowScan {
+                    consumed: height,
+                    end_row: 1,
+                    split_block_start: None,
+                    split_end_cut: if opening {
+                        vec![frames.opening_end]
+                    } else {
+                        Vec::new()
+                    },
+                    split_end_limit: if opening { height } else { 0.0 },
+                    end_row_height_override: Some(height),
+                };
+            }
+        }
         // 실제 기존 각주 경계 안에 들어오는 것으로 준비 단계에서 확인한 빈
         // 시작 조각은 유닛을 소비하지 않는다. 양수 물리 전진과 0 컷을 함께
         // 반환해 다음 조각이 같은 그림·캡션을 처음부터 소유하게 한다.

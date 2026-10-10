@@ -4,6 +4,7 @@ use crate::renderer::typeset::{
     controls, hwpunit_to_px, is_synthetic_line_seg, nearest_saved_rowbreak_frame_row_end,
     para_has_non_whitespace_text, para_has_visible_text, paragraph,
     partial_rowbreak_fragment_spacing_px, row_geometry_table,
+    rowbreak_row_has_internal_saved_vpos_reset,
     saved_rowbreak_first_fragment_flow_overflow_allowance, table,
     table_declared_object_covers_cell_row_frames, Control, TypesetEngine, TypesetState,
     SINGLE_ROW_DECLARED_TRUST_MAX_RATIO,
@@ -956,13 +957,30 @@ impl TypesetEngine {
         } else {
             None
         };
-        // 뒤 호스트의 양수 되감김과 선언 높이가 같은 온전한 행 끝을 가리키면,
+        // 뒤 호스트의 되감김 또는 원본 셀의 내부 쪽 경계와 선언 높이가
+        // 같은 온전한 행 끝을 가리키면,
         // 첫 조각은 그 행까지만 소유한다. 일반 최근접 스냅이나 꼬리말 여유로
         // 다음 행을 앞당겨 수용하지 않는다. 실제 출력의 온전한 행 높이를 쓴다.
         let exact_source_row_end = (!is_continuation
             && cursor_row == 0
             && start_cut.is_empty()
-            && source_next_positive_rewind
+            && (source_next_positive_rewind
+                || (prepared
+                    .layout_engine
+                    .native_stored_table_has_fragment_frames(table)
+                    && table.cells.iter().all(|cell| {
+                        !cell.dirty_flag
+                            && cell.paragraphs.iter().all(|p| {
+                                !p.stored_text_partition_is_dirty()
+                                    && !p.cell_format_vpos_dirty
+                                    && !p.line_segs.is_empty()
+                                    && p.line_segs.iter().all(|line| {
+                                        line.line_height > 0 && !is_synthetic_line_seg(line)
+                                    })
+                            })
+                    })
+                    && (0..row_count)
+                        .any(|row| rowbreak_row_has_internal_saved_vpos_reset(table, row))))
             && (st.profile.hwp5_stored_pagination_layout() || st.profile.hwpx_stored_layout())
             && !st.profile.session_edited()
             && !para.stored_text_partition_is_dirty()
@@ -1125,6 +1143,9 @@ impl TypesetEngine {
             let base = if !is_continuation && cursor_row == 0 && start_cut.is_empty() {
                 prepared
                     .source_text_first_frame_height
+                    .or(prepared
+                        .source_single_cell_row_frames
+                        .map(|frame| frame.opening_height))
                     .map_or(base, |height| {
                         base.min(
                             (height

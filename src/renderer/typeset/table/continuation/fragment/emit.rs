@@ -1166,6 +1166,13 @@ impl TypesetEngine {
                 Some(hwpunit_to_px(source.height as i32, self.dpi) - used)
             });
         let next_start_row_height_override = empty_opening_next_height
+            .or_else(|| {
+                let frames = input.prepared.source_single_cell_row_frames?;
+                (!is_continuation
+                    && next_cut.as_slice() == [frames.opening_end]
+                    && end_row_height_override == Some(frames.opening_height))
+                    .then_some(frames.closing_height)
+            })
             .or(complete_block_next_height)
             .or_else(|| {
                 let (row, used, height) = accepted_stored_row_frame?;
