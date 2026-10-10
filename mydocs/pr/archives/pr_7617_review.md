@@ -853,3 +853,13 @@ batch117은 원본 `samples/endnote-01.hwp` OLE에서6개의 실제 미주 contr
 batch118은 parser와 동일한 original CTRL_HEADER 높이 offset20을 직접 읽어 ¶642의 원본 첫 object frame이1710HU(22.8px)임을 확인했다. 원본 row0 최대 cell height49342HU에서 첫 물리 상자를 뺀 잔여는635.093333px다. 독립 Print 벡터에서67쪽 상자886.550667→909.405333,68쪽 row0 136.010667→770.357333, row1→971.737333을 확인했다. 즉 전체 row의 선언 공간과 첫 조각에 수용한 내용 높이를 혼동해서는 안 되며, 첫 상자/남은 상자는 같은 원본 공간을 나눈다. 기존 Native의67쪽26.4px/68쪽595.0px는 그 계약과 다르다. 이 px는 원인 진단 자료이며 고정 회귀 assertion으로 추가하지 않았다. 단순 Center 복원·clamp보다 source frame → accepted physical box → remaining row → 배치 정렬 소비 연결의 보정이 필요하며 아직 구현/시각 수용은 완료되지 않았다.
 
 `9f4671e51`의 새 쪽 vpos 보정은 batch114/115/116에서 검증 중이다. Native Clippy exit0/2분26초, suite/fmt exit0이며 Native 빌드 실제 driver5712/Cargo18792/Rust18332의 실행을 확인했다. runtime observer가 producer의 최초 provenance 생성 전에 시작해 FileNotFoundError로 종료한 흔적을 보존하고, 해당 handle 종료와 output 미생성을 확인한 뒤 observer만 재개했다. Native/Cargo를 재실행하지 않았다. 현재 기록은 전체 회귀·전쪽/fresh WASM 수용을 의미하지 않는다.
+
+## 새 쪽 좌표 보정의 실제142쪽·내용 보존 — 2026-10-11
+
+`9f4671e51a5c71638cfe035c60d66b1d2ed57e7f`의 batch114 Native 빌드는 **exit0/465.12초**로 종료했다. frozen SHA-256은 `9c32d25352bc187b8d9e592ca8840478806176c4a253fd97b85dc378ac2bdce9`다. 같은 바이너리 batch115는 **142/Print142쪽**이며 본문¶643–649 및 표650 시작을69쪽에 배치한다. 이전3159의143쪽/본문¶644가70쪽으로 밀린 회귀를 해소했다. batch120/121은 같은 원본 OLE/hash와 actual RenderTree를 대조했다: 각주65의6줄을68쪽1줄/69쪽5줄로, 각주66의7줄을69쪽에 보존한다. 공백과 원본8-unit 자동번호 control을 제외한 전체 실제 텍스트가 원본과 같고 SHA도 일치한다. 번호65는68쪽 한 번,66은69쪽 한 번이며 각 쪽 구분선은1개다. 이 content/page relation 진단을 새 정식 regression이나 전쪽/fresh WASM 시각 통과로 대신하지 않는다.
+
+선행 source48의 batch104 전체142쪽 Native TSV·대표29 PNG 생성은 완료됐다. **90% 미만9쪽/최저41.50210%**: 1,2,10,19,68,91,95,118,119. 이전8a의14미달 중8·50·52·67·69쪽이90% 이상으로 올라왔다. 8쪽94.37556%,41쪽98.54779%,50쪽92.29192%,69쪽96.45666%다. 8·50쪽 review를 직접 읽어 본문/각주 내용 보존과 footer 배치 개선을 확인했고, 인용 기호 advance·미세 글자 간격과50쪽 표 괘선의 작은 세로 차이는 남겼다. 수치 통과로 그 차이를 면제하지 않는다. batch116은 최신 source9의 font transport/canonical/pool 동등성3쪽을 통과한 뒤 전142쪽 시각 비교를 시작했다. 최신 전체 TSV/대표 직접 판독 및 fresh WASM은 진행/미검증이다.
+
+완료된 batch104 driver 종료·TSV/29 PNG 보존·경로/소유와 파일 hash를 확인하고 오래된 중간 SVG142개만 제거해9.73GiB를 확보했다. `batch104-svg-removal-ledger.json`에 기록하며 모든 PNG/TSV/JSON/log/원본/PDF/frozen binary와 공유 target은 보존했다.
+
+전체 source frame 원인 분석은 batch119를 두 section으로 확장했다. ¶642의 서로 다른 row0 cell heights와 첫1710HU physical frame 외에도 section1 ¶461의107–142쪽 이어받기를 구분했다. 현재 수정 입력의 검사를 이관/삭제하거나 허용치·baseline을 바꾸지 않았다. 최신 upstream/devel fetch는 기존 `21ed64071f81f35f37618717693bd30f727392c9`와 같고 rebase는 up to date였다. batch122에서 원7 PR이 모두 open/unmerged이고 이전 검토 head와 같음을 API로 재확인했다. 개별7 review·47입력/fresh WASM·고비용 전체 회귀·최종 Rust 묶음·통합 PR/CI/merge/후속 처리는 완료되지 않았다.
