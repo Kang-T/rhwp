@@ -85,7 +85,7 @@ impl TypesetEngine {
         ctrl_idx: usize,
         fragment_start_row: usize,
         fragment_end_row: usize,
-        fragment_has_intra_row_cut: bool,
+        fragment_start_cut: &[usize],
         terminal_fragment: bool,
         relax_terminal_table_footnote_fit: bool,
         queued_fresh_page: bool,
@@ -217,13 +217,31 @@ impl TypesetEngine {
             {
                 break;
             }
+            // 조각이 다른 행의 중간에서 시작해도 이 표시를 온전히 소유할 수
+            // 있다. 전체 조각의 intra-row 여부로 거절하지 않고, paint와 같은
+            // CellUnit 컷 사이에 실제 표시가 소비됐는지 조회한다.
+            let marker_owned_in_fragment = !queued_fresh_page
+                && layout_engine.table_footnote_path_precedes_cut(
+                    table,
+                    styles,
+                    &note.cell_path,
+                    fragment_end_row,
+                    end_cut,
+                )
+                && !layout_engine.table_footnote_path_precedes_cut(
+                    table,
+                    styles,
+                    &note.cell_path,
+                    fragment_start_row + usize::from(!fragment_start_cut.is_empty()),
+                    fragment_start_cut,
+                );
             // [#5966] `force_next_page` 는 "이 각주를 다음 물리 쪽에 두라"는 저장
             // 지시다. 큐 소진을 위해 **강제로 연 새 쪽**에서는 이미 충족됐으므로
             // 일반 fit 경로(원자 배치)로 보낸다 — 종전에는 이 단락이 원자 배치를
             // 차단했고, 마커 행이 현재 fragment 밖이면 분할 필터도 기각해 빈 새
             // 쪽에서 진행 불가(디버그 불변식 패닉, 1130000-202100008: note 0
             // h=90.1px 가 avail 876.9px 에 들어가는데도 정지).
-            let force_source_page_split = !queued_fresh_page
+            let force_source_page_split = marker_owned_in_fragment
                 && note.fragment_split.is_some_and(|split| {
                     split.force_next_page
                             // 유효한 HWPX 각주 영역 재시작은 표시가 속한
@@ -232,7 +250,6 @@ impl TypesetEngine {
                             // 수용 공간만으로 없애지 않는다.
                             || (st.profile.hwpx_stored_layout()
                                 && !terminal_fragment
-                                && !fragment_has_intra_row_cut
                                 && note.row >= fragment_start_row
                                 && note.row < fragment_end_row)
                 });
@@ -247,7 +264,7 @@ impl TypesetEngine {
                 let split = note.fragment_split.filter(|split| {
                     (!terminal_fragment || split.force_next_page)
                         && st.col_count == 1
-                        && !fragment_has_intra_row_cut
+                        && marker_owned_in_fragment
                         && continuation.pending_table_footnote_fragment.is_none()
                         && note.row >= fragment_start_row
                         && note.row < fragment_end_row

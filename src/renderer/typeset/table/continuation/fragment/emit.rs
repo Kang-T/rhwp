@@ -52,7 +52,6 @@ impl TypesetEngine {
         let start_cut_is_block = input.start.start_cut_is_block;
         let start_row_height_override = input.start.start_row_height_override;
         let start_cut = &input.start.start_cut;
-        let fragment_starts_intra_row = input.start.fragment_starts_intra_row;
         let row_cursor_is_nested = input.row_cursor_is_nested;
         let FragmentBudget {
             caption_extra,
@@ -902,7 +901,7 @@ impl TypesetEngine {
                     ctrl_idx,
                     cursor_row,
                     end_row,
-                    fragment_starts_intra_row,
+                    start_cut,
                     true,
                     relax_terminal_table_footnote_fit && is_continuation,
                     false,
@@ -931,7 +930,7 @@ impl TypesetEngine {
                         ctrl_idx,
                         cursor_row,
                         end_row,
-                        fragment_starts_intra_row,
+                        start_cut,
                         true,
                         relax_terminal_table_footnote_fit && is_continuation,
                         true,
@@ -1119,7 +1118,7 @@ impl TypesetEngine {
                 ctrl_idx,
                 cursor_row,
                 end_row,
-                fragment_starts_intra_row || !split_end_cut.is_empty(),
+                start_cut,
                 false,
                 false,
                 false,
