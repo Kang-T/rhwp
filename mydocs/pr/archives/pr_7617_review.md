@@ -807,3 +807,17 @@ source 보완을 커밋한 뒤 `git fetch upstream devel`과 `git rebase upstrea
 독립 Print의 모서리 기호는 U+231C `⌜`·U+231F `⌟`이고 `/F4` Haansoft Batang subset에 있다. 휴먼명조에는 두 glyph가 없으며 PDF fallback의1024 UPEM/1024 advance는 전각이다. PDF text transform(size104×0.12×96/72)으로 약16.64px가 된다. 직전 실제 `2b6bf82df` RenderTree의 같은 원본 ¶252 기호 run은8.3px다. 기호 뒤 내용 위치 차이는 이 자연 전진폭 누락과 함께 조사한다. 기존 `text_measurement`의 metric miss→generic halfwidth 경로 및 실제 glyph fallback/font selection 소비를 추적하되, 기호를 임의 전각 상수로 바꾸거나 현재 보정 문서를 글꼴 예외·#7445 이관으로 처리하지 않는다. 독립 PDF의 fallback 출처와 실제 측정/paint 선택이 공유되는지 아직 미검증이며, 새 글꼴/폭 source 보정이나 회귀 기대값 변경은 이 조사에서 하지 않았다.
 
 `8a7a2cff8`의 suite 준비·전체 fmt·Native Clippy는 exit0이다. Native 빌드가 실제 rustc에서 실행 중이며, batch97의 실제 각주 표/전체 쪽수 진단과 batch98의 새 전쪽 시각 검증은 같은 owned build를 기다린다. batch98은142쪽과41쪽 FootnoteArea의 표가 확인되지 않으면 고비용 시각 산출 전 실패 상태를 기록한다. 전체 제출·통합 판정은 미완료다.
+
+## 각주·미주 출처 오인과 최신 직접 판독 — 2026-10-11
+
+`8a7a2cff8`의 Native 빌드는 exit0/680.89초로 종료했다. frozen binary SHA-256은 `46d0fc13d8fa3457a07fa8536c2412e102eb1a335d08327015fc9380d2b0f54f`이며 actual runtime은142/142쪽, 각주31의6×3 표를41쪽 FootnoteArea에 출력한다. `batch100-note31-direct-review/review/review_041.png`는 새 canonical Native PNG와 같은 PDF SHA의 독립 Print reference PNG를 비교했다. Native를 이전 head 이미지로 대체하지 않았으며 기준 PNG 재사용 출처·hash는 JSON에 구분했다. 실루엣은90.88544%다. 직접 판독에서 표 누락 해소를 확인했지만 표·다음 각주의 원점이 약 한 저장 줄간격 일찍 끝나므로 점수로 면제하지 않았다.
+
+생산/소비 경로는 `rendering::set_endnote_para_sources(본문 문단 수, 실제 미주 출처) → paragraph_layout의 para_index >= base → endnote_line_vpos_base → 같은 미주 successor 없는 마지막 줄의 trailing spacing=0`이다. 각주의 큰 마커 문단 주소는 base 이후이지만 실제 미주 출처 배열에 속하지 않는다. 그럼에도 미주 경로를 타면서 각주31의 본문6줄 뒤272HU 간격이 빠져 표와 각주32가 앞당겨졌다. 독립 Print의 첫 각주 baseline724.16과 fresh Native의 첫 줄713.9+원본 baseline765HU는 맞지만, 표 원점807.8/Print810.633 및 다음 번호 baseline의 차이가 남는다. 이 진단 px는 regression assertion으로 추가하지 않는다.
+
+보정 `48a667bda90a3cee7883cc560d2785a925f68b74`는 미주 여부를 실제 등록된 출처 범위로 조회하게 한다. 저장 미주 vpos·lazy tail·영 여백 특수 분기·blank-spacer·줄 점유/간격의6개 실제 적용 지점이 같은 조회를 소비한다. 미주 자체의 source/행 메트릭은 변경하지 않고 각주를 미주로 오인하는 가정을 제거했다. 실제 미주 대조군 실행은 아직 미검증이다. 블록 표 content-height query도 실제 단일 앵커 계획의 적용 여부와 일치시켜, 다줄 호스트를 표 없는 fast reservation 대신 exact block 경로로 잘못 보내지 않게 했다. 공유 target/jobs8의 suite/fmt/Native Clippy/Native 빌드는 batch102에서 순차 실행 중이며 batch103 runtime·batch104 전쪽 시각이 이어진다. batch104는 이전 batch98 전체 비교가 끝날 때까지 기다려 산출물·I/O를 겹치지 않는다.
+
+직전 `2b6bf82df`의 batch95 전142쪽 비교는1472.84초로 종료했고, 미달은15쪽/최저41.50210%다(1,2,8,10,19,41,50,52,67,68,69,91,95,118,119). 이전21쪽 미달 중38·39·42·56·57·71쪽은 새 수치에서90% 이상이 됐지만 전체 문서 gate는 여전히 보류다. 새68·119쪽 review를 직접 읽어 가운데 정렬·행 프레임·각주 소유 및 표 뒤 본문 위치 차이를 확인했다. 오래된 batch95 중간 SVG142개는 driver 종료·완료 상태·TSV/29 PNG 보존을 확인하고 파일별 SHA ledger를 남긴 뒤 제거해9.73GiB를 확보했다. 공유 Cargo cache, 원본·기준 PDF·PNG·TSV·JSON·로그·frozen binary는 보존한다.
+
+68쪽 각주65는 현재 Native FootnoteArea에 없고, 독립 Print는 첫 줄을68쪽/뒤5줄을69쪽에 둔다. 실제 runtime 표의 원본 소유자는 ¶642다. `batch106-table642-note65-owner-audit`의 diagnostic parser 조회에서 각주65 저장 줄은0,0,1172,2344,3516,4688HU이며 첫 쪽1줄/다음 쪽5줄 계약과 대조한다. ¶650의 각주67~70은 독립 Print와 같이71쪽 소유이며 다른 표다. 이 두 표를 같은 원인으로 합치지 않는다. 원본 raw HWP와 실제 cell-note queue의 cut/소유를 더 확인해야 하며, 아직 추가 source 보정·새 regression/baseline 변경·이관을 하지 않았다. batch101의 최초 XML host 줄 수16에는 중첩 셀 줄이 포함돼 앵커 자체의 줄 수로 쓰지 않는다; 각주31 실제 호스트1줄은 이전 raw audit 및 이번 common plan으로 대조한다.
+
+전체47입력/3,628 Print쪽의 Native/fresh WASM·개별7 PR 추가 시각/편집 증거·최종 lint/nextest·PR/CI/merge/후속 처리는 계속 미완료다. 현재 보정 문서는 #7445로 이관하지 않으며 관측 실패를 검사 제거/기준값 완화로 처리하지 않는다.
