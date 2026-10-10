@@ -2628,7 +2628,7 @@ impl LayoutEngine {
     /// 밴드 5195=283+4629+283 등 전부 일치). 종전 baseline-하단 정렬은 측정
     /// 높이 흔들림이 그대로 y 오차가 되어 이중 괘선 사이가 4.3px 벌어지고
     /// 글자가 위 괘선을 뚫었다. 밴드 증거가 없으면 None(종전 경로).
-    fn tac_table_stored_outer_band_top(
+    pub(crate) fn tac_table_stored_outer_band_top(
         &self,
         para: &Paragraph,
         tbl: &crate::model::table::Table,

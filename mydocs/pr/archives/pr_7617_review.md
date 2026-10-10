@@ -885,3 +885,9 @@ batch125의6쪽 canonical/file-transport/browser-pool pixel·PNG byte 대조가 
 batch128은 source9f→a9의 정상6문서312쪽과 실제 미주 문서5쪽에서 전체 page plan 및 **모든 RenderTree bytes/hash 동일**을 확인했다. 실행 명령 모두 exit0다. batch129는 같은 a9 runtime과 원본 OLE 각주65/66을 대조해6/7줄,65의68쪽1줄+69쪽5줄과66의69쪽7줄, 전체 텍스트 hash, 각 번호1회와 각 쪽 separator1개를 다시 확인했다. 출력 동일성/내용 보존을 독립 Print/fresh WASM의 시각 통과로 대신하지 않는다. 증적은 ignored batch124/125/126/128/129에 보존한다.
 
 다음 미달 원인 batch130은 원본 각주8의6×2 TAC 표, 저장12872HU 글줄(`12592+140+140`)과 Print10쪽 괘선822.94→990.596px, 실제 a9 FootnoteArea 안의 Table0개를 연결했다. 일반 본문의 `is_tac_table_inline_in_para`는 단독 전면 폭 표를 블록으로 분류하지만, 현재 각주 block plan은 non-TAC만 처리하므로 높이를 예약하고 표를 출력하지 않는다. 기존31의 non-TAC 계획,43의 실제 인라인 TAC 대조군과 구분해 저장 전용 글줄의 소유·바깥여백·다음 줄간격을 같은 측정/paint 결과로 전달해야 한다. 이 후속 보정은 아직 구현/검증 전이며 원본/회귀 검사 삭제·이관·baseline 완화 없이 진행한다.
+
+### 각주 전용 TAC 글줄의 표 소유 보정 — 검증 전
+
+후속 구현은 표 하나만 소유하는 빈 호스트에서 기존 일반 문단의 inline 분류가 거절한 TAC만 대상으로 한다. `tac_stored_band_is_outer_box`가 원본 한 줄의 표+위/아래 바깥여백 등식을 인증하고 저장 text partition이 변경되지 않았을 때, 그 글줄을 각주 공통 table frame에 포함한다. 작은 실제 인라인 표·앞뒤 텍스트/복수 개체·다중 줄/수정된 저장 밴드는 기존 경로다. source 번호나 문서 ID로 대상을 선택하지 않는다.
+
+생산/소비는 `실제 단독 control+저장 외곽 글줄 → 일반 inline 분류/저장 밴드 인증 → footnote_block_table_frame의 동일 MeasuredTable/TAC 행 resolver → 원본 글줄과 실제 표 외곽 점유의 큰 값 및 같은 저장 줄간격 → body 각주 예약·fragment 높이 → layout_footnote_area의 같은 advance/후속 줄간격 → 같은 resolved x/y의 layout_table`다. TAC의 객체 float offset을 글줄 좌표에 다시 더하지 않고 기존 body의 `tac_table_stored_outer_band_top`을 공유한다. 실제 표가 저장 줄보다 자라면 요구 공간도 커지며, 마지막 선택 줄에는 trailing spacing을 붙이지 않는다.31의 non-TAC 표와43의 실제 inline TAC는 기존 경로를 유지해야 한다. 수정 전 결함은 a9의10쪽 Table0개이며, 새 코드의 빌드·원점/높이·셀/원문 보존·뒤 빈 줄/각주·전체142쪽·정상 대조군 및 Native/fresh WASM은 아직 미검증이다.

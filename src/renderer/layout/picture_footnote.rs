@@ -36,6 +36,10 @@ struct FootnoteBlockTableFrame<'a> {
     measured: crate::renderer::height_measurer::MeasuredTable,
     top_offset: f64,
     advance: f64,
+    /// A saved TAC line includes the table's outer box and owns its spacing.
+    trailing_line_spacing: f64,
+    /// TAC geometry belongs to the host line, not the object's float offsets.
+    line_left_offset: Option<f64>,
 }
 
 struct FootnoteParagraphPlacement<'a> {
@@ -1221,7 +1225,6 @@ impl LayoutEngine {
                 .text
                 .chars()
                 .any(|ch| !ch.is_whitespace() && ch != '\u{fffc}')
-            || table.common.treat_as_char
             || !matches!(table.common.text_wrap, TextWrap::TopAndBottom)
             || !matches!(table.common.vert_rel_to, VertRelTo::Para)
             || !matches!(table.common.vert_align, VertAlign::Top | VertAlign::Inside)
@@ -1231,14 +1234,31 @@ impl LayoutEngine {
         {
             return None;
         }
+        if table.common.treat_as_char {
+            let seg_width = para.line_segs.first().map_or(0, |line| line.segment_width);
+            // Ordinary inline TACs are already painted by the paragraph path.
+            // A sole table that owns a saved outer-box line is instead classified
+            // as a block by that path. The note must consume the same owned line
+            // rather than reserving its height while dropping its table.
+            if para.stored_text_partition_is_dirty()
+                || !Self::tac_stored_band_is_outer_box(para, table)
+                || crate::renderer::height_measurer::is_tac_table_inline_in_para(
+                    table, seg_width, para,
+                )
+            {
+                return None;
+            }
+        }
         Some(table)
     }
 
     fn footnote_block_table_frame<'a>(
         &self,
         para: &'a Paragraph,
+        composed: &ComposedParagraph,
         styles: &ResolvedStyleSet,
         selected: &std::ops::Range<usize>,
+        area_width: f64,
     ) -> Option<FootnoteBlockTableFrame<'a>> {
         let table = Self::footnote_block_table(para, selected)?;
         let measurer = crate::renderer::height_measurer::HeightMeasurer::new(self.dpi)
@@ -1257,22 +1277,65 @@ impl LayoutEngine {
             table.row_count as usize,
             Some(&measured),
             styles,
-            false,
+            table.common.treat_as_char,
         );
         let body_height = rows.iter().sum::<f64>()
             + measured.cell_spacing * (table.row_count as usize + 1) as f64;
-        let top_offset = hwpunit_to_px(table.common.vertical_offset as i32, self.dpi)
-            + hwpunit_to_px(table.outer_margin_top as i32, self.dpi);
-        let advance =
+        let top_offset = if table.common.treat_as_char {
+            // Same stored-band producer as the body TAC path. The verified
+            // saved line contains the top/table/bottom outer box.
+            self.tac_table_stored_outer_band_top(para, table, body_height, 0.0)?
+        } else {
+            hwpunit_to_px(table.common.vertical_offset as i32, self.dpi)
+                + hwpunit_to_px(table.outer_margin_top as i32, self.dpi)
+        };
+        let mut advance =
             top_offset + body_height + hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi);
+        let (trailing_line_spacing, line_left_offset) = if table.common.treat_as_char {
+            let line = composed.lines.first()?;
+            let (line_height, line_spacing) =
+                self.footnote_line_metrics(line, composed.para_style_id, styles);
+            // The line and its table occupy one box. If actual cell demand grows,
+            // reserve that demand rather than clipping it into the saved line.
+            advance = advance.max(line_height);
+            let style = styles.para_styles.get(composed.para_style_id as usize);
+            let indent = crate::renderer::equation_tac_flow::paragraph_line_indent_for_source(
+                style.map_or(0.0, |style| style.indent),
+                0,
+                Some(para),
+                composed.lines.len(),
+                true,
+            );
+            let left = style.map_or(0.0, |style| style.margin_left) + indent;
+            let right = style.map_or(0.0, |style| style.margin_right);
+            let outer_left = hwpunit_to_px(table.outer_margin_left as i32, self.dpi);
+            let outer_right = hwpunit_to_px(table.outer_margin_right as i32, self.dpi);
+            let width = self
+                .resolve_column_widths(table, table.col_count as usize)
+                .iter()
+                .sum::<f64>()
+                + measured.cell_spacing * (table.col_count as usize + 1) as f64;
+            let slack = (area_width - left - right - width - outer_left - outer_right).max(0.0);
+            let aligned = match style.map_or(Alignment::Left, |style| style.alignment) {
+                Alignment::Center | Alignment::Distribute => slack / 2.0,
+                Alignment::Right => slack,
+                _ => 0.0,
+            };
+            (line_spacing, Some(left + aligned + outer_left))
+        } else {
+            (0.0, None)
+        };
         Some(FootnoteBlockTableFrame {
             table,
             measured,
             top_offset,
             advance,
+            trailing_line_spacing,
+            line_left_offset,
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn footnote_paragraph_placement<'a>(
         &self,
         para: &'a Paragraph,
@@ -1282,9 +1345,10 @@ impl LayoutEngine {
         number_drawn: bool,
         selected: std::ops::Range<usize>,
         relative_y: f64,
+        area_width: f64,
     ) -> FootnoteParagraphPlacement<'a> {
         let mut block_table = (composed.lines.len() <= 1)
-            .then(|| self.footnote_block_table_frame(para, styles, &selected))
+            .then(|| self.footnote_block_table_frame(para, composed, styles, &selected, area_width))
             .flatten();
         let route = if para.text.is_empty()
             && para.controls.is_empty()
@@ -1387,6 +1451,7 @@ impl LayoutEngine {
                 area_width,
                 fn_ref.fragment,
                 total,
+                area_width,
             );
             // 각주 간 간격
             if i + 1 < footnotes.len() {
@@ -1434,6 +1499,9 @@ impl LayoutEngine {
             total += placement.spacing.before;
             if let Some(block) = placement.block_table {
                 total += block.advance;
+                if para_start + selected_end < end_line {
+                    total += block.trailing_line_spacing;
+                }
             } else if placement.route == FootnoteParagraphRoute::StoredEmpty {
                 total += hwpunit_to_px(composed.lines[0].line_height, self.dpi);
             } else if composed.lines.is_empty() {
@@ -1582,6 +1650,7 @@ impl LayoutEngine {
                     number_drawn,
                     selected_start..selected_end,
                     y - fn_area.y,
+                    fn_area.width,
                 );
                 if let Some(block) = placement.block_table {
                     y += placement.spacing.before;
@@ -1648,10 +1717,16 @@ impl LayoutEngine {
                         false,
                         false,
                         0.0,
-                        Some((None, anchor_y + block.top_offset)),
+                        Some((
+                            block.line_left_offset.map(|offset| fn_area.x + offset),
+                            anchor_y + block.top_offset,
+                        )),
                         Self::standalone_table_char_border_fill(Some(para), block.table, styles),
                     );
                     y = anchor_y + block.advance + placement.spacing.after;
+                    if !is_last_selected_line {
+                        y += block.trailing_line_spacing;
+                    }
                     continue;
                 }
                 if placement.route == FootnoteParagraphRoute::StoredEmpty {
