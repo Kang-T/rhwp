@@ -1622,10 +1622,12 @@ pub struct ParagraphFloatPlacement {
 }
 
 /// A following flow table must preserve the accepted end of earlier flow
-/// frames, including their outer margins. Painted borders alone do not carry
-/// that reservation. Exclusion-only overlays do not establish a flow floor.
-pub(crate) fn preceding_float_flow_bottom_px(
+/// frames, including their outer margins and a stored inline line's trailing
+/// advance. Painted borders alone do not carry that reservation. Exclusion-only
+/// overlays and inline boxes without an accepted advance do not establish a floor.
+pub(crate) fn preceding_control_flow_bottom_px(
     placements: &std::collections::HashMap<(usize, usize), ParagraphFloatPlacement>,
+    inline_placements: &std::collections::HashMap<(usize, usize), InlineBoxPlacement>,
     para_index: usize,
 ) -> Option<f64> {
     placements
@@ -1634,6 +1636,12 @@ pub(crate) fn preceding_float_flow_bottom_px(
             *index < para_index && placement.flow == ParagraphFloatFlow::NextLine
         })
         .map(|(_, placement)| placement.occupied_bottom)
+        .chain(
+            inline_placements
+                .iter()
+                .filter(|((index, _), _)| *index < para_index)
+                .filter_map(|(_, placement)| placement.advance_end),
+        )
         .filter(|bottom| bottom.is_finite())
         .reduce(f64::max)
 }
