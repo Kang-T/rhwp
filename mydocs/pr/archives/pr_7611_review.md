@@ -462,3 +462,11 @@ rebase 전후 Rust source 차이는 위 source 보완의2파일뿐이며 기존 
 원래48개 쪽 나눔 영향 입력 중 이미 #7445로 이관된3쪽 입력1개를 별도로 보존하고, 활성47개 전3,628쪽의 Native/fresh WASM 비교를 준비했다. 각 문서를 비교한 뒤 generated SVG만 제거하고 PNG/TSV/log/JSON/font payloads를 보존하도록 대기 중이다. 준비 스크립트 존재를 실행 완료로 세지 않으며 전체 TSV·각 PR 판정·원격 통합은 아직 미완료다.
 
 관계 검사 추가 head `1ea61ce6b`의 fmt·Native/WASM Clippy·workspace build는 통과했으나 all-targets Clippy는 root crate에 없는 `tempfile` 참조로 exit101이었다. 새 dependency를 추가하지 않고 표준 라이브러리로 원자적으로 만든 고유 임시 디렉터리와 한 JSON 파일만 정리하는 guard로 교체한다. 정식 긍정/부정 대조와 전체 회귀는 이 실패 이전에 시작되지 않았으며 아직 PASS가 아니다. 제품 source가 그대로인 `9dedca104`의 활성47개 전쪽 시각 비교는 첫 Native 원문부터 실제 실행 중이다. 진행 중 출력을 최종 gate 통과로 표시하지 않는다.
+
+### 실패 회귀의 기존 #7445 기록 대조 — 2026-10-10
+
+사용자 지시에 따라 고정 base `21ed64071f81f35f37618717693bd30f727392c9`에서 이미90% 미만인 원본의 부적합 회귀는 **동일 원본·동일 증상의 기존 #7445 이관 기록 → 실제 실패 함수/assertion과 base 등록 근거 대조 → 해당 검사 제거**로 처리한다. 원본 샘플·Print PDF와 다른 정상 검사·파서/직렬화 계약을 보존한다. base90% 이상인 범위에서 잘못된 절대 px 기대값을 확인하면 독립 Print와 Native/fresh WASM의90% 선행 조건을 충족한 뒤 소유·순서·포함·겹침 관계로 교정한다. 정확한 검사와 현재 변경의 실제 출력 회귀는 구현을 고치며, 미측정을 미달로 처리하지 않는다.
+
+GitHub의 #7445 본문과 댓글103개를 조회했다. #1853 HWPX는 [기존 전체 피델리티 이관](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-5967189734)이 있으나 현재 #7552의 해당 source는 고정 base에 없으며8쪽·13쪽·37쪽 검사 범위와 기존 이관을 분리한다. [pr-1674 이관](https://github.com/edwardkim/rhwp/issues/7445#issuecomment-5966892308)은 `samples/pr-1674.hwp`에 한정되고 미검증 HWPX는 보존하도록 명시했다. 현재 대조한 `samples/hwpx/pr-1674.hwpx`의 검사 제거 근거로 이 기록을 사용하지 않는다. 파일명만으로 형식·원문·증상을 동일시하지 않는다. 6개 관련 source와 동일 입력/PDF hash·base 존재·페이지 수치를 대조한 ignored `batch22-regression-migration-eligibility.json` 및 `batch22-issue7445-existing-records.json`에 연결하며, 이 감사만으로 제거한 검사나 변경한 원본은0개다. 최신 회귀에서 실제 실패가 확인되면 해당 함수/assertion을 이 근거와 연결해 판정한다.
+
+표준 라이브러리 guard로 정정한 test head `268467601ffaa86055b466f4d08f83b0d5c3e0aa`에서 prepare·fmt·세 Clippy·workspace build·base 고정 manifest/unit-tier 검사는 모두 exit0이다. 첫 nextest는 `--jobs`가 test-thread alias인 버전에서 `--test-threads`와 중복되어 exit2였으며 검사 실행 전 명령 오류다. `--build-jobs 8 --test-threads 10`으로 정정한 실행은 정식 긍정 대조 컴파일 중이며 이후 같은 검사의 frozen 수정 전 CLI 부정 대조와 전체 회귀를 순차 진행한다. 명령·lint 상속 근거·원본 source hash·결과는 ignored `candidate-268467601-formal-regression-resume/`에 보존한다. 제품 source가 동일한 `9dedca104`의47개 전쪽 Native/fresh WASM 실행은 별도 진행 중이다. 최종 회귀·전체 시각 gate·개별 PR 판정은 아직 미완료다.
