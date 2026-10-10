@@ -18268,13 +18268,34 @@ impl LayoutEngine {
                         })
                 })
         });
-        if original_cells
-            && table.cells.iter().any(|cell| {
-                let units = self.cell_units(cell, table, styles);
-                (1..units.len()).any(|cut| {
-                    self.native_saved_frame_trailing_trim(table, cell, &units, cut, styles) > 0.0
-                })
-            })
+        let paragraph_frame = original_cells
+            && (0..usize::from(table.row_count)).any(|row| {
+                let cut: Vec<_> = Self::row_cut_cell_order(table, row)
+                    .into_iter()
+                    .map(|index| {
+                        let units = self.cell_units(&table.cells[index], table, styles);
+                        units
+                            .iter()
+                            .enumerate()
+                            .skip(1)
+                            .find(|(index, unit)| {
+                                unit.page_frame_reset_before
+                                    && units[index - 1].para_idx != unit.para_idx
+                            })
+                            .map_or(units.len(), |(index, _)| index)
+                    })
+                    .collect();
+                self.row_cut_starts_original_paragraph_frame(table, row, &cut, styles)
+            });
+        if paragraph_frame
+            || (original_cells
+                && table.cells.iter().any(|cell| {
+                    let units = self.cell_units(cell, table, styles);
+                    (1..units.len()).any(|cut| {
+                        self.native_saved_frame_trailing_trim(table, cell, &units, cut, styles)
+                            > 0.0
+                    })
+                }))
         {
             return true;
         }
@@ -21731,6 +21752,84 @@ impl LayoutEngine {
         let closing = minimum - opening;
         let remaining = self.row_cut_content_height(table, row, end_cut, &[], styles);
         (opening > 0.0 && closing >= remaining).then_some((opening, closing))
+    }
+
+    /// 원본 문단 사이의 쪽 경계와 다음 저장 줄의 전진이 실제 컷을 소유하는가.
+    /// 단순 원점 0이 아니라 CellUnit의 물리 경계와 양쪽 원본 줄을 함께 확인한다.
+    pub(crate) fn row_cut_starts_original_paragraph_frame(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        let cells = Self::row_cut_cell_order(table, row);
+        if cells.is_empty() || cells.len() != cut.len() {
+            return false;
+        }
+        let mut found = false;
+        for (index, &end) in cells.iter().zip(cut) {
+            let cell = &table.cells[*index];
+            let units = self.cell_units(cell, table, styles);
+            if end == units.len() {
+                continue;
+            }
+            let Some((before, after)) = end
+                .checked_sub(1)
+                .and_then(|previous| units.get(previous).zip(units.get(end)))
+            else {
+                return false;
+            };
+            if cell.dirty_flag
+                || !after.page_frame_reset_before
+                || !after.hard_break_before
+                || before.para_idx == after.para_idx
+                || after.vis_start != 0
+            {
+                return false;
+            }
+            let previous = &cell.paragraphs[before.para_idx];
+            let resumed = &cell.paragraphs[after.para_idx];
+            if before.vis_end != previous.line_segs.len() {
+                return false;
+            }
+            let next_paragraph = cell.paragraphs.get(after.para_idx + 1);
+            let next = resumed
+                .line_segs
+                .get(1)
+                .map(|line| (resumed, line))
+                .or_else(|| {
+                    next_paragraph.and_then(|para| para.line_segs.first().map(|line| (para, line)))
+                });
+            let Some((next_para, next_line)) = next else {
+                return false;
+            };
+            let Some((last, first)) = previous.line_segs.last().zip(resumed.line_segs.first())
+            else {
+                return false;
+            };
+            if [previous, resumed, next_para].iter().any(|para| {
+                !para.controls.is_empty()
+                    || para.stored_text_partition_is_dirty()
+                    || para.cell_format_vpos_dirty
+            }) || last.vertical_pos <= 0
+                || first.vertical_pos != 0
+                || [last, first, next_line].iter().any(|line| {
+                    line.line_height <= 0
+                        || line.segment_width != first.segment_width
+                        || line.segment_width <= 0
+                        || line.column_start != first.column_start
+                        || line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                            != 0
+                })
+                || i64::from(next_line.vertical_pos)
+                    != i64::from(first.line_height) + i64::from(first.line_spacing.max(0))
+            {
+                return false;
+            }
+            found = true;
+        }
+        found
     }
 
     /// 이미 선택한 일반 행 컷이 원본 문단 내부 쪽 경계를 닫는가.

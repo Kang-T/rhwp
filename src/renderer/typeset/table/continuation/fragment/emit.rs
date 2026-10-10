@@ -723,12 +723,14 @@ impl TypesetEngine {
                         None,
                         styles,
                     ))
-                    || (layout_engine.row_cut_has_original_intra_paragraph_frame(
+                    || ((layout_engine.row_cut_has_original_intra_paragraph_frame(
                         table,
                         row,
                         &split_end_cut,
                         styles,
-                    ) && layout_engine.row_cut_remaining_is_single_stored_frame(
+                    ) || layout_engine.row_cut_starts_original_paragraph_frame(
+                        table, row, &split_end_cut, styles,
+                    )) && layout_engine.row_cut_remaining_is_single_stored_frame(
                         table,
                         row,
                         &split_end_cut,
