@@ -835,3 +835,13 @@ source 보완을 커밋한 뒤 `git fetch upstream devel`과 `git rebase upstrea
 선행 `48a667bda` Native 빌드도 exit0/624.42초로 완료했다. frozen SHA-256은 `ee283fa53eb0e729505fae922ac69e4649a6ed974e5a013fab678c511d29e43b`이고 실제142/142쪽이다. 각주31 표 원점은807.8→811.4px로 이동해 빠진272HU 간격을 반영했고, 각주43의1×1 표는 기존 원점/251.9px 높이를 유지한다. runtime만으로 직접 시각 통과를 선언하지 않는다. batch104 observer는 runtime JSON 쓰기 중 일시적 빈 파일을 읽어 JSONDecodeError로 실제 종료했다. 실패 stdout/stderr와 최초 state를 `initial-observation-failure.json`에 보존하고5초 이내의 같은 파일 재읽기를 추가해 관찰을 재개했다. Native 빌드·runtime은 재실행하지 않았으며 font control/전쪽 raster는 최초 실행으로 이어진다.
 
 `8a7a2cff8`의 batch98 전142쪽 시각은1368.19초로 종료했다.41쪽은 미달 목록에서 빠졌으나 전체14쪽(1,2,8,10,19,50,52,67,68,69,91,95,118,119)/최저41.50210%가 남는다. 새48/3159 source의 전쪽·fresh WASM·정상/실제 미주·nested/partial 마커 경계, 현재 가운데 정렬/표 물리 행 높이 잔여 문제 및 전체47입력/7 PR의 나머지 제출 조건은 아직 미완료다. 개별 source head와 증거를 구분하고 PR/승인/merge는 보류한다.
+
+## 실제 표시 컷 검증과 새 쪽 본문 좌표 — 2026-10-11
+
+`3159a2238`의 Native Clippy·suite/fmt는 exit0, Native 빌드는 exit0/614.16초다. frozen binary SHA-256은 `b84d6be4ee6953cf79d09730ca47c468556a36c97b143a18115b64c824be455e`다. batch109의 실제 runtime은 **143쪽(독립 Print142쪽과 불일치)**이며 batch110은 `page_count_mismatch`로 전쪽 visual을 시작하지 않았다. 이를 통과로 기록하지 않는다.
+
+batch112는 원본 OLE와 실제 RenderTree를 연결했다. 각주65 prefix는68쪽, suffix는69쪽에 있으므로 표시 소유 보정은 실행되지만, 본문¶644와 각주66은70쪽으로 밀렸다. 69쪽 본문 항목은 빈¶643뿐이다. 원본¶643의 저장 VPOS는0, ¶644는2498HU부터 시작한다. 원인은 `terminal fragment → register_queued_table_footnotes → force_new_page + suffix 등록 → finish_paragraph_anchor_state`에서 앞쪽 표 host의 이전 문단 좌표를 새 쪽에 재기록한 것이다. caller가 pending queue를 새 쪽에서 소진하는 경로와 unqueued 저장 각주 경로에는 `request_vpos_reset_after_queued_footnote`가 있지만 이 직접 terminal split 경로에는 없었다. 같은 요청을 추가해 post-flow가 새 쪽의 본문 cursor를 보존하게 했다. 실제 수정 후142쪽·각주65/66·본문 소유 및 정상 대조군은 아직 미검증이다. 더 이상 소비하지 않는 aggregate `fragment_starts_intra_row` field도 제거했다.
+
+batch111은 선행 source `48a667bda`의 fresh canonical Native41쪽과 같은 SHA의 독립 Print 기준 PNG를 비교했고 **98.54779%**다. review_041.png를 직접 판독해 6×3 표와 앞6줄·뒤 각주32 보존, 표 상하단과 뒤 각주 baseline의 이전 줄간격 차이 해소를 확인했다. 문자 outline 차이는 남으며 선택한 한 쪽으로 전쪽/fresh WASM 통과를 선언하지 않는다. 기존90.88544% 그림과 구분된 새 PNG다.
+
+68쪽 표 물리 높이/왼쪽 가운데 정렬은 별도 미해결이다. batch112의 원본 row0 cell 높이는49088/49342HU로 서로 다르고 row1은15117HU다. batch113의 원본 common.height는1710HU이고 왼쪽 문단은 보이는 첫 줄 다음에0→0 저장 재시작을 가진다. 이를 빈 줄 컷으로 추정하지 않는다. 실제 Native68쪽 row0 높이595.0px/row1 201.6px와 Print의 가운데 라벨·괘선을 대조하며, 같은 높이·모든 칸 가운데 정렬을 요구하는 기존 물리 frame helper가 이 원본을 수용하지 않는 경로를 확인했다. 아직 인증되지 않은 숫자를 frame fallback으로 넣지 않았으며 검사/baseline을 변경하지 않았다. 증적은 ignored batch111/112/113에 보존한다.
