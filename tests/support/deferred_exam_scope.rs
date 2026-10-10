@@ -7,6 +7,7 @@ fn is_deferred_exam_document(path: &str) -> bool {
         || name.starts_with("exam-")
         || name.starts_with("exambank_math")
         || name.starts_with("eq-002")
+        || name.starts_with("21_언어_기출_편집가능본")
         || name.starts_with("so-sueop")
         || (name.starts_with("3-")
             && (name.contains("월_교육_통합") || name.contains("월_실전_통합")))

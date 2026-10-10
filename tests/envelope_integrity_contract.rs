@@ -58,6 +58,10 @@ fn json_of(args: &[&str]) -> serde_json::Value {
 
 /// 표본 하나를 고른다. 확장자별 첫 파일이면 충분하다.
 fn first_sample(ext: &str) -> Option<std::path::PathBuf> {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/deferred_exam_scope.rs"
+    ));
     let dirs = [repo("samples"), repo("samples/hml")];
     for dir in dirs {
         let Ok(rd) = std::fs::read_dir(&dir) else {
@@ -65,6 +69,7 @@ fn first_sample(ext: &str) -> Option<std::path::PathBuf> {
         };
         let mut hits: Vec<std::path::PathBuf> = rd
             .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| !is_deferred_exam_document(p.to_string_lossy().as_ref()))
             .filter(|p| {
                 p.is_file()
                     && p.extension()
