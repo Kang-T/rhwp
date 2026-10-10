@@ -498,3 +498,11 @@ GitHub의 #7445 본문과 댓글103개를 조회했다. #1853 HWPX는 [기존 �
 `issue6718`의 용지1122.5·본문1009.2px 고정을 실제 Page/Body의 포함 관계로 바꾸고143쪽 계약과 기존 공차를 보존했다. `issue7333`은 같은 일곱 쪽·후속 문단의 소유 단 원점 + 원본 저장 vpos를 검사한다. 원본 투영과 독립 Print 측정값 차이는최대0.074px다(`manual-source-successor-projections.json`). 현재810.4px를 새 기대값으로 복사하지 않았으므로 배치 오류를 면제하지 않는다. 관계형 검사의 Rust 실행과 최신 Native/fresh WASM 시각 검증은 미완료다.
 
 독립 Print rowbreak14쪽·가맹사업72쪽·near-top1쪽·사용자 매뉴얼18쪽을 직접 읽었다(`batch27-print-boundary-read/`). rowbreak는 첫 조각에 진단 방법 그림이 남고, near-top은 두 본문 줄이 분리되며, 매뉴얼은 스크린샷 뒤 확인 절이 독립 간격으로 이어진다. 가맹사업은 현재 조각 컷을 더 대조해야 한다. 사용자에게는 실제 보정 전 frozen9ded의 selected review PNG를 `batch28-failed-document-review/`에서 산출해 표시한다. 이는 실패를 판단할 자료이며 이번 미빌드 수정의 개선 결과가 아니다. 진행 중 편람 WASM은 종료 후 경계 정지하고 보정된 source에서 활성47개·전3,628쪽의 두 backend 검증을 계속한다.
+
+### 보정본 경계 출력 재검증 — 2026-10-10
+
+`272754bcbc365759a77d9f513ee16d8321528878`에서 Native를 빌드잡8개로 한 번 빌드했다(exit0,797.89초). 실행 파일 SHA-256은 `87ca104f5f461c0473f27d21722dbd8a7609319748129594a0a4eeb8847ba95d`이며 `candidate-272754bcb-native-diagnostic-build/`에 보존했다. 같은 원본·독립 Print의 실패 쪽 여섯 review PNG를 `batch31-corrected-boundary-review/`에서 새로 생성하고 모두 직접 읽었다. 동물이용 취급시설2쪽은99.56%와 전체6쪽으로 복원되고 하단 표가 용지 안에서 분할된다. 매뉴얼18쪽은99.75%이며 스크린샷·뒤 확인 본문의 세로 차이가 해소됐다. near-top1쪽은92.33%이며 두 줄의 겹침이 사라졌다. 이 세 쪽의 Native selected gate만 통과했고 전체 원본/fresh WASM·관계형 Rust 검사·최종 lint/회귀는 아직 완료되지 않았다.
+
+rowbreak14쪽은 여전히59.31517%, 전체19/Print18쪽이다. `batch32-corrected-pagination-diagnosis/rowbreak-budget.stderr`에서 원점 뒤 예산525.0px가 행 예산519.92px로 재차 줄어드는 소비 경로를 확인했다. 실제 차감은 일반 하단 inset이 아니라 `prepare.rs`의 `source_text_first_frame_height`가 HWPX에도 Native 선언 높이38994HU를 컷 상한으로 전달하는 별도 경로다. 저장 원점과 행의 마지막 전진 간격은 같은 물리 상자가 아니다. 이 Native 계약을 Native profile에 한정하고 HWPX의 선언 첫 상자는 기존 `saved_single_cell_opening_frame_cut` 인증 경로로 예약하도록 추가 보정했다. 이는 `272754bcb` 출력 뒤 수정이며 아직 새 실행에서 검증하지 않았다. 기존 rowbreak 쪽수·소유 검사와 원본은 유지한다.
+
+가맹사업 보고서는 두 독립 한컴 Print PDF 모두142쪽인데 기존 두 회귀의143쪽 기대값은 release 실측만 근거로 적혀 있었다. 같은 원본의 고정 base는143쪽, 보정본은144쪽이다. `batch30-franchise-boundary/`의 원문 문자열 대조에서 base도 문단518부터 Print보다 한 쪽 늦고, 현재는 문단654부터 두 쪽 늦다. 이 문자열 대조는 소유 진단이며 시각 통과 증거가 아니다. 새71·72쪽 review에서도 서로 다른 내용이 같은 쪽에 놓인 차이가 확인됐다. 현재 보정 문서이므로 #7445로 이관하거나 검사·샘플을 삭제하지 않는다. 원래143쪽 고정을 현재144쪽으로 복사하지 않고 원본 출력과 각주·표 조각의 소유를 개선한 뒤 독립 근거의 관계 검사로 교정한다. 전체 페이지142/144 불일치 및 이 문서의 미달은 PR 보류 사유로 유지한다.

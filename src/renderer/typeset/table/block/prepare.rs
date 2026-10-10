@@ -1114,7 +1114,13 @@ impl TypesetEngine {
             base_available,
             table_available,
             layout_engine,
+            // Native 개체의 선언 높이를 첫 텍스트 프레임 예산으로 쓰는 계약이다.
+            // HWPX에서는 저장 원점이 유효해도 inline 개체 줄의 마지막 간격이
+            // cut 전진 높이에 포함되므로 같은 선언 높이가 cut의 상한은 아니다.
+            // 그 포맷의 첫 물리 상자는 saved_single_cell_opening_frame_cut이
+            // 종료 줄·패딩과 선언 상자를 독립적으로 인증한 경로에서 예약한다.
             source_text_first_frame_height: source_text_frame_top
+                .filter(|_| st.profile.hwp5_stored_pagination_layout())
                 .map(|_| hwpunit_to_px(table.common.height as i32, self.dpi)),
             rowspan_touched,
             cut_row_heights: cut_row_h,
