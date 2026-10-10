@@ -90,7 +90,11 @@ impl TypesetEngine {
         relax_terminal_table_footnote_fit: bool,
         queued_fresh_page: bool,
     ) {
-        let body_bottom_queue = st.profile.hwpx_stored_layout() && st.col_count == 1;
+        // A single-column page has one physical footnote lane. Measure that
+        // lane through the same paragraph/control layout used by paint for
+        // every input container. A format-specific footer reclaim must not
+        // admit another note over an already accepted table fragment.
+        let body_bottom_queue = st.col_count == 1;
         let note_ref = |note: &TableCellFootnote, fragment| FootnoteRef {
             number: note.number,
             source: FootnoteSource::table_cell_path(para_idx, ctrl_idx, &note.cell_path),

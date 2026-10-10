@@ -693,7 +693,7 @@ code head `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 owned review worktree에
 
 ## 각주 표시의 조각 소유 대조 — 2026-10-11
 
-`8af777a20` Native는 가맹사업 보고서의 전체 page plan을 독립 Print와 같은142쪽으로 복원했다. 그러나 새70쪽80.69136%·71쪽66.59059%는 미달이며 직접 review 판독에서도 남은 표 위치·후속 본문·각주 차이를 확인했다. 특히 표시67은71쪽 본문에 있지만 각주67의 등록은 첫 표 조각의 앞쪽 lane에서 실행됐다. 원본/PDF는 바꾸지 않고 `batch53-current-frame-and-flow-boundaries`의 새 PNG와 `batch54-current-franchise-routing`의 실제 호출 로그를 보존했다.
+`8af777a20` Native는 가맹사업 보고서의 전체 page plan을 독립 Print와 같은142쪽으로 복원했다. 그러나 새70쪽80.69136%·71쪽66.59059%는 미달이며 직접 review 판독에서도 남은 표 위치·후속 본문·각주 차이를 확인했다. 표시67은71쪽 본문에도 있지만 각주67의 등록은 첫 표 조각의 앞쪽 lane에서 실행됐다. 원본 첫 표 글의 표시와 실제 lane 수용은 아래 추가 대조에서 구분한다. 원본/PDF는 바꾸지 않고 `batch53-current-frame-and-flow-boundaries`의 새 PNG와 `batch54-current-franchise-routing`의 실제 호출 로그를 보존했다.
 
 소비 경로는 `emit_table_fragment → register_queued_table_footnotes → table_footnote_path_precedes_cut → 실제 compose/cell unit·부모/자식 컷`이다. HWPX만 컷 소유를 검사하던 조건을 제거해 HWP5도 표시가 실제 수용된 조각에서만 새 각주를 등록하고, 아직 수용되지 않은 표시 앞에서 source 순서의 큐를 멈추도록 보정했다. 이미 소유한 각주의 밀린 tail·모든 내용을 소비한 끝 조각·전용 각주 새 쪽의 기존 경로는 유지한다. 새 코드의 컴파일·두 backend 시각·일반/중첩/병합 경계·관계형 검사·전체 회귀는 아직 미검증이다.142쪽만으로 완료 판정하거나143쪽 기대값을 수정하지 않는다.
 
@@ -705,3 +705,10 @@ code head `aa07ccc9e526f7d08d89da2201c417b47f0bf56d`의 owned review worktree에
 새8af Native Print-profile review에서 HWP284쪽은90.42728%지만7번 제목·본문이 여전히 약8px 위이며, HWPX284쪽97.94738%의 같은 제목은 Print와 맞는다. HWPX281쪽99.92654%를 직접 읽어 사용자가 지적한 우측 목차 쪽 번호와 외곽선이 새 출력에서 맞음을 확인했다. HWPX284쪽 우측 바탕쪽 선 등 잔여 차이는 전쪽 검증에서 계속 확인한다. 새 PNG/실행·입력 hash는 `batch57-current-handbook-panels`에 보존했다. 선택 Native 판독이며 두 형식 전쪽/fresh WASM 통과가 아니다.
 
 HWP 실제 paint 로그(`batch61-current-handbook-paint-flow`)는 표13이444.3→692.9로 원본600HU 간격까지 소비하고, 다음 표14가692.9에서 진입한 뒤 앞 표의 괘선684.9로 원점을 되돌리는 경로를 입증한다. 앞 표 괘선은 점유 끝이며 확정 TAC 줄의 뒤 흐름 끝을 대체할 수 없다. 기존 `InlineBoxPlacement.advance_end`를 같은 단의 선행 흐름 끝 조회에 포함해 partial-table paint와 caret/cell 조회가 동일한 확정 끝점을 소비하도록 수정했다. 별도 px 여백이나 문서 조건·이름을 넣지 않고, flow 끝이 없는 인라인 개체·exclusion은 기존과 같이 제외한다. 각주 표시 소유 보정7859f790a의 Native는 실행 중이며 이 추가 source의 재빌드/경계·시각·회귀는 미검증이다.
+
+
+## 표시 소유와 물리 각주 lane의 추가 대조 — 2026-10-11
+
+`7859f790a` Native Clippy·빌드가 exit0/411.12초로 끝났지만 가맹사업은 여전히142쪽과69쪽78.89077%·70쪽80.69136%·71쪽66.59059%다. 새69·71쪽 review를 직접 읽고 원본 각주67의 표시가69쪽 첫 표 글에도 있음을 확인했다. 소유 검사만으로71쪽에 두어야 한다는 앞선 추정은 성립하지 않으며, 추가 guard를 각주 배치 해결로 표시하지 않는다. 원본 각주67~70의 내용·계층, 실제 큐, Print의65·66/67~70 물리 lane 구분을 `batch60-franchise-marker-diagnosis`에서 대조했다.
+
+단일 단의 HWP5 표 각주 fit만 추정 높이와 footer-band reclaim을 사용해 이미 수용한 표 조각과 새 각주가 같은 물리 영역을 차지하는 상태를 허용했다. HWPX의 기존 경로는 `estimate_footnote_area_height_with_metrics → 실제 본문 영역의 capacity/표 끝 → reserve_painted_footnote_area`로 출력과 동일한 높이를 소비한다. 이 단일 단 공통 경로를 컨테이너 구분 없이 사용하도록 보정했다. 표시 컷 검사는 별개의 소유 계약으로 유지하고, 다단의 기존 lane 정책·순서·저장 note reset/suffix 경로는 그대로다. 표 번호·각주 번호·임의 최소 개수나 고정 px 보정은 추가하지 않았다. 이 추가 source는 아직 재빌드/시각/관계형 회귀 전이며 원본·기준값과 현재 보정 문서 범위를 유지한다.
