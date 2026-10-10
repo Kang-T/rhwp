@@ -25,7 +25,6 @@ struct FragmentStart {
     start_cut_is_block: bool,
     start_row_height_override: Option<f64>,
     start_cut: Vec<usize>,
-    fragment_starts_intra_row: bool,
     /// [#7531] 이 조각에서 쪽을 넘어온 걸침 칸의 끝 행 높이에서 덜 양 `(행, px)`.
     straddle_row_relief: Vec<(usize, f64)>,
     /// 덜기를 적용한 scan 용 행 높이. 덜기가 없으면 준비 상태의 값을 그대로 쓴다.
@@ -118,7 +117,6 @@ impl TypesetEngine {
             is_continuation: continuation.is_continuation,
             start_cut_is_block: continuation.start_cut_is_block,
             start_row_height_override: continuation.start_row_height_override,
-            fragment_starts_intra_row: continuation.start_cut_is_block || !start_cut.is_empty(),
             start_cut,
         };
         let input = FragmentInput {

@@ -279,6 +279,10 @@ impl TypesetEngine {
                     if terminal_fragment && split.force_next_page {
                         st.force_new_page();
                         add_note(st, note, Some(split.suffix), split.suffix_height);
+                        // The accepted table belongs to the preceding page.
+                        // Preserve this new page's cursor just as the caller
+                        // does when it drains a pending suffix onto a fresh page.
+                        st.request_vpos_reset_after_queued_footnote();
                     } else {
                         continuation.pending_table_footnote_fragment =
                             Some(PendingTableFootnoteFragment {
