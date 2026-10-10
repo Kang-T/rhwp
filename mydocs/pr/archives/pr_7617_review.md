@@ -821,3 +821,17 @@ source 보완을 커밋한 뒤 `git fetch upstream devel`과 `git rebase upstrea
 68쪽 각주65는 현재 Native FootnoteArea에 없고, 독립 Print는 첫 줄을68쪽/뒤5줄을69쪽에 둔다. 실제 runtime 표의 원본 소유자는 ¶642다. `batch106-table642-note65-owner-audit`의 diagnostic parser 조회에서 각주65 저장 줄은0,0,1172,2344,3516,4688HU이며 첫 쪽1줄/다음 쪽5줄 계약과 대조한다. ¶650의 각주67~70은 독립 Print와 같이71쪽 소유이며 다른 표다. 이 두 표를 같은 원인으로 합치지 않는다. 원본 raw HWP와 실제 cell-note queue의 cut/소유를 더 확인해야 하며, 아직 추가 source 보정·새 regression/baseline 변경·이관을 하지 않았다. batch101의 최초 XML host 줄 수16에는 중첩 셀 줄이 포함돼 앵커 자체의 줄 수로 쓰지 않는다; 각주31 실제 호스트1줄은 이전 raw audit 및 이번 common plan으로 대조한다.
 
 전체47입력/3,628 Print쪽의 Native/fresh WASM·개별7 PR 추가 시각/편집 증거·최종 lint/nextest·PR/CI/merge/후속 처리는 계속 미완료다. 현재 보정 문서는 #7445로 이관하지 않으며 관측 실패를 검사 제거/기준값 완화로 처리하지 않는다.
+
+## 표 조각 전체의 컷과 각주 표시 소유를 분리 — 2026-10-11
+
+`batch107-raw-note65-66-audit/original-records.json`은 diagnostic 재직렬화 없이 원본 OLE Section0을 직접 읽었다. 각주65의 원본 소유자는 ¶642이며 실제6줄의 vpos는0,0,1172,2344,3516,4688HU다. 뒤 줄은 앞 줄의900HU 높이+272HU 간격으로 이어지고, 저장 textStart0/69/142/216/285/360을 보존한다. 독립 Print는68쪽에 첫 줄,69쪽에 뒤5줄을 출력한다. 각주66은 다른 Body 호스트 ¶644의7줄로, 각주65의 table-cell 출처와 혼동하지 않는다.
+
+실제 기존 source는 이 각주의 저장 재시작을 `native_hwp5_footnote_reset_fragments`에서 이미 인식했다. 원인은 helper 누락이 아니라 소비 지점의 aggregate 조건이다. `emit_table_fragment`는 ¶642의68쪽 조각이 앞 행 중간의 start_cut=[1,1]에서 시작했다는 이유로 fragment_has_intra_row_cut=true를 전달한다. 이 조각의 다른 완전한 행에 각주65 표시가 실제 소비됐는데도 `register_queued_table_footnotes`가 그 bool만으로 prefix 등록을 거절하고, 새 쪽에서는 각주 전체를 원자적으로 넣었다. 최신 이전 head의68쪽 FootnoteArea 부재와69쪽의 전체 각주65를 직접 대조했다.
+
+보정 code head `3159a2238929690c153216400ec3fc39567df8ed`는 그 aggregate bool을 실제 시작 컷으로 바꾼다. 생산·소비 경로는 `accepted start/end row+CellUnit cut → table_footnote_path_precedes_cut의 동일한 부모/자식/마커 경계 조회 → 시작 컷 전에 소비되지 않고 끝 컷 전에 소비된 표시 소유 → 저장 prefix/suffix fit → 실제 FootnoteRef.fragment 등록/다음 물리 쪽 예약 → footnote paint의 같은 줄 범위`다. cut이 다른 행에 있다는 이유로 표시를 버리지 않고, 이미 앞 조각에 소비된 표시·미래 표시·강제로 연 큐 소진 쪽을 새 표시 소유로 인정하지 않는다. 원본/줄 수/숫자/px 조건을 추가하지 않고 기존 actual cut 조회를 두 경계에 공유했다. rowspan 없는 기존 queue 적용 범위·실제 footnote fit·prefix 한 번의 번호와 각 쪽 separator·source 순서/남은 큐 진행은 유지한다.
+
+실제 수정 전 FAIL 근거는68쪽 각주65 누락 및 독립 Print68/69쪽의1/5줄이다. 수정 후 실행·원점·누락/중복·번호/구분선 및 관계형 회귀는 아직 미검증이다. `candidate-3159a2238-native-diagnostic-build`는 실제 이전 build handle을 기다린 뒤 같은 review checkout/cache를 순차 사용한다. suite/fmt/Native Clippy는 exit0이며 새 Native 빌드는 실행 중이다. batch109의 같은 frozen runtime과 batch110의 이전 시각 종료 후 전142쪽 비교를 연결했다. 원본 판독으로 앞으로 개선할 대상의 검사를 제거하거나 기대값을 갱신하지 않았다.
+
+선행 `48a667bda` Native 빌드도 exit0/624.42초로 완료했다. frozen SHA-256은 `ee283fa53eb0e729505fae922ac69e4649a6ed974e5a013fab678c511d29e43b`이고 실제142/142쪽이다. 각주31 표 원점은807.8→811.4px로 이동해 빠진272HU 간격을 반영했고, 각주43의1×1 표는 기존 원점/251.9px 높이를 유지한다. runtime만으로 직접 시각 통과를 선언하지 않는다. batch104 observer는 runtime JSON 쓰기 중 일시적 빈 파일을 읽어 JSONDecodeError로 실제 종료했다. 실패 stdout/stderr와 최초 state를 `initial-observation-failure.json`에 보존하고5초 이내의 같은 파일 재읽기를 추가해 관찰을 재개했다. Native 빌드·runtime은 재실행하지 않았으며 font control/전쪽 raster는 최초 실행으로 이어진다.
+
+`8a7a2cff8`의 batch98 전142쪽 시각은1368.19초로 종료했다.41쪽은 미달 목록에서 빠졌으나 전체14쪽(1,2,8,10,19,50,52,67,68,69,91,95,118,119)/최저41.50210%가 남는다. 새48/3159 source의 전쪽·fresh WASM·정상/실제 미주·nested/partial 마커 경계, 현재 가운데 정렬/표 물리 행 높이 잔여 문제 및 전체47입력/7 PR의 나머지 제출 조건은 아직 미완료다. 개별 source head와 증거를 구분하고 PR/승인/merge는 보류한다.
