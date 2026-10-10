@@ -468,12 +468,21 @@ impl TypesetEngine {
                     st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
                     st.profile.session_edited(),
                 );
-            let bottom = crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
-                table,
-                st.inline_flow_column().height,
-                self.dpi,
-                body_filling_source_frame,
-            );
+            // 100HU의 아래 inset은 Native 단일 셀의 쪽 조각 계약이다.
+            // 저장 텍스트 프레임이 있다는 이유만으로 HWPX나 쪽 중간의
+            // 첫 조각에도 이 띠를 예약하면 들어가는 마지막 유닛이 이월된다.
+            // 일반 원본 행은 본문 하단, 쪽을 닫는 선언 상자는 그 자체의
+            // 바깥 여백, 해당 Native 쪽 조각만 공통 inset을 소비한다.
+            let bottom = if body_filling_source_frame || single_cell_page_fragment {
+                crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
+                    table,
+                    st.inline_flow_column().height,
+                    self.dpi,
+                    body_filling_source_frame,
+                )
+            } else {
+                st.inline_flow_column().height
+            };
             page_avail.min(
                 (bottom
                     - fragment_flow_origin

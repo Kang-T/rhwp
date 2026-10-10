@@ -80,7 +80,18 @@ impl TypesetEngine {
             uniform_filler_ladder: self.uniform_filler_ladder.get(),
             endnote_between_notes_hu: 0,
             prev_item_content_bottom_y: None,
-            prev_item_flow_line_bottom_y: None,
+            // 빈 글줄 역시 수용한 구성의 점유 끝을 가진다. 저장 vpos만으로
+            // 간격 소비를 추정하지 않고 실제 fit에서 보존한 끝을 전달한다.
+            prev_item_flow_line_bottom_y: st.vpos_prev_layout_para.and_then(|previous| {
+                let para = paragraphs.get(previous)?;
+                (para.controls.is_empty() && para.line_segs.len() == 1)
+                    .then(|| {
+                        st.paragraph_fragment_content_bottoms
+                            .get(&(previous, 1))
+                            .copied()
+                    })
+                    .flatten()
+            }),
             last_compacted_endnote_title_gap: false,
             min_flow_floor: f64::MIN,
             session_edited: self.profile.get().session_edited(),

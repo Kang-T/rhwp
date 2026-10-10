@@ -3173,6 +3173,7 @@ pub(crate) fn vpos_corrected_end_y(
     curr_sb: f64,
     y_offset: f64,
     curr_has_topbottom_para_table: bool,
+    spacing_before_is_line_flow: bool,
     skip_spacing_before_prededuct: bool,
     allow_large_backward: bool,
     dpi: f64,
@@ -3204,8 +3205,14 @@ pub(crate) fn vpos_corrected_end_y(
     // 다시 소비하므로 같은 좌표계의 첫 줄로 비교한다. 개체 호스트와 간격을
     // 사전 차감하지 않는 경로에는 이 조건을 적용하지 않는다.
     let spacing_before_keeps_forward_line = !curr_has_topbottom_para_table
+        && spacing_before_is_line_flow
         && !skip_spacing_before_prededuct
         && curr_sb > 0.0
+        // 일반 문단이 단 맨 위에 놓이면 앞 간격은 배치에서 억제된다.
+        // 그 원점으로 되감긴 커서에 차감 전 간격을 다시 더한다고 가정하면
+        // 뒤 줄이 앞 글줄과 같은 위치에 놓인다. 실제로 간격을 소비하는
+        // 문단 안쪽 원점에서만 첫 줄 기준의 전방 판정을 사용할 수 있다.
+        && end_y > col_area_y
         && raw_end_y >= y_offset;
     let backward_ok = end_y >= y_offset - MAX_BACKWARD_PX
         || allow_large_backward

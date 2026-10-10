@@ -364,7 +364,10 @@ pub(super) fn place_fitted_paragraph(
         };
     // 다음 저장 표가 이 문단의 후행 간격을 사용할 수는 있어도
     // 실제 글줄 안으로 들어오면 안 된다. 수용에 쓴 구성 높이를 공유한다.
-    if para.controls.is_empty() && para_has_non_whitespace_text(para) && fmt.line_count() > 0 {
+    if para.controls.is_empty()
+        && fmt.line_count() > 0
+        && (para_has_non_whitespace_text(para) || stored_guide_advance.is_none())
+    {
         st.record_paragraph_content_bottom(
             (para_idx, fmt.line_count()),
             stored_successor_flow.map_or_else(

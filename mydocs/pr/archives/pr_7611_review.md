@@ -488,3 +488,13 @@ GitHub의 #7445 본문과 댓글103개를 조회했다. #1853 HWPX는 [기존 �
 `tests/cases/issue_6929_float_table_para_offset.rs`의 머리 표·제목 절대 y 검사를 **본문 단 원점 → 원본 표 vertOffset → 제목 저장 줄 위치 → 표 아래끝과 제목의 무겹침**으로 교정했다. 원문에서 표 오프셋433HU와 선언 높이12616HU의 합은 제목 저장 위치13049HU다. 실제 원본 제어문자를 소유 metadata로 찾으며 보이는 host 제목의 반례·세 검사·샘플은 보존했다. 독립 Print에 대응하는 저장 관계를 사용하고 현재 y를 기대값으로 복사하지 않는다. `batch24-source-flow-diagnosis/6929-source-para0.stdout`에 근거를 남겼다. fmt·공백 확인만 완료했으며 이 변경의 Rust 실행·최신 전쪽 Native/fresh WASM은 미완료다.
 
 고정 `268467601`의 전체 nextest는 **10,238개 실행 /10,221 PASS /17 FAIL /45 skipped**, 2450.542초, exit100으로 끝났다. 같은 이름의 정식 그림 정렬 부정 대조 FAIL과 현재 전체 검사17FAIL을 구분한다. 원본·기준값을 삭제하거나 완화하지 않고 `batch25-full-regression-failures-snapshot.json`의 실제 stderr를 원인별로 묶어 보정한다. `issue5792` 동물이용 취급시설 HWPX는 base21ed의6쪽/표9의22+20행 분할이 현재9ded에서5쪽/통째42행 배치로 바뀌었고, 같은 표가 용지 밖으로 넘친다. 기본 렌더 트리와 page plan의 대응은 `batch25-regression-source-diagnosis/`에 보존한다. 쪽수·행 보존 계약은 정확하므로 관계형 변경을 이유로 면제하지 않고 구현에서 수정한다. `issue7333`18쪽은 표274와 후속 줄275~277의 위치·간격 변화가 함께 있으므로 단순히816.8px를810.4px로 바꾸지 않는다. 현재 보정 중인 이 문서들도 #7445로 새 이관하지 않는다.
+
+### 전체 실패의 일괄 보정 초안과 독립 Print 판독 — 2026-10-10
+
+17FAIL은 여섯 원인 범위로 나눴다. 단위 계약1, 동물이용 취급시설6, rowbreak6, 가맹사업2, 사용자 매뉴얼1, near-top1이며 같은 원본의 여러 sentinel을 별개 이관 건수로 세지 않는다. `batch26-regression-owner-diagnosis/`에 같은 base/current의 page plan·저장 control·실제 호출 진단을 보존했다. 원본·baseline·정확한 검사를 삭제하거나 완화하지 않는다.
+
+보정 초안의 실제 경로는 다음과 같다. `whole_fit.rs`의 저장 개체 프레임 수용에서 동일 원점 + 실측 행 점유 끝을 검사하고, 수용되지 않는 표는 기존 컷 스캐너로 보낸다. `HeightCursor`의 빈 줄 소비는 실제 수용한 줄 상자 끝과 확정 원점이 증언한 간격을 요구한다. `place_fitted_paragraph`에서 빈 일반 글줄도 fit의 점유 끝을 보존하고 `section/vpos.rs`가 그 결과를 소비하며 paint의 실제 줄 끝과 대조한다. `vpos_corrected_end_y`의 앞 간격 되감김 허용은 표 host spacing이나 단 맨 위 억제 간격을 본문 간격으로 오인하지 않는다. `fragment/budget.rs`의 물리 텍스트 프레임은 일반 본문 하단을 사용하고100HU inset은 기존 Native 단일 셀 쪽 조각, 바깥 여백은 본문을 닫는 선언 상자 계약에서만 예약한다. 현재 선언·예약·배치의 일반 경계를 보정 중이며 새 실행의 충족 판정은 아직 하지 않는다.
+
+`issue6718`의 용지1122.5·본문1009.2px 고정을 실제 Page/Body의 포함 관계로 바꾸고143쪽 계약과 기존 공차를 보존했다. `issue7333`은 같은 일곱 쪽·후속 문단의 소유 단 원점 + 원본 저장 vpos를 검사한다. 원본 투영과 독립 Print 측정값 차이는최대0.074px다(`manual-source-successor-projections.json`). 현재810.4px를 새 기대값으로 복사하지 않았으므로 배치 오류를 면제하지 않는다. 관계형 검사의 Rust 실행과 최신 Native/fresh WASM 시각 검증은 미완료다.
+
+독립 Print rowbreak14쪽·가맹사업72쪽·near-top1쪽·사용자 매뉴얼18쪽을 직접 읽었다(`batch27-print-boundary-read/`). rowbreak는 첫 조각에 진단 방법 그림이 남고, near-top은 두 본문 줄이 분리되며, 매뉴얼은 스크린샷 뒤 확인 절이 독립 간격으로 이어진다. 가맹사업은 현재 조각 컷을 더 대조해야 한다. 사용자에게는 실제 보정 전 frozen9ded의 selected review PNG를 `batch28-failed-document-review/`에서 산출해 표시한다. 이는 실패를 판단할 자료이며 이번 미빌드 수정의 개선 결과가 아니다. 진행 중 편람 WASM은 종료 후 경계 정지하고 보정된 source에서 활성47개·전3,628쪽의 두 backend 검증을 계속한다.

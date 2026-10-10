@@ -569,7 +569,11 @@ impl HeightCursor {
                     // of whether the successor anchors an object.
                     let plain_line_consumed = prev_para.controls.is_empty()
                         && prev_para.line_segs.len() == 1
-                        && seg.line_height > 0;
+                        && seg.line_height > 0
+                        // 저장 좌표의 연속성은 실제 간격 소비의 증거가 아니다.
+                        // 측정/배치가 수용한 줄 상자 끝과 확정 원점이 모두 같은
+                        // 간격을 증언할 때만 후행 bridge를 제거한다.
+                        && rendered_spent_trailing;
                     if std::env::var("RHWP_VPOS_DEBUG").is_ok() {
                         eprintln!(
                             "VPOS_SOURCE_CONTINUOUS: pi={} prev_pi={} prev_snapshot={} curr_snapshot={} source_base={} plain_line_consumed={}",
@@ -662,6 +666,14 @@ impl HeightCursor {
                 })
             })
             .unwrap_or(false);
+        // 표 host spacing과 본문 글줄의 앞 간격은 같은 소비가 아니다.
+        // TAC 표 host도 본문 앞 간격이 재적용된다는 증거로 쓰지 않는다.
+        let spacing_before_is_line_flow = paragraphs.get(item_para).is_some_and(|para| {
+            !para
+                .controls
+                .iter()
+                .any(|control| matches!(control, Control::Table(_)))
+        });
         // [#7351] 표 조각은 host 문단의 앞 간격을 그리지 않는다 — 사전 차감하면 조각이 그 앞
         // 간격만큼 위로 붙는다(issue2004_cell_image_stack 4쪽: 정본 표 위 괘선 127.84,
         // 쪽 저장 기준점(#7345)을 고친 뒤 차감 스냅이 수용되면 121.1).
@@ -897,6 +909,7 @@ impl HeightCursor {
             curr_sb,
             y_offset,
             curr_has_topbottom_para_table,
+            spacing_before_is_line_flow,
             skip_prededuct,
             allow_large_backward,
             self.dpi,
@@ -914,6 +927,7 @@ impl HeightCursor {
                 curr_sb,
                 y_offset,
                 curr_has_topbottom_para_table,
+                spacing_before_is_line_flow,
                 true,
                 allow_large_backward,
                 self.dpi,
