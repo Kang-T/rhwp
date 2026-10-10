@@ -108,12 +108,16 @@ document.setFontEnvironment(undefined); // 기본 조판 복원
 {
   "id": "verified-primary-and-glyph-provider",
   "substitutions": {},
+  "trueTypeFaces": ["휴먼명조"],
   "glyphFallbacks": {"휴먼명조": ["Haansoft Batang"]}
 }
 ```
 
-위 예시는 두 프로그램의 실제 공급과 문자 지원을 확인한 세션에만 적용한다. 기본 face의
-메트릭에서 해당 글자가 빠진 경우에만 선언 체인의 다음 메트릭을 찾는다. primary hit·공백·
+위 예시는 두 프로그램의 실제 공급과 문자 지원을 확인한 세션에만 적용한다. 메트릭 결측과
+실제 glyph 결측을 구분한다. 기본 TrueType 프로그램의 검증한 cmap이 glyph 부재를 입증하고,
+다음 선언 프로그램의 cmap과 전진폭도 확인된 범위에서만 다음 메트릭을 찾는다. 현재 검증한
+기술 기호 구간은 regular 휴먼명조·한컴바탕 프로그램이다. 수집하지 않은 구간이나 다른
+weight의 지원 여부는 추정하지 않고 기존 backend 보충 측정으로 남긴다. primary hit·공백·
 문서의 HFT 폭 규칙은 유지하며, 뒤 face에 앞 face의 HFT 속성을 복제하지 않는다.
 SVG는 체인 구성 face를 각각 임베드하고 Canvas와 Native Skia도 같은 선언 순서를 사용한다.
 미지의 OS 선택을 메트릭 DB의 이름만으로 추정하지 않는다. DB에 없는 글자의 기존 보충 측정
