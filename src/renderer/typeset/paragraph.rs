@@ -300,6 +300,9 @@ pub(super) fn place_fitted_paragraph(
     st.insert_fitted_paragraph(para_idx, defer_preceding_float);
     let stored_successor_flow =
         stored_successor_flow(st, para, fmt, paragraphs, styles, para_idx, dpi);
+    if let Some((_, end)) = stored_successor_flow {
+        st.record_stored_paragraph_flow_end(para_idx, end);
+    }
     // [Task #391] 다단/단단 분기:
     //   - 단단 (col_count == 1): total_height (k-water-rfp p3 311px drift 차단, #359)
     //   - 다단 (col_count > 1): height_for_fit (exam_eng 8p 정상 단 채움 복원)
@@ -442,6 +445,9 @@ pub(super) fn try_place_overflow_paragraph(
     if overflow::atomic_overflow_fits(para, fmt, paragraphs, para_idx, &page, available, dpi) {
         st.begin_atomic_overflow_paragraph(para_idx);
         let stored_flow = stored_successor_flow(st, para, fmt, paragraphs, styles, para_idx, dpi);
+        if let Some((_, end)) = stored_flow {
+            st.record_stored_paragraph_flow_end(para_idx, end);
+        }
         let advance = stored_flow.map_or_else(
             || {
                 fmt.flow_advance_height(

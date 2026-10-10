@@ -391,6 +391,11 @@ impl TypesetEngine {
                 .iter()
                 .filter_map(|(para, v)| to_local(*para).map(|l| (l, v.clone())))
                 .collect(),
+            stored_paragraph_flow_ends: st
+                .stored_paragraph_flow_ends
+                .iter()
+                .filter_map(|(para, end)| to_local(*para).map(|local| (local, *end)))
+                .collect(),
             paragraph_float_placements: st
                 .paragraph_float_placements
                 .iter()

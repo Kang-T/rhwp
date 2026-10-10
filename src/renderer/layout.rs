@@ -3199,7 +3199,17 @@ pub(crate) fn vpos_corrected_end_y(
     const MAX_TABLE_HOST_FORWARD_PX: f64 = 100.0;
     let stale_table_host_vpos =
         curr_has_topbottom_para_table && end_y > y_offset + MAX_TABLE_HOST_FORWARD_PX;
-    let backward_ok = end_y >= y_offset - MAX_BACKWARD_PX || allow_large_backward;
+    // 앞 간격을 빼기 전의 실제 첫 줄이 순차 끝 이후라면, pre-spacing
+    // 커서가 되감기는 것은 내용의 후방 배치가 아니다. 뒤 문단이 그 간격을
+    // 다시 소비하므로 같은 좌표계의 첫 줄로 비교한다. 개체 호스트와 간격을
+    // 사전 차감하지 않는 경로에는 이 조건을 적용하지 않는다.
+    let spacing_before_keeps_forward_line = !curr_has_topbottom_para_table
+        && !skip_spacing_before_prededuct
+        && curr_sb > 0.0
+        && raw_end_y >= y_offset;
+    let backward_ok = end_y >= y_offset - MAX_BACKWARD_PX
+        || allow_large_backward
+        || spacing_before_keeps_forward_line;
     let applied = end_y >= col_area_y
         && end_y <= col_area_y + col_area_height
         && backward_ok
@@ -9914,43 +9924,14 @@ impl LayoutEngine {
                         PageItem::FullParagraph { .. } | PageItem::Shape { .. }
                     )
                 {
-                    let stored_end = paragraphs.get(item_para).and_then(|para| {
-                        let comp = composed.get(item_para)?;
-                        if comp.lines.len() != para.line_segs.len() {
-                            return None;
+                    if let Some(&end) = col_content.stored_paragraph_flow_ends.get(&item_para) {
+                        // fit이 수용한 단 상대 끝이다. 분할 표 뒤에는 paint의
+                        // lazy 기준이 아직 없거나 다른 기준으로 재생성될 수 있다.
+                        // 그 기준으로 저장 사다리를 다시 투영하지 않는다.
+                        let resolved_end = col_area.y + end;
+                        if !matches!(item, PageItem::Shape { .. }) || resolved_end >= new_y {
+                            new_y = resolved_end;
                         }
-                        let frame = super::float_placement::stored_paragraph_successor_flow(
-                            para,
-                            paragraphs.get(item_para + 1)?,
-                            styles,
-                            self.profile.get(),
-                            self.dpi,
-                        )?;
-                        // The shape item may follow its paragraph's empty text
-                        // item. Project from the same original paragraph entry
-                        // used by measurement, before that text item advances.
-                        let source_start = if matches!(item, PageItem::Shape { .. }) {
-                            *para_start_y.get(&item_para)?
-                        } else {
-                            _y_in
-                        };
-                        frame
-                            .project(
-                                source_start,
-                                hcursor.vpos_page_base.or(hcursor.vpos_lazy_base),
-                                if hcursor.vpos_page_base.is_some() {
-                                    hcursor.col_anchor_y
-                                } else {
-                                    col_area.y
-                                },
-                                self.dpi,
-                            )
-                            .filter(|(_, end)| {
-                                !matches!(item, PageItem::Shape { .. }) || *end >= new_y
-                            })
-                    });
-                    if let Some((_, end)) = stored_end {
-                        new_y = end;
                     }
                 }
             }

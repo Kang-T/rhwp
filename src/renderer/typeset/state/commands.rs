@@ -263,6 +263,14 @@ impl TypesetState {
     ) {
         self.data.paragraph_float_placements.insert(key, placement);
     }
+    /// fit이 수용한 저장 문단 끝을 paint에 그대로 전달한다.
+    pub(in crate::renderer::typeset) fn record_stored_paragraph_flow_end(
+        &mut self,
+        para_idx: usize,
+        end: f64,
+    ) {
+        self.data.stored_paragraph_flow_ends.insert(para_idx, end);
+    }
     /// 뒤 줄간격과 문단 아래 여백을 제외한 확정 본문 하단을 보존한다.
     pub(in crate::renderer::typeset) fn record_paragraph_content_bottom(
         &mut self,

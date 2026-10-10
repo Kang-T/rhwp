@@ -458,6 +458,9 @@ pub struct FootnoteRef {
 /// 한 단(Column)에 배치될 콘텐츠
 #[derive(Debug, Clone)]
 pub struct ColumnContent {
+    /// 저장 사다리의 기준을 수용할 때 확정한 문단 끝(단 상대 좌표).
+    /// 배치는 이후의 cursor 기준으로 같은 사다리를 다시 투영하지 않는다.
+    pub stored_paragraph_flow_ends: std::collections::HashMap<usize, f64>,
     /// 문단 텍스트 앞/뒤 관계로 확정한 자리차지 표 배치(단 상대 좌표).
     pub paragraph_float_placements:
         std::collections::HashMap<(usize, usize), super::float_placement::ParagraphFloatPlacement>,
@@ -1031,6 +1034,11 @@ impl PaginationResult {
                             .map(|(&pi, plan)| {
                                 ((pi as i64 + offset as i64).max(0) as usize, plan.clone())
                             })
+                            .collect(),
+                        stored_paragraph_flow_ends: cc
+                            .stored_paragraph_flow_ends
+                            .iter()
+                            .map(|(&pi, &end)| ((pi as i64 + offset as i64).max(0) as usize, end))
                             .collect(),
                         paragraph_float_placements: cc
                             .paragraph_float_placements

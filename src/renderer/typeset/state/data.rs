@@ -127,6 +127,8 @@ pub(in crate::renderer::typeset) struct StateView {
     >,
     pub(in crate::renderer::typeset) inline_flow_plans:
         std::collections::HashMap<usize, crate::renderer::inline_flow::InlineFlowPlan>,
+    pub(in crate::renderer::typeset) stored_paragraph_flow_ends:
+        std::collections::HashMap<usize, f64>,
     pub(in crate::renderer::typeset) paragraph_float_placements: std::collections::HashMap<
         (usize, usize),
         crate::renderer::float_placement::ParagraphFloatPlacement,
