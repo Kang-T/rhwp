@@ -2471,7 +2471,6 @@ impl LayoutEngine {
             seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
         };
         if !previous.controls.is_empty()
-            || !para_has_visible_text(previous)
             || previous.stored_text_partition_is_dirty()
             || previous.cell_format_vpos_dirty
             || previous.line_segs.iter().any(is_synthetic)
@@ -2480,7 +2479,10 @@ impl LayoutEngine {
             return None;
         }
         let previous_line = previous.line_segs.last()?;
-        if line.vertical_pos <= 0
+        // 빈 글줄도 원본 LineSeg의 양의 줄 상자를 점유한다. 바로 앞 빈 줄의
+        // 내용 가시성을 객체 원점 인증의 대용으로 사용하지 않는다.
+        if previous_line.line_height <= 0
+            || line.vertical_pos <= 0
             || line.vertical_pos
                 < previous_line
                     .vertical_pos
