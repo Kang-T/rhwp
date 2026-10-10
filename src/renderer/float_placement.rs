@@ -1909,9 +1909,10 @@ pub(crate) fn stored_nested_row_frames(
     })
 }
 
-/// 앞 글줄의 전진 끝에 있는 저장 표 앵커와 다음 쪽의 본문 재시작이다.
+/// 앞 글줄의 전진 끝과 다음 쪽의 본문 재시작이 닫는 저장 표 상자다.
 /// 표가 원래 줄 폭을 가진 빈 호스트에 저장되어도 개체 원점은 같은 바깥 상자다.
-/// 앞 줄 사다리와 실측 본체 높이를 확인해 호스트 줄 높이를 별도로 더하지 않는다.
+/// 빈 호스트 줄은 상자 앞이나 뒤에 저장될 수 있다. 앞 줄 끝과 실측 본체·여백으로
+/// 그 소속을 확인하고 호스트 줄 높이를 별도로 더하지 않는다.
 pub(crate) fn stored_adjacent_line_table_frame(
     previous: &Paragraph,
     host: &Paragraph,
@@ -1950,10 +1951,6 @@ pub(crate) fn stored_adjacent_line_table_frame(
         // 쪽 첫 줄의 저장 위치0도 유효한 줄 원점이다.
         || before.vertical_pos < 0
         || after.vertical_pos != 0
-        || i64::from(anchor.vertical_pos)
-            != i64::from(before.vertical_pos)
-                + i64::from(before.line_height)
-                + i64::from(before.line_spacing)
         || table.common.treat_as_char
         || !table.common.flow_with_text
         || !is_para_topbottom_float(&table.common)
@@ -1971,7 +1968,24 @@ pub(crate) fn stored_adjacent_line_table_frame(
     {
         return None;
     }
-    let anchor_y = hwpunit_to_px(anchor.vertical_pos, dpi);
+    let frame_start_hu = i64::from(before.vertical_pos)
+        + i64::from(before.line_height)
+        + i64::from(before.line_spacing);
+    let frame_end_hu = frame_start_hu
+        + i64::from(signed_hwpunit(table.common.vertical_offset))
+        + i64::from(table.outer_margin_top)
+        + i64::from(table.common.height)
+        + i64::from(table.outer_margin_bottom);
+    // 앞에 저장된 앵커와 바깥 상자 뒤에 저장된 빈 줄을 구분한다.
+    // 두 경계 어느 쪽도 닫지 않는 vpos를 표의 원점으로 추정하지 않는다.
+    if ![frame_start_hu, frame_end_hu].contains(&i64::from(anchor.vertical_pos))
+        // 공백 호스트는 자체 줄 상자를 소비한다. 뒤 경계에 저장된 위치만으로
+        // 그 줄을 빈 개체 앵커로 바꾸지 않으며, 기존 앞 경계 계약은 보존한다.
+        || (i64::from(anchor.vertical_pos) != frame_start_hu && !host.text.is_empty())
+    {
+        return None;
+    }
+    let anchor_y = hwpunit_to_px(i32::try_from(frame_start_hu).ok()?, dpi);
     let table_top = anchor_y
         + hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), dpi)
         + hwpunit_to_px(i32::from(table.outer_margin_top), dpi);
