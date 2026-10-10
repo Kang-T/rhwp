@@ -4629,7 +4629,7 @@ impl LayoutEngine {
             .collect();
         let zero_endnote_boundary_result_shift = if cell_ctx.is_none()
             && self.current_endnote_zero_spacing_profile()
-            && para_index >= self.endnote_para_base.get()
+            && self.is_endnote_paragraph(para_index)
             && !self.endnote_para_has_same_endnote_successor(para_index)
             && line_idx + 1 >= end
             && equation_tac_extra_rows == 0
@@ -5239,8 +5239,7 @@ impl LayoutEngine {
         }
 
         let endnote_line_vpos_base: Option<(i32, f64)> = {
-            let base = self.endnote_para_base.get();
-            if cell_ctx.is_none() && para_index >= base && end > start_line + 1 {
+            if cell_ctx.is_none() && self.is_endnote_paragraph(para_index) && end > start_line + 1 {
                 para.and_then(|p| {
                     let base_line_idx = if line_is_leading_empty_equation_tac_guide(
                         Some(p),
@@ -5285,10 +5284,9 @@ impl LayoutEngine {
         // 되살린다 — 리셋 줄은 흐름대로 두고, **둘째 줄부터** 저장 델타를 쓴다. 기준 y 는
         // 그 줄에 도달했을 때의 흐름 y 라 루프 안에서 늦게 잡는다.
         let endnote_lazy_vpos_base_from: Option<usize> = {
-            let base = self.endnote_para_base.get();
             if endnote_line_vpos_base.is_none()
                 && cell_ctx.is_none()
-                && para_index >= base
+                && self.is_endnote_paragraph(para_index)
                 && start_line > 0
                 && end > start_line + 2
             {
@@ -6006,7 +6004,7 @@ impl LayoutEngine {
             let col_bottom = col_area.y + col_area.height;
             let line_visual_bottom = text_y + line_height;
             let is_body_flow_col_area = self.is_body_flow_col_area(col_area);
-            let is_endnote_virtual_para = para_index >= self.endnote_para_base.get();
+            let is_endnote_virtual_para = self.is_endnote_paragraph(para_index);
             let blank_spacer_line = is_blank_spacer_line(
                 para,
                 is_endnote_virtual_para,
@@ -6339,7 +6337,7 @@ impl LayoutEngine {
             let line_flow_height =
                 flow_step + equation_tac_extra_rows as f64 * (line_height + line_spacing_px);
             let render_line_flow_height =
-                if cell_ctx.is_none() && para_index >= self.endnote_para_base.get() {
+                if cell_ctx.is_none() && self.is_endnote_paragraph(para_index) {
                     // 미주 lineSeg의 행 진행값이 실제 TextLine bbox보다 작으면 단일 줄 미주가
                     // 서로 겹친다. Pagination은 별도 압축 흐름을 쓰더라도 렌더 y 진행은
                     // 실제 그려진 줄 높이를 최소값으로 보존한다.
@@ -6348,7 +6346,7 @@ impl LayoutEngine {
                     line_flow_height
                 };
             let render_line_spacing_px =
-                if cell_ctx.is_none() && para_index >= self.endnote_para_base.get() {
+                if cell_ctx.is_none() && self.is_endnote_paragraph(para_index) {
                     // 비가시 구분선/0mm 미주는 pagination과 render가 같은 압축 spacing을
                     // 써야 단 하단 클리핑이 생기지 않는다. 다만 과한 음수값은 글자 겹침을
                     // 만들 수 있으므로 실제 glyph 높이의 10% 범위로 제한한다.

@@ -1467,7 +1467,13 @@ impl LayoutEngine {
         footnote
             .paragraphs
             .iter()
-            .any(|para| Self::footnote_block_table(para, &(0..1)).is_some())
+            .any(|para| {
+                Self::footnote_block_table(para, &(0..1)).is_some()
+                    && compose_footnote_paragraph(para, area_width, styles, self.dpi)
+                        .lines
+                        .len()
+                        <= 1
+            })
             .then(|| {
                 self.footnote_paragraphs_content_height(
                     &footnote.paragraphs,

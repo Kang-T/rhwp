@@ -4333,6 +4333,14 @@ impl LayoutEngine {
             && self.endnote_separator_below_hu.get() > ENDNOTE_BETWEEN_NOTES_BASE_FLOW_HU
     }
 
+    /// 가상 미주는 등록된 원본 출처 범위에 속해야 한다. 큰 마커 주소만으로
+    /// 판정하면 각주·글상자 등의 별도 문단 주소도 미주 조판을 타게 된다.
+    fn is_endnote_paragraph(&self, para_index: usize) -> bool {
+        para_index
+            .checked_sub(self.endnote_para_base.get())
+            .is_some_and(|local| local < self.endnote_para_sources.borrow().len())
+    }
+
     fn endnote_para_source_for(&self, para_index: usize) -> Option<EndnoteParaSource> {
         let base = self.endnote_para_base.get();
         let local_idx = para_index.checked_sub(base)?;
