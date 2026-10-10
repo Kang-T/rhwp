@@ -6322,6 +6322,17 @@ impl LayoutEngine {
                             )
                             .is_some())
             });
+        // 예약한 원본 본문 프레임은 빈 띠도 소유한다. 공통 컷이 닫는 물리 행 높이를
+        // paint에서 다시 접으면 예약과 외곽선의 높이가 갈라진다.
+        let accepted_body_closed_frame = is_continuation
+            && !is_block_split
+            && end_row_height_override.is_some()
+            && paragraphs.get(para_index).is_some_and(|host| {
+                self.original_body_closed_table_frame(host, table, col_area.height)
+            })
+            && end_row.checked_sub(1).is_some_and(|row| {
+                self.row_cut_closes_shared_original_frame(table, row, end_cut, styles)
+            });
         let fold_last_row = render_rows.last().copied().filter(|&fold_row| {
             (end_row < table.row_count as usize
                 || end_cut.iter().any(|&unit| unit > 0)
@@ -6334,6 +6345,7 @@ impl LayoutEngine {
                         cut.as_slice() == start_cut && start_row_height_override == Some(*remaining)
                     }))
                 && !owns_declared_row_frame
+                && !accepted_body_closed_frame
                 && !(end_row_height_override.is_some()
                     && !is_block_split
                     && self

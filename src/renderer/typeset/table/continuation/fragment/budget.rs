@@ -642,6 +642,16 @@ impl TypesetEngine {
                 })
                 .flatten()
         });
+        // 같은 줄의 인라인 형제 뒤에서도 부동 표의 문단 앵커는 유지한다.
+        // 이 원점으로 남은 예산을 다시 계산하고 emit이 paint에 그대로 전달한다.
+        let fragment_placement = fragment_placement.or_else(|| {
+            self.coanchored_first_fragment_origin(
+                st,
+                input,
+                host_before_overhead,
+                vert_offset_overhead,
+            )
+        });
         let mut fragment_placement = fragment_placement.or_else(|| {
             let spacing_before = input
                 .source

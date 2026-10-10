@@ -208,8 +208,8 @@ impl TypesetEngine {
             start_row_height_override,
             source_terminal_suffix_start: input.prepared.source_terminal_suffix_start,
         };
-        let run_scan = |vars| {
-            self.scan_block_table_split_rows(
+        let run_scan = |vars: BlockRowScanVars| {
+            let mut scan = self.scan_block_table_split_rows(
                 st,
                 layout_engine,
                 mt,
@@ -231,7 +231,67 @@ impl TypesetEngine {
                     split_end_limit: 0.0,
                     end_row_height_override: None,
                 },
-            )
+            );
+            // 원본 첫 상자가 본문 하단을 닫는 경우, 후속 쪽의 공통 저장 컷은
+            // 잉크뿐 아니라 남은 빈 밴드도 소유한다. 각주 재수용도 이 closure를
+            // 다시 호출하므로 현재 실제 예산 안에서만 물리 프레임을 수용한다.
+            if is_continuation
+                && scan.split_block_start.is_none()
+                && scan.split_end_limit > 0.0
+                && st.current_zone_y_offset == 0.0
+                && layout_engine.original_body_closed_table_frame(
+                    input.source.paragraph,
+                    table,
+                    st.layout.body_area.height,
+                )
+                && scan.end_row.checked_sub(1).is_some_and(|row| {
+                    layout_engine.row_cut_closes_shared_original_frame(
+                        table,
+                        row,
+                        &scan.split_end_cut,
+                        styles,
+                    )
+                })
+            {
+                let top = budget.fragment_placement.map_or(
+                    st.current_height + budget.host_before_overhead + budget.vert_offset_overhead,
+                    |placement| placement.table_top,
+                ) + budget.caption_extra;
+                let frame_height =
+                    crate::renderer::float_placement::single_cell_page_fragment_bottom(
+                        table,
+                        st.layout.body_area.height,
+                        self.dpi,
+                    ) - top
+                        - vars.header_overhead;
+                if frame_height >= scan.consumed && frame_height <= vars.avail_for_rows {
+                    let last_height = scan.end_row_height_override.unwrap_or_else(|| {
+                        let row = scan.end_row - 1;
+                        let row_start = if row == cursor_row {
+                            start_cut.as_slice()
+                        } else {
+                            &[]
+                        };
+                        // split_end_limit은 내용 유닛 전진량이다. 안여백 등을 포함한
+                        // 실제 행 점유를 바탕으로 빈 밴드를 더해야 같은 상자를 예약한다.
+                        layout_engine.row_cut_content_height(
+                            row_geometry_table,
+                            row,
+                            row_start,
+                            &scan.split_end_cut,
+                            styles,
+                        )
+                    });
+                    scan.end_row_height_override = Some(last_height + frame_height - scan.consumed);
+                    scan.consumed = frame_height;
+                    if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
+                        eprintln!("SOURCE_BODY_FRAME: pi={} end_row={} end_cut={:?} frame_h={:.3} last_h={:.3}",
+                            para_idx, scan.end_row, scan.split_end_cut, scan.consumed,
+                            scan.end_row_height_override.unwrap_or(0.0));
+                    }
+                }
+            }
+            scan
         };
         let BlockTableRowScan {
             mut source_frame_band,

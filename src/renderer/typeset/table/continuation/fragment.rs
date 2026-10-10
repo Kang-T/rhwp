@@ -9,6 +9,7 @@ use crate::renderer::typeset::{
 use super::{BlockTableContinuationPreparedState, TableContinuationCursor};
 
 mod budget;
+mod coanchored_origin;
 mod emit;
 mod physical_rows;
 mod scan;

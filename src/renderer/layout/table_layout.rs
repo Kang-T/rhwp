@@ -1,6 +1,7 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
 mod row_block_cut;
+mod stored_body_closed_frame;
 mod stored_complete_block_cut;
 mod stored_first_line_restart;
 mod stored_intra_paragraph_frame;

@@ -1333,6 +1333,19 @@ impl TypesetEngine {
                 )
             })
             .flatten();
+        // 원본 쪽 프레임의 빈 띠는 해당 쪽의 물리 공간이다. 전체 행을 압축한
+        // 높이가 아니므로 `full - limit`으로 다음 쪽의 행 최소 높이를 만들지 않는다.
+        // 시작 블록 컷과 현재 일반 행의 종료 컷은 각각 다른 소유자를 가질 수 있다.
+        let closes_original_body_frame = is_continuation
+            && split_block_start.is_none()
+            && layout_engine.original_body_closed_table_frame(
+                input.source.paragraph,
+                table,
+                st.layout.body_area.height,
+            )
+            && end_row.checked_sub(1).is_some_and(|row| {
+                layout_engine.row_cut_closes_shared_original_frame(table, row, &next_cut, styles)
+            });
         let next_start_row_height_override = source_opening_row_frame
             .as_ref().map(|(_, _, remaining)| *remaining)
             .or(empty_opening_next_height)
@@ -1521,7 +1534,7 @@ impl TypesetEngine {
             .or_else(|| end_row_height_override
             // 완전히 소비한 것으로 확인된 원본 행은 다음 행으로 전진한다.
             // 수용한 앞부분에 병합 셀 소유자의 공간이 이미 반영되어 있으므로 이전 행의 빈 꼬리로 새 행의 상자를 대체하지 않는다.
-            .filter(|_| !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
+            .filter(|_| !closes_original_body_frame && !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
                 && !layout_engine.row_uses_reflow_physical_frame(table, end_row.saturating_sub(1)))
             .and_then(|limit| {
             let full = cut_row_h.get(end_row.saturating_sub(1)).copied()?;
