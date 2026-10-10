@@ -1668,3 +1668,24 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - `local-fonts.ts`의 W1 역사 SHA256은 `25d0e0d2e29f4d758b32c9ec20343fb43e4b022c4168cae1831d31fa93f437cc`, 현재/고정base는 모두 `78228d2db58ea6467271bfe3bd5018ae7fb16b17480cc23f453cd0dc186fe1c8`이다. 누락된 기대 경로만 보충했고 candidate·source·digest 구현은 그대로다. 기존 source-digest 고장 주입·상대 경로 검사 포함 **Node12/12PASS/exit0**다(`logs/source-digest-contract-v109.log`).
 - 판단 도구는 run schema2/page schema1의 현재 contract와 fixture metadata를 기록하고, binder는 schema1/2의 `complete`만 수용한다. 현재 schema2 완료본을 거부하는 새 검사에서 수정 전 **FAIL**을 실행했다(`logs/oracle-schema-before-v109.log`). 수정 후 legacy/current 완료, unknown schema, incomplete/failed/빈 상태, 기준PDF 없음의 검사와 기존 Python 전체 **42/42PASS/exit0/7.837초**다(`logs/oracle-schema-all-v109.log`). metadata fixture 갱신이며 문서 시각 fixture/golden 갱신이 아니다.
 - 실제 최신 두 run manifest도 수정 전에는 schema2라 `cheap_ok=false`, 수정 후에는 공통 envelope 필드를 읽는다. 기존 schema1의 `failed`가 잘못 수용되던 사례는 true→false다(`oracle-schema-live-manifest-v109.json`). 이 값은 envelope 필드 가용성이고 전체 쪽수·90% gate·시각 승인 증거가 아니다. 남은 CGMP5쪽의 `re_review_required`와 필수 최종 검증·W6 lineage 미검증을 해제하지 않는다. product Rust/WASM source는 진행91과 같으며 이번54개 도구 검사 결과를 전체Rust 통과로 쓰지 않는다. diff checkPASS다.
+
+
+## 93. v110 — CGMP 회귀 검사 제거 판단 철회
+
+- 현재 메인터너 보정 중인 CGMP에 #7445의 기존 이관 기록을 적용해 두 회귀 검사를 제거한 것은 범위 판단 오류다. 사용자의 정정에 따라 미커밋 제거 변경을 철회하고 `tests/cases/issue_6035_cell_split_empty_band.rs`를 HEAD와 바이트 동일하게 복구했다. 이번 삭제를 위해 만든 `.rs.txt` 사본도 제거했다. 이 단계에서 CGMP의 추가 이관·제외나 원격 issue 변경은 하지 않았다.
+- CGMP는 현재 수정 대상으로 유지한다. 원본 HWPX·독립 Print48쪽을 보존하고 남은35/36/37/39/42쪽의 출력 차이를 보정한다.35쪽의 base96.65234→현재83.37607% 회귀도 계속 해결한다. 현재 전체 Native/fresh WASM90% 미충족이며 완료·통합으로 보고하지 않는다.
+- 독립 Print에서 제목은35쪽, 소항목은36쪽이므로 기존 두 검사의 같은 쪽 강제와 제목 단독 쪽 금지 기대값은 재검토 대상이다. 검사 삭제로 해결하지 않고 원본·독립 출력과의 관계를 확인한 뒤 보정한다. 필요한 시각 선행 조건을 충족하기 전에는 기존 기대값을 변경하지 않는다.
+- 일반적인 #7445 중복 부적합 회귀 정리와90% 이상 문서의 px→관계형 보정 지시는 유지하되, 현재 작업 중인 CGMP의 해결 범위를 축소하는 데 적용하지 않는다. 파생 suite를 다시 준비하고 두 검사가 복구된 등록 상태와 고정base 정책 검사를 확인한다.
+- 복구 후 manifest `--prepare`와 `--check --base-ref 21ed64071f81f35f37618717693bd30f727392c9`는 모두 exit0이다. 원본 검사 파일은 HEAD와 바이트 동일하며 `regression_suite_028`에 다시 등록됐다.1459 source/6265 static test attrs로 두 검사 복구를 확인했다(`logs/cgmp-regression-restored-prepare-v110.log`, `logs/cgmp-regression-restored-check-v110.log`). 이는 등록·정책 확인이며 회귀 실행 통과나 시각 완료 판정이 아니다.
+
+
+## 94. v110 — #3308 원본 오프셋 관계 검사 보정
+
+- 현재 production head `388989c6c02f20ba379f35b74d5e576b44b94519`의 변경하지 않은 원본 `samples/task3307/issue3307_outline_number.hwpx`(SHA256 `28a60bd05e152fd5292bdc8b75c6dbd980a04375c0d8890b752e32017fd1731d`)와 독립 한컴2020 Print9쪽 `pdf/task3307/issue3307_outline_number-2020.pdf`(SHA256 `0b176d3020e89d6a896b4efcab87bb9683298ea10b8593ad799bf99009668acb`)를 대조했다. 고정base21ed의 Native 전9쪽 최저96.34221%이며 현재 Native/fresh WASM은 모두 전9쪽 최저97.34742%(7쪽), 미달·누락0/9대9쪽이다(`outline-source-offset-visual-qualification-v110.json`, 두 전쪽 TSV). 평균·대표 점수만으로 판정하지 않았다.
+- fresh WASM 표준 root wrapper/공용 target 빌드는 exit0/1077.010초/source불변이며 새 WASM SHA256 `4b6fd08845979cbbb94a54fa4a5f99ffa20cad2c4e6d411ea3bb428e49e55b73`이다. immutable package/rootpkg/Studio public의 두 공급 파일은 각각 해시 일치다(`wasm-build-current-v110-exit.json`). 빌드·공급 확인을 Studio 편집 동작 확인으로 확대하지 않는다. fresh Native9쪽 raster와 WASM9쪽 raster도 모두 바이트 동일하다.
+- 최신 Native/fresh WASM7쪽 compare·overlay·review를 새로 산출하고 직접 판독했다(`native-outline-current-v110/outline3308-direct/review/review_007.png`, `wasm-outline-current-v110/outline3308-direct/review/review_007.png`). 직인 표·오른쪽 셀·글자 포함을 확인했으며 미세 괘선·글자 간격 차이는 남는다. 기존 컴파일된 동일 검사에 현재 immutable Native renderer를 공급해 잘못된 가운데 assertion의 실제 FAIL/exit101을 재현했다(`outline-source-offset-before-v110.json`, 해당 로그).
+- 원본 중첩 표는 LEFT/COLUMN 오프셋6226HU, 바깥 왼쪽 여백140HU, 부모의 유효 왼쪽 안 여백283HU를 가지며 부모 셀 폭48096HU/중첩 표 폭32635HU다. 가운데 배치를 강제할 근거가 없다. 기존 검사에 원본 파서의 폭·왼쪽 기준·오프셋을 연결하고 선언 폭과 오프셋의 상대 비율 및 기존 부모/직인 셀/글자 내부 포함 관계를 검사한다. 넓은 폭 비율 범위와 가운데 assertion을 원본 속성 기반 관계로 바꾸며 fixture·PDF·renderer·baseline을 바꾸지 않는다.
+- CGMP는 여전히 현재 구현 보정 대상으로 유지한다. 두 기존 CGMP 검사도 그대로 보존하며 전체90% 미충족 상태에서 기대값 변경·통합을 진행하지 않는다. 남은 CGMP 물리 행 프레임 보정의 생산→스캔→예약→이어받기→paint 소비 계획과 반례는 `cgmp-ordinary-frame-correction-plan-v111.json`에 연결한다. 해당 계획은 아직 구현·검증 완료가 아니다.
+- 수정 검사 실제 실행은 dev profile에서 **1run/1PASS/256filtered skip/exit0**이다(검사0.972초, compile 포함15.531초; `outline-source-offset-focused-v110-retry1-exit.json`, 해당 로그). 첫 선택은 정책 검사와 파생 suite 갱신 순서가 겹쳐 기존 suite013에서0run/exit4였으므로 통과로 세지 않았다. 정책 검사 종료 뒤 실제 등록된 suite008을 찾아 순차 재실행했다. prepare/고정base manifest check와 fmt/diff check도 통과했다. 전체Rust·필수 세 Clippy와 전체시각 gate 통과로 확대하지 않는다.
+- 시험지/HML59개 원본의 현재 바이트·실행 권한이 커밋된 원본과 동일한지 재확인했다(`exam-originals-preserved-v110.json`). 모든 WASM production source hash도 fresh build와 일치한다. 이번 단계는 기존 회귀 기대값 보정이며 CGMP 구현 계획은 아직 적용하지 않았다.
+- 수정한 기존 검사를 포함한 Native Clippy `--test regression_suite_008 -- -D warnings`도 exit0이다(`logs/outline-source-offset-test-clippy-v110.log`). 한정 Clippy이며 제출 전 필수 세 lint 단계를 대체하지 않는다.
