@@ -525,12 +525,27 @@ impl HeightCursor {
                 && !self.session_edited
                 && !synthetic_prev_seg
                 && !prev_has_text
+                && !prev_para.stored_text_partition_is_dirty()
+                && !prev_para.cell_format_vpos_dirty
                 && vpos_continuous)
                 .then(|| {
-                    let prev_source = *prev_para.source_line_seg_vertical_pos.as_ref()?.last()?;
                     let curr_para = paragraphs.get(item_para)?;
-                    let curr_source = *curr_para.source_line_seg_vertical_pos.as_ref()?.first()?;
+                    if curr_para.stored_text_partition_is_dirty() || curr_para.cell_format_vpos_dirty {
+                        return None;
+                    }
                     let curr_model = curr_para.line_segs.first()?;
+                    // 스냅샷은 구역의 vpos를 재계산할 때만 생긴다. 재계산하지
+                    // 않은 정상 저장 줄은 현재 좌표가 원본 좌표다. 합성 줄은
+                    // 위/아래 tag 검사로, 편집 좌표는 dirty 검사로 제외한다.
+                    // 비어 있는 스냅샷을 정상 원본으로 대체하지 않는다.
+                    let prev_source = match &prev_para.source_line_seg_vertical_pos {
+                        Some(source) => *source.last()?,
+                        None => seg.vertical_pos,
+                    };
+                    let curr_source = match &curr_para.source_line_seg_vertical_pos {
+                        Some(source) => *source.first()?,
+                        None => curr_model.vertical_pos,
+                    };
                     let base = curr_model.vertical_pos.checked_sub(curr_source)?;
                     // Zero is a valid unchanged source coordinate transform,
                     // including the plain line after a continued table. Its
@@ -555,6 +570,15 @@ impl HeightCursor {
                     let plain_line_consumed = prev_para.controls.is_empty()
                         && prev_para.line_segs.len() == 1
                         && seg.line_height > 0;
+                    if std::env::var("RHWP_VPOS_DEBUG").is_ok() {
+                        eprintln!(
+                            "VPOS_SOURCE_CONTINUOUS: pi={} prev_pi={} prev_snapshot={} curr_snapshot={} source_base={} plain_line_consumed={}",
+                            item_para, prev_pi,
+                            prev_para.source_line_seg_vertical_pos.is_some(),
+                            curr_para.source_line_seg_vertical_pos.is_some(),
+                            base, plain_line_consumed,
+                        );
+                    }
                     if plain_line_consumed {
                         Some(prev_vpos_end - y_delta_hu)
                     } else {
