@@ -119,4 +119,3 @@ pub fn count_unintended_overlaps(doc: &DocumentCore, anomalies: &DocAnomalies) -
     }
     remaining
 }
-
