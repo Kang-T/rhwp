@@ -78,19 +78,6 @@ impl TypesetEngine {
         while progress.r < v.row_count {
             let r = progress.r;
             let cs_before = if r > v.cursor_row { v.cs } else { 0.0 };
-            // Consume a carried physical tail before scanning the next row.
-            if r == v.cursor_row {
-                if let Some(height) = v.start_row_height_override.filter(|_| {
-                    !layout_engine.row_uses_reflow_physical_frame(table, r)
-                        && layout_engine.row_cut_units_exhausted(table, r, start_cut, styles)
-                }) {
-                    progress.scan.consumed += height;
-                    progress.r += 1;
-                    progress.scan.end_row = progress.r;
-                    progress.scan.physical_rows.push((r, height));
-                    continue;
-                }
-            }
             let block_query = table::scan::RowBlockQuery {
                 layout_engine,
                 mt,
@@ -100,6 +87,36 @@ impl TypesetEngine {
                 rowspan_touched,
                 cs: v.cs,
             };
+            // Consume a carried physical tail before scanning the next row.
+            if r == v.cursor_row {
+                if let Some(height) = v.start_row_height_override.filter(|_| {
+                    !layout_engine.row_uses_reflow_physical_frame(table, r)
+                        && layout_engine.row_cut_units_exhausted(table, r, start_cut, styles)
+                }) {
+                    // 이전 조각의 물리 잔여와 걸친 병합 셀의 남은 내용은 같은
+                    // 시작 행을 소유한다. 이미 넘겨받은 최소 높이를 보존하면서
+                    // paint가 늘리는 내용 높이도 뒤 행 수용 전에 함께 예약한다.
+                    let row = table::scan::row::RowScanQuery {
+                        rows: &block_query,
+                        r,
+                        cursor_row: v.cursor_row,
+                        start_cut,
+                        start_row_height_override: v.start_row_height_override,
+                        rowspan_physical_space,
+                        accepted_rows: &progress.scan.physical_rows,
+                    };
+                    let height = height.max(row.required_height(height, 0.0, 0.0));
+                    if height <= v.avail_for_rows {
+                        progress.scan.consumed += height;
+                        progress.r += 1;
+                        progress.scan.end_row = progress.r;
+                        progress.scan.physical_rows.push((r, height));
+                        continue;
+                    }
+                    // 남은 내용이 안 들어가면 이 행을 소비하지 않고 기존
+                    // 내용 분할·이월 경로에서 수용 여부를 판정한다.
+                }
+            }
             let block = block_query.candidate(r);
             let before = progress.scan.consumed;
             let is_block = (block.protected || block.rowbreak_rowspan_block) && block.b_start == r;
