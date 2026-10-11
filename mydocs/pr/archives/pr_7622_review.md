@@ -19,6 +19,7 @@ last_verified: 2026-10-10
 | 항목 | 확인한 상태 |
 | --- | --- |
 | 검토 branch | `review/planet6897-20261008` |
+| 통합 PR | [#7832](https://github.com/edwardkim/rhwp/pull/7832) → `devel`; 원 기여와 메인터너 보정 함께 제출 |
 | rebase 후 통합 code head | `9b4817473b2a3515ea27eefef9d20731258433e4` |
 | 최신 upstream base | `920dc29284e8a6e624861bfccf68903e19ae309b` |
 | 전체 회귀 | 검증 source `7dd9572b7fecbc602c9e5ab47c4a6c9d6422b4bd`: 10,215PASS·실패0·skip45 |
