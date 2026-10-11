@@ -52,6 +52,14 @@ const TALL_CELL_ROW_SPAN: u16 = 6;
 
 /// 그 셀이 이 쪽에 그린 직계 글줄의 문단 인덱스.
 fn tall_cell_para_indices(node: &RenderNode, out: &mut Vec<usize>) {
+    if let RenderNodeType::Table(table) = &node.node_type {
+        if table.para_index != Some(6)
+            || table.control_index != Some(0)
+            || table.cell_context.is_some()
+        {
+            return;
+        }
+    }
     if let RenderNodeType::TableCell(meta) = &node.node_type {
         if meta.row == TALL_CELL_ROW
             && meta.col == TALL_CELL_COL
@@ -88,7 +96,7 @@ fn worst_text_line_overhang(node: &RenderNode, bottom: f64) -> f64 {
     worst
 }
 
-/// 이 셀이 조각별로 그린 문단 인덱스 — 2·3·4쪽 순서대로.
+/// 전체 쪽에서 해당 셀이 소유한 문단을 조각 순서대로 모은다.
 fn fragment_ranges() -> Vec<Vec<usize>> {
     let path = document_path();
     let bytes = std::fs::read(&path).expect("#6803 정식 회귀 sample 읽기");
@@ -99,15 +107,18 @@ fn fragment_ranges() -> Vec<Vec<usize>> {
         "쪽수 형상이 바뀌면 이 시험의 전제가 깨진다"
     );
 
-    (1u32..=3)
+    (0..core.page_count())
         .map(|page| {
-            let tree = core.build_page_render_tree(page).expect("render tree");
+            let tree = core
+                .build_page_render_tree(page as u32)
+                .expect("render tree");
             let mut pis = Vec::new();
             tall_cell_para_indices(&tree.root, &mut pis);
             pis.sort_unstable();
             pis.dedup();
             pis
         })
+        .filter(|indices| !indices.is_empty())
         .collect()
 }
 
@@ -119,6 +130,22 @@ fn fragment_ranges() -> Vec<Vec<usize>> {
 /// 이 하나로 양쪽이 잠긴다 — 늦게 끊으면 **중복**이, 일찍 끊으면 **구멍**이 생긴다.
 #[test]
 fn the_fragments_partition_the_cell_exactly_once() {
+    let original = rhwp::parse_document(&std::fs::read(document_path()).expect("원본 읽기"))
+        .expect("독립 원본 모델");
+    let rhwp::model::control::Control::Table(source) =
+        &original.sections[0].paragraphs[6].controls[0]
+    else {
+        panic!("분할 표의 원본 소속");
+    };
+    let source_cell = source
+        .cells
+        .iter()
+        .find(|cell| {
+            cell.row == TALL_CELL_ROW
+                && cell.col == TALL_CELL_COL
+                && cell.row_span == TALL_CELL_ROW_SPAN
+        })
+        .expect("병합 셀의 원본 소속");
     let ranges = fragment_ranges();
     let mut seen: Vec<usize> = ranges.iter().flatten().copied().collect();
     let total = seen.len();
@@ -139,6 +166,11 @@ fn the_fragments_partition_the_cell_exactly_once() {
         seen.len(),
         seen.last().copied().expect("마지막") + 1,
         "조각 사이에 구멍이 있다 — #6803 회귀 (조각별 범위 {ranges:?})"
+    );
+    assert_eq!(
+        seen.len(),
+        source_cell.paragraphs.len(),
+        "끝부분을 통째로 잃어도 연속 범위만으로 통과하지 않는다"
     );
 }
 
