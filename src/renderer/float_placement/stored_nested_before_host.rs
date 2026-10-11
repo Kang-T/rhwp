@@ -35,14 +35,40 @@ pub(crate) fn stored_nested_before_host_placement(
     styles: &ResolvedStyleSet,
     dpi: f64,
 ) -> Option<ParagraphFloatPlacement> {
-    let para = cell.paragraphs.get(para_index)?;
-    let previous = cell.paragraphs.get(para_index.checked_sub(1)?)?;
-    let next = cell.paragraphs.get(para_index.checked_add(1)?)?;
+    if cell.dirty_flag {
+        return None;
+    }
+    stored_nested_before_host_frame(
+        &cell.paragraphs,
+        para_index,
+        table,
+        control_index,
+        origin,
+        table_height,
+        styles,
+        dpi,
+    )
+}
+
+/// 측정도 같은 저장 앞·뒤 줄과 표 바깥 상자로 호스트의 줄 소속을 확인한다.
+/// 셀 편집 여부는 셀을 소유한 호출자가, 저장 줄의 유효성은 이 함수가 확인한다.
+pub(super) fn stored_nested_before_host_frame(
+    paragraphs: &[Paragraph],
+    para_index: usize,
+    table: &Table,
+    control_index: usize,
+    origin: f64,
+    table_height: f64,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) -> Option<ParagraphFloatPlacement> {
+    let para = paragraphs.get(para_index)?;
+    let previous = paragraphs.get(para_index.checked_sub(1)?)?;
+    let next = paragraphs.get(para_index.checked_add(1)?)?;
     let [host] = para.line_segs.as_slice() else {
         return None;
     };
-    if cell.dirty_flag
-        || !dpi.is_finite()
+    if !dpi.is_finite()
         || dpi <= 0.0
         || !origin.is_finite()
         || !table_height.is_finite()
@@ -63,11 +89,11 @@ pub(crate) fn stored_nested_before_host_placement(
         return None;
     }
     // 전체 셀 좌표를 되감은 뒤의 줄은 앞 프레임의 표 원점을 복원하지 않는다.
-    let prefix: Vec<_> = cell.paragraphs[..=para_index]
+    let prefix: Vec<_> = paragraphs[..=para_index]
         .iter()
         .flat_map(|paragraph| &paragraph.line_segs)
         .collect();
-    if !cell.paragraphs[..=para_index].iter().all(original_lines)
+    if !paragraphs[..=para_index].iter().all(original_lines)
         || prefix
             .windows(2)
             .any(|pair| pair[1].vertical_pos < pair[0].vertical_pos)

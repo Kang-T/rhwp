@@ -2571,3 +2571,116 @@ K-water의 `batch-origin-native-selected-visual-v196/kwater2024/review/review_02
 보도자료1쪽·미주2쪽의 새출력 비교는 같은 frozen CLI로 계속 실행한다.
 회귀 기대값·baseline은 아직 변경하지 않았으며, 전체 문서·fresh WASM·최종lint의 통과로
 이 대표 Native 결과를 확대하지 않는다.
+
+## 진행 143 — 저장 표 뒤 호스트 줄과 물리 하단·쪽 원점의 소비 경로 보정
+
+기준은 `upstream/devel`의 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`,
+보정 전 커밋은 `8b9a4ce6eb943510d47ee4b416a8cd302b816a7b`다.
+이번 진행에서는 회귀 기대값·baseline·원본 입력을 변경하지 않았다.
+최종 전체 회귀의 마지막 종료 결과는 여전히 진행142의 **29실패**이며,
+아래 진단 결과를 전체 nextest 통과나 현재 실패 수로 바꾸어 보고하지 않는다.
+
+| 원본·독립 근거 | 실제 생산·소비 연결과 보정 | 관측 결과·한계 |
+| --- | --- | --- |
+| K-water24쪽의 중첩 표 앞 줄 끝, 표의 바깥 상자, 표 뒤의 빈 호스트 줄과 다음 줄이 같은 저장 프레임을 닫음. 마지막 원본 줄 끝45253HU와 독립 Print의 부모 하단은 기존 측정보다 호스트1952HU만큼 큼 | `stored_block_cell_flow`가 짧은 **표 뒤** 간격을 저장 표 높이의 누락으로 오인해 합산 흐름을 선택하고 그 호스트 줄을 빼던 조건을 교정. `stored_nested_before_host_frame`의 원본 인증을 측정·배치가 공유하여 완전한 사다리는 저장 셀 높이 경로를 유지 | v204 Native24쪽99.95378%, inner-table2쪽99.95784%. 선택 페이지·보정 중간 소스의 증거이며 최종 전체/fresh 검증은 대체하지 않음 |
+| 취업취약계층 수급 요건 원본의 바깥 아래 여백141HU. 독립 Print의 앞3쪽은 미완료 표 조각이 이 여백을 남기고, 마지막쪽은 내용 끝에서 닫힘 | `prepare_table_fragment_budget`에서 물리 하단을 먼저 산출하되, 뒤의 `fragment_placement`가 기본 예산을 대체한 **후** 실제 `table_top`으로 제한. 스캐너가 수용한 물리 높이→예약→부분 셀 외곽선이 같은 끝을 소비 | v210·v217의 실제 출력 진단은 수정 전FAIL/수정 후PASS. 전4쪽, row7의 두 조각 최소높이215.6px, 모든 원본 셀 내용의 순서·단일 소유와 셀/글줄 포함 관계를 확인. 정식 nextest는v220에서 별도 실행 중 |
+| 화학제품 연구76쪽의 첫 문단107은 실제 쪽 나눔이며 저장vpos4000HU=문단 앞간격. 다음 문단108의7320HU=4000+1400+420+1500이 독립된 앞간격 사다리를 증명. Print의 표 윗변은861.2px | 새 `stored_page_origin`이 명시적 쪽 나눔만으로 유효한 원점을 제외한 가정을 제거. `vpos_snap_current_height`의 쪽 기준과 `build_single_column`의 같은 원점 판단을 공유하고 캡션 표의 예약·실제 원점에 연결 | v219 실제 출력 진단: 앞 문단 하단806.9px는 보존, 캡션780.6→834.0px, 표808.0→861.3px. 앞뒤 순서와 첫/다음 문단의 원본 사다리 거리 검사는FAIL→PASS. 전체·fresh 및 직접 PNG 판독은 아직 완료되지 않음 |
+
+첫 두 시도(v204/v207)의 고용지원 하단 여백은 **FAIL→FAIL**이었다.
+실행된 분기의 반환값을 GDB로 확인한 결과 기존 물리 프레임 인증은 이미true였으며,
+인증을 넓히던 중간 `table_layout.rs` 변경은 제거했다. 실제 원인은 뒤의 원점 선택이
+줄인 예산을 덮어쓰는 소비 경로였다. `physical-frame-boundary-v208/gate-v204.log`,
+`gate-fileline.log`, `budget-overwrite.log`와 `budget-trace.log`에 실패와 호출 값을 보존했다.
+적용 조건을 계속 덧붙여 화면을 맞추는 예외는 남기지 않았다.
+
+v209는 fmt27.517초·Native build86.600초로exit0이며,
+CLI SHA-256은 `94cbd4944679804024f327cf6746a0cbd14ad80e1ff3a501f9d08b32128ce7c3`다.
+이 중간 소스의 고용지원 Native 전4쪽 최저는95.83454%다(v211).
+쪽 원점 보정을 포함한 v216은 fmt30.029초·Native build63.264초로exit0,
+CLI SHA-256은 `2151ffa87d859bf5ab4c9554dc1d69ad654b2f7a1c9a80e636ed1cb37b08450c`다.
+각 빌드 기록의 생산Rust1107개 파일 해시와 `source_unchanged=true`를 확인했다.
+검증 이후 커밋 SHA와 이 파일 해시의 연결은 별도로 확인한다.
+
+같은19종 원본의v218 재측정에서 이전 보정의 보도자료7종 넘침0,
+K-water 두 입력·inner-table의 새 겹침0은 유지됐다.
+화학제품 두 원본은 각각 본문 하단 넘침5→4, 텍스트 겹침15→6으로 줄었다.
+API·59043·none-image-fill·#7333의 남은 관측은 해소되지 않았으며,
+화학제품의 나머지 차이도 완료 또는 기존 이관으로 분류하지 않는다.
+
+진단·실행 기록은 ignored `output/pr-review/semanticist21-20261008/`의
+`physical-frame-boundary-v210/`, `physical-frame-boundary-v217/`,
+`chemical-caption-relations-v219/`, `remaining-regression-source-diagnosis-v212/`,
+`batch-physical-frame-native-v216-result.json`,
+`batch-physical-frame-validation-v218-result.json`에 보존한다.
+v218은 화학제품 영향5쪽·issue1853 대조4쪽 및 고용지원/K-water/inner-table 전체
+Native TSV를 산출한다. 선택 비교는 원본 전체 통과 근거가 아니다.
+기존 관계 검사9개는 `physical-frame-focused-nextest-v220-result.json`으로 실행 중이다.
+
+v213 fresh WASM은 화학제품의 추가 원점 결함을 확정한 뒤 보정 묶음에 포함하기 위해
+중단했다. 자기 소유 unit의MainPID0/inactive 및 Cargo/Rust 작업 종료를 확인했고,
+`fresh-wasm-source-frames-v213-result.json`에 중단 이유를 남겼다.
+패키지 통과·실패나 최신 fresh WASM 증거로 세지 않는다. 공용target은 삭제하지 않았다.
+KPS·CGMP의 이전 frozen package 전쪽 결과도 최신 생산 소스의 통과로 재사용하지 않는다.
+
+**전체 검증·직접 판독 미완료이므로 머지 보류를 유지한다.**
+개별 PR의 “메인터너 보정으로 수용 가능” 전환, push와 새 PR 생성은 아직 수행하지 않았다.
+
+진행143의 v220 정식 검사도 종료했다: 기존 #6950/#7552의 **9검사 전부PASS**,
+397개 선택 제외, nextest exit0/409.395초(실행 summary2.518초)이며 당시 생산 소스는
+v216과 같았다. 이후 뒤 간격 보정을 추가했으므로 이 결과는 새 v224 소스의 검사로
+재사용하지 않는다.
+
+v218의 중간 Native 영향 비교는 화학제품5쪽40.96947%,45쪽97.91849%,
+57쪽57.04931%,76쪽98.07514%,81쪽99.83384%였다.
+76쪽 `physical-frame-selected-review-v221/chemical-study/review/review_076.png`를
+직접 표시·판독했다. 캡션은 앞 문단 뒤에 있고 표 외곽·머리행·첫 두 데이터행은 Print와
+대응한다. 목록 원형 기호의 크기 차이는 남아 있어 미세 모양까지 완료로 판정하지 않았다.
+5쪽 `physical-frame-selected-review-v222/chemical-study/review/review_005.png`도
+직접 표시했다. 첫 제목 자체는 맞지만 다음 문단·표는26.7px 위에 있고 다음쪽 제목과
+본문까지 미리 소비하여 아래로 넘친다. 두 미달 쪽을 평균으로 상쇄하지 않았다.
+issue1853 대조8/10/13/37쪽의 같은 중간 소스 Native 값은
+97.60638/96.34071/97.41296/96.39927%다. 전체·fresh 통과로 확대하지 않는다.
+
+추가 원인은 같은 공통 원점 helper로 옮기며 **첫 문단의 뒤 간격을 빠뜨린 것**이었다.
+원본42의 vpos2000·줄높이2000·줄간격1200·뒤 간격1000HU와 다음43의 앞 간격4000HU는
+다음vpos10200HU를 닫는다. 고정 base의 `layout.rs` 기존 함수도 이 뒤 간격을 포함한다.
+`stored_page_origin`에 그 항을 복원하여 빈 간격으로 무효 판정하던 사다리를 교정했고,
+측정과 배치는 같은 결과를 계속 소비한다. 문서ID·고정 화면 좌표·내용 숨김 조건은 추가하지 않았다.
+
+이 보정을 포함한 v224 fmt51.092초·Native build117.976초는exit0이며,
+frozen CLI SHA-256은 `8700ac5a21dda40429be0c46f599bbd571732c7508b353ce42993bc9e9507133`다.
+v225의 고용지원 전4쪽 내용/행 최소/하단 관계, v226의 캡션 앞뒤·사다리 관계는 각각
+수정 전FAIL/수정 후PASS를 유지했다. v228은 원본dump와 독립 Print로 첫/다음 문단 거리와
+쪽 소유를 별도로 대조했다. 첫/다음 거리82.7→109.4px는 원본109.33333px와 대응하고,
+5쪽의 탈출 문단53–56은 없어졌다. 독립 Print6쪽의 `3. 연구의 주요내용`도6쪽으로 돌아와
+같은 관계 검사가FAIL→PASS였다. 진단의 통과를 신규 회귀 추가나 전체 시각 통과로 바꾸지 않는다.
+
+v227의 같은19종 재측정에서 화학제품 두 원본은 각각 본문 하단 넘침4→0,
+지면 밖2→0, 텍스트 겹침6→0이다. #7333 겹침은4→3이며 완전히 해소되지 않았다.
+API의 새 넘침, 59043의 추가쪽·넘침, none-image-fill의 새 넘침은 여전히 남는다.
+v227 Native 영향/대조/전체 TSV와 v229의 세Clippy·workspace build·고정 base 정책 검사·
+기존9개 nextest 재검증은 진행 중이다. 최신 fresh WASM과 전체 회귀·전체 시각 검증은 미완료다.
+
+v227의 최신 v224 Native 영향5쪽도 종료했다: 화학제품5/45/57/76/81쪽은
+**99.50561/97.91849/99.23289/98.07514/99.83384%**, 미달0이다.
+이는 원본103쪽 중 영향5쪽이다. 전체 원본 통과로 확대하지 않는다.
+새5쪽 `physical-frame-selected-review-v230/chemical-study/review/review_005.png`를
+직접 표시·판독했다. 제목 다음 간격·표 외곽·뒤 본문과 다음쪽 내용의 소속은 Print와
+대응하며 잘못 추가한 하단 제목은 없어졌다. 목록 기호의 작은 크기 차이는 별도로 남긴다.
+issue1853 대조4쪽도 중간 소스와 같은 수치로90% 이상을 유지했다.
+
+v229는 최신 v224와 동일한 생산 소스에서 **모든9단계 exit0**로 종료했다.
+Native Clippy151.477초, WASM Clippy101.145초, workspace build152.836초,
+workspace all-targets Clippy128.018초 및 fmt·고정 base manifest/unit 정책을 통과했다.
+기존 #6950/#7552 정식 nextest는427.160초(실행 summary1.125초), **9검사 전부PASS**,
+397개 선택 제외다. 모든 단계의 `source_unchanged=true`를 확인했다.
+전체 nextest·Skia·Studio·fresh WASM 완료를 뜻하지 않는다.
+
+다음 검증은 v232의 화학제품 두 원본 각각103쪽, CGMP48쪽, KPS77쪽 전체 Native다.
+실제 unit을 확인하며 실행 중이고 종료 전 SVG는 삭제하지 않는다.
+API18쪽은 고정 base와 최신 실제 출력의 표·뒤 본문을 대조했다.
+기준은 표149.6px/Example989.3px, 최신은153.4px/995.9px이며,
+추가한 빈 호스트 fallback이 anchor17.33333/위3.77333/표742.32/뒤13.57333px를
+배치에 전달한다(`remaining-regression-source-diagnosis-v212/api18-saved-host.log`).
+이 값은 원인 조사 자료이며 아직 API 수정·해결로 보고하지 않는다.
+원본의 유효 저장 앵커와 fallback의 여백 소유 근거를 다음 보정에서 대조한다.

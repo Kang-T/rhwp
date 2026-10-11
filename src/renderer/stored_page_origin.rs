@@ -7,16 +7,14 @@ use crate::renderer::{
 
 /// 쪽 첫 저장 줄의 vpos가 문단 앞 간격을 포함하면 쪽 원점은 0이다.
 /// 다음 문단의 저장 사다리도 앞 간격을 계상하는지 확인하여 측정과 배치가
-/// 같은 원점을 소비한다. 명시적 쪽 나눔과 합성 줄은 이 증거로 사용하지 않는다.
+/// 같은 원점을 소비한다. 명시적 쪽 나눔도 원본 앞 간격과 다음 줄이 같은
+/// 사다리를 닫으면 이 원점을 소유한다. 합성 줄은 이 증거로 사용하지 않는다.
 pub(crate) fn stored_first_margin_is_page_relative(
     first: &Paragraph,
     next: Option<&Paragraph>,
     styles: &ResolvedStyleSet,
     dpi: f64,
 ) -> bool {
-    if first.column_type == crate::model::paragraph::ColumnBreakType::Page {
-        return false;
-    }
     let Some(first_seg) = first.line_segs.first() else {
         return false;
     };
@@ -90,7 +88,7 @@ pub(crate) fn stored_first_margin_is_page_relative(
             );
             // 기존 0 앞간격 사다리와 뒤간격을 따로 저장한 사다리를 같은 원점에서 판정한다.
             (gap - next_before).abs() <= 0.5
-                || (next_before > 0.5
-                    && (float_closes_next || (gap - first_after - next_before).abs() <= 0.5))
+                || (gap - first_after - next_before).abs() <= 0.5
+                || (next_before > 0.5 && float_closes_next)
         }
 }

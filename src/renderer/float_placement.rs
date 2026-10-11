@@ -4904,6 +4904,28 @@ pub(crate) fn stored_block_cell_flow(
             .map(|group| nested_group_occupied_height(para, group, &h, 0.0, dpi))
             .sum();
         if block_height > 0.0 {
+            // 표 뒤에 있는 저장 호스트 줄은 뒤 줄까지의 간격에 표 높이를 다시 담지
+            // 않는다. 앞 줄 끝·표 바깥 상자·호스트·뒤 줄이 같은 프레임을 닫으면
+            // 짧은 뒤 간격은 저장 정보 누락의 근거가 아니다. 실제 배치와 같은
+            // 원본 프레임을 대조해 완전한 저장 사다리를 합산 흐름으로 바꾸지 않는다.
+            let before_host_frame = para.controls.iter().enumerate().any(|(ci, control)| {
+                let Control::Table(table) = control else {
+                    return false;
+                };
+                let body = h[ci]
+                    - hwpunit_to_px(
+                        i32::from(table.outer_margin_top) + i32::from(table.outer_margin_bottom),
+                        dpi,
+                    );
+                stored_nested_before_host::stored_nested_before_host_frame(
+                    paragraphs, pi, table, ci, 0.0, body, styles, dpi,
+                )
+                .is_some()
+            });
+            if before_host_frame {
+                heights.push(h);
+                continue;
+            }
             if let Some(next) = paragraphs.get(pi + 1) {
                 let saved_gap = hwpunit_to_px(
                     next.line_segs[0]

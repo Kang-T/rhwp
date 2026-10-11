@@ -503,7 +503,7 @@ impl TypesetEngine {
         // Original text-frame rows own blank space as well as units. Reserve
         // the same physical column bottom used by partial paint before choosing
         // their row boxes, so paint need not discard a source-owned tail later.
-        let page_avail = if prepared
+        let physical_frame_bottom = if prepared
             .layout_engine
             .stored_table_has_physical_text_frames(table, input.source.styles)
         {
@@ -516,9 +516,10 @@ impl TypesetEngine {
                     st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
                     st.profile.session_edited(),
                 );
-            // 쪽 중간 첫 조각의 advance와 HWPX에 Native 아래 inset을
-            // 추가하지 않는다. 쪽을 닫는 선언 상자는 자기 바깥 여백을,
-            // 이어받는 Native 원본의 물리 상자는 paint의 공통 하단을 쓴다.
+            // 쪽 중간 첫 조각의 전진과 HWPX에 Native 아래 inset을 추가하지 않는다.
+            // 두 형식의 이어받기 상자는 모두 바깥 아래 여백을 남긴다.
+            // 그 여백까지 행 높이로 수용하면 위 여백을 다시 연 배치가 본문을 넘고,
+            // 다음 조각의 남은 선언 높이에서도 아직 소비하지 않은 띠를 빼게 된다.
             // A continued native source row can reserve a blank physical band.
             // Its accepted box must end at the same fragment bottom as paint,
             // including when several rows share that page. Otherwise emit
@@ -537,19 +538,15 @@ impl TypesetEngine {
                     self.dpi,
                     body_filling_source_frame,
                 )
+            } else if is_continuation && st.profile.hwpx_stored_layout() {
+                st.inline_flow_column().height
+                    - hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
             } else {
                 st.inline_flow_column().height
             };
-            page_avail.min(
-                (bottom
-                    - fragment_flow_origin
-                    - caption_extra
-                    - host_before_overhead
-                    - vert_offset_overhead)
-                    .max(0.0),
-            )
+            Some(bottom)
         } else {
-            page_avail
+            None
         };
         let captioned_current_placement = self.query_captioned_column_rowbreak_placement(
             st,
@@ -967,6 +964,17 @@ impl TypesetEngine {
                     0.0
                 })
             .max(0.0)
+        });
+
+        // 실제 배치 원점이 위의 기본 예산을 대체한 뒤에도 원본 물리 프레임의
+        // 하단을 보존한다. 원점 확정 전에만 여백을 빼면 그 대체가 예약을 덮어써,
+        // 행 스캐너와 셀 외곽선이 바깥 아래 여백까지 소비한다.
+        let page_avail = physical_frame_bottom.map_or(page_avail, |bottom| {
+            let top = fragment_placement.map_or(
+                fragment_flow_origin + host_before_overhead + vert_offset_overhead,
+                |placement| placement.table_top,
+            );
+            page_avail.min((bottom - top - caption_extra).max(0.0))
         });
 
         // A resolved visible-host origin replaces the default budget above;
