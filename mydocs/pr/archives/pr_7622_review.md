@@ -100,3 +100,9 @@ build-jobs8/test-threads10으로 시작했으며, 최종 요약·세 Clippy·다
 `quotes-native-v3-after-5538efd38/`, `quotes-wasm-v3-compat2022-after-5538efd38/`,
 `quotes-native-slot-runtime-control.json`, `quotes-formal-strengthened-result.json`,
 `new-sample-detectors-5538efd38.json`, `bea45e807-full-regression.json`에 보존했다.
+
+## 2026-10-11 전체 영향 자료 확보 감사
+
+기여자 원 TSV의175문서/1,566영향쪽을 실제 읽고 각 원본과 repository 기준 PDF의 존재·SHA 및 PDF 전체 쪽수를 확인했다. 입력 누락0, PDF 누락0, PDF 읽기 실패0이며 대응 PDF 쪽수 합은6,078쪽이다. ignored `batch208-font-impact-inventory/provenance.json`에 전 입력을 기록했다. 이 감사는 현재 base/head의 시각·원문 대응 검증이나 이전 낮은 점수의 #7445 이관 근거가 아니다.
+
+자산관리규정 `samples/issue6031/3249937_asset_management_rules.hwpx`도 이 목록에 있다. 기준 `pdf/3249937_asset_management_rules-2020.pdf`는 전체60쪽이고 기여자의 영향쪽은37/38/39다. b886 frozen Native의37쪽을 실제 재출력하여99.35586%를 측정했다. 다음38쪽 브라우저 raster는 `ENOSPC`로 실패했으므로39쪽·전체60쪽·fresh WASM과 직접 판독은 미검증이다. 원본·Print·검사를 삭제하거나 이 문서를 이관하지 않는다. 실패한 실행은 `batch209-asset-boundary-diagnosis/`에 보존했다.
