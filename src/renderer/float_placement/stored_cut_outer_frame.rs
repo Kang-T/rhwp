@@ -37,9 +37,13 @@ pub(crate) fn stored_hwpx_cut_owns_outer_frame(
             .count()
             == 1
         && host.controls.iter().all(|control| {
+            // 쪽번호 위치는 본문 줄의 개체가 아니라 구역의 인쇄 메타데이터다.
             matches!(
                 control,
-                Control::Table(_) | Control::SectionDef(_) | Control::ColumnDef(_)
+                Control::Table(_)
+                    | Control::SectionDef(_)
+                    | Control::ColumnDef(_)
+                    | Control::PageNumberPos(_)
             )
         })
         && table.cells.iter().all(|cell| !cell.dirty_flag)
