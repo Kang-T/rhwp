@@ -18,8 +18,8 @@ last_verified: 2026-10-11
 | --- | --- |
 | `svg_snapshot::table_text_page_0` | 원문 음수 자간과 독립 Print의 중앙 정렬. 전진폭에 포함된 말미 자간을 점유폭으로 혼동한 검사를 수정한다. 내용·소유·포함·중앙 관계와 기존 상대 오차는 유지한다. |
 | 중첩 래칫 partition 6/7/8/12/15 | 분산 정렬의 마지막 전진 간격은 잉크가 아니다. 진단의 말미 점유를 보정하고 실제 충돌 대조군으로 확인한다. 원장 수치 증가로 통과시키지 않는다. 도장 표시와의 기존 Print 교차는 별도 소유 관계로 대조한다. |
-| `issue_7063_midpage_fragment_box_does_not_pull_next_page_rows` | `hwpx_sample2.hwp`의 base/current/Print 대조에서 현재 8쪽 내용 소유 변경이 있다. base의 기존 미달과 구별해 구현을 보정하며 현재 미달 상태에서 기대값을 변경하지 않는다. |
-| `issue_2430_cell_rewrap_threshold_no_oversplit`, `issue_7095_terminal_fragment_box_takes_the_stored_cell_height_remainder` | 독립 KoPub Print와 base는39쪽, 현재37쪽이다. 쪽수와 끝 조각의 소유·저장 높이를 소비하는 분할 경로를 추적하고 구현을 보정한다. 현재 값으로 baseline을 바꾸지 않는다. |
+| `issue_7063_midpage_fragment_box_does_not_pull_next_page_rows` | `hwpx_sample2.hwp`의 base/current/Print 대조에서 제목·문단 소유는 보존되지만 현재 8쪽 표 하단이 짧다. 사용자가 29쪽 전면 개선 비용 때문에 #7830으로 이관하도록 지시했다. 현재 새 차이를 미해결로 보존하고 기대값은 변경하지 않는다. |
+| `issue_2430_cell_rewrap_threshold_no_oversplit`, `issue_7095_terminal_fragment_box_takes_the_stored_cell_height_remainder` | 독립 KoPub Print와 base는39쪽, 현재37쪽이다. 사용자 지시로 #7831에 이관한다. 현재의 새 쪽수·이어받기 회귀를 미해결로 보존하며 현재 값으로 baseline을 바꾸지 않는다. |
 
 ## 시각 선행 조건과 1단계 결과
 
@@ -56,3 +56,26 @@ table-text Print/Native/WASM 같은 제목 확대 판독에서 칸 소유·중�
 마지막 분산 간격만 걷어내되 말미 공백·손상된 positions·실제 말미 글자 충돌을 구별한다.
 합성 입력의 전각 글자 폭과 명시적 replay 원점으로 독립 기대를 정한다.
 현재 문서의 잉크·괘선 확대와 정상 대조군은 원장 수치와 별개로 기록한다.
+
+## 2단계 결과 — 진단 점유와 도장 소유
+
+`src/diagnostics/layout_anomaly/text_occupancy.rs`는 마지막 유효 replay 원점과
+글자의 기본 폭·장평으로 분산 간격을 점유폭에서 제외한다. production renderer 배치는
+변경하지 않았다. 전각 1em·명시 원점의 독립 경계는 수정 전 의도한 교차에서 FAIL,
+수정 후 실제 글자 충돌은 유지하고 빈 분산 간격 교차만 제거한다.
+
+- 수정 전 경계: `remaining-overlap-boundary-before.log` 1FAIL(exit100).
+- 수정 후 코퍼스·경계: `remaining-overlap-after.log` 27건 실행,26PASS/1FAIL(exit100).
+  partition6/7/12/15는 통과했고, partition8의 도장 교차만 남았다.
+- Print와 같은 두 사진칸의 원문 안내·Group·Ellipse·㊞ 소유 및 포함 관계로
+  `2`/`매`와 해당 도장만 허용한다. 다른 본문 충돌은 계속 검출한다.
+  baseline 수치를 올리지 않고 이 문서의 의도하지 않은 교차0건을 검사한다.
+- 정식 source는 기존 `tests/cases/text_overlap_baseline.rs` 안이다. 초기 support/newcase
+  배치는 제거했고 manifest48/48에 맞춰 정상 준비했다.
+- `remaining-stored-vpos-corrected.log`: 도장 소유·일반 본문 충돌 대조군·partition8
+  3건 실행3PASS(exit0), run `47459175-48af-4717-9587-0e5dc0fc7b0f`.
+
+원문4쪽 Native/fresh WASM 최저98.77240%와 같은 Print 도장 교차 확대를 확인했다.
+위 시각 산출은 renderer source `d0528fb55f225fba8b4b65b9ed670a8dee9c654b` 기준이며
+새 진단 source head의 fresh package라고 보고하지 않는다. 다음 단계는 승인된 실패3사례
+이관, 유지 검사·필수 lint·최종 전체 nextest다.

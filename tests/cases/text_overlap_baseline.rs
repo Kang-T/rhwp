@@ -45,6 +45,169 @@ use rhwp::diagnostics::layout_anomaly::{scan_document, AnomalyOptions};
 use rhwp::document_core::DocumentCore;
 use rhwp::renderer::render_tree::{BoundingBox, RenderLayerInfo, RenderNode, RenderNodeType};
 
+mod stored_vpos_photo_stamps {
+    // 독립 Print의 사진 날인 표시와 본문 글자 충돌을 구분하는 소유 계약.
+
+    use std::collections::BTreeSet;
+
+    use rhwp::diagnostics::layout_anomaly::{scan_page, AnomalyOptions, PageAnomalies};
+    use rhwp::document_core::DocumentCore;
+    use rhwp::renderer::render_tree::{BoundingBox, RenderNode, RenderNodeType};
+
+    fn visible_text(node: &RenderNode) -> String {
+        let mut text = match &node.node_type {
+            RenderNodeType::TextRun(run) => run.display_or_text().to_owned(),
+            _ => String::new(),
+        };
+        for child in &node.children {
+            text.push_str(&visible_text(child));
+        }
+        text
+    }
+
+    fn contains_center(owner: &BoundingBox, child: &BoundingBox) -> bool {
+        let x = child.x + child.width / 2.0;
+        let y = child.y + child.height / 2.0;
+        x >= owner.x && x <= owner.x + owner.width && y >= owner.y && y <= owner.y + owner.height
+    }
+
+    fn label(node: &RenderNode) -> &'static str {
+        match node.node_type {
+            RenderNodeType::Page(_) => "Page",
+            RenderNodeType::Body { .. } => "Body",
+            RenderNodeType::Column(_) => "Column",
+            RenderNodeType::Table(_) => "Table",
+            RenderNodeType::TableCell(_) => "Cell",
+            RenderNodeType::TextLine(_) => "TextLine",
+            RenderNodeType::TextRun(_) => "TextRun",
+            RenderNodeType::Group(_) => "Group",
+            RenderNodeType::Rectangle(_) => "Rect",
+            RenderNodeType::Ellipse(_) => "Ellipse",
+            RenderNodeType::TextBox => "TextBox",
+            _ => "Other",
+        }
+    }
+
+    fn collect<'a>(node: &'a RenderNode, path: String, out: &mut Vec<(&'a RenderNode, String)>) {
+        out.push((node, path.clone()));
+        for (index, child) in node.children.iter().enumerate() {
+            let segment = if matches!(child.node_type, RenderNodeType::Body { .. }) {
+                "Body".to_owned()
+            } else {
+                format!("{}{index}", label(child))
+            };
+            collect(child, format!("{path}/{segment}"), out);
+        }
+    }
+
+    pub fn unintended_overlap_count(root: &RenderNode, page: &PageAnomalies) -> u64 {
+        let mut nodes = Vec::new();
+        collect(root, "Page".to_owned(), &mut nodes);
+        let photos: Vec<_> = nodes
+            .iter()
+            .filter(|(node, _)| {
+                if !matches!(node.node_type, RenderNodeType::TableCell(_)) {
+                    return false;
+                }
+                let text: String = visible_text(node)
+                    .chars()
+                    .filter(|ch| !ch.is_whitespace())
+                    .collect();
+                text.contains("탈모상반신사진") && text.contains("2매모두동일원판이어야함")
+            })
+            .collect();
+        assert_eq!(photos.len(), 2, "Print의 사진 제출 안내 두 칸을 보존한다");
+
+        let mut allowed = BTreeSet::new();
+        for (photo, photo_path) in photos {
+            let stamps: Vec<_> = nodes
+                .iter()
+                .filter(|(node, _)| {
+                    matches!(node.node_type, RenderNodeType::Group(_))
+                        && visible_text(node).trim() == "㊞"
+                        && node
+                            .children
+                            .iter()
+                            .any(|child| matches!(child.node_type, RenderNodeType::Ellipse(_)))
+                        && contains_center(&photo.bbox, &node.bbox)
+                })
+                .collect();
+            assert_eq!(
+                stamps.len(),
+                1,
+                "각 사진 칸은 원문의 원형 날인 표시 하나를 소유한다"
+            );
+            let (stamp, stamp_path) = stamps[0];
+            let marks: Vec<_> = nodes
+                .iter()
+                .filter(|(node, path)| {
+                    path.starts_with(&format!("{stamp_path}/"))
+                        && matches!(&node.node_type, RenderNodeType::TextRun(run)
+                            if run.display_or_text() == "㊞")
+                })
+                .collect();
+            assert_eq!(marks.len(), 1, "도장 문자를 한 번만 표시한다");
+            let (mark, mark_path) = marks[0];
+            assert!(
+                contains_center(&stamp.bbox, &mark.bbox),
+                "도장 문자는 소유 원형 개체 안에 있다"
+            );
+            for (node, path) in &nodes {
+                if path.starts_with(&format!("{photo_path}/"))
+                    && matches!(&node.node_type, RenderNodeType::TextRun(run)
+                        if matches!(run.display_or_text().trim(), "2" | "매"))
+                {
+                    allowed.insert((path.clone(), mark_path.clone()));
+                    allowed.insert((mark_path.clone(), path.clone()));
+                }
+            }
+        }
+        page.text_overlap
+            .iter()
+            .filter(|overlap| !allowed.contains(&(overlap.path_a.clone(), overlap.path_b.clone())))
+            .count() as u64
+    }
+
+    fn page() -> RenderNode {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("samples/issue3837/stored_vpos_rewind_form.hwp");
+        let core =
+            DocumentCore::from_bytes(&std::fs::read(path).expect("원문 읽기")).expect("원문 열기");
+        assert_eq!(core.page_count(), 4, "독립 Print의 전체 쪽수");
+        core.build_page_render_tree(0).expect("사진 안내 쪽").root
+    }
+
+    #[test]
+    fn photo_stamp_ownership_preserves_print_annotations() {
+        let root = page();
+        let anomalies = scan_page(0, &root, 4, &AnomalyOptions::default());
+        assert_eq!(unintended_overlap_count(&root, &anomalies), 0);
+    }
+
+    #[test]
+    fn photo_stamp_contract_keeps_detecting_ordinary_text_collisions() {
+        fn body_text(node: &RenderNode) -> Option<RenderNode> {
+            if matches!(&node.node_type, RenderNodeType::TextRun(run)
+                if run.display_or_text().contains("응시원서"))
+            {
+                return Some(node.clone());
+            }
+            node.children.iter().find_map(body_text)
+        }
+        let mut root = page();
+        let duplicate = body_text(&root).expect("일반 본문 글자");
+        let body = root
+            .children
+            .iter_mut()
+            .find(|n| matches!(n.node_type, RenderNodeType::Body { .. }))
+            .expect("본문 소유");
+        // 원본의 같은 글자 위치에 일반 본문을 중복 발행한다. 절대 위치를 고르지 않는다.
+        body.children.push(duplicate);
+        let anomalies = scan_page(0, &root, 4, &AnomalyOptions::default());
+        assert!(unintended_overlap_count(&root, &anomalies) > 0);
+    }
+}
+
 const SAMPLES_ROOT: &str = "samples";
 const BASELINE_PATH: &str = "tests/fixtures/text_overlap_baseline.tsv";
 const PARTITIONS: usize = 16;
@@ -195,6 +358,29 @@ fn count_doc(path: &Path) -> Option<u64> {
     let bytes = std::fs::read(path).ok()?;
     let doc = DocumentCore::from_bytes(&bytes).ok()?;
     let anomalies = scan_document(&doc, &AnomalyOptions::default()).ok()?;
+    // 같은 원문·Print의 Native/fresh WASM 전4쪽 최저98.77240% 및 확대 판독.
+    // 사진 칸의 원형 날인과 `2매` 안내는 Print에도 교차한다. 좌표/건수 대신
+    // 소유·내용 보존을 검사하며 다른 본문끼리의 교차는 모두 실패시킨다.
+    if path.strip_prefix(SAMPLES_ROOT).ok()
+        == Some(Path::new("issue3837/stored_vpos_rewind_form.hwp"))
+    {
+        assert_eq!(doc.page_count(), 4, "독립 Print의 전체 쪽수");
+        let root = doc
+            .build_page_render_tree(0)
+            .expect("사진 칸 소유 트리")
+            .root;
+        let page =
+            rhwp::diagnostics::layout_anomaly::scan_page(0, &root, 4, &AnomalyOptions::default());
+        let unintended = stored_vpos_photo_stamps::unintended_overlap_count(&root, &page)
+            + anomalies
+                .pages
+                .iter()
+                .filter(|p| p.page != 0)
+                .map(|p| p.text_overlap.len() as u64)
+                .sum::<u64>();
+        assert_eq!(unintended, 0, "사진 날인 안내 외의 글자 충돌은 없어야 한다");
+        return Some(unintended);
+    }
     // 독립 PDF와 Native/fresh WASM 전 7쪽 최저 96.13%로 확인한 장식 쪽번호다.
     // 다른 문서의 바탕쪽 사이드바와 본문 충돌은 기존 판정을 유지한다.
     // 증적: pr_7382_review.md 보정293~294, 기존 #2318 뒤쪽 replay 계약.
