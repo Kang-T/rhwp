@@ -24155,10 +24155,9 @@ impl LayoutEngine {
                 .unwrap_or(0.0);
             let offset_within_start = (offset - first_visible_content_height).max(0.0);
             let terminal = end_unit >= units.len();
-            // A projected child cursor owns the selected source units in both
-            // input formats. Its header/padding reservation cannot disappear
-            // merely because the enclosing HWPX cell contains another table.
-            // Scalar legacy streams have no recursive cursor and stay excluded.
+            // 실제 자식 컷을 공유하는 재귀 원장은 입력 형식과 무관하게 선택한 유닛을 소유한다.
+            // 바깥 HWPX 셀에 다른 표가 있어도 헤더·안여백 예약을 보존한다.
+            // 재귀 커서가 없는 기존 scalar 스트림은 제외한다.
             let authoritative_recursive_run = has_recursive_fragment && !has_non_recursive_fragment;
             let single_cell_nested_continuation = table.row_count == 1
                 && table.col_count == 1
