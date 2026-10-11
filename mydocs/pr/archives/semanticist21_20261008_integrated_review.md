@@ -2226,4 +2226,16 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 리베이스가운데정렬대조는scattered HWP19/20쪽99.35269/97.44457%(Print2024/compat2024,101.283초),HWPX99.46133/97.58977%(Print2020/compat2022,186.969초),각exit0/source불변이다. 두새20쪽review를표시·판독했으며ISO3633첫줄의작은가운데정렬과아래표경계차이를점수만으로해결완료로쓰지않는다(`native-center-rebase-controls-v153/`).
 - CGMP의정상대조선택35/39/42/47쪽은98.44317/95.35326/98.74964/94.05301%,exit0/134.762초,같은Print2020/compat2022·source/CLI불변이다. 6원본runtime쪽수/넘침은giant48/0,press3637 13/0,external1891 74/10,virtual6776 75/0,water6776 3/0,CGMP48/0이다. CGMP는#7764의현재메인터너보정범위이며이선택대조나기존이관을제외근거로사용하지않는다. 전48쪽/fresh최종자격검증은별도다.
 - 다음실제원인의독립근거를43쪽에서확인했다. 원본row16/col0의`2.5 `는Native가문자를중복하지않지만2/dot/5의x가97.01333/126.28444/150.66222이며같은Print는96.96/139.999808/178.080448이다. 저장양쪽정렬의문자간분배경로가끝공백을글자수와자연폭에포함하는반면낱말간분배는제외한다. `compute_line_extra_spacing`의원본저장줄경로와fresh synthetic-wrap끝advance계약을구분해추적한다(`giant-outer-frame-forensics-v153/page43-label-svg-fragments.json`, `page43-label-print-ink-boxes.json`). 좌표를기대값으로주입하거나수정완료로보고하지않는다.
-- 종료된v153のSVG273개462,419,120byte는root/clip/해시와43쪽글자속성을보존한뒤압축없이삭제했다. 원본/Print/PNG/TSV/tree/log/동결CLI/공유target은유지했다(`finished-source-outer-frame-svg-cleanup-v153.json`)。
+- 종료된v153의SVG273개462,419,120byte는root/clip/해시와43쪽글자속성을보존한뒤압축없이삭제했다. 원본/Print/PNG/TSV/tree/log/동결CLI/공유target은유지했다(`finished-source-outer-frame-svg-cleanup-v153.json`).
+
+
+### 진행128 — 현재 보정 범위 밖의 이관된 편람 실패 검사 제거(v154)
+
+- 사용자께서 현재 직접 보정중인 문서가 아니고#7445로이미이관돼있으면회귀검사를제거하라고지시했다. 86개직계하위이슈의현재본문을읽고편람HWP는#7751로연결됨을확인했다. 현재직접대상giant원본과현재메인터너범위CGMP(#7764)는계속유지한다. KPS `kps-ai.hwp`와가맹사업 `1130000-202100008_franchise_review_report.hwp`는하위이슈에서같은원본을찾지못했다. #7769의 `synam-001.hwp`를KPS의이관근거로혼동하지않으며기존3실패를임의제거하지않는다.
+- 현재v153실패묶음중 `issue_3820_hwp5_qa_rowbreak_tail_reduces_page_count`의Q8배치함수와편람HWP의셀넘침원장검사를제거했다. 과거#7751에서Q8정상검사를유지한기록과이번사용자의처리범위를구분한다. 원본HWP SHA40d6d05e…와독립Print2024 PDF SHA34db2aee…는기존경로에바이트그대로보존한다. HWPX의저장·바탕쪽/IR계약과다른문서/파서/보안검사는변경하지않는다.
+- 제거전함수와원장의32줄기준은 `mydocs/pr/assets/issue7445/handbook-current-failures-20261011/`에자동수집되지않는텍스트로보존했다. 활성원장의다른기준값은변경하지않는다. 기존수집목록의partition배정후해당편람행만실행목록에서제거하므로다른입력의partition도변경하지않는다. 검사기준을현재35줄로완화하거나ignore/조용한return으로통과시키지않는다. 현재집중실패5개에서해당2검사를분리한것이며전체최종회귀통과나편람렌더링해결로보고하지않는다.
+- 이전IR/overlap묶음은compile이끝난동결바이너리에서계속실행된다. 이번변경은그검사들의production/IR원장/930개case입력을바꾸지않으며새Cargo작업은기존실행종료후시작한다. 제거범위의manifest·남은편람저장검사·셀원장partition9재실행결과를확정한뒤이단계를커밋한다.
+- fetch에서upstream이4020c0428→8761ac902로실제로전진했다. 차이는PR#7698병합·보정검증을기록한문서커밋한개다. 이단계커밋뒤새base로rebase하고production동일성과정책base를확인한다. 변경이없는head에는rebase하지않는다.
+- 리베이스뒤독립IR/글자겹침2검사는terminal exit0,실제1735.277초/compile포함1748.991초로2PASS/434skip이다. production및930case해시는불변이며전체Rust검증은아니다(`stored-source-outer-frame-rebase-baselines-v153.json`).
+- 사용자추가지시: PR은승인받고진행한다. 로컬보정/검증/커밋/실제head변경에따른리베이스를계속하며,필수검증과90%시각gate를충족한구체적인변경내용·대표review PNG·검증결과를제시한뒤PR생성승인을요청한다. 아직PR을생성하거나승인을요청할후보가아니다.
+- 제거뒤prepare는1462source/6284static test attrs로기존보다검사함수1개가감소했고생성28suite/20exception을유지했다. fmt/fmtcheck exit0이다. 셀넘침partition9는1PASS/233skip·실제102.921초·exit0이며편람HWP가실행에서빠졌다. 기존suite013을지정한첫명령은prepare재배정뒤저장검사2개를선택하지않았으므로해당통과로세지않는다. prepare뒤실제suite003을읽어다시실행한보존저장/HWPX2개는2PASS/202skip·실제61.091초·compile포함77.583초·exit0/소스불변이다(`transferred-current-failures-focused-v154.json`, `transferred-handbook-save-focused-v154.json`). 합계기존검사3개PASS이며제거한검사/입력은성공건수에포함하지않는다. 원본/Print해시와다른원장행의동일성을다시확인했다. 전체회귀/fresh/전쪽90%완료가아니며현재이관근거없는3실패를계속보정한다.
