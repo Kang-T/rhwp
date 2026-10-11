@@ -158,3 +158,17 @@ nextest가 **2건 실행·2PASS·205SKIP, exit0**으로 끝났다. 0건 실행�
 같은 production source의 Studio 재실행은1,834PASS/0FAIL/2SKIP이고 TypeScript exit0이다.
 Node 전용 package가 필요한 기존2개 skip은 web WASM·브라우저 검증으로 대체 실행했다고
 기록하지 않는다. 전체 Rust/Skia·나머지 미달 문서·통합 PR/CI/merge는 아직 남아 있다.
+
+
+## Node WASM·Studio 누락 검사 완료 — 2026-10-12
+
+같은 production `467bfd1d8`의 캐시된 release Rust WASM 입력에서
+`CARGO_TARGET_DIR=/home/tsjang/rhwp/target/pr-review scripts/wasm-pack-locked.sh --target nodejs --out-dir pkg-node --no-opt`
+를 실제 실행했다(exit 0, 28.08초). Node용 바인딩이 필요한 2건까지 포함해
+Studio `npm test`는 **1,836 통과 / 실패 0 / 건너뜀 0**이다. 기존 web fresh package와
+Node package를 구분하며 Node no-opt 빌드를 web SVG sweep 증거로 바꾸어 사용하지 않았다.
+브라우저 Canvas legacy/layer 비교는 KTX·사업계획서·TAC 대조군 3건 모두 통과했다.
+
+원문 로그: ignored output의 `curly-host-line-fresh-node-wasm-build.log`,
+`curly-host-line-studio-unit-with-node-wasm.log`, `curly-host-line-studio-render-diff.log`.
+전체 통합 Rust·Skia와 나머지 문서의 시각 게이트는 별도로 완료해야 한다.

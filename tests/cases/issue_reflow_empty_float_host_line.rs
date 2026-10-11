@@ -44,7 +44,9 @@ fn next_heading_clears_the_owned_empty_host_line_after_the_float() {
         .controls
         .iter()
         .enumerate()
-        .find(|(_, control)| matches!(control, Control::Table(table) if !table.common.treat_as_char))
+        .find(
+            |(_, control)| matches!(control, Control::Table(table) if !table.common.treat_as_char),
+        )
         .expect("독립 자리차지 표");
     let Control::Table(source_table) = control else {
         unreachable!()
@@ -52,8 +54,7 @@ fn next_heading_clears_the_owned_empty_host_line_after_the_float() {
     let outer_bottom = f64::from(source_table.outer_margin_bottom) * 96.0 / 7200.0;
     let end_shape = host.char_shapes.last().expect("종단 글자 모양");
     let end_font_height =
-        f64::from(doc.doc_info.char_shapes[end_shape.char_shape_id as usize].base_size)
-            * 96.0
+        f64::from(doc.doc_info.char_shapes[end_shape.char_shape_id as usize].base_size) * 96.0
             / 7200.0;
     assert!(end_font_height > 0.0);
 
@@ -95,12 +96,17 @@ fn zero_indent_host_keeps_the_following_empty_paragraph_as_its_own_line() {
     let host = &paragraphs[host_index];
     assert!(host.text.is_empty());
     assert!(paragraphs[empty_index].text.is_empty());
-    assert_eq!(doc.doc_info.para_shapes[host.para_shape_id as usize].indent, 0);
+    assert_eq!(
+        doc.doc_info.para_shapes[host.para_shape_id as usize].indent,
+        0
+    );
     let (control_index, control) = host
         .controls
         .iter()
         .enumerate()
-        .find(|(_, control)| matches!(control, Control::Table(table) if !table.common.treat_as_char))
+        .find(
+            |(_, control)| matches!(control, Control::Table(table) if !table.common.treat_as_char),
+        )
         .expect("대조군 표");
     let Control::Table(source_table) = control else {
         unreachable!()

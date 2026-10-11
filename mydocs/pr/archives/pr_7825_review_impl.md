@@ -121,3 +121,22 @@ HWP serializer/parser → 기존 합성 줄 판별 → 셀 유닛·측정·배�
 통과했다. source 파일 hash와 라이브러리는 `giant-frame-provenance-candidate/provenance.json`에
 고정했다. 이 판정은 저장 보존 회귀의 focused 결과이며 giant 문서의 기존 전쪽 시각 미달
 해결이나 #7813 종료를 뜻하지 않는다. 최종 통합 source의 전체 검증은 별도로 남는다.
+
+
+## 통합 검증 후 테스트 lint 보정 — 2026-10-12
+
+`issue_synthetic_wrap_trailing_separator_alignment`의 마지막 가시 glyph 조회를
+`Iterator::last` 대신 역방향 `rfind`로 작성했다. 소유 줄·내용·정렬 기대값과 허용 관계는
+그대로이며, 동일 production `467bfd1d8`의 frozen library로 실제 회귀 1건을 재실행해
+통과했다. 새 `issue_reflow_empty_float_host_line` 2건의 포맷도 정식 suite 준비 뒤 보정했다.
+
+현재 production의 작은 검증 문서 17개 Native 전쪽 TSV는 모두 측정됐고, 쪽수 불일치나
+90% 미만 페이지가 없다. 최저값은 curly quote 98.50387%다. fresh WASM의 같은 17개
+검증은 진행 중이며, 미주 편집본과 교육과정 전체 검증의 남은 실패를 통과로 세지 않는다.
+절대 px 기반인 기존 #7816 검사의 관계형 재작성도 이 결과와 직접 판독을 연결해 계속한다.
+
+실제 로그는 ignored `output/pr-review/planet6897-followup-20261011/`의
+`curly-host-line-all-targets-clippy-3.log`(전체 workspace/all-targets, exit 0),
+`trailing-separator-clippy-fix-focused.log`(1/1),
+`trailing-separator-clippy-fix-manifest-3.log`(고정 base `bfa28a77`, exit 0),
+`current-small-native-results-467.json`이다. generated suite/manifest는 제출하지 않았다.

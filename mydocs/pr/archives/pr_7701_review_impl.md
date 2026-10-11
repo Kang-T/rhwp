@@ -26,7 +26,7 @@ last_verified: 2026-10-12
 
 ## 구현 주장과 확인할 경로
 
-row-boundary continuation → 요구/예약 높이 → 표 조각 top과 후속 본문을 대조한다. #7445로 이관한 page-count pins를 복원하지 않았으며 기존 관계형 종료 검사를 유지했다.
+row-boundary continuation → 요구/예약 높이 → 표 조각 top과 후속 본문을 대조한다. 기존 관계형 종료 검사는 유지했다. 다만 새 incoming `rowbreak_continuation_reopens_outer_top`의 415쪽 assertion이 기존 #7445/#7743 이관 범위를 다시 검사하므로 재등록 적합성을 검토 중이다. 이를 이관 범위 복원 없음으로 기록했던 문장은 정정한다.
 
 ## 독립 기대값과 검증 계획
 

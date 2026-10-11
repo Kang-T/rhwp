@@ -49,14 +49,13 @@ fn wrapped_visible_glyphs_align_and_terminal_separator_remains_owned() {
         // 소유 줄 상자 내부의 baseline만 선택한다. 고정 페이지 좌표가 아니다.
         let last = svg
             .descendants()
-            .filter(|n| n.has_tag_name("text"))
-            .filter(|n| {
-                n.attribute("y")
-                    .and_then(|s| s.parse::<f64>().ok())
-                    .is_some_and(|y| y >= top && y <= bottom)
+            .rfind(|n| {
+                n.has_tag_name("text")
+                    && n.attribute("y")
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .is_some_and(|y| y >= top && y <= bottom)
                     && n.text().is_some_and(|s| !s.trim().is_empty())
             })
-            .last()
             .expect("소유 줄의 마지막 가시 glyph");
         assert_eq!(last.text(), Some(last_char.to_string().as_str()));
         let x: f64 = last.attribute("x").expect("glyph x").parse().unwrap();
