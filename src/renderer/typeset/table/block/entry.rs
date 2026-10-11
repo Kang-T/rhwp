@@ -306,7 +306,19 @@ impl TypesetEngine {
                 )
                 && ft.table_footnotes.is_empty()
                 && st.current_footnote_height > 0.0
-                && rowbreak_table_has_internal_saved_vpos_reset(table);
+                && (rowbreak_table_has_internal_saved_vpos_reset(table)
+                    || (!st.profile.session_edited()
+                        && !self.render_normalization.table_text_reflowed(table)
+                        && paragraphs_all.get(para_idx + 1).is_some_and(|next| {
+                            crate::renderer::float_placement::stored_single_cell_closing_frame_height(
+                                para, next, table, self.dpi,
+                            )
+                            .is_some()
+                                && crate::renderer::float_placement::stored_two_frame_successor_origin_hu(
+                                    table, next,
+                                )
+                                .is_some()
+                        })));
         let host_spacing_total = ft.host_spacing.before + ft.host_spacing.after_for_fit;
         let mut table_total = ft.effective_height + host_spacing_total;
         let native_single_rowbreak_full_table_fits_actual_footnote_boundary =
@@ -2085,6 +2097,27 @@ impl TypesetEngine {
                         + ft.effective_height
                         + hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi),
                 }
+            })
+            .or_else(|| {
+            (legacy_whole_fits && ft.table_footnotes.is_empty())
+                .then(|| {
+                    super::stored_empty_host_margin::prepare(
+                        para,
+                        table,
+                        super::stored_empty_host_margin::FrameInput {
+                            original: st.profile.hwp5_stored_pagination_layout()
+                                && !st.profile.session_edited()
+                                && !self.render_normalization.table_text_reflowed(table),
+                            anchor: placement_para_start_height,
+                            height: ft.effective_height,
+                            before: ft.host_spacing.before,
+                            after: ft.host_spacing.after,
+                            dpi: self.dpi,
+                        },
+                    )
+                })
+                .flatten()
+                .map(|frame| constrain_host_placement.constrain(frame, st))
             })
         });
         if !painted_rowbreak_exceeds_paper

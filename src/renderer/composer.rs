@@ -658,7 +658,24 @@ pub(crate) fn tac_host_trailing_spacing(
         && para.line_segs.len() == 1
         && seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
         && owned_rowbreak_tac_height(para, control_index).is_some();
-    if current_owned_row
+    // 같은 문단의 뒤 글줄이 표 줄의 전체 간격 끝에서 시작하면 그 간격을
+    // 줄 흐름과 표 배치에 모두 보존한다. 문단 경계의 별도 계약은 유지한다.
+    let stored_successor_owns_full_gap = native_stored_layout
+        && !para.stored_text_partition_is_dirty()
+        && seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+        && para.line_segs.windows(2).any(|pair| {
+            std::ptr::eq(&pair[0], seg)
+                && pair[1].tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                && pair[1].text_start > seg.text_start
+                && seg
+                    .vertical_pos
+                    .checked_add(seg.line_height)
+                    .and_then(|end| end.checked_add(seg.line_spacing))
+                    == Some(pair[1].vertical_pos)
+        });
+    if stored_successor_owns_full_gap {
+        spacing
+    } else if current_owned_row
         || (native_stored_layout
             && seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
             && !para.stored_text_partition_is_dirty())

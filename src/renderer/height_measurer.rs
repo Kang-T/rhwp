@@ -1818,6 +1818,13 @@ impl HeightMeasurer {
     }
 
     fn cell_wrap_objects_bottom_height(&self, paragraphs: &[Paragraph]) -> f64 {
+        let saved_picture_extent =
+            crate::renderer::float_placement::stored_cell_flow_picture_extent_hu(
+                paragraphs,
+                !self.session_edited && (self.is_native_hwp5 || self.hwpx_stored_layout),
+            )
+            .map(|hu| hwpunit_to_px(hu, self.dpi))
+            .unwrap_or(0.0);
         // [Task #2226] 같은 문단에 TopAndBottom flow 개체가 있으면 첫 seg vpos 는
         // 개체에 밀려난 줄 위치라 문단 시작이 아니다 — para_top 을 사다리(이전
         // 문단 extent, 첫 문단 0)로 잡아야 개체 오프셋(문단 기준)과 원점이 맞는다.
@@ -1901,7 +1908,7 @@ impl HeightMeasurer {
                     0.0
                 }
             })
-            .fold(0.0f64, f64::max)
+            .fold(saved_picture_extent, f64::max)
     }
 
     /// 구역의 모든 콘텐츠 높이를 측정한다.

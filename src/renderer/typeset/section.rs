@@ -400,7 +400,7 @@ impl TypesetEngine {
         // source tail에 뒤따르는 본문이 없어 자연 page break가 일어나지 않은 경우에도,
         // deferred Square picture는 현재 쪽 FootnoteArea에 겹치지 않고 독립한 다음 physical
         // page를 가져야 한다. 일반 흐름을 되감지 않고 picture PageItem만 drain한다.
-        if !st.deferred_next_page_square_pictures.is_empty() {
+        if !st.deferred_next_page_square_pictures.is_empty() || st.has_deferred_body_footnotes() {
             st.force_new_page();
         }
 

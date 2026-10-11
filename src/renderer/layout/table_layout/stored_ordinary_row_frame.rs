@@ -253,7 +253,23 @@ impl LayoutEngine {
     ) -> bool {
         self.original_ordinary_row_cells(table, row)
             .is_some_and(|cells| {
-                cut.len() == cells.len()
+                if cut.len() != cells.len() {
+                    return false;
+                }
+                // 문단 내부의 실제 쪽 재시작은 새 쪽의 원점0을 이미 소유한다.
+                // 내용 컷의 마지막 줄간격을 뺀 잉크 높이로 다시 가운데 정렬하면
+                // 저장 원점을 밀어낸다. 모든 미완료 셀이 같은 재시작을 공유할 때
+                // 해당 쪽 원점을 보존하고, 최소 높이만 이어받는 빈 상자는 유지한다.
+                let mut has_page_owner = false;
+                let page_origin_is_shared = cells.iter().zip(cut).all(|(cell, &start)| {
+                    let units = self.cell_units(cell, table, styles);
+                    units.get(start).is_none_or(|unit| {
+                        let owns = Self::stored_in_paragraph_unit_is_original_restart(cell, unit);
+                        has_page_owner |= owns;
+                        owns
+                    })
+                });
+                !(page_origin_is_shared && has_page_owner)
                     && (self.stored_ordinary_row_cut_has_boundary(table, row, &[], cut, styles)
                         || self.stored_single_line_row_is_fragmentable(table, row, styles)
                         || self.row_cut_consumes_all_ordinary_units(table, row, cut, styles))

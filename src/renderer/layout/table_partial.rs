@@ -1491,6 +1491,19 @@ impl LayoutEngine {
                         && self.stored_ordinary_row_frame_owns_alignment(
                             table, cell_row, start_cut, styles,
                         )));
+            let heading_frame_owns_alignment = end_row_height_override.is_some()
+                && cell_row + 1 == end_row
+                && self.stored_heading_before_inline_frame_cut(
+                    table,
+                    cell_row,
+                    if cell_row == start_row {
+                        start_cut
+                    } else {
+                        &[]
+                    },
+                    end_cut,
+                    styles,
+                );
             let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment || is_rowbreak_straddle
                 && cell.row_span > 1
                 && cell.vertical_align != crate::model::table::VerticalAlign::Top
@@ -1553,6 +1566,16 @@ impl LayoutEngine {
                     });
             let frame_owns_alignment = !descendant_owns_closing_band
                 && (ordinary_source_frame_owns_alignment || complete_plain_suffix_frame
+                    || heading_frame_owns_alignment
+                || self
+                    .stored_nested_text_frame_for_cut(
+                        table,
+                        start_cut,
+                        end_cut,
+                        start_cut_is_block,
+                        is_block_split,
+                    )
+                    .is_some()
                     || full_width_frame_owns_alignment
                     || cut_frame_owns_alignment
                     || stored_span_frame_owns_alignment || original_restart_span_owns_alignment);
@@ -2042,6 +2065,10 @@ impl LayoutEngine {
                         )
                     })
                     .unwrap_or(total_content_height)
+            } else if heading_frame_owns_alignment {
+                // 앞 제목의 줄 구성은 다음 개체를 포함하지 않는다. 셀 컷의
+                // 패딩·다음 줄 전진까지 잉크 높이로 다시 가운데 정렬하지 않는다.
+                total_content_height
             } else if original_restart_span_owns_alignment {
                 cut_units
                     .map(|(start, end)| {
@@ -3867,12 +3894,16 @@ impl LayoutEngine {
                                             };
                                             self.stored_nested_float_placement(
                                                 table,
-                                                (&cell.paragraphs, cp_idx),
+                                                cell,
+                                                cp_idx,
                                                 nested_table,
                                                 ctrl_idx,
                                                 origin,
                                                 styles,
-                                            )
+                                            ).filter(|frame| {
+                                                !matches!(frame.flow, crate::renderer::float_placement::ParagraphFloatFlow::NextLine)
+                                                    || cut_units.is_none()
+                                            })
                                         })
                                         .flatten()
                                         .map(|frame| {
@@ -4574,7 +4605,11 @@ impl LayoutEngine {
                                             })
                                         })
                                         .map_or(nested_y + visible_table_h, |frame| {
-                                            frame.occupied_bottom
+                                            if matches!(frame.flow, crate::renderer::float_placement::ParagraphFloatFlow::NextLine) {
+                                                frame.paragraph_end(para_y, 0.0)
+                                            } else {
+                                                frame.occupied_bottom
+                                            }
                                         });
                                     has_preceding_text = true;
                                 }
@@ -5156,6 +5191,28 @@ impl LayoutEngine {
         } else {
             outer_table
         };
+
+        // 컷과 원본 물리 상자를 같은 확인 결과로 소비한다. 첫 조각의 남은 빈 띠와
+        // 뒤 조각의 글줄 끝·패딩을 서로 다른 높이 추측으로 바꾸지 않는다.
+        let stored_nested_text_frame = self.stored_nested_text_frame_for_cut(
+            table,
+            start_cut,
+            end_cut,
+            start_cut_is_block,
+            is_block_split,
+        );
+        let end_row_height_override = stored_nested_text_frame
+            .filter(|_| !is_continuation)
+            .map(|frame| hwpunit_to_px(frame.body_height_hu, self.dpi))
+            .or(end_row_height_override);
+        let start_row_height_override = stored_nested_text_frame
+            .filter(|_| is_continuation)
+            .map(|frame| hwpunit_to_px(frame.body_height_hu, self.dpi))
+            .or(start_row_height_override);
+        let resolved_table_top = resolved_table_top.or_else(|| {
+            stored_nested_text_frame
+                .map(|_| y_start + hwpunit_to_px(i32::from(table.outer_margin_top), self.dpi))
+        });
 
         if table.cells.is_empty() {
             return y_start;
@@ -6009,7 +6066,20 @@ impl LayoutEngine {
             })
             && table.cells.first().is_some_and(|cell| {
                 self.stored_cut_closes_declared_opening_frame(cell, table, styles, end_cut[0])
+                    || (paragraphs.get(para_index + 1).is_some_and(|next| {
+                        crate::renderer::float_placement::stored_single_cell_closing_frame_height(
+                            &paragraphs[para_index],
+                            next,
+                            table,
+                            self.dpi,
+                        )
+                        .is_some()
+                    }) && self
+                        .cell_unit_opens_stored_page_frame(cell, table, styles, end_cut[0]))
             });
+        // 스캔이 수용한 원본 첫 상자는 같은 컷의 정렬·클립·테두리를 소유한다.
+        // 그 뒤 일반 쪽 하단 고정으로 상자를 늘리면 각주 영역까지 다시 침범한다.
+        center_pinned_single_cell |= owns_declared_opening_frame;
         if single_cell_page_fragment
             && row_count == 1
             && !owns_declared_opening_frame

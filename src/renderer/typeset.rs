@@ -4036,6 +4036,7 @@ impl TypesetEngine {
         is_first_placed: bool,
         is_last_placed: bool,
         styles: &ResolvedStyleSet,
+        composed: Option<&ComposedParagraph>,
         // [#3837] 값이 있는 가장 가까운 앞 문단의 마지막 저장 vpos.
         prev_stored_vpos: Option<i32>,
     ) {
@@ -4323,9 +4324,31 @@ impl TypesetEngine {
         let style = styles.para_styles.get(para.para_shape_id as usize);
         let left = style.map_or(0.0, |s| s.margin_left);
         let right = style.map_or(0.0, |s| s.margin_right);
-        let before_text: f64 = (0..tac_table_line_idx.unwrap_or(0))
-            .map(|line| fmt.line_advance(line))
-            .sum();
+        let owned_row = (tac_count > 1
+            && st.profile.hwp5_stored_pagination_layout()
+            && !st.profile.session_edited()
+            && !self.render_normalization.table_text_reflowed(table)
+            && ft.table_footnotes.is_empty())
+        .then(|| {
+            controls::stored_tac::owned_row::prepare(
+                para,
+                table,
+                ctrl_idx,
+                composed,
+                ft.effective_height,
+                styles,
+                self.dpi,
+            )
+        })
+        .flatten();
+        // 앞선 TAC 소유 줄은 이미 각자의 표 경로에서 소비됐다.
+        let before_text: f64 = if owned_row.is_some() {
+            0.0
+        } else {
+            (0..tac_table_line_idx.unwrap_or(0))
+                .map(|line| fmt.line_advance(line))
+                .sum()
+        };
         let advance = hwpunit_to_px(
             (table.common.width as i32)
                 .saturating_add(i32::from(table.outer_margin_left))
@@ -4496,6 +4519,7 @@ impl TypesetEngine {
                     y: next_column.y + st.current_height,
                     clearance: 0.0,
                     advance_end: None,
+                    stored_horizontal_pen: None,
                 }));
             }
         }
@@ -4507,6 +4531,18 @@ impl TypesetEngine {
             placement.y -= placement_column.y;
             st.record_inline_placement((para_idx, ctrl_idx), placement);
             st.invalidate_vpos_after_clearance(placement.clearance);
+        }
+        if let Some(row) = owned_row.filter(|_| side_wrap_placement.is_none()) {
+            st.record_inline_placement(
+                (para_idx, ctrl_idx),
+                super::float_placement::InlineBoxPlacement {
+                    x: row.horizontal_pen,
+                    y: st.current_height,
+                    clearance: 0.0,
+                    advance_end: Some(st.current_height + table_height),
+                    stored_horizontal_pen: Some(row.horizontal_pen),
+                },
+            );
         }
         // place_table_with_text의 후속 텍스트가 새 단으로 넘어가면 flush가 폐기한다.
         // 호출 뒤 갱신하면 이전 단의 표 하단을 새 단에 유출할 수 있다.
@@ -4798,6 +4834,7 @@ impl TypesetEngine {
                     y: origin,
                     clearance: 0.0,
                     advance_end: Some(end),
+                    stored_horizontal_pen: None,
                 },
             );
             Some(end)

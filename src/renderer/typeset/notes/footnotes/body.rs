@@ -75,7 +75,18 @@ impl TypesetEngine {
         // 번호는 문서 순서다. 앞 각주의 저장 suffix가 다음 쪽 lane을 열었으면
         // 뒤 번호를 현재 쪽에 끼워 넣지 않고 같은 lane에서 이어받는다.
         // 본문 marker의 소유 쪽은 이 예약으로 바뀌지 않는다.
-        if !has_table && st.has_deferred_body_footnotes() {
+        // 앞 각주의 뒤 조각이 다음 쪽을 소유하면 같은 현재 쪽 표시의 후속
+        // 각주도 그 뒤에 둔다. 이미 완료된 쪽의 표시는 기존 소급 경로가 맡는다.
+        if st.has_deferred_body_footnotes()
+            && crate::renderer::pagination::find_inline_control_target_page(
+                &st.pages,
+                &st.current_items,
+                para_idx,
+                ctrl_idx,
+                para,
+            )
+            .is_none()
+        {
             st.defer_body_footnote_for_next_page(
                 FootnoteRef {
                     number: fn_ctrl.number,
@@ -378,6 +389,8 @@ impl TypesetEngine {
                     fragment: Some(split.prefix),
                 });
                 st.add_footnote_fragment_height(split.prefix_height, split.prefix.draw_separator);
+                // 각주 사다리의 재시작은 각주만 다음 쪽에 소유시킨다.
+                // 표시 뒤 본문은 현재 쪽의 남은 본문 상자를 계속 사용한다.
                 st.defer_body_footnote_for_next_page(
                     FootnoteRef {
                         number: fn_ctrl.number,

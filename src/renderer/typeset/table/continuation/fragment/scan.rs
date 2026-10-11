@@ -714,6 +714,65 @@ impl TypesetEngine {
             }
         }
 
+        // 온전한 앞 제목만 소유한 원본 조각은 다음 인라인 상자를 가져오지
+        // 않고 현재 셀의 최소 물리 밴드를 끝낸다. 같은 높이를 paint에 전달한다.
+        if split_block_start.is_none()
+            && end_row > cursor_row
+            && layout_engine.stored_heading_before_inline_frame_cut(
+                row_geometry_table,
+                end_row - 1,
+                if end_row - 1 == cursor_row {
+                    start_cut
+                } else {
+                    &[]
+                },
+                &split_end_cut,
+                styles,
+            )
+        {
+            let row = end_row - 1;
+            let selected = end_row_height_override.unwrap_or_else(|| {
+                layout_engine.row_cut_content_height(
+                    row_geometry_table,
+                    row,
+                    &[],
+                    &split_end_cut,
+                    styles,
+                )
+            });
+            let top = budget.fragment_placement.map_or(
+                st.current_height + budget.host_before_overhead + budget.vert_offset_overhead,
+                |placement| placement.table_top,
+            );
+            let physical = st.layout.body_area.height
+                - crate::renderer::typeset::hwpunit_to_px(
+                    i32::from(table.outer_margin_bottom),
+                    self.dpi,
+                )
+                - top
+                - budget.caption_extra
+                - header_overhead
+                - (consumed - selected);
+            let minimum = row_geometry_table
+                .cells
+                .iter()
+                .filter(|cell| usize::from(cell.row) == row)
+                .map(|cell| {
+                    crate::renderer::typeset::hwpunit_to_px(
+                        cell.height.min(i32::MAX as u32) as i32,
+                        self.dpi,
+                    )
+                })
+                .fold(0.0, f64::max);
+            if physical >= selected
+                && physical < minimum
+                && physical <= avail_for_rows - (consumed - selected)
+            {
+                consumed += physical - selected;
+                end_row_height_override = Some(physical);
+            }
+        }
+
         BlockTableRowScan {
             source_frame_band,
             consumed,

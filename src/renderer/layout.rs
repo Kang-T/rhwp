@@ -3269,18 +3269,9 @@ pub(crate) fn control_line_seg_index(para: &Paragraph, control_index: usize) -> 
             .map(|(idx, _)| idx)
             .or(Some(0));
     }
-    let mut idx = 0usize;
-    for (k, _seg) in para.line_segs.iter().enumerate().skip(1) {
-        // [#5961] `char_offsets` 는 HWP5 축이므로 같은 자로 투영한다.
-        let seg_start = para.line_seg_text_start(k);
-        let start_txt = para.char_offsets.partition_point(|&o| o < seg_start);
-        if p >= start_txt {
-            idx = k;
-        } else {
-            break;
-        }
-    }
-    Some(idx)
+    // 같은 논리 문자 뒤의 서로 다른 제어 슬롯도 각자의 원시 줄을 소유한다.
+    // 보이는 문자 위치로 줄 시작을 압축하면 공백 뒤 여러 표가 마지막 줄에 몰린다.
+    crate::renderer::composer::control_slot_line_index(para, control_index)
 }
 
 /// 앞선 글앞 도형은 호스트 줄의 흐름을 점유하지 않는다. 빈 문단에서 이 도형들 뒤의
@@ -12077,7 +12068,7 @@ impl LayoutEngine {
                                     .get(control_index)
                                     .copied()
                             });
-                            compute_tac_leading_width(c, control_index, styles, block_pos)
+                            compute_tac_leading_width(c, control_index, styles, block_pos, None)
                         })
                         .unwrap_or(0.0)
                 };
@@ -12186,9 +12177,13 @@ impl LayoutEngine {
                 None
             };
             let tbl_inline_x = flow_placement
-                .filter(|placement| placement.advance_end.is_none())
+                .filter(|placement| {
+                    placement.advance_end.is_none() || placement.stored_horizontal_pen.is_some()
+                })
                 .map(|placement| {
-                    col_area.x + placement.x + hwpunit_to_px(t.outer_margin_left as i32, self.dpi)
+                    col_area.x
+                        + placement.stored_horizontal_pen.unwrap_or(placement.x)
+                        + hwpunit_to_px(t.outer_margin_left as i32, self.dpi)
                 })
                 .or(tbl_inline_x);
             let tac_detached_line_shift =
@@ -17456,7 +17451,7 @@ fn stored_ladder_gives_tac_table_its_own_line(para: &Paragraph, control_index: u
     })
 }
 
-fn compute_tac_leading_width(
+pub(crate) fn compute_tac_leading_width(
     composed: &ComposedParagraph,
     target_control_index: usize,
     styles: &ResolvedStyleSet,
@@ -17464,6 +17459,7 @@ fn compute_tac_leading_width(
     // 표(폭이 줄폭에 육박해 인라인으로 안 세는 표)도 **자기 앞** 텍스트까지만
     // leading 으로 세게 하는 정지점이다.
     block_tac_char_pos: Option<usize>,
+    source_owner: Option<usize>,
 ) -> f64 {
     let target_position = composed
         .tac_controls
@@ -17471,14 +17467,18 @@ fn compute_tac_leading_width(
         .find(|(_, _, ci)| *ci == target_control_index)
         .map(|(position, _, _)| *position)
         .or(block_tac_char_pos);
-    let owner_line = target_position
-        .and_then(|position| {
-            composed
-                .lines
-                .iter()
-                .rfind(|line| line.char_start <= position)
-        })
-        .or_else(|| composed.lines.first());
+    let owner_line = source_owner
+        .and_then(|owner| composed.lines.get(owner))
+        .or_else(|| {
+            target_position
+                .and_then(|position| {
+                    composed
+                        .lines
+                        .iter()
+                        .rfind(|line| line.char_start <= position)
+                })
+                .or_else(|| composed.lines.first())
+        });
     let Some(first_line) = owner_line else {
         return 0.0;
     };

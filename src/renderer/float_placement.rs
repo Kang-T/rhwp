@@ -1,5 +1,11 @@
 //! 부동 개체의 흐름 예약과 실제 배치가 함께 쓰는 프레임.
 
+mod stored_cell_flow_picture;
+pub(crate) use stored_cell_flow_picture::{
+    stored_cell_flow_picture_extent_hu, stored_cell_flow_picture_frame,
+};
+mod stored_nested_before_host;
+pub(crate) use stored_nested_before_host::stored_nested_before_host_placement;
 mod stored_cut_outer_frame;
 mod stored_header_frame;
 pub(crate) use stored_cut_outer_frame::stored_hwpx_cut_owns_outer_frame;
@@ -2308,10 +2314,11 @@ pub(crate) fn stored_single_cell_closing_frame_bottom(
         || table.common.height == 0
         || table.common.height >= cell.height
         || cell.height > i32::MAX as u32
-        || !host.text.is_empty()
+        || !host.text.trim().is_empty()
         || !matches!(host.controls.as_slice(), [Control::Table(_)])
-        || !successor.text.is_empty()
+        || !successor.text.trim().is_empty()
         || !successor.controls.is_empty()
+        || cell.dirty_flag
         || host.stored_text_partition_is_dirty()
         || successor.stored_text_partition_is_dirty()
         || host.cell_format_vpos_dirty
@@ -2343,6 +2350,23 @@ pub(crate) fn stored_single_cell_closing_frame_bottom(
     } else {
         Some(hwpunit_to_px(next.vertical_pos, dpi))
     }
+}
+
+/// 첫 원본 프레임과 뒤 빈 문단이 두 조각의 본체·여백을 정확히 잇는 경우의 본체 높이.
+/// 임의의 마지막 viewport 원점은 closing_frame_bottom이 별도로 소유한다.
+pub(crate) fn stored_single_cell_closing_frame_height(
+    host: &Paragraph,
+    successor: &Paragraph,
+    table: &Table,
+    dpi: f64,
+) -> Option<f64> {
+    stored_single_cell_closing_frame_bottom(host, successor, table, dpi)?;
+    let [cell] = table.cells.as_slice() else { return None; };
+    let remaining = cell.height.checked_sub(table.common.height)?;
+    let next = successor.line_segs.first()?;
+    let outer = i64::from(table.outer_margin_top) + i64::from(table.outer_margin_bottom);
+    (i64::from(next.vertical_pos) == i64::from(remaining) + outer)
+        .then(|| hwpunit_to_px(remaining as i32, dpi))
 }
 
 /// 다음 빈 문단이 누적 저장 원점과 개체 프레임의 끝을 정확히 잇는 경우,
@@ -2910,6 +2934,7 @@ pub(crate) fn stored_two_frame_successor_origin_hu(
     }
     let mut previous = None;
     let mut resets = 0;
+    let mut flat_index = 0;
     for para in &cell.paragraphs {
         if para.stored_text_partition_is_dirty()
             || para.cell_format_vpos_dirty
@@ -2933,13 +2958,15 @@ pub(crate) fn stored_two_frame_successor_origin_hu(
                 && para.line_segs.get(2).is_some_and(|next| {
                     next.vertical_pos == seg.line_height.saturating_add(seg.line_spacing.max(0))
                 });
-            if previous.is_some_and(|pos| seg.vertical_pos < pos) || zero_restart {
+            if previous.is_some_and(|pos| seg.vertical_pos < pos) || zero_restart
+                || previous.is_some_and(|pos| flat_index == 1 && pos == 0 && seg.vertical_pos == 0) {
                 if seg.vertical_pos != 0 {
                     return None;
                 }
                 resets += 1;
             }
             previous = Some(seg.vertical_pos);
+            flat_index += 1;
         }
     }
     let extent = i64::from(table.common.height) + i64::from(line.vertical_pos)
@@ -4499,6 +4526,8 @@ pub struct InlineBoxPlacement {
     pub clearance: f64,
     /// 저장 TAC 줄이 확정한 다음 흐름 위치(단 상대). 이 경우 x는 기존 표 정렬이 담당한다.
     pub advance_end: Option<f64>,
+    /// 원본 개체 줄이 확정한 가로 펜. 없으면 기존 표 정렬을 소비한다.
+    pub stored_horizontal_pen: Option<f64>,
 }
 
 /// 가로 구간에서 원자적 inline 상자가 들어갈 첫 줄을 찾는다.
@@ -4561,6 +4590,7 @@ pub(crate) fn place_inline_box(
         y,
         clearance: y - top,
         advance_end: None,
+        stored_horizontal_pen: None,
     })
 }
 

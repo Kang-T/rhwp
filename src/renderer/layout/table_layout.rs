@@ -4,6 +4,7 @@ mod nested_header_frame;
 mod row_block_cut;
 mod stored_body_closed_frame;
 mod stored_complete_block_cut;
+mod stored_empty_frame_restart;
 mod stored_first_line_restart;
 mod stored_inline_row_frame;
 mod stored_intra_paragraph_frame;
@@ -11,6 +12,7 @@ mod stored_nested_frame;
 mod stored_nested_outer_frame;
 mod stored_nested_padding;
 mod stored_nested_source_cut;
+mod stored_nested_text_frames;
 mod stored_ordinary_row_frame;
 mod stored_plain_cell_minimum;
 mod stored_plain_row_frame;
@@ -3102,6 +3104,15 @@ impl LayoutEngine {
     }
 
     pub(crate) fn calc_cell_wrap_objects_bottom_height(&self, paragraphs: &[Paragraph]) -> f64 {
+        let saved_picture_extent =
+            crate::renderer::float_placement::stored_cell_flow_picture_extent_hu(
+                paragraphs,
+                !self.profile.get().session_edited()
+                    && (self.profile.get().hwp5_stored_pagination_layout()
+                        || self.profile.get().hwpx_stored_layout()),
+            )
+            .map(|hu| hwpunit_to_px(hu, self.dpi))
+            .unwrap_or(0.0);
         // [Task #2226] TopAndBottom flow 개체 보유 문단의 para_top 은 사다리 기반
         // 문단 시작 — height_measurer::cell_wrap_objects_bottom_height 와 동일 정정.
         let mut prev_extent = 0.0f64;
@@ -3166,7 +3177,7 @@ impl LayoutEngine {
                     0.0
                 }
             })
-            .fold(0.0f64, f64::max)
+            .fold(saved_picture_extent, f64::max)
     }
 
     /// A stored object row owns its character border and adjacent spaces.
@@ -6248,7 +6259,11 @@ impl LayoutEngine {
                     // 여백 상자**의 왼끝을 가리킨다 — 표 자신의 왼끝은 거기서
                     // `outMargin.left` 만큼 안쪽이다. `#6887` 이 어울림(Square) 표
                     // 경로에서 확정한 규칙이고 이 경로만 빠져 있었다.
-                    let om_l = topbottom_float_outer_margin_left_hu(table)
+                    let om_l = if matches!(table.common.text_wrap, TextWrap::Square) {
+                        crate::renderer::float_placement::para_relative_left_aligned_outer_margin_left_hu(table)
+                    } else {
+                        topbottom_float_outer_margin_left_hu(table)
+                    }
                         .filter(|_| !topbottom_outer_margin_already_applied)
                         .map(|hu| hwpunit_to_px(hu, self.dpi))
                         .unwrap_or(0.0);
@@ -8027,6 +8042,16 @@ impl LayoutEngine {
                                 // 아니라 stale 음수 offset과 짝을 이룬 이전 페이지 ladder다.
                                 // page-local content top이 한컴 PDF의 그림 상단이다.
                                 content_cell_y + pad_top
+                            } else if let Some(frame) = trust_stored_cell_flow.then(|| {
+                                crate::renderer::float_placement::stored_cell_flow_picture_frame(
+                                    &cell.paragraphs, cp_idx, pic,
+                                    !self.profile.get().session_edited()
+                                        && (self.profile.get().hwp5_stored_pagination_layout()
+                                            || self.profile.get().hwpx_stored_layout()),
+                                )
+                            }).flatten() {
+                                // 정렬에 쓴 실제 저장 그림 상자와 같은 원점을 소비한다.
+                                text_y_start + hwpunit_to_px(frame.top_hu, self.dpi)
                             } else if top_and_bottom_para
                                 && pic.common.flow_with_text
                                 && !unrestricted_take_place_cell_float
@@ -8764,12 +8789,21 @@ impl LayoutEngine {
                         let stored_float_frame = self
                             .stored_nested_float_placement(
                                 table,
-                                (&cell.paragraphs, cp_idx),
+                                cell,
+                                cp_idx,
                                 nested_table,
                                 ctrl_idx,
                                 para_y_before_compose,
                                 styles,
                             )
+                            .filter(|frame| {
+                                !matches!(
+                                    frame.flow,
+                                    crate::renderer::float_placement::ParagraphFloatFlow::NextLine
+                                ) || (use_saved_cell_para_vpos
+                                    && has_stored_para_anchor
+                                    && !local_vpos_restart_seen)
+                            })
                             .map(|frame| {
                                 frame.with_cell_column_anchor(
                                     nested_table,
@@ -9396,7 +9430,9 @@ impl LayoutEngine {
                                     ));
                                     para_y = lane_bottom.max(nested_y + advance);
                                 } else {
-                                    para_y = nested_y + advance;
+                                    para_y = stored_float_frame
+                                        .filter(|frame| matches!(frame.flow, crate::renderer::float_placement::ParagraphFloatFlow::NextLine))
+                                        .map_or(nested_y + advance, |frame| frame.paragraph_end(para_y, 0.0));
                                 }
                                 // [#5712] TopAndBottom 흐름 표가 커서를 전진시켰다 —
                                 // 같은 문단 뒤 TAC 표의 co-anchored 적층 판별 신호.
@@ -10227,6 +10263,14 @@ impl LayoutEngine {
                 && nested_stored_profile
                 && raw_stored_flow_extent > 0.0
                 && raw_stored_flow_extent <= inner_height + 0.5;
+            let saved_picture_extent =
+                crate::renderer::float_placement::stored_cell_flow_picture_extent_hu(
+                    &cell.paragraphs,
+                    nested_stored_profile && !self.profile.get().session_edited(),
+                )
+                .map(|hu| hwpunit_to_px(hu, self.dpi))
+                .unwrap_or(0.0);
+            let raw_stored_flow_extent = raw_stored_flow_extent.max(saved_picture_extent);
             let single_column_flow = self.stored_single_column_cell_flow(&cell.paragraphs);
             let (stored_flow_extent, stored_flow_line_sum) = if let Some(flow) = &single_column_flow
             {
@@ -10371,9 +10415,37 @@ impl LayoutEngine {
             // 라벨도 뒤쪽 행을 소유할 수 있으므로 행 컷만으로 내용 잘림을 추정하지 않는다.
             // 위쪽 이어받기는 이미 소비한 내용을 되돌리지 않도록 Top을 유지한다.
             // 내용이 현재 안 높이를 넘는 아래쪽 조각과 실제 viewport 잘림도 그대로다.
+            let selected_source_frame_owns_alignment = fragment_para_range.is_some()
+                && self.profile.get().hwp5_stored_pagination_layout()
+                && !self.profile.get().session_edited()
+                && !self
+                    .render_normalization
+                    .borrow()
+                    .table_text_reflowed(table)
+                && !cell.dirty_flag
+                && cell.paragraphs.iter().all(|paragraph| {
+                    !paragraph.stored_text_partition_is_dirty()
+                        && !paragraph.cell_format_vpos_dirty
+                        && paragraph.controls.is_empty()
+                        && !paragraph.line_segs.is_empty()
+                        && paragraph.line_segs.iter().all(|line| {
+                            line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                                == 0
+                                && line.vertical_pos >= 0
+                                && line.line_height > 0
+                        })
+                })
+                && cell
+                    .paragraphs
+                    .iter()
+                    .flat_map(|paragraph| &paragraph.line_segs)
+                    .any(|line| line.vertical_pos > 0);
             let cell_clipped_by_row_filter = row_filter.is_some_and(|(sr, er)| {
                 let cell_end_row = (r + cell.row_span as usize).min(row_count);
-                r < sr || (cell_end_row > er && total_content_height > inner_height)
+                // 이미 선택한 원본 문단 조각은 앞쪽 내용을 다시 그리지 않는다.
+                // 남은 조각이 이 상자에 온전히 들어가면 원래 정렬도 그 조각이 소유한다.
+                (r < sr && !selected_source_frame_owns_alignment)
+                    || (cell_end_row > er && total_content_height > inner_height)
             });
             let effective_valign = if cell_clipped_by_row_filter
                 || scalar_single_row_continuation
@@ -13692,7 +13764,7 @@ impl LayoutEngine {
             };
             let Some(frame) = self.stored_nested_float_placement(
                 table,
-                (&cell.paragraphs, index - 1),
+                cell, index - 1,
                 child,
                 0,
                 hwpunit_to_px(last.vertical_pos, self.dpi),
@@ -14999,6 +15071,25 @@ impl LayoutEngine {
                     )
                 {
                     let nt = nested_tables[0];
+                    // 행 유닛의 첫 원점과 실제 표가 같은 원본 바깥 상자를 사용한다.
+                    let stored_pre_host = use_vpos_unit_positions
+                        .then(|| {
+                            p.controls.iter().enumerate().find_map(|(ci, control)| {
+                                let Control::Table(child) = control else {
+                                    return None;
+                                };
+                                self.stored_nested_float_placement(
+                                    table, cell, pi, child, ci, 0.0, styles,
+                                )
+                            })
+                        })
+                        .flatten()
+                        .filter(|frame| {
+                            matches!(
+                                frame.flow,
+                                crate::renderer::float_placement::ParagraphFloatFlow::NextLine
+                            )
+                        });
                     let ncol = nt.col_count as usize;
                     let nrow = nt.row_count as usize;
                     // [#7140] 행 유닛은 페인트가 쓰는 행 높이(`resolve_row_heights`)로 센다.
@@ -15020,7 +15111,7 @@ impl LayoutEngine {
                             .then(|| {
                                 self.stored_nested_float_placement(
                                     table,
-                                    (&cell.paragraphs, pi),
+                                    cell, pi,
                                     nt,
                                     ci,
                                     0.0,
@@ -15307,7 +15398,9 @@ impl LayoutEngine {
                                                     _ => None,
                                                 })
                                                 .sum();
-                                            if nested_total_px > 0.0
+                                            if let Some(frame) = stored_pre_host {
+                                                target_top += frame.anchor_y;
+                                            } else if nested_total_px > 0.0
                                                 && target_top - unit_cum >= nested_total_px - 24.0
                                             {
                                                 target_top -= nested_total_px;
@@ -15379,7 +15472,9 @@ impl LayoutEngine {
                                         _ => None,
                                     })
                                     .sum();
-                                if nested_total_px > 0.0
+                                if let Some(frame) = stored_pre_host {
+                                    target_top += frame.anchor_y;
+                                } else if nested_total_px > 0.0
                                     && target_top - unit_cum >= nested_total_px - 24.0
                                 {
                                     target_top -= nested_total_px;
@@ -15551,7 +15646,10 @@ impl LayoutEngine {
                     // nested_table_mixed_fragment_heights(단일 행 셀 문단을 페이지 분할 가능한
                     // fragment 로 분해)를 빈-텍스트 문단에도 적용해 splittable 유닛으로 산출.
                     let nt = nested_tables[0];
-                    let frags = self.nested_table_mixed_fragment_heights(nt, styles);
+                    let source_frames = self.stored_nested_text_frame_fragments(nt, styles);
+                    let frags = source_frames
+                        .clone()
+                        .unwrap_or_else(|| self.nested_table_mixed_fragment_heights(nt, styles));
                     if std::env::var("RHWP_DIAG_NESTED_OWNER").is_ok()
                         && nt.cells.len() == 1
                         && nt.cells[0].paragraphs.iter().any(|paragraph| {
@@ -15630,10 +15728,20 @@ impl LayoutEngine {
                             || exceeds_physical_page
                             || native_short_parent_child_fragment
                             || stored_frame_tail_before_next_para
-                            || self.native_child_has_stored_frame_boundary(nt, styles))
+                            || self.native_child_has_stored_frame_boundary(nt, styles)
+                            || source_frames.is_some())
                     {
-                        let om_top = hwpunit_to_px(nt.outer_margin_top as i32, self.dpi);
-                        let om_bot = hwpunit_to_px(nt.outer_margin_bottom as i32, self.dpi);
+                        // 확인된 프레임 투영은 쪽마다 바깥 여백까지 이미 소유한다.
+                        let om_top = if source_frames.is_some() {
+                            0.0
+                        } else {
+                            hwpunit_to_px(nt.outer_margin_top as i32, self.dpi)
+                        };
+                        let om_bot = if source_frames.is_some() {
+                            0.0
+                        } else {
+                            hwpunit_to_px(nt.outer_margin_bottom as i32, self.dpi)
+                        };
                         let n = frags.len();
                         // [Refs #7387] 조각은 칸 글줄로만 나뉘어, 옆 칸의 **쪼갤 수 없는
                         // 개체**(Square·글 앞/뒤 그림 — 저장 줄이 담지 않는다)가 정하는 행
@@ -15757,14 +15865,7 @@ impl LayoutEngine {
                         let Control::Table(child) = c else {
                             return None;
                         };
-                        self.stored_nested_float_placement(
-                            table,
-                            (&cell.paragraphs, pi),
-                            child,
-                            ci,
-                            0.0,
-                            styles,
-                        )
+                        self.stored_nested_float_placement(table, cell, pi, child, ci, 0.0, styles)
                     });
                     for (li, line) in comp.lines.iter().enumerate() {
                         let h = corrected_h(line, li);
@@ -20542,6 +20643,11 @@ impl LayoutEngine {
         if !para.controls.is_empty() || !next.controls.is_empty() {
             return false;
         }
+        // 원본 쪽 재시작의 빈 줄은 뒤 저장 줄과 같은 전진 상자를 소유한다.
+        // 형제 셀이 없어도 이 소유를 잃고 무높이 spacer로 소비하지 않는다.
+        if Self::stored_empty_restart_owns_advance(cell, unit) {
+            return true;
+        }
         if crate::renderer::para_has_no_stored_line_segs(next) {
             // A saved blank line followed by a reflowed paragraph has no next
             // stored origin. Preserve the existing exact incoming-slot proof.
@@ -20955,10 +21061,13 @@ impl LayoutEngine {
                         table.page_break,
                         crate::model::table::TablePageBreak::RowBreak
                     )
-                    // The source row must own the occupied frame. Auto-height
-                    // stub rows can contain local resets without owning a page.
+                    // 최소 선언 상자 또는 실제 저장 프레임의 일치하는 전진 끝이
+                    // 물리 소유를 입증한다. 내용 합과 저장 끝이 다른 로컬 reset은 제외한다.
                     && ((table.row_count == 1 && table.col_count == 1)
-                        || source_row_height.is_some_and(|height| height >= h))
+                        || source_row_height.is_some_and(|height| height >= h)
+                        || self.stored_empty_restart_closes_source_flow(
+                            table, cell, &units, j, styles,
+                        ))
                     && row_cells.len() == 1
                     // 저장 프레임 신호는 `stored_frame_break_before` 가 아니라 **되감김
                     // 기하**(`page_frame_reset_before`)로 읽는다. 전자는 겹치는 줄 상자
@@ -21544,14 +21653,14 @@ impl LayoutEngine {
     pub(super) fn stored_nested_float_placement(
         &self,
         parent: &crate::model::table::Table,
-        host: (&[Paragraph], usize),
+        cell: &crate::model::table::Cell,
+        para_index: usize,
         child: &crate::model::table::Table,
         control: usize,
         origin: f64,
         styles: &ResolvedStyleSet,
     ) -> Option<crate::renderer::float_placement::ParagraphFloatPlacement> {
-        let (paragraphs, para_index) = host;
-        let para = paragraphs.get(para_index)?;
+        let para = cell.paragraphs.get(para_index)?;
         if !(self.profile.get().hwp5_stored_pagination_layout()
             || self.profile.get().hwpx_stored_layout())
             || self.profile.get().session_edited()
@@ -21588,12 +21697,19 @@ impl LayoutEngine {
             )
         })
         .or_else(|| {
+            if self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(child)
+            {
+                return None;
+            }
             // The independently stored successor can close an empty block
             // host too. Reuse its before/body/after frame in units and paint,
             // instead of placing the body at the host line's outer origin.
             crate::renderer::float_placement::ParagraphFloatPlacement::from_empty_stored_ladder_host(
                 para,
-                paragraphs.get(para_index + 1)?,
+                cell.paragraphs.get(para_index + 1)?,
                 child,
                 origin,
                 styles
@@ -23359,7 +23475,26 @@ impl LayoutEngine {
                 nested.map(|child| self.nested_cut_physical_height(child, cut, styles))
             })
         });
-        let visible_height = if let Some(physical) = stored_block_frame {
+        let stored_text_frame = nested.zip(recursive_cut.as_ref()).and_then(|(child, cut)| {
+            self.stored_nested_text_frame_for_cut(
+                child,
+                &cut.start_cut,
+                &cut.end_cut,
+                cut.start_cut_is_block,
+                cut.is_block_split,
+            )
+        });
+        let stored_text_physical_height = stored_text_frame.zip(nested).map(|(frame, child)| {
+            hwpunit_to_px(
+                frame.body_height_hu
+                    + i32::from(child.outer_margin_top)
+                    + i32::from(child.outer_margin_bottom),
+                self.dpi,
+            )
+        });
+        let visible_height = if let Some(physical) = stored_text_physical_height {
+            physical
+        } else if let Some(physical) = stored_block_frame {
             physical
         } else if terminal_table_before_host_successor {
             // 이 mixed stream은 끝났지만 같은 host cell에는 다음 source 문단이 있다.
@@ -23446,7 +23581,9 @@ impl LayoutEngine {
             return None;
         }
         let remaining = (total - offset).max(0.0);
-        let flow_height = (if let Some(physical) = saved_nested_frame {
+        let flow_height = (if let Some(physical) = stored_text_physical_height {
+            physical
+        } else if let Some(physical) = saved_nested_frame {
             let child = nested.expect("saved nested frame owner");
             physical
                 + hwpunit_to_px(

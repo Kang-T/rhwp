@@ -114,6 +114,11 @@ impl TypesetEngine {
             crate::renderer::float_placement::stored_repeated_header_rowbreak_outer_frame(
                 st.profile, para, table,
             );
+        // 통째 표와 같은 빈 호스트 어울림 상자다. 각 쪽의 실제 조각도 위 여백을
+        // 다시 열며, 아래에서 만든 원점을 컷 예산과 최종 배치가 함께 소비한다.
+        let empty_square_outer_top =
+            crate::renderer::float_placement::square_float_outer_margin_top_hu(table)
+                .filter(|_| !crate::renderer::typeset::para_has_visible_text(para));
         let (host_before_overhead, fragment_outer_bottom_overhead) =
             partial_rowbreak_fragment_spacing_px(
                 table,
@@ -199,6 +204,11 @@ impl TypesetEngine {
                 start_cut,
             );
         let host_before_overhead = host_before_overhead
+            + if is_continuation {
+                empty_square_outer_top.map_or(0.0, |margin| hwpunit_to_px(margin, self.dpi))
+            } else {
+                0.0
+            }
             + if is_continuation
                 && (fragment_opens_outer_top
                     || terminal_fragment_opens_outer_top
@@ -1622,7 +1632,24 @@ impl TypesetEngine {
             vert_offset_overhead,
             page_avail,
             fragment_placement: fragment_placement
-                .or_else(|| self.stored_header_fragment_placement(st, input, host_before_overhead)),
+                .or_else(|| self.stored_header_fragment_placement(st, input, host_before_overhead))
+                .or_else(|| {
+                    empty_square_outer_top.map(|_| {
+                        let top = st.current_height
+                            + caption_extra
+                            + host_before_overhead
+                            + vert_offset_overhead;
+                        crate::renderer::float_placement::ParagraphFloatPlacement {
+                            flow: crate::renderer::float_placement::ParagraphFloatFlow::EmptyHost,
+                            anchor_y: st.current_height,
+                            stored_host_origin: None,
+                            stored_successor_line_origin: None,
+                            table_left: None,
+                            table_top: top,
+                            occupied_bottom: top,
+                        }
+                    })
+                }),
             scan_row_count,
             saved_first_fragment_source_frame,
             stored_partial_frame_height: stored_partial_frame.map(|frame| frame.height),

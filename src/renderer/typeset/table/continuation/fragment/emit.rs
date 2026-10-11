@@ -178,7 +178,7 @@ impl TypesetEngine {
             && table.col_count == 1
             && table.cells.len() == 1
             && !st.profile.session_edited()
-            && st.profile.hwpx_stored_layout()
+            && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
             && !self.render_normalization.table_text_reflowed(table)
             && table_footnotes.is_empty()
             && layout_engine.cell_unit_stored_page_frame_origin(
@@ -200,7 +200,7 @@ impl TypesetEngine {
             && start_cut.len() == 1
             && start_cut[0] > 0
             && !st.profile.session_edited()
-            && st.profile.hwpx_stored_layout()
+            && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
             && !self.render_normalization.table_text_reflowed(table)
             && table_footnotes.is_empty()
             && table.cells.first().is_some_and(|cell| {
@@ -669,7 +669,41 @@ impl TypesetEngine {
                         table, next,
                     )
                 });
-        let declared_opening_frame = single_cell_fragment_shape
+        let original_single_cell_opening_frame = !is_continuation
+            && cursor_row == 0
+            && start_cut.is_empty()
+            && end_row == 1
+            && row_count == 1
+            && split_end_cut.len() == 1
+            && !st.profile.session_edited()
+            && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
+            && !self.render_normalization.table_text_reflowed(table)
+            && table_footnotes.is_empty()
+            && two_frame_successor_origin.is_some()
+            && input
+                .source
+                .paragraphs_all
+                .get(para_idx + 1)
+                .is_some_and(|next| {
+                    crate::renderer::float_placement::stored_single_cell_closing_frame_height(
+                        input.source.paragraph,
+                        next,
+                        table,
+                        self.dpi,
+                    )
+                    .is_some()
+                })
+            && table.cells.first().is_some_and(|cell| {
+                layout_engine.cell_unit_opens_stored_page_frame(
+                    cell,
+                    table,
+                    styles,
+                    split_end_cut[0],
+                )
+            })
+            && hwpunit_to_px(table.common.height as i32, self.dpi) >= partial_height
+            && hwpunit_to_px(table.common.height as i32, self.dpi) <= avail_for_rows;
+        let declared_opening_frame = (single_cell_fragment_shape
             && two_frame_successor_origin.is_some()
             && !is_continuation
             && cursor_row == 0
@@ -686,7 +720,8 @@ impl TypesetEngine {
                 table,
                 styles,
                 split_end_cut[0],
-            );
+            ))
+            || original_single_cell_opening_frame;
         if declared_opening_frame {
             partial_height = hwpunit_to_px(table.common.height as i32, self.dpi);
             end_row_height_override = Some(partial_height);
@@ -1611,10 +1646,19 @@ impl TypesetEngine {
             .or_else(|| end_row_height_override
             // 완전히 소비한 것으로 확인된 원본 행은 다음 행으로 전진한다.
             // 수용한 앞부분에 병합 셀 소유자의 공간이 이미 반영되어 있으므로 이전 행의 빈 꼬리로 새 행의 상자를 대체하지 않는다.
-            .filter(|_| !closes_original_body_frame && !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
+            .filter(|_| !layout_engine.stored_heading_before_inline_frame_cut(
+                table, end_row.saturating_sub(1),
+                if end_row - 1 == cursor_row { start_cut } else { &[] }, &next_cut, styles,
+            ) && !closes_original_body_frame && !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
                 && !layout_engine.row_uses_reflow_physical_frame(table, end_row.saturating_sub(1)))
             .and_then(|limit| {
-            let full = cut_row_h.get(end_row.saturating_sub(1)).copied()?;
+            let row = end_row.checked_sub(1)?;
+            // 같은 일반 행을 다시 나누는 경우 앞 조각까지 차감한 물리 상자에서
+            // 이번에 수용한 상자를 뺀다. 블록 컷의 별도 소유 공간은 유지한다.
+            let carried = (row == cursor_row && !start_cut_is_block)
+                .then_some(start_row_height_override)
+                .flatten();
+            let full = carried.or_else(|| cut_row_h.get(row).copied())?;
             let tail = (full - limit).max(0.0);
             if complete_physical_end_cut
                 && layout_engine.stored_complete_row_tail_is_line_advance(
