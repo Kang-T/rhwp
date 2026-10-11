@@ -31,7 +31,7 @@ pub mod ingest;
 pub mod ole_container;
 pub mod record;
 pub mod tags;
-mod tracked_viewtext;
+pub(crate) mod tracked_viewtext;
 
 use crate::model::bin_data::BinDataContent;
 use crate::model::document::{

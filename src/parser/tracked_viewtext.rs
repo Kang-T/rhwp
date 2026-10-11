@@ -431,7 +431,7 @@ fn write_nodes(nodes: &[Node], bytes: &mut Vec<u8>) {
     }
 }
 
-pub(super) fn project(data: &[u8], info: &DocInfo) -> Result<Option<Vec<u8>>, BodyTextError> {
+pub(crate) fn project(data: &[u8], info: &DocInfo) -> Result<Option<Vec<u8>>, BodyTextError> {
     let visibility = Visibility::from_doc_info(info)?;
     if !visibility.0.iter().flatten().any(|&(_, hidden)| hidden) {
         return Ok(None);
