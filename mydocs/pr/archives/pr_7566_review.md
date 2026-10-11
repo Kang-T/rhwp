@@ -57,6 +57,12 @@ fmt·Native/WASM32 Clippy와 workspace build는 v172 source에서 통과했다. 
 
 ## 시각 증적과 남은 범위
 
+새 현재 wrapper 저장본의 독립 Print와 Native 비교는1쪽35.95134%로 미달이다. 실제 이미지에서
+뒤 두 중첩 표의 여분 외곽선·세로 점유와 뒤 문단 위치 차이를 확인했다. 실제 Studio 클릭 계약은
+통과했지만 저장본의 Print 일치는 별도 미충족이다. 누적 기록141절과
+`current-print-unexecuted-native-v183/current-05-17a174162fd3/`에 연결한 원본·Print·실패 증거를
+보존하고 보정·최종 Native/fresh 재검증 뒤 판정한다.
+
 최종 Native/fresh TSV와 대표 review/overlay를 같은 입력·쪽·source로 연결한다. 현재 source의 증적은 ignored `output/pr-review/semanticist21-20261008/pr-preparation-native-whole-v172-result.json`, `pr-preparation-wasm-whole-v174-result.json` 및 v171 retry2 기록에서 실제 종료 결과를 확인한다. 미달·구조 결함이 있으면 보정 후 재실행하며 최종 이미지와 URL은 새 head로 확정한다.
 
 ## 통합 뒤 원 PR 후속 처리 계획
