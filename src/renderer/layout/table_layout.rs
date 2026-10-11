@@ -13798,15 +13798,10 @@ impl LayoutEngine {
                                 && profile.hwp5_stored_pagination_layout()
                                 && seg.line_height > 0 =>
                         {
-                            next_para.line_segs.first().is_some_and(|next| {
-                                !line_seg_is_synthetic(next) && {
-                                    let forward =
-                                        i64::from(next.vertical_pos) - i64::from(seg.vertical_pos);
-                                    let slot = i64::from(seg.line_height)
-                                        + i64::from(seg.line_spacing.max(0));
-                                    (forward - slot).abs() <= 2
-                                }
-                            })
+                            crate::renderer::height_measurer::stored_empty_line_successor_advance_hu(
+                                cell, pi,
+                            )
+                            .is_some()
                         }
                         (Some(seg), Some(next_para)) if next_para.controls.is_empty() => {
                             match next_para.line_segs.first() {
@@ -20324,8 +20319,17 @@ impl LayoutEngine {
             // 종료 host의 빈 꼬리는 자체 줄 높이만으로 흐름 소유를 증명하지 못한다.
             return false;
         };
-        if !para.controls.is_empty() || !next.controls.is_empty() {
+        if !para.controls.is_empty() {
             return false;
+        }
+        if !next.controls.is_empty() {
+            // 유닛 생성 때 보존한 원본 빈 줄은 이어받기 컷에서도 소유를 유지한다.
+            // 후속 객체를 이유로 버리면 앞 조각의 끝과 다음 조각의 시작 사이에서 사라진다.
+            return crate::renderer::height_measurer::stored_empty_line_successor_advance_hu(
+                cell,
+                unit.para_idx,
+            )
+            .is_some();
         }
         if crate::renderer::para_has_no_stored_line_segs(next) {
             // A saved blank line followed by a reflowed paragraph has no next
@@ -22873,10 +22877,18 @@ impl LayoutEngine {
             }
             let (mut lo, mut hi) = (su, units.len());
             if su > 0 {
-                while lo < hi && units[lo].empty_spacer && !units[lo].hard_break_before {
+                while lo < hi
+                    && units[lo].empty_spacer
+                    && !units[lo].hard_break_before
+                    && !Self::empty_unit_owns_flow_line_box(cell, table, &units[lo])
+                {
                     lo += 1;
                 }
-                while hi > lo && units[hi - 1].empty_spacer && !units[hi - 1].hard_break_before {
+                while hi > lo
+                    && units[hi - 1].empty_spacer
+                    && !units[hi - 1].hard_break_before
+                    && !Self::empty_unit_owns_flow_line_box(cell, table, &units[hi - 1])
+                {
                     hi -= 1;
                 }
             }
@@ -27169,6 +27181,51 @@ mod row_cut_tests {
         );
         assert_eq!(r.end_cut, vec![5]);
         assert!(r.fully_consumed);
+
+        // 원본 빈 줄의 슬롯(높이+간격)만이 뒤 객체 호스트의 원점을 닫는다.
+        // 이 소유 증거가 없는 overlay, 합성 좌표, 되감김과 0높이는 제외한다.
+        // 실물 #3637의 대응 Print 쪽·실제 점유는 정식 관계 검사에서 함께 검증한다.
+        let mut blank = empty_overlay_para(1, 0);
+        blank.line_segs[0].line_height = 400;
+        blank.line_segs[0].line_spacing = 160;
+        let mut host = empty_overlay_para(1, 560);
+        host.controls
+            .push(Control::Table(Box::new(Table::default())));
+        let mut owner = cell(0, 0, vec![blank, host]);
+        let owner_table = rowbreak_table(vec![owner.clone()]);
+        let mut unit = saved_reset_unit(crate::renderer::hwpunit_to_px(560, eng.dpi), 0, 1, false);
+        unit.empty_spacer = true;
+        assert!(LayoutEngine::empty_unit_owns_flow_line_box(
+            &owner,
+            &owner_table,
+            &unit
+        ));
+        owner.paragraphs[1].line_segs[0].vertical_pos = 0;
+        assert!(!LayoutEngine::empty_unit_owns_flow_line_box(
+            &owner,
+            &owner_table,
+            &unit
+        ));
+        owner.paragraphs[1].line_segs[0].vertical_pos = 1200;
+        assert!(!LayoutEngine::empty_unit_owns_flow_line_box(
+            &owner,
+            &owner_table,
+            &unit
+        ));
+        owner.paragraphs[1].line_segs[0].vertical_pos = 560;
+        owner.paragraphs[1].line_segs[0].tag = LineSeg::TAG_IMPLEMENTATION_PROPERTY;
+        assert!(!LayoutEngine::empty_unit_owns_flow_line_box(
+            &owner,
+            &owner_table,
+            &unit
+        ));
+        owner.paragraphs[1].line_segs[0].tag = 0;
+        unit.height = 0.0;
+        assert!(!LayoutEngine::empty_unit_owns_flow_line_box(
+            &owner,
+            &owner_table,
+            &unit
+        ));
     }
 
     #[test]

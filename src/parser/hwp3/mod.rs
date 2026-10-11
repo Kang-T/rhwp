@@ -4555,7 +4555,16 @@ fn parse_hwp3_inner(
         // pagination_bottom_tolerance 로 paginator 에게만 추가 공간을 허용한다.
         // 유효한 저장 줄이 없는 문서는 공통 composer의 재조판 결과를 사용한다.
         // 한글97 저장 배치를 보존할 근거가 없으므로 본문 밖 추가 예산을 주지 않는다.
-        pagination_bottom_tolerance: if paragraphs.iter().any(|para| !para.line_segs.is_empty()) {
+        // 표만 가진 호스트의 줄은 객체 조판에 필요하지만, 본문 텍스트의
+        // 저장 배치를 인증하지 않는다. 그런 줄 하나 때문에 재조판한 본문의
+        // 다음 서식 제목까지 바닥 관용 안에 수용하지 않는다.
+        pagination_bottom_tolerance: if paragraphs.iter().any(|para| {
+            !para.line_segs.is_empty()
+                && para
+                    .text
+                    .chars()
+                    .any(|ch| !ch.is_whitespace() && !ch.is_control() && ch != '\u{fffc}')
+        }) {
             1600u32.min((doc_info.bottom_margin as u32) * 4)
         } else {
             0
