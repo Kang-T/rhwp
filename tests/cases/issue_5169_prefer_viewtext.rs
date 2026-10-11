@@ -1,56 +1,139 @@
-//! [Issue #5169] `BodyText` 와 `ViewText` 가 갈라진 비배포 문서에서 rhwp 가 한글이
-//! 렌더하지 않는 `BodyText` 를 읽던 문제.
+//! #5169/#7698: ViewText contains review history, not just visible content.
 //!
-//! HWP5 문서에 `BodyText` 와 `ViewText` 가 둘 다 있고 **배포용 플래그가 꺼져 있으면**
-//! (예: 변경 추적 0x4000), 종전 규칙은 배포용(0x04)일 때만 `ViewText` 를 읽어서 rhwp 가
-//! `BodyText` 를, 한글이 `ViewText` 를 보는 어긋남이 생겼다. 두 스트림이 크게 다르면 rhwp 는
-//! 문서의 다른 판본을 읽는다.
-//!
-//! 재현 표본 `samples/issue5169_viewtext_changetracking.hwp` (외교부 연구계획서, PRISM 공개):
-//! `FileHeader` = 압축 + 변경 추적(0x4001, 배포용 아님). `BodyText/Section0` 은 표 4개·3,540자,
-//! `ViewText/Section0` 은 표 10개·개체 2개·10,210자다. 한글은 `ViewText` 를 렌더한다.
-//!
-//! 계약: `ViewText` 가 존재하고 정상 복호되면 rhwp 도 그것을 읽어야 한다 — 표 개수가
-//! `ViewText`(10) 쪽이어야 하고 `BodyText`(4) 여선 안 된다.
+//! The unchanged public HWP5 source has ten raw tables. Independent Hancom
+//! Print (six pages) shows four; ordered TRACK_CHANGE hide metadata and ranges
+//! select visible content before layout. The original history must still survive
+//! an unedited save. Evidence: mydocs/pr/pr_7698_review_impl.md (Native/fresh
+//! Docker WASM all-page minimum 91.69%, and identical original/saved Print).
 #![cfg(not(target_arch = "wasm32"))]
 
 use rhwp::model::control::Control;
+use rhwp::model::document::Document;
 use rhwp::model::paragraph::Paragraph;
 
 const SAMPLE: &str = "samples/issue5169_viewtext_changetracking.hwp";
 
-/// 문단(셀 안 포함)에 든 표 컨트롤 수를 재귀적으로 센다.
+fn source() -> Vec<u8> {
+    std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(SAMPLE))
+        .unwrap_or_else(|e| panic!("read {SAMPLE}: {e}"))
+}
+
 fn count_tables(paras: &[Paragraph]) -> usize {
-    let mut n = 0;
+    paras
+        .iter()
+        .map(|p| {
+            p.controls
+                .iter()
+                .map(|c| match c {
+                    Control::Table(t) => {
+                        1 + t
+                            .cells
+                            .iter()
+                            .map(|cell| count_tables(&cell.paragraphs))
+                            .sum::<usize>()
+                    }
+                    _ => 0,
+                })
+                .sum::<usize>()
+        })
+        .sum()
+}
+
+fn text(paras: &[Paragraph], result: &mut String) {
     for p in paras {
+        result.push_str(&p.text);
+        result.push('\n');
         for c in &p.controls {
             if let Control::Table(t) = c {
-                n += 1;
                 for cell in &t.cells {
-                    n += count_tables(&cell.paragraphs);
+                    text(&cell.paragraphs, result);
                 }
             }
         }
     }
-    n
+}
+
+fn visible_content(doc: &Document) -> String {
+    let mut result = String::new();
+    for section in &doc.sections {
+        text(&section.paragraphs, &mut result);
+    }
+    result
+}
+
+fn assert_visible_content(doc: &Document) {
+    assert_eq!(
+        doc.sections
+            .iter()
+            .map(|s| count_tables(&s.paragraphs))
+            .sum::<usize>(),
+        4,
+        "hidden review-history controls must not enter visible IR"
+    );
+    let content = visible_content(doc);
+    assert!(content.contains("연구계획서"));
+    assert!(content.contains("2018. 6"));
+    assert!(
+        !content.contains("연구제안계획서"),
+        "partially hidden deletion"
+    );
+    assert!(
+        !content.contains("무역구제제도분야 협상 관련"),
+        "fully hidden paragraph and terminator"
+    );
 }
 
 #[test]
-fn hwp5_prefers_viewtext_over_bodytext_when_not_distribution() {
-    let repo_root = env!("CARGO_MANIFEST_DIR");
-    let path = std::path::Path::new(repo_root).join(SAMPLE);
-    let data = std::fs::read(&path).unwrap_or_else(|e| panic!("read {SAMPLE}: {e}"));
+fn viewtext_applies_saved_change_visibility_before_layout() {
+    assert_visible_content(&rhwp::parser::parse_document(&source()).expect("parse"));
+}
 
-    let doc = rhwp::parser::parse_document(&data).expect("파싱");
-    let tables: usize = doc
-        .sections
-        .iter()
-        .map(|s| count_tables(&s.paragraphs))
-        .sum();
-
-    // ViewText(표 10) 를 읽으면 8 이상, BodyText(표 4) 를 읽으면 4 근처다.
+#[test]
+fn unedited_save_preserves_review_stream_and_visible_content() {
+    let before = rhwp::parser::parse_document(&source()).expect("parse");
+    let saved = rhwp::serializer::serialize_document(&before).expect("save");
+    let mut cfb = cfb::CompoundFile::open(std::io::Cursor::new(saved.clone())).expect("CFB");
+    assert!(cfb.open_stream("/BodyText/Section0").is_ok());
     assert!(
-        tables >= 8,
-        "표 {tables}개 — BodyText(4)를 읽고 있다. ViewText(10)를 우선해야 한다 (#5169 회귀)"
+        cfb.open_stream("/ViewText/Section0").is_ok(),
+        "Hancom needs the review stream as ViewText"
     );
+    let after = rhwp::parser::parse_document(&saved).expect("reopen");
+    assert_visible_content(&after);
+    assert_eq!(visible_content(&before), visible_content(&after));
+    assert_eq!(before.sections.len(), after.sections.len());
+    for (original, reopened) in before.sections.iter().zip(&after.sections) {
+        assert!(original.raw_stream.is_some());
+        assert_eq!(
+            original.raw_stream, reopened.raw_stream,
+            "raw review history is retained"
+        );
+    }
+}
+
+#[test]
+fn unaffected_visible_paragraphs_keep_valid_saved_line_boundaries() {
+    let doc = rhwp::parser::parse_document(&source()).expect("parse");
+    // Original ViewText LineSeg starts independently match Hancom's Print
+    // wrapping. Neither paragraph has hidden tracking ranges.
+    for (prefix, starts) in [("따라서", [0, 39]), ("고위관리", [0, 56])] {
+        let p = doc
+            .sections
+            .iter()
+            .flat_map(|s| &s.paragraphs)
+            .find(|p| {
+                p.text
+                    .trim_start_matches([' ', 'o'])
+                    .trim_start()
+                    .starts_with(prefix)
+            })
+            .unwrap_or_else(|| panic!("missing paragraph: {prefix}"));
+        assert_eq!(
+            p.line_segs
+                .iter()
+                .map(|line| line.text_start)
+                .collect::<Vec<_>>(),
+            starts
+        );
+    }
 }
