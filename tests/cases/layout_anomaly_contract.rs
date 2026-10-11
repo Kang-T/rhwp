@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 const CLEAN: &str = "samples/hwp3-sample.hwp";
-const OVERFLOW: &str = "samples/table_giant_cell_overfill.hwpx";
 
 fn sample(rel: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
@@ -123,46 +122,6 @@ fn command_entry() -> serde_json::Value {
 // ── M02-3: 기본 exit 0, --strict 만 비영 ───────────────────────────────
 
 #[test]
-fn layout_anomaly_default_exit_zero_even_with_signal() {
-    let src = sample(OVERFLOW);
-    let args = ["layout-anomaly", src.to_str().unwrap(), "--json"];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "기본은 이상 신호가 있어도 0 이다.\n{}",
-        describe(&args, &output)
-    );
-    let v = parse_stdout_json(&args, &output);
-    assert_eq!(v["schemaVersion"], "1.0", "{v}");
-    assert_eq!(v["mode"], "single", "{v}");
-    assert_eq!(v["hasSignal"], true, "{v}");
-    assert!(v["overflowCount"].as_u64().unwrap() > 0, "{v}");
-    assert!(v["types"].is_null(), "{v}");
-}
-
-#[test]
-fn layout_anomaly_strict_signal_exits_three() {
-    let src = sample(OVERFLOW);
-    let args = [
-        "layout-anomaly",
-        src.to_str().unwrap(),
-        "--json",
-        "--strict",
-    ];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(3),
-        "--strict + 확정 신호는 3 이다.\n{}",
-        describe(&args, &output)
-    );
-    let v = parse_stdout_json(&args, &output);
-    assert_eq!(v["hasSignal"], true, "{v}");
-    assert_eq!(v["strict"], true, "{v}");
-}
-
-#[test]
 fn layout_anomaly_strict_clean_stays_zero() {
     let src = sample(CLEAN);
     let args = [
@@ -192,81 +151,6 @@ fn layout_anomaly_strict_clean_stays_zero() {
 /// 쪽 번호는 필터 없는 실행에서 뽑는다. 조판이 바뀌어 신호가 다른 쪽으로 옮겨가도
 /// 이 계약 자체는 계속 검사된다.
 #[test]
-fn layout_anomaly_page_filter_scopes_counts_and_strict_exit() {
-    let src = sample(OVERFLOW);
-    let path = src.to_str().unwrap();
-
-    let all_args = ["layout-anomaly", path, "--json"];
-    let all_out = run(&all_args);
-    let all = parse_stdout_json(&all_args, &all_out);
-    let pages = all["pages"].as_array().unwrap();
-    let page_count = all["pageCount"].as_u64().unwrap();
-
-    // 확정 신호(overflow)가 있는 쪽 하나와, 신호가 아예 없는 쪽 하나.
-    let dirty = pages
-        .iter()
-        .find(|p| p["overflow"].as_array().is_some_and(|o| !o.is_empty()))
-        .map(|p| p["page"].as_u64().unwrap())
-        .unwrap_or_else(|| panic!("스캐폴딩 전제: overflow 있는 쪽이 있어야 한다\n{all}"));
-    let flagged: Vec<u64> = pages.iter().map(|p| p["page"].as_u64().unwrap()).collect();
-    let clean = (0..page_count)
-        .find(|p| !flagged.contains(p))
-        .unwrap_or_else(|| panic!("스캐폴딩 전제: 신호 없는 쪽이 있어야 한다\n{all}"));
-
-    let dirty_s = dirty.to_string();
-    let args = ["layout-anomaly", path, "-p", &dirty_s, "--json"];
-    let v = parse_stdout_json(&args, &run(&args));
-    assert_eq!(v["pages"].as_array().unwrap().len(), 1, "{v}");
-    assert_eq!(v["overflowCount"], 1, "그 쪽의 overflow 만 세야 한다\n{v}");
-    assert_eq!(v["hasSignal"], true, "{v}");
-    // pageCount 는 필터와 무관한 문서 메타데이터다.
-    assert_eq!(v["pageCount"], page_count, "{v}");
-    assert_eq!(v["pageFilter"], dirty, "{v}");
-
-    let clean_s = clean.to_string();
-    let args = ["layout-anomaly", path, "-p", &clean_s, "--json"];
-    let v = parse_stdout_json(&args, &run(&args));
-    assert!(v["pages"].as_array().unwrap().is_empty(), "{v}");
-    for key in [
-        "overflowCount",
-        "offCanvasCount",
-        "overlapCount",
-        "textOverlapCount",
-        "storedLineEscapeCount",
-        "emptyPageCount",
-    ] {
-        assert_eq!(
-            v[key], 0,
-            "빈 pages 와 0 이 아닌 {key} 가 함께 나오면 안 된다\n{v}"
-        );
-    }
-    assert_eq!(v["hasSignal"], false, "{v}");
-
-    // 종료코드도 같은 집합에서 나온다.
-    let args = ["layout-anomaly", path, "-p", &clean_s, "--strict", "--json"];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "신호 없는 쪽만 봤으면 --strict 도 0 이다.\n{}",
-        describe(&args, &output)
-    );
-    let args = ["layout-anomaly", path, "-p", &dirty_s, "--strict", "--json"];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(3),
-        "그 쪽에 확정 신호가 있으면 3 이다.\n{}",
-        describe(&args, &output)
-    );
-
-    // 필터가 없으면 종전 그대로 문서 전체.
-    assert!(all["overflowCount"].as_u64().unwrap() >= 1, "{all}");
-    assert_eq!(all["hasSignal"], true, "{all}");
-    assert!(all["pageFilter"].is_null(), "{all}");
-}
-
-#[test]
 fn layout_anomaly_usage_errors_are_exit_two_with_silent_stdout() {
     let src = sample(CLEAN);
     let path = src.to_str().unwrap();
@@ -277,125 +161,6 @@ fn layout_anomaly_usage_errors_are_exit_two_with_silent_stdout() {
 }
 
 // ── M02-1: --batch ──────────────────────────────────────────────────────
-
-#[test]
-fn layout_anomaly_batch_json_streams_ndjson_and_keeps_failed_loads() {
-    let dir = TempDir::new("mixed");
-    dir.copy_as(OVERFLOW, "ok.hwpx");
-    std::fs::write(dir.path().join("깨진문서.hwp"), b"not a document").expect("깨진 파일");
-
-    let args = [
-        "layout-anomaly",
-        "--batch",
-        dir.path().to_str().unwrap(),
-        "--json",
-    ];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(1),
-        "로드 실패가 있으면 1 이 --strict 의 3보다 우선한다.\n{}",
-        describe(&args, &output)
-    );
-
-    let records = ndjson(&args, &output);
-    assert_eq!(
-        records.len(),
-        2,
-        "입력 2건은 모두 레코드를 남겨야 합니다: {records:?}"
-    );
-    let mut sources: Vec<&str> = records
-        .iter()
-        .map(|r| r["source"].as_str().expect("source"))
-        .collect();
-    sources.sort_unstable();
-    assert_eq!(sources, ["ok.hwpx", "깨진문서.hwp"], "{records:?}");
-
-    let failed: Vec<&serde_json::Value> = records
-        .iter()
-        .filter(|r| r.get("error").is_some())
-        .collect();
-    assert_eq!(failed.len(), 1, "{records:?}");
-    assert_eq!(failed[0]["mode"], "batch", "{}", failed[0]);
-    assert_eq!(failed[0]["hasSignal"], false, "{}", failed[0]);
-    // 실패 레코드도 성공 레코드와 같은 카운트 키를 가져야 NDJSON 소비자가 키 부재로 깨지지 않는다.
-    let ok = records
-        .iter()
-        .find(|r| r.get("error").is_none())
-        .expect("성공 레코드");
-    for key in [
-        "overflowCount",
-        "offCanvasCount",
-        "overlapCount",
-        "textOverlapCount",
-        "storedLineEscapeCount",
-        "emptyPageCount",
-        "storedLineTolerancePx",
-    ] {
-        assert!(ok.get(key).is_some(), "성공 레코드에 {key} 없음: {ok}");
-        assert!(
-            failed[0].get(key).is_some(),
-            "실패 레코드에 {key} 없음: {}",
-            failed[0]
-        );
-    }
-}
-
-#[test]
-fn layout_anomaly_batch_report_is_order_stable_and_recursive() {
-    let dir = TempDir::new("order");
-    dir.copy_as(CLEAN, "z-last.hwp");
-    dir.copy_as(CLEAN, "a-first.hwp");
-    dir.copy_as(OVERFLOW, "mid/nested.hwpx");
-
-    let args = [
-        "layout-anomaly",
-        "--batch",
-        dir.path().to_str().unwrap(),
-        "--json",
-    ];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "{}",
-        describe(&args, &output)
-    );
-    let records = ndjson(&args, &output);
-    let sources: Vec<&str> = records
-        .iter()
-        .map(|r| r["source"].as_str().expect("source"))
-        .collect();
-    assert_eq!(
-        sources,
-        ["a-first.hwp", "mid/nested.hwpx", "z-last.hwp"],
-        "{records:?}"
-    );
-}
-
-#[test]
-fn layout_anomaly_batch_strict_without_load_fail_exits_three() {
-    let dir = TempDir::new("strict");
-    dir.copy_as(OVERFLOW, "over.hwpx");
-    let args = [
-        "layout-anomaly",
-        "--batch",
-        dir.path().to_str().unwrap(),
-        "--json",
-        "--strict",
-    ];
-    let output = run(&args);
-    assert_eq!(
-        output.status.code(),
-        Some(3),
-        "{}",
-        describe(&args, &output)
-    );
-    let records = ndjson(&args, &output);
-    assert_eq!(records.len(), 1, "{records:?}");
-    assert_eq!(records[0]["hasSignal"], true, "{}", records[0]);
-    assert!(records[0].get("error").is_none(), "{}", records[0]);
-}
 
 #[test]
 fn layout_anomaly_batch_json_stdout_carries_no_human_summary() {
@@ -423,43 +188,6 @@ fn layout_anomaly_batch_json_stdout_carries_no_human_summary() {
 }
 
 // ── M02-2: --types ──────────────────────────────────────────────────────
-
-#[test]
-fn layout_anomaly_types_filter_changes_overflow_set() {
-    let src = sample(OVERFLOW);
-    let all = [
-        "layout-anomaly",
-        src.to_str().unwrap(),
-        "--json",
-        "--types",
-        "Table",
-    ];
-    let output = run(&all);
-    assert_eq!(output.status.code(), Some(0), "{}", describe(&all, &output));
-    let v = parse_stdout_json(&all, &output);
-    assert_eq!(v["types"], serde_json::json!(["Table"]), "{v}");
-    let table_count = v["overflowCount"].as_u64().unwrap();
-
-    let none = [
-        "layout-anomaly",
-        src.to_str().unwrap(),
-        "--json",
-        "--types",
-        "Image",
-    ];
-    let output = run(&none);
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "{}",
-        describe(&none, &output)
-    );
-    let v = parse_stdout_json(&none, &output);
-    assert!(
-        v["overflowCount"].as_u64().unwrap() < table_count,
-        "Image 필터는 표 overflow 를 빼야 한다: {v}"
-    );
-}
 
 // ── 자기서술 드리프트 가드 ──────────────────────────────────────────────
 

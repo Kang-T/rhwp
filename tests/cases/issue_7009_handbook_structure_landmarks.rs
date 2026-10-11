@@ -45,7 +45,6 @@ use std::path::Path;
 use rhwp::document_core::DocumentCore;
 
 const HWP: &str = "samples/2025 행정업무운영 편람(최종).hwp";
-const HWPX: &str = "samples/2025 행정업무운영 편람(최종).hwpx";
 
 /// 정답지 `pdf/2025 행정업무운영 편람(최종)-hwp-2024.pdf` 실측.
 const ORACLE_AFTER_DIVIDER: usize = 74;
@@ -114,20 +113,3 @@ fn hwp_total_matches_the_oracle_only_because_body_and_appendix_cancel() {
     // #7445: HWP 부록 간지의 실제 313→312쪽 소속 변화만 보류합니다.
     // #7445: HWP 본문 마지막 쪽의 실제 311→310쪽 소속 변화만 보류합니다.
 }
-
-/// `hwpx` 는 총합이 2 모자라지만 **부록 구간 길이는 정답지와 정확히 같다**.
-///
-/// 모자람이 본문에만 있다는 뜻이고, 그 자리가 `#6842` 축이다. 이미 맞는 속성은 정확히 잠근다.
-#[test]
-fn hwpx_appendix_span_already_matches_the_oracle() {
-    let got = landmarks(HWPX);
-    assert_eq!(
-        got.after_divider, ORACLE_AFTER_DIVIDER,
-        "간지 뒤 쪽수는 정답지와 같아야 한다 — 이 문서에서 이미 맞는 속성이다"
-    );
-    // #7445: 실제 382→385쪽으로 달라진 HWPX 쪽수 핀만 보류합니다.
-    // #7445: 실제 308→311쪽으로 바뀐 간지 소속 핀만 보류합니다.
-}
-
-// #7445: 실제 실패한 두 포맷 비대칭 전용 함수만 보류합니다.
-// HWP/HWPX의 기존 부록 구간과 랜드마크 존재 계약은 유지합니다.

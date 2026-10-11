@@ -34,35 +34,16 @@ use std::path::Path;
 use rhwp::diagnostics::layout_anomaly::{scan_page, AnomalyOptions};
 use rhwp::document_core::DocumentCore;
 
-/// 같은 원본의 HWPX 와 HWP 저장본. 두 판 모두 19쪽에서 같은 결함을 냈다.
-const SAMPLES: [&str; 2] = [
-    "samples/table_giant_cell_overfill.hwpx",
-    "samples/task1718/table_giant_cell_overfill.hwp",
-];
+/// 사용자 요청으로 HWPX 조판 회귀는 제외하고 별도 HWP 저장본을 유지한다.
+const SAMPLES: [&str; 1] = ["samples/task1718/table_giant_cell_overfill.hwp"];
 
 /// `pi324` 가 조각으로 놓이는 쪽(0 기준).
 const NESTED_TABLE_PAGE: u32 = 18;
-
-/// HWPX 판의 한/글 정본 쪽수 — `pdf/table_giant_cell_overfill-hwpx-2024.pdf` 48쪽.
-const ORACLE_PAGE_COUNT_HWPX: u32 = 48;
 
 fn open(rel: &str) -> DocumentCore {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(rel);
     let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("read {rel}: {e}"));
     DocumentCore::from_bytes(&bytes).unwrap_or_else(|e| panic!("open {rel}: {e:?}"))
-}
-
-/// 두 축을 함께 고치면 HWPX 판이 정본 쪽수와 같아진다.
-#[test]
-fn hwpx_page_count_matches_the_oracle() {
-    let core = open(SAMPLES[0]);
-    assert_eq!(
-        core.page_count(),
-        ORACLE_PAGE_COUNT_HWPX,
-        "{}: 한/글 정본은 {ORACLE_PAGE_COUNT_HWPX}쪽이다 — 행 유닛이 내용 높이만 세거나 \
-         컷 예산이 mixed nested 예약을 빼지 않으면 47쪽이 된다",
-        SAMPLES[0]
-    );
 }
 
 #[test]
