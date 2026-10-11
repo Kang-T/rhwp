@@ -59,3 +59,7 @@ curly quote 원본·Print 전쪽과 배치 순서를 확인한다. TAC 각주 fl
 production 라이브러리에서 기존 정식 분류 검사 원본을 실행해 PASS했다
 (`coverage-formal-test-after-verified.log`). 최종 source의 전체 회귀·lint와
 curly 원본의 전쪽 Native/fresh WASM 시각 미달 보정은 여전히 필요하다.
+
+기여자 commit이 갱신한 `tests/golden_svg/issue-147/aift-page3.svg`는 현재 어떤 활성
+snapshot 검사에서도 사용하지 않는다. 전쪽 시각 증거 없이 과거의 절대 SVG 배치를 다시
+고정하지 않도록 고정 base의 자료를 보존해 해당 갱신을 최종 diff에서 제거했다.
