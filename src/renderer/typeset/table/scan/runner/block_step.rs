@@ -84,7 +84,7 @@ impl TypesetEngine {
         let keep_scanning = (|| {
             // [Task #1025] 연속분 커서가 블록 중간이면 블록 시작 컷을 적용.
             let blk_start_cut: &[usize] = if r == cursor_row { &start_cut } else { &[] };
-            let block_row_offsets = block_query.row_offsets(&block);
+            let block_row_offsets = block_query.row_offsets(&block, blk_start_cut);
             let block_h = block_query.required_height(&block, blk_start_cut);
             let required = consumed + cs_before + block_h;
             // The source remainder and a mixed row/block walk can sum the
@@ -187,12 +187,7 @@ impl TypesetEngine {
             let mut band_fill = None;
             let mut complete_row_frame = None;
             if cut_query.retries_band(allow_block_split, can_intra_split, block_h, budget) {
-                let mut offsets = Vec::with_capacity(block_size);
-                let mut top = 0.0;
-                for br in b_start..b_end {
-                    offsets.push(top);
-                    top += cut_row_h[br] + if br + 1 < b_end { cs } else { 0.0 };
-                }
+                let offsets = block_query.row_offsets_for_cut(&block, blk_start_cut);
                 let res2 = layout_engine.advance_row_block_cut_with_row_offsets(
                     table,
                     b_start,

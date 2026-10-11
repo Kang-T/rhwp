@@ -2797,3 +2797,79 @@ v240 집중 회귀도 종료했다: **37검사 실행,36PASS/1FAIL,10295 선택 
 `stored-empty-frame-committed-source-v247.json`에서 `git cat-file`로 생산Rust1107개를
 동결 v237 빌드와 전부 대조했으며 불일치0이다. 미추적 Print PDF4개는 필요한 기준
 자료로 보존하고 원본·시험지/HML·회귀 기대값·baseline은 변경하지 않았다.
+
+
+### 진행145 — 소비한 앞 행의 높이를 다음 조각 예산에 중복 계상하지 않음(v249–v258)
+
+검토 base는 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`다. 현재 단계 직전
+head는 `b766bde7e5ccc814aebf81006cfd6f3c545ab241`이며 추가 체리픽·원격 push/PR은 없다.
+59043의 실제 새 쪽수 회귀를 먼저 구현에서 보정했다. 기존 검사·공차·baseline은 변경하지 않았다.
+
+#### 독립 근거와 실제 소비 경로
+
+원본 pi163의 앞 행 짧은 셀은 시작 컷2가 마지막 유닛2를 모두 소비했다.
+그런데 기존 행 offset은 선언 높이3776HU(50.34667px)를 다음 조각에서도 더했다.
+실제 partial paint는 같은 컷의 그 행을0높이로 처리하므로 스캔의 오른쪽 셀 예산만
+50.34667px 줄었다. 독립 Print26/27쪽 오른쪽 본문 시작77.12/77.44px에는 반복 머리행이 없다.
+
+`scan.rs::row_offsets_for_cut`는 시작 컷이 있을 때 기존
+`row_block_cut_physical_height → row_block_cut_row_content_height` 판정의 같은 행 높이를
+소비한다. `fragment_height`도 이 기존 판정을 작은 `row_cut_height`로 공유한다.
+인증된 남은 물리 행 상자는 기존 helper가 보존하며, 높이가 양수인 남은 행 사이에만
+간격을 계상한다. 시작 컷 없는 처음 조각의 원래 행 높이 경로는 유지한다.
+`block_step.rs`의 주 스캔과 band retry가 모두 같은 컷별 원점을 전달한다.
+paint의 per-row 컷은 이미 소비된 자기 행을0으로 만들고, rowspan의 남은 높이 차액은
+마지막 표시 행에 실으므로 소비한 앞 행을 다시 원점에 더하지 않는다.
+
+실제 `scan_rowspan_block_step → advance_row_block_cut_with_row_offsets → CellCutFrame`
+GDB 관측에서 오른쪽 start39의 offset은50.34667→0, available969.42667,
+content budget915.32→965.66667px다. padding3.76px와 기존48px sliver 계약은 그대로다.
+요구 높이를 작은 값으로 수용한 뒤 paint에서 늘리거나 좌표를 clamp하지 않았다.
+
+#### 실행 결과와 한계
+
+v249 fmt33.050초·Native build97.492초는exit0이다. 동결 CLI SHA-256은
+`f434172eed3dba1903780b17d8e80c1ff0b3e6d5b4eb0317adce6b77b73908b1`이며 생산 소스 불변을 확인했다.
+59043은38→37쪽, 새 본문 하단 초과1→0이다. 전체37쪽의 문단·표·개체 소속과
+시작/끝 컷은 고정 upstream 출력과 전부 같으며 다른 쪽0이다.
+처음 달라졌던26쪽 pi163 끝 컷은83→86으로 복구됐다. 이 관측은 전체 시각 통과가 아니다.
+
+v251은19종 원본의 전체 geometry를 완료했다. 고정 base보다 증가한 본문 하단 초과·
+지면 밖·텍스트 겹침은0이다. API/#7333/NONE-fill·화학제품 두 원본·K-water·보도자료 등의
+앞 단계 개선도 유지했다. v257의 별도 정상 대조에서 CGMP48쪽/KPS77쪽의 전체 item 소속과
+컷도 수정 전후 같았다. 기존 CGMP의 Table 하단 초과1건(46쪽7.4px), KPS 텍스트 겹침2건은
+증가하지 않았으나 이를 없어진 결함이나 독립 Print 판독 완료로 보고하지 않는다.
+
+v252 prepare·fmt check·고정 base manifest 정책·집중 nextest는 전부exit0/source불변이다.
+기존 #6950/#7552/#7203/#7333/#7235/#7620/#6378/#1921의 **37검사 전부PASS**,
+10295개 선택 제외다. nextest 명령885.445초(컴파일 포함), 실행 summary4.079초다.
+직전 같은 검사의37개 중1FAIL은 `regulatory_59043_page_count_pin`의37기대/38실제였으며,
+같은 기존 검사를 변경하지 않고 PASS로 복구했다. 전체 nextest·최신 세Clippy·fresh WASM·
+Skia·Studio는 이 실행에 포함되지 않는다. 마지막 전체 회귀29FAIL을1FAIL이나0FAIL로 바꾸지 않는다.
+
+v251의 완료된 Native 선택 쪽은 API18/25/32쪽58.93130/98.30699/99.43698%,
+KPS73쪽97.62566%, #7333의9/24/40쪽99.71248/99.66730/99.88917%다.
+API18은 고정 base와 최신PNG까지 동일하다. 이미 #7445/#7731에서 추적하는 부적합
+API 전용 렌더링24함수를 정확히 구분했고 모두 검토 base에 등록되어 있음을 확인했다(v255).
+순수IR·다른 원본 검사·공통 helper는 유지 대상으로 구분했다. 이 단계에서는 아직 검사를 삭제하거나
+원본을 이동하지 않았다. CGMP·KPS·가맹사업은 현재 보정 대상으로 유지한다.
+
+이전 소스0cce의 v232 화학제품 연구 전체103쪽도 종료했다. 10쪽이90% 미만이고 최저79쪽
+17.91785%다. 부모 runner는 소스 불일치 검사에서 종료해 다음 문서를 실행하지 않았다.
+이 결과는 이전 소스의 실제 미달 근거이며 최신 head의 전체 결과가 아니다.
+v250의15/79/85쪽 historical review PNG를 표시·직접 확인했다:15쪽은 그림 뒤 캡션/본문이
+밀렸고79쪽은 로고 묶음 일부 소속·상단 위치가,85쪽은 제목/그림과 본문의 위치가 다르다.
+최신 v251의 영향 쪽 및 정확한 base v258의15/79/85쪽 비교를 계속한다.
+v258은 bfa28의 기존 v187 동결 바이너리SHA와 같음을 별도 provenance로 확인했다.
+
+완료된 v232의SVG103개5,920,935,946byte(약5.514GiB)를 삭제했다(v254).
+MainPID0/failed, 열린SVG handle0과PNG 양쪽103쪽·TSV 보존을 확인했고 압축하지 않았다.
+원본·PDF·PNG·TSV·로그·공용 target은 보존했다. 공간 여유는 약38GiB다.
+
+ignored `output/pr-review/semanticist21-20261008/`의
+`remaining-row-frame-{native-v249,validation-v251,focused-nextest-v252}-result.json`,
+`remaining-row-frame-boundaries-v253/`, `remaining-row-frame-positive-controls-v257/`,
+`chemical-whole-historical-review-v250/`, `api-existing-transfer-audit-v255.json`,
+`chemical-base-native-v258-{result,build-provenance}.json`에 실제 명령·원본SHA·관측을 연결했다.
+현재 실행 중인 v251/v258은 종료 후 결과를 이어서 기록한다.
+개별 PR의 머지 보류와 최종 전체 Native/fresh·확대 판독·회귀·lint gate는 유지한다.
