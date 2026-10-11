@@ -23,7 +23,7 @@ last_verified: 2026-10-11
 
 ## 시각 선행 조건과 1단계 결과
 
-현재 생산 source는 `d0528fb55f225fba8b4b65b9ed670a8dee9c654b`이다.
+아래 시각 증적의 renderer source는 `d0528fb55f225fba8b4b65b9ed670a8dee9c654b`이다.
 `b493b6887`은 검사 제거만 변경했으며 생산 source와 입력 바이트가 같다.
 Native/fresh WASM 전쪽 TSV 최저값: table-text 99.99320%, stored-vpos 98.77240%,
 hwp-multi 95.64710%, 해외투자 HWPX/HWP/복제본 각각91.97621%이다.
@@ -79,3 +79,18 @@ table-text Print/Native/WASM 같은 제목 확대 판독에서 칸 소유·중�
 위 시각 산출은 renderer source `d0528fb55f225fba8b4b65b9ed670a8dee9c654b` 기준이며
 새 진단 source head의 fresh package라고 보고하지 않는다. 다음 단계는 승인된 실패3사례
 이관, 유지 검사·필수 lint·최종 전체 nextest다.
+
+## 3단계 — 승인된 이관과 최종 검증
+
+#7830·#7831은 #7445의 실제 하위 이슈로 등록하고 담당자jangster77·UTF-8 본문을
+API 재조회로 확인했다. 제거 전 source·SHA256은 `mydocs/pr/assets/issue7830/`,
+`mydocs/pr/assets/issue7831/`에 보존한다. sample2의 실제8쪽 review·표 하단 확대도 포함했다.
+입력과 Print는 다른 정상 검사 참조 때문에 공유 경로에 유지한다.
+
+- #7830: HWP8쪽 검사 함수1개 제거, HWPX19쪽 정상 함수 유지.
+- #7831: 39쪽 검사 함수1개 제거, 마지막 표 검사의 가정폭력 분기만 제거.
+  정상7062 분기와 가정폭력16쪽 빈 문단 검사는 유지한다.
+- 실패3사례 이관이며 전체 함수 감소는2개다. 현재 짧은 표 하단·39→37쪽 손실은
+  이슈의 새 미해결 회귀로 남고, 현재 수치로 기대값을 갱신하지 않았다.
+
+유지 검사·필수 lint·전체 회귀 결과는 다음 실행 뒤 이 절에 기록한다.
