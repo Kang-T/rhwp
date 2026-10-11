@@ -8,6 +8,7 @@ mod stored_first_line_restart;
 mod stored_inline_row_frame;
 mod stored_intra_paragraph_frame;
 mod stored_nested_frame;
+mod stored_nested_source_cut;
 mod stored_ordinary_row_frame;
 mod stored_plain_cell_minimum;
 mod stored_plain_row_frame;
@@ -11982,12 +11983,16 @@ impl LayoutEngine {
                 // 못 미치는 단일 reset 표는 legacy fallback을 유지한다.
                 return units
                     .iter()
-                    .map(|unit| {
+                    .enumerate()
+                    .map(|(index, unit)| {
                         let visible = Self::cell_unit_has_visible_content(cell, unit);
+                        // 자식의 원본 줄까지 확인한 시작 컷만 실제 재시작으로 전달한다.
+                        let source_restart =
+                            self.stored_nested_source_unit_frame_break(cell, table, index, styles);
                         NestedFlowFragment {
                             height: unit.height,
-                            hard_break_before: false,
-                            stored_frame_break_before: false,
+                            hard_break_before: source_restart,
+                            stored_frame_break_before: source_restart,
                             trailing: unit.mixed_nested_trailing || !visible,
                             content_height: if unit.mixed_nested_content_height > 0.0 {
                                 unit.mixed_nested_content_height

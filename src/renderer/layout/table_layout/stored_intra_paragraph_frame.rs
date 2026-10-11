@@ -25,35 +25,47 @@ impl LayoutEngine {
             return false;
         }
         cells.iter().zip(units).any(|(cell, units)| {
-            units.iter().any(|unit| {
-                if !unit.page_frame_reset_before || unit.vis_start == 0 {
-                    return false;
-                }
-                let Some(paragraph) = cell.paragraphs.get(unit.para_idx) else {
-                    return false;
-                };
-                if paragraph.stored_text_partition_is_dirty()
-                    || paragraph.cell_format_vpos_dirty
-                    || !paragraph.controls.is_empty()
-                {
-                    return false;
-                }
-                let Some(previous) = paragraph.line_segs.get(unit.vis_start - 1) else {
-                    return false;
-                };
-                let Some(current) = paragraph.line_segs.get(unit.vis_start) else {
-                    return false;
-                };
-                let synthetic = crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY;
-                previous.tag & synthetic == 0
-                    && current.tag & synthetic == 0
-                    && previous.vertical_pos > 0
-                    && current.vertical_pos == 0
-                    && previous.line_height > 0
-                    && current.line_height > 0
-                    && current.text_start > previous.text_start
-            })
+            units
+                .iter()
+                .any(|unit| Self::stored_in_paragraph_unit_is_original_restart(cell, unit))
         })
+    }
+
+    /// 행 분해와 상위 투영은 동일한 원본 줄의 재시작을 판별한다.
+    pub(super) fn stored_in_paragraph_unit_is_original_restart(
+        cell: &Cell,
+        unit: &CellUnit,
+    ) -> bool {
+        if cell.dirty_flag
+            || !unit.page_frame_reset_before
+            || unit.vis_start == 0
+            || unit.vis_end <= unit.vis_start
+        {
+            return false;
+        }
+        let Some(paragraph) = cell.paragraphs.get(unit.para_idx) else {
+            return false;
+        };
+        if paragraph.stored_text_partition_is_dirty()
+            || paragraph.cell_format_vpos_dirty
+            || !paragraph.controls.is_empty()
+        {
+            return false;
+        }
+        let Some(previous) = paragraph.line_segs.get(unit.vis_start - 1) else {
+            return false;
+        };
+        let Some(current) = paragraph.line_segs.get(unit.vis_start) else {
+            return false;
+        };
+        let synthetic = crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY;
+        previous.tag & synthetic == 0
+            && current.tag & synthetic == 0
+            && previous.vertical_pos > 0
+            && current.vertical_pos == 0
+            && previous.line_height > 0
+            && current.line_height > 0
+            && current.text_start > previous.text_start
     }
 
     /// Normalize the original opening box into the ordinary source row. This
