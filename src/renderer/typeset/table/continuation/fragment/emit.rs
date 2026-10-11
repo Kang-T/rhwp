@@ -1163,12 +1163,17 @@ impl TypesetEngine {
             .empty_opening_row_frame
             .filter(|_| !is_continuation && cursor_row == 0 && split_end_cut == [0])
             .map(|frame| frame.continuation_height);
+        let next_source_cut = if split_end_limit > 0.0 {
+            split_end_cut.clone()
+        } else {
+            Vec::new()
+        };
         let next_cut = if split_end_limit > 0.0 {
-            // 다음 조각의 컷 선택이 높이 없이 넘길 첫머리 빈 spacer 를 시작 컷에서 미리
-            // 건너뛴다 — 그 조각의 예약·그리기도 같은 유닛에서 시작한다.
+            // 높이·프레임 계산은 물리 시작점을 쓴다. 소스 컷 자체를 바꾸면 앞 조각의
+            // end_cut과 다음 start_cut 사이에 소비 주인이 없는 유닛이 생긴다.
             match (split_block_start, end_row.checked_sub(1)) {
                 (None, Some(row)) => layout_engine.skip_leading_free_spacers_in_row_cut(
-                    table,
+                    row_geometry_table,
                     row,
                     &split_end_cut,
                     styles,
@@ -1394,7 +1399,12 @@ impl TypesetEngine {
                 },
                 page_end_band,
             );
-        continuation.advance(end_row, split_block_start, next_cut, split_end_limit > 0.0);
+        continuation.advance(
+            end_row,
+            split_block_start,
+            next_source_cut,
+            split_end_limit > 0.0,
+        );
         continuation.start_row_height_override = next_start_row_height_override;
         if let Some(((_, row, cut, height), _)) = stored_rowspan_frame {
             continuation.row = row;

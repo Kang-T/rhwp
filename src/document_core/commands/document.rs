@@ -1908,7 +1908,16 @@ impl DocumentCore {
                                     unmappable = true;
                                     continue;
                                 }
-                                for (slot, consumed) in start_cut.iter().enumerate() {
+                                // 소스 소유 컷은 연속으로 남겨 두고, 실제 배치와 같은
+                                // 물리 시작점에 저장 사다리의 프레임 재시작을 기록한다.
+                                let physical_start_cut =
+                                    self.layout_engine.skip_leading_free_spacers_in_row_cut(
+                                        table,
+                                        *start_row,
+                                        start_cut,
+                                        &self.styles,
+                                    );
+                                for (slot, consumed) in physical_start_cut.iter().enumerate() {
                                     if *consumed > 0 {
                                         per_cell
                                             .entry(row_cells[slot])

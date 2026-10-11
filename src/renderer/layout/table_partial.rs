@@ -875,6 +875,13 @@ impl LayoutEngine {
         if cell.row_span > 1 {
             return ProbeCutPlan::Unsupported;
         }
+        // 프로브도 배치용 원점을 재추측하지 않고 renderer의 물리 시작 컷을 쓴다.
+        let physical_start_cut = if start_cut_is_block {
+            start_cut.to_vec()
+        } else {
+            self.skip_leading_free_spacers_in_row_cut(table, start_row, start_cut, styles)
+        };
+        let start_cut = physical_start_cut.as_slice();
         let cell_row = cell.row as usize;
         let cell_end_row = cell_row + (cell.row_span as usize).max(1);
         // 분할 게이트 — layout_partial_table_cells 와 동일 판정
@@ -4660,6 +4667,16 @@ impl LayoutEngine {
         if table.cells.is_empty() {
             return y_start;
         }
+
+        // PageItem에는 내용 소유를 나타내는 연속 소스 컷을 보존한다. 예약 경로와
+        // 동일한 물리 시작점을 사용해 앞 저장 프레임의 빈 꼬리를 다시 그리지 않는다.
+        // 블록 컷은 행 컷과 슬롯 공간이 다르므로 이 행별 변환의 대상이 아니다.
+        let physical_start_cut = if start_cut_is_block {
+            start_cut.to_vec()
+        } else {
+            self.skip_leading_free_spacers_in_row_cut(table, start_row, start_cut, styles)
+        };
+        let start_cut = physical_start_cut.as_slice();
 
         // [#3820 Stage 120] A native-HWP5 empty-host 1x1 RowBreak table can store the
         // physical first-fragment height in `common.height`, then restart its cell LINE_SEG

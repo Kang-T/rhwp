@@ -76,7 +76,19 @@ impl TypesetEngine {
         profile: &mut FragmentProfile,
     ) -> TableContinuationIteration {
         profile.iterations += 1;
-        let start_cut = continuation.start_cut.clone();
+        // 소스 컷은 앞 조각의 끝과 연속이어야 한다. 저장 프레임의 꼬리 spacer는
+        // 그 연속 범위 안에서 소비하되, 다음 물리 프레임의 높이/원점에는 싣지 않는다.
+        // 예약·선택은 paint와 같은 helper로 구한 물리 시작점을 소비한다.
+        let start_cut = if continuation.start_cut_is_block {
+            continuation.start_cut.clone()
+        } else {
+            prepared.layout_engine.skip_leading_free_spacers_in_row_cut(
+                source.row_geometry_table,
+                continuation.row,
+                &continuation.start_cut,
+                source.styles,
+            )
+        };
         let straddle_row_relief = if continuation.start_cut_is_block
             || !continuation.start_cut.is_empty()
             || continuation.start_row_height_override.is_some()
