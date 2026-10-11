@@ -9,11 +9,13 @@ last_verified: 2026-10-11
 
 ## 최종 판정
 
-**메인터너 보정 후 수용 가능 — HWP와 HWPX 모두 직접 시각 판정을 받았고 통합 전 Native/fresh Docker WASM 전쪽 90% 및 전체 회귀를 통과했다. 최신 devel 27개 commit 통합과 통합 후 검증이 남아 있으므로 아직 원격 반영·merge를 수행하지 않는다.** 앞선 URL·캐시 추정은 차이의 원인이 아니었다. 로컬 시각 수치 충족만으로 직접 판정을 대신하지 않는다. 원 head의 파서 결함은 실제 재현됐고, 추가 범위인 변경 추적 숨김도 같은 PR에서 보정한다. 원 기여 commit `1489ca1d95e3d6e6b888870d3b14cf240866ef00`을 보존해 source head 위에서 진행한다.
+**메인터너 보정 후 수용 가능 — HWP/HWPX 메인터너 직접 시각 판정 통과. 최신 devel 통합 뒤 code `c2f0bad49959b853a100458b3d74810c37d0b385`의 Native/fresh Docker WASM 전쪽 90%와 전체 nextest 10,565건을 통과했다. Native Skia lib·placeholder·직접 PDF 출력까지 모두 통과해 로컬 보정 검증을 완료했다. 원격 새 head CI/CodeQL과 병합은 아직 수행하지 않았다.**
 
-최종 가시성·저장 code `422e09032`의 공개 #5169 원본은 Native/fresh Docker WASM 모두 독립 한컴 Print와 같은 6쪽이다. 전쪽 TSV 최저는 각각 91.69413%로 90% 미달·누락이 없고 대표 1·3·4쪽 review gate도 passed다. 숨긴 변경 내용은 공통 visible IR에서 제외하고, 바뀌지 않은 문단의 저장 LineSeg와 원본 이력은 보존했다. production 저장본의 한컴 Print는 정상 6쪽이며 원본 PDF와 전쪽 raster가 동일하다. 증적·한계와 회귀 기대값 재검토는 [메인터너 보정 기록](pr_7698_review_impl.md)에 연결한다. 메인터너는 HWP의 숨김 표시 해결을 확인했다. HWPX의 최종 Docker Studio도 시각 판정 통과를 받았다.
+scari님의 원 기여 commit `1489ca1d95e3d6e6b888870d3b14cf240866ef00`은 ancestor로 보존한다. 사용자가 지시한 공개 #5169 변경 추적 표시 결함도 이번 보정 범위에 포함했다. HWP/HWPX 모두 독립 한컴 Print와 같은 6쪽이고 Native/fresh WASM 각각 HWP 최저 91.69413%, HWPX 및 XML 형식 공백 대조군 최저 90.87964%다. 전체 쪽수 일치, 누락·90% 미달 없음. 새 대표 2·3·4쪽 review gate는 passed이고 직접 판독에서 숨긴 내용 제외·빈 줄/제목의 새 쪽 소속·본문 및 표 관계를 확인했다.
 
-원 head의 Build & Test 성공과 CodeQL high 경고 69건 실패는 아래 최초 진단으로 남긴다. 최신 보정본의 전체 회귀나 CodeQL 해소 증거로 이전 결과를 재사용하지 않는다. 원격 source push·새 CI 확인·merge·close는 아직 수행하지 않았다. 아래 원 head 최초 검증과 로컬 최신 결과를 구분한다.
+저장 표시 설정을 공통 visible IR에 적용하며, 바뀌지 않은 문단의 유효한 저장 LineSeg를 보존한다. 미편집 HWP 저장본의 한컴 Print는 정상 6쪽이며 원본 PDF와 전쪽 raster가 동일하다. 보기 전환 UI, 변경 수락/거부, 서식 변경의 원본 복원, HWPX 이력 전체 저장·재열기는 완료 범위에 포함하지 않는다. 비공개 기업 원본은 제공되지 않아 공개 실제 암호 대조군과 합성 Section1 재현의 한계를 구분했다. [보정·검증 기록](pr_7698_review_impl.md)과 [대표 PNG](assets/pr7698/README.md)를 연결한다.
+
+원 head의 CodeQL high 경고 69건 실패는 아래 최초 진단으로 보존한다. 파서 반환값 명칭·계약 보정 뒤 새 SARIF로 재판정하며 이전 Build 성공이나 로컬 검사로 CodeQL 해소를 주장하지 않는다. 원격 push·PR 본문 갱신·merge·이슈 종료 전이다. 아래 최초 접수·검증과 마지막 절의 통합 보정 결과를 구분한다.
 
 ## 접수와 트리아지
 
@@ -47,7 +49,7 @@ base의 strict/lenient 파서는 section count에 ViewText를 포함하지만, �
 
 특정 문서 ID나 속성 수치 예외는 없다. 기존 비암호 정책의 PARA_HEADER 판별을 공유하며, 암호 스트림 처리라는 형식 계약에 분기를 둔다. 첫 레코드 판별은 전체 저장 조판 정보가 유효하다는 증명이 아니다.
 
-## 검증 입력과 결과
+## 원 head 접수 당시 검증 입력과 결과
 
 원문 실행 증적은 ignored `output/pr-review/pr7698-20261011/`에 보존한다. Rust 산출물은 공용 `/home/edward/mygithub/rhwp/target/pr-review`를 재사용했다. 테스트·baseline·허용치는 수정하지 않았다.
 
@@ -92,7 +94,7 @@ CodeQL의 [공식 규칙](https://codeql.github.com/codeql-query-help/rust/rust-
 
 증적: `codeql-check.json`, `codeql-alerts.json`, `codeql-rust.sarif.json`, `alert-classification-summary.json`, `production-sink-review.txt`, `test-sink-review.txt`, `production-sink-origins.txt`, `exact-head-checks-final.jsonl`.
 
-## 조판 원칙 준수 판정
+## 원 head 최초 조판 원칙 준수 판정
 
 | 항목 | 판정 | 근거 |
 | --- | --- | --- |
@@ -107,8 +109,24 @@ CodeQL의 [공식 규칙](https://codeql.github.com/codeql-query-help/rust/rust-
 | 90% 후 확대 판독 | 미검증 | 실제 암호 ViewText 원본/독립 Print PDF·TSV 미제공, 점수·시각 통과 주장 없음 |
 | 주장·검증 범위 | 미검증 | 파서 계약 6건과 대조군 9건 확인. 실제 WASM API·한컴 출력 일치는 미검증 |
 
-## 남은 절차
+## 접수 당시 후속 계획 (이후 보정은 아래 최신 결과 참고)
 
 1. 기여자에게 결함 재현 및 CodeQL 69건의 공통 source와 sink 분류를 전달한다. 초안은 ignored `output/pr-review/pr7698-20261011/contributor-comment-ko.md`; 게시 승인 전에는 게시하지 않는다.
 2. 개인정보를 제거한 정상 한컴 저장 암호/변경 추적 재현본을 요청한다. 실제 기업 원본 공개는 요구하지 않는다. 해당 본문 선택에 대응하는 독립 한컴 Print PDF, 최신 head Native/fresh WASM 출력·전쪽 TSV·대표 PNG로 실제 동작을 확인한다.
 3. CodeQL 보완/정확한 분류와 새 head CI를 확인하고 필요한 로컬 lint·회귀·Docker WASM 검증을 완료한 뒤 최종 수용 여부를 판정한다. 현재 단계에서는 #7674를 닫지 않는다.
+
+## 최신 통합 보정의 조판 원칙·검증 판정
+
+| 항목 | 판정 | 근거와 한계 |
+| --- | --- | --- |
+| 입력 → IR → 공통 출력 | 충족 | DocInfo/RangeTag 및 header type/hide/범위/merged → parser visible IR → 공통 typeset/layout → Native/fresh WASM. 텍스트와 소유 개체를 함께 투영하며 paint에서만 숨기지 않음 |
+| 저장 줄·중앙 정렬 | 충족 | 축 변경/문단 병합에서만 LineSeg 무효화. 유효한 저장 중간 줄 폭은 유지하고 재조판 줄의 비가시 말미 공백을 정렬에서 제외. #3837 겹침 4→3 복원·전수 래칫 통과 |
+| 빈 줄의 쪽 소속 | 충족 | 저장 꼬리와 현재 흐름 일치 근거를 HWPX에도 적용. 문단 19·20의 두 빈 줄 및 제목은 같은 2쪽, 관계형 정식 검사와 한컴 Print 직접 대조. 빈 글자 없음으로 점유를 제거하지 않음 |
+| 표 조각/rowspan 컷 | 비해당 | 표 컷·예약·clipping 구현은 바꾸지 않음. 변경된 visible IR에 소속된 표 4개와 앞뒤 내용은 정식 회귀 및 대표 PNG로 검증 |
+| 수정 전 FAIL / 수정 후 PASS | 충족 | 원 parser 검사: 최신 base 3 FAIL → 원 기여/보정 PASS. HWPX 같은 최종 테스트: 이전 lib 3 FAIL → 보정 3 PASS. XML 공백 12쪽/164문단 및 빈 줄 p2 27.65746%의 독립 진단은 분리 기록 |
+| 렌더링 회귀 선행 조건 | 충족 | 원본 HWP/HWPX 및 의미 동등 XML 공백 대조군의 Native/fresh WASM 전쪽 90% 이상·직접 판독 뒤 3건 추가 및 기존 검사 재검토. 절대 px/전체 SVG hash/baseline 완화로 실물 배치 고정하지 않음 |
+| 미편집 HWP 저장 | 충족 | raw ViewText 보존·visible BodyText 생성; production 저장본 한컴 Print와 원본의 6쪽 raster 동일, Native/fresh WASM 재열기 내용 동등. 편집 전체 보존으로 확대하지 않음 |
+| 최종 source 검증 | 충족 | fmt·세 Clippy·workspace·정책·집중 13건·전수 10,565 PASS. Native Skia lib rhwp 3,927 PASS/13 IGNORE 및 내부 crate 182 PASS, placeholder 2 PASS, 직접 PDF 4 PASS |
+| 직접 시각 판정 | 충족 | 메인터너 HWP 해결 확인 및 HWPX Studio 시각 통과. 최종 18장 WASM PNG는 승인 당시와 byte-identical; 자형·미세 간격 잔차 별도 기록 |
+| 비공개 기업 원본 / 전체 보기·편집 | 미검증 | 원본 미제공. 전체 모드 전환·서식 복원·수락/거부·HWPX 이력 저장 범위 미구현/미검증 |
+| 원격 CI/CodeQL 및 merge | 미검증 | 최종 source는 아직 fork에 반영하지 않음. 새 exact head CI/SARIF 재판정과 merge 직전 최신 base·head 확인 필요 |

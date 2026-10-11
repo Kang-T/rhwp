@@ -155,3 +155,29 @@ fresh WASM API 재검증은 Section1 Body 누락/공존·압축 여부·strict/l
 - Native Skia lib는 rhwp 3,927 PASS / 13 IGNORE이며 workspace lib 15·165·2건도 PASS다. placeholder/direct-PDF 검사는 아직 진행 중이다.
 
 검토 종료 전 fetch한 upstream/devel은 여전히 `90fa2f8955c2dd21e9f0ea8fd0c6ee8dc5996a47`이다. 원 기여 이력을 유지한 source branch는 이후 devel 27개 commit을 포함하지 않는다. 여기의 통과는 통합 전 source의 결과로 구분하며, devel을 통합한 뒤 바뀐 실제 소비 경로의 lint·회귀·fresh Docker WASM·시각 증적을 갱신한다. 통합 후 source로 이미 통과했다고 보고하지 않는다.
+
+## 최신 devel 통합 및 재검증
+
+`upstream/devel` `90fa2f895`를 원 PR 이력을 보존한 브랜치에 충돌 없이 merge했다(통합 code `b9905ceee06c85703f8500462beb7c8511bb0ccb`). 통합본의 fmt, Native Clippy, WASM32 lib Clippy, workspace build, workspace all-target Clippy, base 고정 manifest 검사가 통과했다. 변경 추적 정식 검사 6건, 암호 ViewText 검사 7건도 통과했다. Native 전쪽 출력은 `maintainer/integrated-native/{hwp,hwpx,xml-spacing}/silhouette.tsv`에 있으며 통합 전 최소값을 유지한다. 새로 생성한 세 입력의 총 18장 Native PNG는 통합 전 PNG와 각각 SHA-256이 동일하다. 대표 HWPX 2·3·4쪽은 통합 head에서 다시 생성한 `integrated-native-review`로 확인한다.
+
+앞선 Skia placeholder 단계는 테스트 추가 뒤 파생 suite 목록을 다시 준비하지 않아 0건 실행/exit 4였고 통과로 세지 않았다. integration suite와 case resolver를 동일 source에서 다시 준비해 통합 head의 세 Skia 단계를 재실행한다. 최종 fresh Docker WASM·전수 nextest·Skia 결과는 진행 중이다.
+
+통합 후 fresh WASM package `a212e003d920de5a4632386622678f5d83cdc5a2d2edceb217a184f5c15e3550`는 실제 브라우저에 로드됐지만, devel의 새 exporter가 요구하는 `setHangul2024Compat`가 없어 WASM Sweep이 명시 오류로 중단됐다. 이 결과는 측정 불가이며 통합 전 TSV로 대신하지 않는다. `DocumentCore::set_hangul2024_compat`는 이미 있고 `HwpDocument`의 WASM export가 없어, 같은 core 설정에 위임하는 6행 API를 code `c2f0bad49`로 추가했다. 조판 규칙·임계값·검사 guard를 바꾸지 않는다. 진행 중인 통합 nextest는 최종 코드에서 다시 실행하기 위해 중단했으며 완료로 집계하지 않는다. 최종 lint·전체 회귀·Docker WASM을 다시 시작한다.
+
+## 최종 통합 code의 재검증 (c2f0bad499)
+
+code SHA는 `c2f0bad49959b853a100458b3d74810c37d0b385`, base는 `90fa2f8955c2dd21e9f0ea8fd0c6ee8dc5996a47`이다. fmt, 세 Clippy, workspace build, base 고정 integration manifest 및 source unit-tier 정책 검사가 모두 통과했다. 집중 회귀는 #5169 HWP/HWPX 6 PASS, #7674 암호 ViewText 7 PASS다. 최종 전수 nextest 및 Native Skia 3종은 아래 종료 결과로 확정한다.
+
+최종 root Docker WASM과 Studio public의 WASM 해시는 `3988720b9da0d2fac1a3a59d612a8c291950d0e2a6669aa008cdbd70166e3a4a`로 일치한다. 최신 JS에는 동일 core setter의 생성 binding도 포함했다. Studio `http://localhost:7700/?review=pr7698-c2f0bad49-final`의 실제 초기화 응답도 같은 해시이며 6쪽·표제 표시·숨긴 두 문구 제외를 확인했다(`studio-hwpx-compatible-final.json`). 메인터너가 승인한 앞선 Docker WASM과 최종 WASM의 세 입력 18장 raster는 각각 byte-identical하다. API 노출 보정 뒤 기존 시각 판정을 임의로 재요청하지 않는다.
+
+전쪽 새 Native/fresh Docker WASM TSV는 `maintainer/compatible-{native,wasm}/{hwp,hwpx,xml-spacing}/silhouette.tsv`다. 세 입력 모두 각각 6쪽이고 누락·90% 미달은 0쪽이다. HWP 최소 91.69413%, HWPX 및 의미 동등 XML 공백 대조군 최소 90.87964%다. TSV 해시와 전후 PNG 비교는 `compatible-final-evidence.json`에 고정했다. 최종 대표 HWPX 2·3·4쪽의 Native/fresh WASM review·overlay는 `compatible-{native,wasm}-review/hwpx/`에서 새로 생성했고 gate passed 및 직접 확대 판독을 확인했다. 빈 줄의 새 쪽 소속, 제목·본문 순서, 표 괘선과 앞뒤 문단을 대조했다. 남은 자형·글자 폭·미세 간격 차이는 픽셀 동일로 표현하지 않는다. 공개 PNG는 [안정 경로](assets/pr7698/README.md)에 보존했다.
+
+최종 fresh WASM `openWithPassword` 검사는 압축 여부·BodyText Section1 유무·strict/lenient의 8조건, 비밀번호 누락/오답 거부를 통과했다. 공개 암호 대조군과 동일 cipher View 복제 대조군 모두 64쪽이고 64쪽 전체 text-layout/SVG가 동등하다. 공개 HWP 원본/미편집 저장본은 visible text·6쪽이 동일하다(`browser-contract-compatible-result.json`). 실제 비공개 기업 원본의 독립 Print 검증으로 확장하지 않는다.
+
+새 WASM setter는 기존 #5524 공개 문서로 실제 호출했다. 기본/2022에서 문단 13은 2쪽, 2024에서 1쪽이며 기존 Native 계약과 같다(`api-compat-page-contract.json`, `api-{2022,2024}/manifest.json`). 서로 다른 Print engine의 독립 PDF도 확보했지만 별도 전쪽 일치율은 측정하지 않았으므로 이 API 경계 검사를 #5524 시각 완료로 승격하지 않는다. 이번 API는 설정 뒤 core의 재페이지네이션에 위임하며 exporter 검사를 우회하거나 조판 임계값을 바꾸지 않는다.
+
+### 최종 로컬 검증 종료
+
+`validate-compatible.sh`는 전체 단계 exit 0으로 종료했다. 전체 nextest는 10,565 PASS / 0 FAIL / 50 SKIP(513.110s). Native Skia lib는 rhwp 3,927 PASS / 13 IGNORE 및 내부 crate 15·165·2 PASS, placeholder 2 PASS, 직접 PDF 4 PASS다. 단계별 로그는 `compatible-final-*.log`, `compatible-nextest.log`, `compatible-native-skia-{lib,placeholder,direct-pdf}.log`다. 이전 0건 실행/중단 로그와 구분하며 테스트·baseline·허용치 변경 없이 기존 래칫까지 통과했다. 사용한 nextest 0.9.137의 권장 버전 경고는 기록하고 실제 실행 건수·exit 0을 확인했다.
+
+원 fork head는 SSH/REST 모두 `1489ca1d95e3d6e6b888870d3b14cf240866ef00`, 기존 branch `fix/7674-encrypted-viewtext`이며 maintainer 수정 허용이다. upstream/devel은 REST 재조회에서도 고정 base와 동일하고 merge-tree는 충돌 없이 `dbcd5a61cd3d30e0d7cfdf77bb4d63d39a65cfde`다. 제출 diff의 신규 HWPX/PDF/PNG는 일반 Git 바이너리이고, 원 fork head 이후 553개 object의 사전 판독에서 신규 LFS pointer는 0개다(`lfs-range-preflight.json`). 전체 역사 대상으로 URL 직접 지정한 LFS dry-run은 기존 역사의 19개 객체를 열거했으며 신규 자료 업로드 범위로 취급하지 않는다. lock 확인의 URL 인증 오류도 제품·검증 실패로 세지 않는다. 원격 source push·본문 갱신·새 CI/CodeQL·merge는 별도 승인 범위에 따라 진행하며 아직 수행하지 않았다.
