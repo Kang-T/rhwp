@@ -113,6 +113,61 @@ impl TypesetEngine {
                     }
                 }
             }
+            // 원본 프레임의 완료 소유는 논리 행의 분할 가능 플래그보다 먼저
+            // 판정한다. 같은 마지막 밴드가 일반 행 경로로 들어가도, 통째 수용
+            // 허용량이 이미 증명한 프레임의 물리 끝을 넘기지 않게 한다.
+            if mt.allows_row_break_split()
+                && can_intra_split
+                && !st.profile.session_edited()
+                && !is_continuation
+                && r > cursor_row
+                && source_first_fragment_row_end == Some(r + 1)
+            {
+                let shape = row_query.band_shape();
+                if shape.has_prior_rowspan_cover && !shape.row_has_nested {
+                    let rest = (avail_for_rows - consumed - cs_before).max(0.0);
+                    let source_rest = source_first_fragment_height
+                        .map_or(rest, |height| (height - consumed - cs_before).max(0.0))
+                        .min(rest);
+                    let table::scan::row::RowBandProbe {
+                        probe,
+                        visible_height,
+                    } = row_query.probe_band(&[], source_rest);
+                    if source_rest > 0.0
+                        && probe.fully_consumed
+                        && visible_height <= source_rest + 0.5
+                        && row_query.completed_frame_band_fits(source_rest)
+                    {
+                        consumed += cs_before + source_rest;
+                        r += 1;
+                        end_row = r;
+                        end_row_height_override = Some(source_rest);
+                        let physical_span_continues = table.cells.iter().any(|cell| {
+                            (cell.row as usize) < end_row
+                                && cell.row as usize + cell.row_span as usize > end_row
+                        });
+                        if physical_span_continues {
+                            // 같은 행의 내용은 끝났지만 물리 상자는 이어진다.
+                            // 완료 컷으로 같은 행을 재개해 빈 tail만 먼저 소비하고,
+                            // 다음 실제 행의 내용과 높이를 온전히 보존한다.
+                            split_end_cut = probe.end_cut;
+                            split_end_limit = source_rest;
+                        } else {
+                            split_end_cut.clear();
+                            split_end_limit = 0.0;
+                        }
+                        completed_source_frame_end = Some(end_row);
+                        if std::env::var("RHWP_DIAG_SCAN").is_ok() {
+                            eprintln!(
+                                "DIAG_SCAN COMPLETED_SOURCE_SPAN r={} band={:.1}",
+                                r - 1,
+                                source_rest
+                            );
+                        }
+                        return false;
+                    }
+                }
+            }
             let rowbreak_rowspan_row_splittable =
                 mt.allows_row_break_split() && can_intra_split && mt.is_row_splittable(r);
             if rowspan_touched[r] && !rowbreak_rowspan_row_splittable {
@@ -171,50 +226,6 @@ impl TypesetEngine {
                         end_row_height_override = Some(opening);
                         split_end_cut = probe.end_cut;
                         split_end_limit = opening;
-                        return false;
-                    }
-                    // 일반 행과 같은 첫 저장 프레임의 소유 끝을 소비한다.
-                    // 이 행에서 덮는 모든 셀의 내용까지 끝나면 프레임 밴드를
-                    // 예약과 paint에 함께 전달하고 다음 행부터 재개한다.
-                    // 다음 행까지 이어지는 병합 상자도 실제 수용 높이를 전달해
-                    // 완료한 내용과 빈 선언 tail을 다음 쪽에서 다시 소비하지 않는다.
-                    let source_rest = source_first_fragment_height
-                        .map_or(rest, |height| (height - consumed - cs_before).max(0.0))
-                        .min(rest);
-                    if !st.profile.session_edited()
-                        && source_first_fragment_row_end == Some(r + 1)
-                        && !is_continuation
-                        && probe.fully_consumed
-                        && source_rest > 0.0
-                        && visible_height <= source_rest + 0.5
-                        && row_query.completed_frame_band_fits(source_rest)
-                    {
-                        consumed += cs_before + source_rest;
-                        r += 1;
-                        end_row = r;
-                        end_row_height_override = Some(source_rest);
-                        let physical_span_continues = table.cells.iter().any(|cell| {
-                            (cell.row as usize) < end_row
-                                && cell.row as usize + cell.row_span as usize > end_row
-                        });
-                        if physical_span_continues {
-                            // 같은 행의 내용은 끝났지만 물리 상자는 이어진다.
-                            // 완료 컷으로 같은 행을 재개해 빈 tail만 먼저 소비하고,
-                            // 다음 실제 행의 내용과 높이를 온전히 보존한다.
-                            split_end_cut = probe.end_cut;
-                            split_end_limit = source_rest;
-                        } else {
-                            split_end_cut.clear();
-                            split_end_limit = 0.0;
-                        }
-                        completed_source_frame_end = Some(end_row);
-                        if std::env::var("RHWP_DIAG_SCAN").is_ok() {
-                            eprintln!(
-                                "DIAG_SCAN COMPLETED_SOURCE_SPAN r={} band={:.1}",
-                                r - 1,
-                                source_rest
-                            );
-                        }
                         return false;
                     }
                     // Stage 76의 긴 declared-row tail은 내용 뒤에 충분한 물리 blank
