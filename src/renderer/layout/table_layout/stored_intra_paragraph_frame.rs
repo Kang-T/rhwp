@@ -3,9 +3,59 @@
 use crate::model::table::{Cell, Table};
 use crate::renderer::hwpunit_to_px;
 
-use super::{LayoutEngine, ResolvedStyleSet};
+use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    /// 원본 문단 안의 저장 재시작은 선언 높이가 있는 중첩 행도 분할한다.
+    /// 문단마다 시작하는 로컬 좌표와 편집 후 만든 줄 정보는 이 근거가 아니다.
+    pub(super) fn stored_nested_row_has_in_paragraph_cut(
+        &self,
+        table: &Table,
+        cells: &[&Cell],
+        units: &[std::sync::Arc<Vec<CellUnit>>],
+    ) -> bool {
+        let profile = self.profile.get();
+        if profile.session_edited()
+            || !(profile.hwpx_stored_layout() || profile.hwp5_stored_pagination_layout())
+            || self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+        {
+            return false;
+        }
+        cells.iter().zip(units).any(|(cell, units)| {
+            units.iter().any(|unit| {
+                if !unit.page_frame_reset_before || unit.vis_start == 0 {
+                    return false;
+                }
+                let Some(paragraph) = cell.paragraphs.get(unit.para_idx) else {
+                    return false;
+                };
+                if paragraph.stored_text_partition_is_dirty()
+                    || paragraph.cell_format_vpos_dirty
+                    || !paragraph.controls.is_empty()
+                {
+                    return false;
+                }
+                let Some(previous) = paragraph.line_segs.get(unit.vis_start - 1) else {
+                    return false;
+                };
+                let Some(current) = paragraph.line_segs.get(unit.vis_start) else {
+                    return false;
+                };
+                let synthetic = crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY;
+                previous.tag & synthetic == 0
+                    && current.tag & synthetic == 0
+                    && previous.vertical_pos > 0
+                    && current.vertical_pos == 0
+                    && previous.line_height > 0
+                    && current.line_height > 0
+                    && current.text_start > previous.text_start
+            })
+        })
+    }
+
     /// Normalize the original opening box into the ordinary source row. This
     /// only supplies the existing saved-cut tail calculation; accepted physical
     /// rows and the table's occupied extent remain in their original ledger.

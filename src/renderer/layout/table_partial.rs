@@ -4183,6 +4183,13 @@ impl LayoutEngine {
                                     } else {
                                         None
                                     };
+                                    let split_info = split_info.map(|split| {
+                                        self.with_nested_header_reservation(
+                                            nested_table,
+                                            split,
+                                            styles,
+                                        )
+                                    });
                                     let split_ref = split_info.as_ref().filter(|s| {
                                         s.start_row > 0
                                             || s.end_row < nested_table.row_count as usize
@@ -4528,8 +4535,9 @@ impl LayoutEngine {
                                             ),
                                         )
                                     };
-                                    let visible_table_h = mixed_nested_split
+                                    let visible_table_h = split_info
                                         .as_ref()
+                                        .filter(|_| mixed_nested_split.is_some())
                                         .map(|split| split.flow_height)
                                         .unwrap_or(table_h_rendered);
                                     if std::env::var_os("RHWP_DIAG_SCAN").is_some() {

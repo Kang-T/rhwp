@@ -1,5 +1,6 @@
 //! 표 레이아웃 (layout_table + 셀 높이/줄범위 계산)
 
+mod nested_header_frame;
 mod row_block_cut;
 mod stored_body_closed_frame;
 mod stored_complete_block_cut;
@@ -2047,6 +2048,7 @@ pub(crate) struct NestedTableCut {
 }
 
 /// 중첩 표 부분 렌더링을 위한 행 범위 정보
+#[derive(Clone)]
 pub(crate) struct NestedTableSplit {
     pub start_row: usize,
     pub end_row: usize,
@@ -3800,15 +3802,25 @@ impl LayoutEngine {
             None
         };
         let nested_split = nested_split.or(inferred_viewport_split.as_ref());
+        let repeated_headers = self.nested_header_frame(
+            table,
+            nested_split.map_or(0, |split| split.start_row),
+            &row_heights,
+        );
 
         // 중첩 표 부분 렌더링: row_y를 시프트하여 보이는 행만 표시
         let (row_y_shift, split_row_range, split_y_offset) = if let Some(split) = nested_split {
             let sr = split.start_row.min(row_count);
             let er = split.end_row.min(row_count);
             let shift = row_y[sr];
-            // row_y를 시프트하여 start_row가 0에서 시작하도록 함
+            let header_end = repeated_headers.rows.last().map_or(0, |row| row + 1);
+            let header_y = row_y[..=header_end].to_vec();
+            // 제목행은 새 조각 상단에 반복하고, 선택한 본문은 그 예약 공간 뒤에서 시작한다.
             for y in row_y.iter_mut() {
-                *y -= shift;
+                *y += repeated_headers.height - shift;
+            }
+            if header_end > 0 {
+                row_y[..=header_end].copy_from_slice(&header_y);
             }
             // end_row 이후의 모든 row_y를 캡하여 spanning 셀이 보이는 영역을 초과하지 않도록 함
             let cap_y = if split.visible_height > 0.0 {
@@ -3915,6 +3927,47 @@ impl LayoutEngine {
                 .borrow()
                 .table_text_reflowed(table)
             && crate::renderer::float_placement::stored_complete_column_frame(table);
+        // 안 여백은 내용의 시작점이며 원본 개체 폭의 축소 명령이 아니다.
+        // 같은 원점에서 원본 표가 부모의 물리 셀 안에 들어가면 저장 열 구획을 유지한다.
+        let original_width_fits_cell = depth > 0
+            && matches!(col_node.node_type, RenderNodeType::TableCell(_))
+            && table.common.width > 0
+            && !self.profile.get().session_edited()
+            && (self.profile.get().hwpx_stored_layout()
+                || self.profile.get().hwp5_stored_pagination_layout())
+            && !self
+                .render_normalization
+                .borrow()
+                .table_text_reflowed(table)
+            && table.cells.iter().all(|cell| {
+                !cell.dirty_flag
+                    && cell.paragraphs.iter().all(|paragraph| {
+                        !paragraph.stored_text_partition_is_dirty()
+                            && !paragraph.cell_format_vpos_dirty
+                    })
+            })
+            && {
+                let source_x = resolved_table_origin
+                    .and_then(|(left, _)| left)
+                    .unwrap_or_else(|| {
+                        self.compute_table_x_position(
+                            table,
+                            table_width,
+                            col_area,
+                            depth,
+                            host_alignment,
+                            host_margin_left,
+                            host_margin_right,
+                            inline_x_override,
+                            wrapper_margin_already_applied,
+                            None,
+                        )
+                    });
+                source_x.is_finite()
+                    && table_width.is_finite()
+                    && source_x >= col_node.bbox.x
+                    && source_x + table_width <= col_node.bbox.x + col_node.bbox.width
+            };
         // [#4042 버그 A] 다중열(col_count>1) 중첩 표만 대상. 1×1(단일 셀) 중첩 표는
         // 셀 자체가 표 폭이라 render_normalization 이 부모 셀에 맞춰 스트레치(#2195/#4058
         // 76076)하는 것이 정답 기하이며, 여기서 col_area.width 로 되축소하면 그 스트레치
@@ -3926,6 +3979,7 @@ impl LayoutEngine {
             && !table.common.treat_as_char
             && !stored_column_frame
             && table_width > fit_avail_w + 0.5
+            && !original_width_fits_cell
         {
             let fit = fit_avail_w / table_width;
             for w in col_widths.iter_mut() {
@@ -4220,6 +4274,7 @@ impl LayoutEngine {
             &mut h_span_covered,
             &mut v_span_covered,
             split_row_range,
+            &repeated_headers.rows,
             row_y_shift,
             split_y_offset,
             scalar_single_row_continuation,
@@ -4305,6 +4360,26 @@ impl LayoutEngine {
             );
             table_node.children.extend(borders);
         } else if independent_col_row_y.is_none() {
+            if let Some((start, end)) =
+                split_row_range.filter(|_| !repeated_headers.rows.is_empty())
+            {
+                let header_end = repeated_headers.rows.last().map_or(0, |row| row + 1);
+                // 제목행 밴드 안으로 이동한 미선택 본문의 선·투명 가이드를 다시 그리지 않는다.
+                for (row, edges) in h_edges.iter_mut().enumerate() {
+                    if row > header_end && (row < start || row > end) {
+                        edges.fill(None);
+                        h_span_covered[row].fill(true);
+                    }
+                }
+                for (column, edges) in v_edges.iter_mut().enumerate() {
+                    for (row, edge) in edges.iter_mut().enumerate() {
+                        if !repeated_headers.rows.contains(&row) && (row < start || row >= end) {
+                            *edge = None;
+                            v_span_covered[column][row] = true;
+                        }
+                    }
+                }
+            }
             let body_top_clip = (depth == 0
                 && self.is_body_flow_col_area(col_area)
                 && (table_y - col_area.y).abs() <= 0.5)
@@ -9217,6 +9292,10 @@ impl LayoutEngine {
                                     .native_child_has_stored_frame_boundary(nested_table, styles))
                             .then_some(mixed_nested_split.as_ref())
                             .flatten();
+                            let nested_header_split = nested_split.cloned().map(|split| {
+                                self.with_nested_header_reservation(nested_table, split, styles)
+                            });
+                            let nested_split = nested_header_split.as_ref();
                             let table_h = self.layout_table(
                                 tree,
                                 cell_node,
@@ -9584,6 +9663,7 @@ impl LayoutEngine {
         h_span_covered: &mut [Vec<bool>],
         v_span_covered: &mut [Vec<bool>],
         row_filter: Option<(usize, usize)>,
+        repeated_header_rows: &[usize],
         row_y_shift: f64,
         split_y_offset: f64,
         scalar_single_row_continuation: bool,
@@ -9606,6 +9686,12 @@ impl LayoutEngine {
             if c >= col_count || r >= row_count {
                 continue;
             }
+            // 반복 제목행은 앞쪽에서 소비한 본문이 아니다. 온전한 원본 셀을 새 밴드에 배치한다.
+            let row_filter = if repeated_header_rows.contains(&r) {
+                None
+            } else {
+                row_filter
+            };
 
             // 행 범위 필터: 보이는 행에 겹치지 않는 셀은 스킵
             let cell_end_row = (r + cell.row_span as usize).min(row_count);
@@ -9623,8 +9709,8 @@ impl LayoutEngine {
                 + cell_col_y
                     .and_then(|cy| cy.get(r).copied())
                     .unwrap_or(row_y[r]);
-            let cell_y = if row_filter.is_some() {
-                raw_cell_y.max(table_y)
+            let cell_y = if let Some((start, _)) = row_filter {
+                raw_cell_y.max(table_y + row_y[start])
             } else {
                 raw_cell_y
             };
@@ -15048,6 +15134,10 @@ impl LayoutEngine {
                                 !units.is_empty()
                                     && units.iter().all(|unit| unit.nested_row.is_some())
                             });
+                            // 원본 문단 내부의 재시작 표식을 행 원자로 감추지 않는다.
+                            // 같은 셀 유닛의 컷을 상위 예약과 실제 부분 표 배치에 전달한다.
+                            let row_has_stored_in_paragraph_cut = self
+                                .stored_nested_row_has_in_paragraph_cut(nt, &row_cells, &row_units);
                             let row_has_joint_source_boundary = row_cells.iter().any(|cell| {
                                 self.stored_joint_zero_origin_boundary(cell, nt).is_some()
                             });
@@ -15058,7 +15148,7 @@ impl LayoutEngine {
                                 (row_is_auto_height
                                     || driver_is_nested_table_rows
                                     || row_has_joint_source_boundary
-                                    || row_has_plain_source_boundary)
+                                    || row_has_plain_source_boundary || row_has_stored_in_paragraph_cut)
                                     && !row_has_crossing_span
                                     && row_units[*driver_index].len() > 1
                             }) {
@@ -24269,7 +24359,9 @@ impl LayoutEngine {
 
         crate::diagnostics::perf_counters::MIXED_NESTED_UNITS_SCANNED
             .fetch_add(issue4129_visited, std::sync::atomic::Ordering::Relaxed);
-        extra + recursive_parent_padding.max(0.0)
+        extra
+            + recursive_parent_padding.max(0.0)
+            + self.atomic_nested_header_reservation(cell, table, styles, lo, hi)
     }
 
     /// Physical rows for an ordinary row-cut fragment. Acceptance and paint
