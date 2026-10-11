@@ -27189,8 +27189,7 @@ mod row_cut_tests {
         blank.line_segs[0].line_height = 400;
         blank.line_segs[0].line_spacing = 160;
         let mut host = empty_overlay_para(1, 560);
-        host.controls
-            .push(Control::Table(Box::new(Table::default())));
+        host.controls.push(Control::Table(Box::default()));
         let mut owner = cell(0, 0, vec![blank, host]);
         let owner_table = rowbreak_table(vec![owner.clone()]);
         let mut unit = saved_reset_unit(crate::renderer::hwpunit_to_px(560, eng.dpi), 0, 1, false);
