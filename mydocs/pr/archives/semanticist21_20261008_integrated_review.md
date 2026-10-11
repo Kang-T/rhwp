@@ -2403,3 +2403,68 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - v172 workspace build는exit0/264.459초이나 all-target Clippy는exit101/295.406초다. `tests/envelope_integrity_contract.rs`의 승인된 시험지 제외 selector가 `corpus_scope`를 참조하면서 module 선언을 빠뜨린 리베이스 통합 오류를 확인했다. 기존 공통 helper를 연결하는 선언만 추가했다. 시험지/HML 입력·기대값·renderer source는 변경하지 않으며, 기존 Native/WASM Clippy와workspace build의 생산 source 동일성을 유지한다. 실패한workspace Clippy와fmt/정책부터v173 순차 체인으로 재검증한 뒤fresh/전체 회귀/Skia를 계속한다. 뒤composite v174는그종료뒤 실행한다. v172 오류로fresh미생성일때 종료된 대기 worker는 실패·미실행 기록을 남겼으며, WASM전쪽은v174 service에서fresh성공과Native전쪽 종료/중간SVG정리뒤 실행한다. 디스크 확보를 위한 의존 순서 조정이며 시각 관측 timeout에 따른 재시작이 아니다.
 
 - 2026-10-12 사용자 요청으로 원 PR별 review18개를 저장소에 분리했다. 기존 merged #7612 기록을 보존하고 나머지17개에는 최초 원 commit→적용→현재 rebase 매핑과 PR별 변경 파일·현재 계약 함수 목록을 연결했다. 판정은 검증 진행에 맞춰 머지 보류이며, 종료 결과와 원본/Print·전체Native/fresh/확대 판독을 받은 뒤 각 PR의 검증 범위와 수용 여부를 확정한다. 오늘할일·승인 후PR/CI/merge/후속 처리는 여전히 미완료다.
+
+
+## 139. 초기18개 메인터너 보정: KPS 전쪽 Native와 현재 호출 경로 확인 (2026-10-12)
+
+사용자의 메인터너 보정 지시를 유지한다. 초기18개 외 추가 체리픽·원격 변경은 수행하지 않았다.
+production source는 `10282f63db5f671eca8554613342e20211a025ac`의 Native 빌드와 동일하며,
+모듈 선언 복구 `2d6f82fbba427035eccfddaa818b5de4bb878e31` 뒤 v173 fmt·workspace/all-target Clippy와
+base `bfa28a77a2714482f647ee6a7b9aa7f7876d8404` 대비 manifest/unit 정책을 각각 exit0으로 재확인했다.
+
+| 현재 실행 증거 | 결과 | 판정 범위 |
+| --- | --- | --- |
+| `pr-preparation-native-kps-whole-v172-result`의 KPS 단계 | exit0 / 2401.043초 / source unchanged | Native 전체77쪽 산출·비교 명령 종료 |
+| `pr-preparation-native-kps-whole-v172/kps1156/silhouette.tsv` | 최저42쪽90.91935%, 미달0·누락0, RHWP/PDF77/77쪽 | Native 전쪽 실루엣 선행 기준 충족; fresh 및 전체 직접 판독은 별도 |
+| `native-kps-critical-page-review-v175/review/review_042.png` | 같은 현재 PNG를 재출력 없이 canonical compare/overlay/review로 구성 | 본문 줄바꿈·문단 순서·쪽번호 위치 보존. 글자별 폭·공백 차이는 남음 |
+| `row-plan-composition-kps-cgmp-observer-v175-result.json` | KPS exit0/20.516초, CGMP exit0/9.311초, relief event0·observer error0 | 가맹사업 v173과 합쳐 세 원본의 실제 호출에서 중복 보정 발동은 관측되지 않음. 일반적인 상호 배타성의 입증으로 확대하지 않음 |
+
+상대 증거 경로의 공통 prefix는 ignored `output/pr-review/semanticist21-20261008/`다.
+KPS TSV의 `pr_review_gate=not_evaluated`는 직접 판독/본문·각주 소유 검토가 별도로 필요하다는 뜻이며,
+PR 승인 또는 전체 검증 완료로 바꾸어 해석하지 않는다. 최저42쪽 review와 이미지 SHA는
+`native-kps-critical-page-review-v175/evidence.json`에 연결했다.
+
+fresh WASM은 v173 실제 unit의 최적화 단계에서 계속 실행 중이다. 성공한 새 package를 기다려
+v175 public API·현재 저장본 capture·Studio 실제 mouse activation과 동일 SHA Print가 있는 편집 축의
+Native/fresh 비교를 실행하도록 연결했다. 현재 저장본에 같은 입력 SHA의 독립 Print가 없으면
+옛 PDF로 승인하지 않고 새 Print를 산출한다. 현재 각주 style7조건도 저장본을 capture하며 검사 기대값을
+변경하지 않는다. 각 단계의 명령·종료 결과·package hash·source 동일성을 기록한 뒤 개별 PR 판정을
+갱신한다. 전체 nextest·Native Skia·전쪽 fresh·Studio 복합 검증 및 남은 직접 판독은 **미검증**이다.
+
+
+## 140. 같은 source의 fresh WASM·공개 API·Studio 실제 클릭 완료 (2026-10-12)
+
+v173 optimized wrapper 빌드는 exit0/1400.614초로 종료했다. Native 빌드 이후 production source1107개는
+동일하며, root `pkg/`와 `rhwp-studio/public/`의 JS/WASM은 byte 동일하다.
+`pr-preparation-fresh-wasm-v172-result.json`의 frozen package와 실제 Studio 응답을 SHA로 연결했다.
+
+- WASM SHA-256: `ed5248ba4b2a6e765029411021cfd67a55d6c5dded80ca60f2bd971126430581`
+- JS SHA-256: `691e4fd480cf4e04f9e599ca7c7a4802ad87b2c141fba93bf94111f4144dcb3b`
+
+| 개별 PR | 새 package의 관측 | 증거 파일 |
+| --- | --- | --- |
+| #7566 | 공개 API4조건 PASS; 실제 Studio mouse click에서 guide2→1, SECONDGUIDE와 전체 셀 경로 유지, pageerror0, served WASM SHA 일치 | `wasm-clickhere-wrapper-current-v175.json`, `studio-wrapper-field-pointer-v175/evidence.json` 및 before/after PNG |
+| #7614 | 논리 caret의 본문 삽입7조건×반환/현재/HWP/HWPX28PASS | `wasm-html-logical-caret-contract-v175.json` |
+| #7638 | header/footer10조건×현재/HWP/HWPX60PASS, 현재 FileName 문맥 저장본20개 capture | `wasm-hf-and-note-contracts-v175.json`, `captured-current-public-hf-context-v175.json` |
+| #7641 | 좁은 중첩 표가 인접 셀 앞에 포함됨 PASS | `wasm-public-contracts-v175.json` |
+| #7647 | malformed21개 거부와 입력 byte 보존, valid45개 독립 기대 결과:66PASS | `wasm-formula-complete-contract-v175.json` |
+| #7648 | 주석 삭제·혼합·시작번호5조건×현재/HWP/HWPX15PASS | `wasm-hf-and-note-contracts-v175.json` |
+| #7653·#7656 | 표 바깥 여백과 다음 본문 점유 관계 PASS | `wasm-public-contracts-v175.json` |
+| #7654 | 표시한 주석 글자 경계와 caret의 관계3조건 PASS | `wasm-public-contracts-v175.json` |
+| #7657 | 삭제 대상 이외의 중첩 셀 스타일을 현재/HWP/HWPX에서 유지 PASS | `wasm-public-contracts-v175.json` |
+| #7658 | style tab의 현재/HWP/HWPX roundtrip PASS | `wasm-public-contracts-v175.json` |
+| #7659 | 새 각주/미주7조건×현재/HWP/HWPX21PASS, 현재 저장본7개 capture | `wasm-hf-and-note-contracts-v175.json` |
+
+공개 API runner6개는 모두 exit0이며 production source 동일성을 각각 다시 확인했다.
+이 계약 관측을 독립 Print 일치나 모든 원 PR 적용 경계의 완료로 승격하지 않는다.
+특히 #7614의 셀 paste·자동번호 뒤 슬롯, #7658의 기타 border 조건 등 원 검사 범위는
+전체 Rust 회귀와 해당 시각 증거에 별도로 연결한다.
+
+편집 시각 v175는 현재 후보43개 중42개의 입력 SHA에 정확히 대응하는 독립 Print를 검증했으며
+Native/fresh를 새로 실행 중이다. 새 wrapper 입력과 현재 note-style7조건은 같은 Print가 없는 경우
+`pr-preparation-current-input-print-v175-result.json`에서 실제 engine·제품·Print method0·출력 mode를
+확인해 새 PDF를 산출한다. 옛 PDF의 이름 또는 유사한 모양으로 입력 대응을 대신하지 않는다.
+전체 회귀·전쪽 fresh·남은 확대 판독이 완료되기 전 판정은 여전히 보류다.
+
+사용자 지시: 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면,
+개별 PR 문서의 최종 판정을 **메인터너 보정으로 수용 가능**으로 갱신한다.
