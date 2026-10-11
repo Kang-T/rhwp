@@ -26,6 +26,13 @@ mod exam_fixtures {
 
 use std::process::{Command, Output};
 
+mod corpus_scope {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/common/corpus_scope.rs"
+    ));
+}
+
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/tests/support/deferred_exam_scope.rs"
