@@ -55,11 +55,10 @@ impl crate::renderer::typeset::TypesetEngine {
             return;
         };
         let layout = crate::renderer::layout::LayoutEngine::new(self.dpi);
-        // Native saved HWP5 notes retain source page cuts, including note
-        // continuations whose markers were already assigned to an earlier page.
-        // A new physical reflow budget must not change those stored owners.
-        // Missing, synthesized or edited lines use the composed box below.
-        if st.profile.native_hwp5_layout()
+        // 원 HWP5와 그 저장 줄을 보존한 HWPX는 같은 각주 쪽 분할을 따른다.
+        // 앞 쪽에 참조가 배치된 이어받기 각주도 재조판 예약값으로 소속을 바꾸지 않는다.
+        // 줄 정보가 없거나 합성·편집된 각주는 아래 실제 조판 높이를 예약한다.
+        if st.profile.hwp5_stored_pagination_layout()
             && !st.profile.session_edited()
             && layout.footnote_area_has_stored_lines(&page.footnotes, paragraphs)
         {
