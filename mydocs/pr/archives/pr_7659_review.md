@@ -57,6 +57,12 @@ fmt·Native/WASM32 Clippy와 workspace build는 v172 source에서 통과했다. 
 
 ## 시각 증적과 남은 범위
 
+현재 공개 API의21개 스타일 계약은 통과했지만, 같은 현재 편집 저장본의 독립 Print 검증에서
+HWP 각주 입력1쪽88.40005%(Native/fresh)와 이름이 각주인 스타일이 없는 입력3쪽/기준2쪽
+불일치를 확인했다. 차트·두 번째 단의 본문 흐름 및 전체 쪽수 원인을 보정한 뒤 재검증해야 한다.
+수용 판정은 유지 보류이며, 실제 review PNG·입력 대응·나머지 조건과 전쪽 결과는 누적 기록141절에
+연결한다. API 통과를 이 편집 저장본의 시각 통과로 대신하지 않는다.
+
 최종 Native/fresh TSV와 대표 review/overlay를 같은 입력·쪽·source로 연결한다. 현재 source의 증적은 ignored `output/pr-review/semanticist21-20261008/pr-preparation-native-whole-v172-result.json`, `pr-preparation-wasm-whole-v174-result.json` 및 v171 retry2 기록에서 실제 종료 결과를 확인한다. 미달·구조 결함이 있으면 보정 후 재실행하며 최종 이미지와 URL은 새 head로 확정한다.
 
 ## 통합 뒤 원 PR 후속 처리 계획

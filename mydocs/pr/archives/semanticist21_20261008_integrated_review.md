@@ -2468,3 +2468,42 @@ Native/fresh를 새로 실행 중이다. 새 wrapper 입력과 현재 note-style
 
 사용자 지시: 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면,
 개별 PR 문서의 최종 판정을 **메인터너 보정으로 수용 가능**으로 갱신한다.
+
+## 141. 최종 검증에서 확인한 실패와 글꼴 환경 정정 (2026-10-12)
+
+검토 브랜치는 `review/semanticist21-20261008`, base는 `bfa28a77a`다. production source는
+`10282f63d` 이후 동일하고 검증 입력·기대값·baseline을 변경하지 않았다. 사용자 지시대로 모든
+필수 테스트와 검증을 완료한 뒤 PR과 후속 처리를 진행한다. 현재는 다음 실제 실패가 있어
+**머지 보류**를 유지한다. 진행 중인 실행 건수와 마지막 종료 결과를 구분한다.
+
+| 검증 | 현재 관측 | 다음 처리 |
+| --- | --- | --- |
+| 전체 nextest v173 | 총10,287개 중8,115개 종료 시점에서21FAIL 관측; 전체 실행 중, 최종 summary 아님 | `pr-preparation-failures-observed-v185.json`에서 원본·함수별 실패를 모아 실제 회귀와 부적합 기존 검사를 대조한 뒤 일괄 보정 |
+| 현재 note-style HWP 각주 저장본 | Native/fresh1쪽88.40005%, 독립 Print와 차트·두 번째 단의 본문 흐름 차이 | `pr-preparation-current-print-{native,wasm}-remaining-visual-v178/current-03-b3c9896ea898/`의 같은 입력·Print·PNG 보존, 원인 수정 후 재검증 |
+| 이름이 각주인 스타일이 없는 저장본 | Native/fresh3쪽, 같은 입력 SHA의 독립 Print2쪽; 측정 불가/쪽수 불일치 | `pr-preparation-current-print-{native,wasm}-unmeasured-visual-v182/current-04-6b4f6a375029/`의 실패 보존, 기대 쪽수를 바꾸지 않고 출력 보정 |
+| CGMP Native 전쪽 | 원래 raster43쪽 Chrome30초 timeout으로 중단. 기존42쪽을 보존하고 같은 source의43–48쪽만 올바른 환경에서 완료 | `cgmp-native-completed48-v180/silhouette.tsv`:48/48쪽·최저47쪽94.05301%·미달/누락0. fresh 전48쪽과34/35/47쪽 직접 판독은 별도 |
+| 가맹사업 원래 글꼴 환경 | 첫 font directory의 함초롬바탕 대체가 실제 휴먼명조보다 먼저 선택됨. 원래2쪽88.91905% | 실제 설치 HMKMM을 먼저 공급하고 독립 Print의 TrueType 실현을 기존 `FontEnvironment.trueTypeFaces` 계약으로 지정 |
+| 가맹사업 정정 환경1·2쪽 | Native/fresh 각각99.60405/99.93459%, 두 backend 동일. 여는 따옴표와 다음 글자 겹침이 사라짐 | `franchise-original-human-font-{native,wasm}-v179/` 및 환경 JSON. 선택2쪽 결과를 전142쪽 통과로 승격하지 않음 |
+
+가맹사업의 HMKMM 원본 SHA-256은
+`d033df71fa41de48905407f7d39aca74ebd9ae87298c5420513acaa187fbefc6`이며 설치 글꼴 바이트를
+수정하지 않았다. 기존 generic SVG outline 정규화와 실제 TrueType 프로그램의 문장부호 폭을
+사용한다. 임의 폭 상수·문서 ID 분기·굵은 글꼴 교체를 추가하지 않았다. 원래 굵기는 이미 Print와
+같은 stroke 방식이므로 굵기 변경 가설은 부정 진단으로 남겼다.
+
+잘못된 환경의 Native 가맹사업은32쪽 raster를 보존하고 종료했다. 아직 렌더하지 않은 이전
+WASM 전쪽 대기 job도 잘못된 환경을 반복하지 않도록 교체 대상으로 기록했다. 별도 예전 휴먼명조
+WASM 진단은 실제1800초 subprocess 제한으로 먼저 실패했으며 완성된 시각 증거가 아니다.
+이 상태·실제 handle과 종료된 SVG428개/24.687GB의 SHA·경로를
+`known-invalid-font-environment-superseded-v181.json`에 보존한 뒤 SVG만 삭제했다. PNG·TSV·tree·
+원본·PDF·공용 target은 보존한다. 출력 공백이나 관찰 timeout 때문에 실행을 재시작한 것이 아니다.
+
+남은 현재 저장본은 v183에서 입력별 canonical gate를 그대로 실행하며 미달을 기록하고 다음
+입력을 계속 확인한다. CGMP fresh 전48쪽은 v184에서 실행 중이다. 같은 작업의 매 수정마다
+빌드하지 않고 실패 원본·소비 경로·독립 기준을 먼저 모아 보정한 뒤 영향을 받는 최종 source를
+한꺼번에 검증한다. 정확한 기존 관계 검사를 미달 문서라는 이유만으로 일괄 제거하지 않는다.
+이관 후보는 현재 보정 대상인지와 고정 base의 실제 미달·기존 #7445 범위를 함께 확인한다.
+
+Native Skia3종·복합 release/lib/doc/Studio 검증·전쪽 fresh·남은 직접 판독·PR/CI/merge/후속 처리는
+아직 완료되지 않았다. 새 head로 source가 바뀌면 관련 이전 결과는 역사 증거로 남기고 최종
+검증에 재사용하지 않는다. 조건부 수용 지시를 현재 승인 판정으로 앞당기지 않는다.
