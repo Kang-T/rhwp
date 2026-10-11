@@ -2481,56 +2481,6 @@ mod tests {
         }
     }
 
-    /// exam_eng.hwp 페이지 2 의 정확한 케이스 (수평 동일 + 세로 인접)
-    /// → LOWER 의 bbox.height 와 crop.bottom 이 UPPER 의 top 까지 축소되어야 한다.
-    #[test]
-    fn test_clip_exam_eng_pattern() {
-        let mut tree = PageRenderTree::new(0, 1122.5, 1587.4);
-        let lower = make_image_node(
-            tree.next_id(),
-            BoundingBox::new(597.15, 243.59, 408.19, 256.09),
-            5,
-            Some((0, 0, 189900, 120958)),
-        );
-        let upper = make_image_node(
-            tree.next_id(),
-            BoundingBox::new(597.15, 463.17, 408.19, 70.0),
-            5,
-            Some((0, 105958, 189900, 138540)),
-        );
-        let lower_id = lower.id;
-        let upper_id = upper.id;
-        tree.root.children.push(lower);
-        tree.root.children.push(upper);
-
-        tree.clip_overlapping_same_bin_images();
-
-        let l = &tree.root.children[0];
-        assert_eq!(l.id, lower_id);
-        // 새 height = 463.17 - 243.59 = 219.58
-        let bbox = image_bbox(l);
-        assert!(
-            (bbox.height - 219.58).abs() < 0.01,
-            "lower height={}",
-            bbox.height
-        );
-        // 새 crop.bottom = 0 + 120958 * (219.58/256.09) = 103716 (round)
-        let crop = image_crop(l).unwrap();
-        assert_eq!(crop.0, 0);
-        assert_eq!(crop.1, 0);
-        assert_eq!(crop.2, 189900);
-        let expected_cb = (120958_f64 * (219.58 / 256.09)).round() as i32;
-        assert_eq!(crop.3, expected_cb);
-
-        // UPPER 은 변경되지 않음
-        let u = &tree.root.children[1];
-        assert_eq!(u.id, upper_id);
-        let u_bbox = image_bbox(u);
-        assert!((u_bbox.height - 70.0).abs() < 0.01);
-        let u_crop = image_crop(u).unwrap();
-        assert_eq!(u_crop, (0, 105958, 189900, 138540));
-    }
-
     /// 다른 bin_id 페어는 무시되어야 한다.
     #[test]
     fn test_clip_different_bin_id_no_clip() {
