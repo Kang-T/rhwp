@@ -981,3 +981,13 @@ batch210은 실제 종료한184의 raw SVG249개 **35.396GiB**를 제거하고 �
 통과한 현재 workspace Debug CLI를 별도 freeze한 batch219의23쪽은 **91.99624→98.09390%**다. 새 review에서 작은따옴표와 이웃 글자 간격의 큰 차이가 해소됐음을 직접 읽었다. Debug 선택1쪽이며 release-test/fresh WASM 전쪽 결과로 승격하지 않는다. 획/래스터 미세 차이와 나머지 영향쪽 판독은 최종 출력에서 확인한다.
 
 WASM 임베딩 글꼴의 운반만 바꾸는 격리 대조212/215에서 실제2·19쪽 W 원 geometry/tree를 보존했다. 제거 전 Native font-face CSS의 원 순서/bytes를 사용하고, 같은 글꼴 bytes를 파일 URI로 운반한 SVG는 원 SHA로 정확히 복원된다. 엄격 font family/cmap/status 배열, render tree와 manifest도 같고 canonical raster의 모든 픽셀·PNG bytes가 동일했다. 두 merged SVG의 원187,614,892bytes를 compact86,479bytes와 원 font bytes로 보존했다. 실루엣 계산·glyph/geometry·gate는 바꾸지 않으며 이 계약 대조는 제품 전쪽 검증이 아니다. 다음 실제 fresh WASM에서는 원 URI로 복원한 데이터에 원 엄격 cmap 판독을 적용하고 새 head의 실제 두 쪽 픽셀 대조를 먼저 확인한다. 현재184/199 실패 기록을 성공으로 덮어쓰거나 기존 낮은 문서를 이관하지 않는다.
+
+### 2026-10-11 자산관리규정 중복 보완 제외 후 source 정합
+
+사용자가 자산관리규정은 별도 #7445에서 진행 중이며 아직 PR하지 않았다고 범위를 정정했다.
+이번 작업의488/3a9 자산 원점·폭 보완과 그 부작용을 보정하려던 미커밋 후보를 별도 보존하고
+누적 PR 변경에서 제외했다. 원7개 PR의 기여/메인터너 보완 및 순서는 그대로다.
+생산 Rust·dependency source는717783327367995f5d49c43a7d965ae3f83c50d0과 동일하다.
+같은 frozen Native와 실행 중인717 fresh WASM의 검증 범위를 유지하며, 새로운 source의
+빌드라고 보고하거나 #7445의 완료 결과를 가져와 전체 통과로 보고하지 않는다.
+전체51/175·최종회귀·개별7 review·PR/CI/merge/후속 처리는 미완료다.

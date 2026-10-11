@@ -3342,8 +3342,7 @@ fn tac_in_front_decoration_fixed_line_spacing_deduction_hu(
 
 /// 쪽 첫 저장 줄의 vpos가 문단 앞 간격을 포함하면 쪽 원점은 0이다.
 /// 다음 문단의 저장 사다리도 앞 간격을 계상하는지 확인하여 측정과 배치가
-/// 같은 원점을 소비한다. 다음 문단의 앞 간격이 0이어도 저장 경계의 등식은
-/// 성립한다. 합성 줄은 이 증거로 사용하지 않는다.
+/// 같은 원점을 소비한다. 명시적 쪽 나눔과 합성 줄은 이 증거로 사용하지 않는다.
 pub(crate) fn stored_first_margin_is_page_relative(
     first: &Paragraph,
     next: Option<&Paragraph>,
@@ -3390,6 +3389,7 @@ pub(crate) fn stored_first_margin_is_page_relative(
         && last_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
         && next_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
         && first_before > 0.5
+        && next_before > 0.5
         && (hwpunit_to_px(first_seg.vertical_pos, dpi) - first_before).abs() <= 0.5
         && (hwpunit_to_px(
             next_seg.vertical_pos
@@ -7806,7 +7806,9 @@ impl LayoutEngine {
         // 이 vpos는 쪽 원점 자체가 아니라 원점부터의 여백이다.
         // 이후 항목에 쪽 상대 vpos를 적용하기 전에 다음 저장 문단도 같은
         // 단계별 위치 관계에서 자기 앞 간격을 반영하는지 확인한다(#7406, 90쪽).
-        // 그 관계를 입증하지 못한 첫 문단은 종전대로 첫 vpos를 기준점으로 쓴다.
+        // 명시적으로 쪽을 나누는 문단은 새 흐름을 시작하므로
+        // 그 문단의 첫 vpos를 쪽 기준점으로 유지한다
+        // (issue1853, 10쪽).
         let stored_first_margin_is_page_relative_in_column = matches!(
             col_content.items.first(),
             Some(PageItem::FullParagraph { para_index })
