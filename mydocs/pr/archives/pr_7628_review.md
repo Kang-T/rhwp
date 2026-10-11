@@ -2,14 +2,45 @@
 kind: investigation
 status: historical
 canonical: mydocs/pr/archives/pr_7628_review.md
-last_verified: 2026-10-09
+last_verified: 2026-10-11
 ---
 
 # PR #7628 리뷰 — 인라인 표·탭·정렬과 첫 TAC 원점
 
 ## 최종 판정
 
-**머지 보류.** 공개 대조군의 충족, 실행으로 확인한 시각 미충족, 코드 검토상 우려와 필수 증거 부족을 아래에 구별한다. 사용자가 승인한 conflict·CI 보정은 진행했으나 90% 시각 gate는 면제되지 않는다. 통합 후보의 로컬 회귀 PASS를 원 contributor head의 독립 검증 완료나 merge 승인으로 보고하지 않는다.
+**메인터너 보정 후 수용 가능.** 원 기여와 누적 메인터너 보정을 포함한 통합 후보의 판정이다.
+최종 통합은 아래에 기록한 남은 검증 조건을 완료한 뒤 진행한다.
+
+결재란 원본 프레임의 행 높이·그림 포함·캡션과 뒤 본문 순서를 보정했다. 원본5개 전7쪽의 Native/fresh WASM 문서별 최저99.61781/99.91520/99.70523/99.73514/99.99166%와 정식 관계형 회귀를 검토 기록에 연결했다.
+
+## 현재 검증 근거 — 2026-10-11
+
+| 항목 | 확인한 상태 |
+| --- | --- |
+| 검토 branch | `review/planet6897-20261008` |
+| rebase 후 통합 code head | `03a987f4aeded1d2b03415e7edecac5c833ca5cd` |
+| 최신 upstream base | `f79f2e1d6831a2187657b9c60deabc5d7c8b8e0d` |
+| 전체 회귀 | 검증 source `7dd9572b7fecbc602c9e5ab47c4a6c9d6422b4bd`: 10,215PASS·실패0·skip45 |
+| lint·정책 | fmt·Native/WASM/all-target Clippy·workspace build·base 고정 manifest/unit-tier PASS |
+| Studio | 1,834PASS·실패0·skip2, TypeScript 검사 PASS |
+| 시각 선행 조건 | table-text·stored-vpos·hwp-multi·해외투자3입력의 Native/fresh WASM 전쪽 TSV 모두90% 이상. table-text·stored-vpos 변경 영역 확대 판독 완료 |
+| 승인된 이관 | #7813 giant-cell, #7830 sample2 HWP, #7831 가정폭력 조사. 각 출력 문제는 후속 이슈에서 해결 |
+| rebase 후 재검사 | 오늘할일만 충돌했고 양쪽 기록을 보존했다. 사용자 지시에 따라 통과한 전체 회귀·lint·Studio를 반복하지 않음 |
+
+전체 결과·시각 점수·source와 로그는 [남은 회귀 보정 기록](../../plans/planet6897_20261008_remaining_regressions.md#현재-시각-검증-상태-정정--2026-10-11)에 연결한다.
+위 시각 결과는 해당 입력과 기록한 renderer source의 증거이며, 원 PR 전체 영향 목록의 전수 통과를 주장하지 않는다.
+
+## 통합 전 조건
+
+- 진행 중인 optimized fresh WASM 빌드와 #7768 현재 Native/fresh WASM TSV·review 확인을 완료한다. `Closes #7768`은 이 결과에 연결한다.
+- 미실행 Native Skia3종을 완료한다.
+- 통합 PR의 실제 head CI와 mergeability를 확인한다. 현재 원격 push·PR 생성·merge 완료로 보고하지 않는다.
+
+<details>
+<summary>이전 검토 이력 — 당시 판정과 단계별 실행 기록</summary>
+
+초기 검토에서 확인한 결함·증거 부족과 단계별 재검증 기록이다. 당시 보류 판단은 아래 이력의 source와 실행 범위에 한정하며, 현재 판정은 문서 상단을 따른다.
 
 ## 접수·적용 범위
 
@@ -201,3 +232,5 @@ PrEP39/40/105/108쪽은 두 경로 모두 최저99.78379%, 미달0이다. Native
 기여 commit 순서의 상세 근거는 [#7617 최신 기록](pr_7617_review.md#2026-10-10-순서-재적용과-최신-경계-검증)에
 연결한다. 전383/140쪽 최종 시각·전체 회귀·lint는 아직 미검증이다. 빌드나 기존 CLI 검사
 2개와 이 경계 결과로 누적7개 PR의 통합 승인을 선언하지 않는다.
+
+</details>

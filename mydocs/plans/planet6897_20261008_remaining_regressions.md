@@ -93,4 +93,39 @@ API 재조회로 확인했다. 제거 전 source·SHA256은 `mydocs/pr/assets/is
 - 실패3사례 이관이며 전체 함수 감소는2개다. 현재 짧은 표 하단·39→37쪽 손실은
   이슈의 새 미해결 회귀로 남고, 현재 수치로 기대값을 갱신하지 않았다.
 
-유지 검사·필수 lint·전체 회귀 결과는 다음 실행 뒤 이 절에 기록한다.
+유지 검사3건은 모두 PASS했다. 최종 source
+`7dd9572b7fecbc602c9e5ab47c4a6c9d6422b4bd`에서 fmt·Native/WASM/all-target
+Clippy·workspace build·base 고정 manifest/unit-tier 검사를 통과했다.
+전체 nextest는 **10,215건 PASS·실패0·skip45**(exit0), Studio는
+**1,834건 PASS·실패0·skip2**, TypeScript 검사도 exit0이다.
+실행 로그는 같은 ignored 검증 디렉터리의 `final-validation-source.json`에 연결한다.
+
+## 현재 시각 검증 상태 정정 — 2026-10-11
+
+완료된 전쪽 Visual Sweep을 현재의 ‘시각 미검증’으로 다시 기록하지 않는다.
+아래 값은 같은 원본·독립 Print에 대한 Native/fresh WASM 각각의 전쪽 최저값이다.
+
+| 대상 | 전체 쪽수 | Native 최저 | fresh WASM 최저 | 상태 |
+| --- | ---: | ---: | ---: | --- |
+| table-text | 1 | 99.99320% | 99.99320% | 전쪽 TSV 완료·제목 확대 판독 완료 |
+| stored-vpos | 4 | 98.77240% | 98.77240% | 전쪽 TSV 완료·도장 소유/교차 확대 판독 완료 |
+| hwp-multi | 9 | 95.64710% | 95.64710% | 전쪽 TSV 완료 |
+| 해외투자 HWPX | 9 | 91.97621% | 91.97621% | 전쪽 TSV 완료 |
+| 해외투자 HWP | 9 | 91.97621% | 91.97621% | 전쪽 TSV 완료 |
+| hwpx-02 HWP | 9 | 91.97621% | 91.97621% | 전쪽 TSV 완료 |
+
+이 결과는 위에 고정한 renderer source·package의 실제 실행 증거다.
+이후 진단 점유 수정과 검사 이관은 해당 실제 배치를 바꾸지 않는다.
+#7813 giant-cell, #7830 sample2 HWP, #7831 가정폭력 조사 문서는 승인된
+후속 이슈 범위이며, 현재 회귀 보정의 미검증 문서로 중복 나열하지 않는다.
+이관은 해당 출력 결함의 해결을 뜻하지 않는다.
+
+#7768은 현재 브랜치 재확인 작업이다. 같은 입력·독립 Print의 base 전1쪽
+최저92.73966%를 확인했다. 새 head의 Native/fresh WASM TSV와 review PNG는
+빌드 완료 후 연결하며, 아직 새 head의 통과로 보고하지 않는다.
+
+최신 `upstream/devel` `f79f2e1d6831a2187657b9c60deabc5d7c8b8e0d`로 rebase한
+head는 `03a987f4aeded1d2b03415e7edecac5c833ca5cd`이다.
+충돌은 `mydocs/orders/20261011.md` 한 파일뿐이며 양쪽 기록을 보존했다.
+사용자 지시에 따라 이미 통과한 전체 회귀·lint·Studio를 rebase 후 반복하지 않는다.
+미실행 Native Skia 검증과 #7768용 새 WASM 빌드는 진행 중이다.

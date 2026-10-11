@@ -2,14 +2,45 @@
 kind: investigation
 status: historical
 canonical: mydocs/pr/archives/pr_7611_review.md
-last_verified: 2026-10-09
+last_verified: 2026-10-11
 ---
 
 # PR #7611 리뷰 — 큰 표·저장 컷과 편람 쪽 배치
 
 ## 최종 판정
 
-**머지 보류.** 공개 대조군의 충족, 실행으로 확인한 시각 미충족, 코드 검토상 우려와 필수 증거 부족을 아래에 구별한다. 사용자가 승인한 conflict·CI 보정은 진행했으나 90% 시각 gate는 면제되지 않는다. 통합 후보의 로컬 회귀 PASS를 원 contributor head의 독립 검증 완료나 merge 승인으로 보고하지 않는다.
+**메인터너 보정 후 수용 가능.** 원 기여와 누적 메인터너 보정을 포함한 통합 후보의 판정이다.
+최종 통합은 아래에 기록한 남은 검증 조건을 완료한 뒤 진행한다.
+
+저장 표 프레임·조각의 내용 컷과 물리 예약·실제 배치를 누적 보정했다. 남은 회귀 실패는 진단 점유 보정·관계형 검사·승인된 이관으로 처리했으며 전체 회귀에서 실패0을 확인했다.
+
+## 현재 검증 근거 — 2026-10-11
+
+| 항목 | 확인한 상태 |
+| --- | --- |
+| 검토 branch | `review/planet6897-20261008` |
+| rebase 후 통합 code head | `03a987f4aeded1d2b03415e7edecac5c833ca5cd` |
+| 최신 upstream base | `f79f2e1d6831a2187657b9c60deabc5d7c8b8e0d` |
+| 전체 회귀 | 검증 source `7dd9572b7fecbc602c9e5ab47c4a6c9d6422b4bd`: 10,215PASS·실패0·skip45 |
+| lint·정책 | fmt·Native/WASM/all-target Clippy·workspace build·base 고정 manifest/unit-tier PASS |
+| Studio | 1,834PASS·실패0·skip2, TypeScript 검사 PASS |
+| 시각 선행 조건 | table-text·stored-vpos·hwp-multi·해외투자3입력의 Native/fresh WASM 전쪽 TSV 모두90% 이상. table-text·stored-vpos 변경 영역 확대 판독 완료 |
+| 승인된 이관 | #7813 giant-cell, #7830 sample2 HWP, #7831 가정폭력 조사. 각 출력 문제는 후속 이슈에서 해결 |
+| rebase 후 재검사 | 오늘할일만 충돌했고 양쪽 기록을 보존했다. 사용자 지시에 따라 통과한 전체 회귀·lint·Studio를 반복하지 않음 |
+
+전체 결과·시각 점수·source와 로그는 [남은 회귀 보정 기록](../../plans/planet6897_20261008_remaining_regressions.md#현재-시각-검증-상태-정정--2026-10-11)에 연결한다.
+위 시각 결과는 해당 입력과 기록한 renderer source의 증거이며, 원 PR 전체 영향 목록의 전수 통과를 주장하지 않는다.
+
+## 통합 전 조건
+
+- 진행 중인 optimized fresh WASM 빌드와 #7768 현재 Native/fresh WASM TSV·review 확인을 완료한다. `Closes #7768`은 이 결과에 연결한다.
+- 미실행 Native Skia3종을 완료한다.
+- 통합 PR의 실제 head CI와 mergeability를 확인한다. 현재 원격 push·PR 생성·merge 완료로 보고하지 않는다.
+
+<details>
+<summary>이전 검토 이력 — 당시 판정과 단계별 실행 기록</summary>
+
+초기 검토에서 확인한 결함·증거 부족과 단계별 재검증 기록이다. 당시 보류 판단은 아래 이력의 source와 실행 범위에 한정하며, 현재 판정은 문서 상단을 따른다.
 
 ## 접수·적용 범위
 
@@ -555,3 +586,5 @@ API로 원 #7611 head `31f5628b68ef4a03700e9b0739959e14b380ff2c`가 그대로임
 | `samples/task1765/merged_cell_trailing_ls.hwpx` | 같은 기존 기준 PDF; 원문 대응은 별도로 확인 | 4 |
 
 ignored `batch201-impact-scope-audit/`에 기여 commit의 원 JSON bytes/SHA, 수정 전 원장, 입력/PDF SHA와 실제 PDF 쪽수를 보존했다. summary의 `pages`는 비교한 쪽 수여서 실제 쪽 번호 목록으로 해석하지 않는다. 추가95쪽 전체를 비교하며, 기준 PDF의 원문 대응·확대 판독도 미검증으로 남긴다. 원장은 총52입력/3,726쪽이며 이미 #7445로 이관한3쪽1입력을 계속 별도 보존하면 활성 **51입력/3,723쪽**이다. 기존 활성47/3,628의 수치를 새로운 전체 범위로 재사용하지 않는다. 현재 수정 문서를 이관하거나 샘플을 삭제하지 않았으며 전체 Native/fresh WASM·175글꼴 영향·최종 회귀·개별 검토와 PR/CI/merge는 여전히 미완료다.
+
+</details>
