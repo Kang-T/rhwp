@@ -1,0 +1,67 @@
+---
+kind: review
+status: active
+canonical: mydocs/manual/pr_review_workflow.md
+last_verified: 2026-10-12
+---
+
+# PR #7614 리뷰 — 수정: HTML 붙이기가 논리 캐럿을 쓰고 문단 끝 자동 번호 자리를 지킨다
+
+## 최종 판정
+
+**머지 보류 — 초기18개 누적 통합 head의 최종 검증 진행 중.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다.
+
+## 접수 정보
+
+| 항목 | 값 |
+| --- | --- |
+| 원 PR / 작성자 / base | [#7614](https://github.com/edwardkim/rhwp/pull/7614) / semanticist21 / devel |
+| 초기 수용 source head | `2d4148eb8bcb561b2eac2004c7a64741864e7431` |
+| 현재 원격 source head / 상태 | `2d4148eb8bcb561b2eac2004c7a64741864e7431` / OPEN / draft=False |
+| 현재 통합 code head / base | `2d6f82fbba427035eccfddaa818b5de4bb878e31` / `bfa28a77a2714482f647ee6a7b9aa7f7876d8404` |
+| 관련 이슈 | [#2740](https://github.com/edwardkim/rhwp/issues/2740), [#7444](https://github.com/edwardkim/rhwp/issues/7444), [#7612](https://github.com/edwardkim/rhwp/issues/7612) |
+
+## 적용과 검토 범위
+
+원 기여는 초기18개 scope에 이미 체리픽된 기능 commit에 한정한다. 초기 수용 뒤 새 원격 source가 있더라도 추가 체리픽하지 않는다. 메인터너 보정은 같은 review 브랜치에서 분리해 보존하며 최종 code head의 검증으로 판정한다.
+
+| 원 commit | 최초 검토 적용 commit(역사) | 현재 rebase 적용 commit |
+| --- | --- | --- |
+| `cb8f6f48d0310ae5ebfe4c602c38b3008cc356c9` | `093ccccb7` | `13d55f37819b3ec71d5e906f1454b27a3b24706c` |
+| `b8a6f54e73d32b0fbd4a5b9b4b97d407c5a1240a` | `28c97f2a4` | `fedd9c12b3fdf437b35d48d45e958904ab12b802` |
+
+최초 검토의 역사 관측: 현재 Native49 묶음의 HTML/문단 끝 번호 계약 통과; 공개 WASM 본문 논리캐럿7상태/왕복28PASS. 현재 편집 출력 Print 미검증; source CodeQL 실패와 통합CI를 구분.
+
+위 관측은 최초 후보의 결과이며 현재 code head의 통과/실패로 재사용하지 않는다. 이후 원인별 보정·실제 생산/측정/배치 소비 경로·반례와 증거는 [누적 보정 기록](semanticist21_20261008_integrated_review.md)에 연결한다. 이 PR의 적용/비적용 경로와 필수 개별 검증 결과는 최종 실행 자료를 확인한 뒤 아래에 확정한다.
+
+### 이 PR의 코드·계약 검사
+
+초기 적용 commit의 diff에서 분리한 변경 파일은 다음과 같다. 원 commit SHA가 Git 객체로 남지 않은 경우에도 backup에 보존한 최초 cherry-pick commit의 patch를 사용하며, 최신 원격 diff를 초기 수용 범위로 대체하지 않는다.
+
+- `src/document_core/commands/clipboard.rs`
+- `src/document_core/commands/html_import.rs`
+- `src/model/paragraph.rs`
+- `src/wasm_api.rs`
+- `tests/cases/auto_number_trailing_placeholder.rs`
+- `tests/cases/paste_html_caret_axis.rs`
+
+| 현재 검사 소스 | 이 PR에서 추가한 계약 함수 | 현재 상태 |
+| --- | --- | --- |
+| `tests/cases/auto_number_trailing_placeholder.rs` | `typing_after_a_trailing_auto_number_keeps_the_number_in_place`, `enter_after_a_trailing_auto_number_leaves_the_number_in_its_paragraph`, `typing_after_an_auto_number_merged_with_the_next_paragraph_keeps_the_number` | 현재 suite에 존재, 최종 실행 결과 대기 |
+| `tests/cases/paste_html_caret_axis.rs` | `single_paragraph_paste_lands_at_the_logical_caret_around_a_footnote`, `single_paragraph_paste_lands_after_an_inline_equation`, `multi_paragraph_paste_splits_at_the_logical_caret_after_a_footnote`, `cell_paste_of_paragraphs_splits_at_the_text_caret_after_an_inline_equation`, `cell_paste_of_paragraphs_counts_a_char_overlap_before_the_text_caret` | 현재 suite에 존재, 최종 실행 결과 대기 |
+
+이 목록은 현재 source와 최초 적용 patch를 대조한 결과이며 실행 통과를 뜻하지 않는다. 실제 검사 결과는 이 함수가 실행된 전체 nextest/focused 로그에서 PR별로 추출하고, 최종 입력·Print·Native/fresh 및 확대 판독을 해당 변경 의미에 연결한다. 공통 빌드·회귀 성공만으로 이 PR의 적용 경계나 편집 후 저장 출력이 검증됐다고 판정하지 않는다.
+
+## 검증 입력·결과와 조판 원칙
+
+현재 Native 빌드와 KPS77/가맹사업142/CGMP48 등5원본 쪽수 진단은 통과했다. 가맹사업42쪽 새 Native review는94.27957%이며 표·각주 비겹침을 직접 확인했다. 이 선택 증거는 각 PR의 편집 저장본 Print 계약 또는 전쪽/fresh WASM 통과를 대신하지 않는다.
+
+fmt·Native/WASM32 Clippy와 workspace build는 v172 source에서 통과했다. all-target Clippy는 봉투 계약 검사의 제외 모듈 선언 누락으로 실패하여 `2d6f82fbb`에서 시험지 제외 helper만 연결했다. renderer source는 동일하다. v173 fmt/workspace Clippy·정책부터 fresh WASM·전체 release-test nextest·Native Skia3종을 순차로 재검증하며, 전쪽 시각과 실제 Studio/대형 복합 검증은 현재 실행 중 또는 대기 중이다. 실제 끝 exit·최저값·누락·쪽수·직접 확대 판독과 입력/기준 PDF SHA를 최종 기록에 연결한다. 조판/회귀/입력 커밋 검토의 미완료 범위는 **미검증**이다. 절대px 기대값·baseline을 통과 목적으로 완화하지 않는다.
+
+## 시각 증적과 남은 범위
+
+최종 Native/fresh TSV와 대표 review/overlay를 같은 입력·쪽·source로 연결한다. 현재 source의 증적은 ignored `output/pr-review/semanticist21-20261008/pr-preparation-native-whole-v172-result.json`, `pr-preparation-wasm-whole-v174-result.json` 및 v171 retry2 기록에서 실제 종료 결과를 확인한다. 미달·구조 결함이 있으면 보정 후 재실행하며 최종 이미지와 URL은 새 head로 확정한다.
+
+## 통합 뒤 원 PR 후속 처리 계획
+
+사용자 승인 후 통합 PR과 정확한 head CI를 확인한다. 통합 merge SHA·이 PR의 해결 범위·보정 이유와 원 기여를 구분한 한국어 존댓말 문안을 준비하고, 실제 시각 증적 사용 시 merge SHA 고정 PNG를 첨부한다. 원 PR 종료/댓글은 승인 범위와 현재 상태를 재확인한 뒤 수행한다. 최초18개 밖의 후속 PR은 이번 통합 대상이 아니다.

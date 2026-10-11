@@ -23,6 +23,13 @@ last_verified: 2026-10-11
 - draft 제외: #7559, #7572, #7573, #7588, #7589, #7598.
 - 통합 PR 생성/push/merge/원 PR close/후속 처리: 아직 미수행. 실패 gate를 통과한 것으로 보고하거나 일부 PR만으로 scope를 줄이지 않음.
 
+
+## PR별 검토 문서
+
+사용자 지시에 따라 원 PR 번호별 검토 문서18개를 유지한다. 아래 각 문서의 현재 판정·검증 범위가 정식 PR별 기록이고, 이 파일은 누적 보정 이력이다. #7612의 기존 병합 review는 보존하며 나머지17개는 최종 검증 진행 상태로 작성했다.
+
+[#7566](pr_7566_review.md), [#7612](pr_7612_review.md), [#7613](pr_7613_review.md), [#7614](pr_7614_review.md), [#7615](pr_7615_review.md), [#7616](pr_7616_review.md), [#7638](pr_7638_review.md), [#7641](pr_7641_review.md), [#7647](pr_7647_review.md), [#7648](pr_7648_review.md), [#7652](pr_7652_review.md), [#7653](pr_7653_review.md), [#7654](pr_7654_review.md), [#7655](pr_7655_review.md), [#7656](pr_7656_review.md), [#7657](pr_7657_review.md), [#7658](pr_7658_review.md), [#7659](pr_7659_review.md)
+
 ## PR별 최초 검토 근거
 
 아래 표는 최초 누적 후보의 판정이다. 이후 메인터너 보정의 개선/남은 차이와 Native/fresh WASM 증거는 아래 source별 기록을 따른다.
@@ -2394,3 +2401,5 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - v172 PR 준비의 manifest prepare와fmt check는exit0/2.677초·30.680초, Native/WASM32 Clippy는exit0/154.098초·139.575초다. workspace build와후속 workspace Clippy/정책·fresh WASM·전체 nextest/Skia는 아직 종료 전이다. 단일 Cargo 체인 뒤release build/lib·doc test·Studio TypeScript/unit/production·public binding 계약도 순차 연결했다(`pr-preparation-composite-validation-v173-result.json`). tracked source/test/helper4309개의 SHA를 보존하여 원 head·후속 문서 변경과 생산/검사 입력 바이트를 구분한다. 로컬 review 초안18개는원 적용41개 모두현재 rebase commit에 연결했고, 정식 완료 판정/오늘할일은 최종 검증 뒤 확정한다.
 
 - v172 workspace build는exit0/264.459초이나 all-target Clippy는exit101/295.406초다. `tests/envelope_integrity_contract.rs`의 승인된 시험지 제외 selector가 `corpus_scope`를 참조하면서 module 선언을 빠뜨린 리베이스 통합 오류를 확인했다. 기존 공통 helper를 연결하는 선언만 추가했다. 시험지/HML 입력·기대값·renderer source는 변경하지 않으며, 기존 Native/WASM Clippy와workspace build의 생산 source 동일성을 유지한다. 실패한workspace Clippy와fmt/정책부터v173 순차 체인으로 재검증한 뒤fresh/전체 회귀/Skia를 계속한다. 뒤composite v174는그종료뒤 실행한다. v172 오류로fresh미생성일때 종료된 대기 worker는 실패·미실행 기록을 남겼으며, WASM전쪽은v174 service에서fresh성공과Native전쪽 종료/중간SVG정리뒤 실행한다. 디스크 확보를 위한 의존 순서 조정이며 시각 관측 timeout에 따른 재시작이 아니다.
+
+- 2026-10-12 사용자 요청으로 원 PR별 review18개를 저장소에 분리했다. 기존 merged #7612 기록을 보존하고 나머지17개에는 최초 원 commit→적용→현재 rebase 매핑과 PR별 변경 파일·현재 계약 함수 목록을 연결했다. 판정은 검증 진행에 맞춰 머지 보류이며, 종료 결과와 원본/Print·전체Native/fresh/확대 판독을 받은 뒤 각 PR의 검증 범위와 수용 여부를 확정한다. 오늘할일·승인 후PR/CI/merge/후속 처리는 여전히 미완료다.
