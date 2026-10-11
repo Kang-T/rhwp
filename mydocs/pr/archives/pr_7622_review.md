@@ -146,6 +146,39 @@ exit0/18분51초이며 `batch233-asset-origin-native-build/`에 실제 명령과
 일부 글자 간격·획 차이는 남으며 전60쪽 Native/fresh WASM과 확대 판독은 미완료다.
 전60쪽 Native는 `batch235-asset-origin-full-native/`, 필수 lint와 새 WASM package는
 `batch236-asset-origin-validation-wasm/`, 전60쪽 WASM은 `batch237-asset-origin-full-wasm/`에서 이어간다.
+
+### 전60쪽에서 검출한 분할·병합 폭 차이의 보완 후보
+
+`batch235-asset-origin-full-native/provenance.json`의 전60쪽 실제 TSV는14쪽49.78994%,
+51쪽53.49225%로 실패했다. 나머지58쪽은90% 이상이지만 전체 통과가 아니며,
+이 현재 보정 문서를 #7445로 이관하거나 기존 검사·baseline을 완화하지 않는다.
+39쪽은 새 원점의 첫 기준선 간격39.89333px가 저장39.89333px/독립 Print39.79651px와
+대응함을 같은 배율 before/Print/after에서 확인했다(`batch241-asset-expanded-origin/`).
+
+14쪽의 입력 pi196에는 저장 LineSeg가 없으며, 독립 Print는 그 문단의 앞2줄을13쪽,
+뒤3줄을14쪽에 배치한다. Native는 앞3줄/뒤2줄이다. `batch242-asset-boundaries/`의
+실행 진단으로13쪽 첫 이어받기 pi182 뒤 pi183의 실제 배치 전진118.7px와 흐름 전진93.3px가
+갈라짐을 확인했다. 배치는 첫 PartialParagraph의 저장 시작 줄을 page base로 쓰지만
+측정은 그 원점 없이 pi184에서 lazy base1900HU를 역산하여 이미 trim한25.3px를 기준에
+흡수했다. 그 뒤 pi196의 세 번째 줄 상자는 본문 하단을 약5.6px 넘었다.
+수용한 단 첫 이어받기 조각의 실제 저장 시작 줄을 측정에서도 같은 단 원점으로 확정한다.
+단단·비편집·저장 HWP/HWPX·본문 조각에만 적용하며 합성/개체/다단의 원점을 추정하지 않는다.
+`place_split_paragraph`의 수용 컷 → state page base → `section/vpos`/`HeightCursor`의
+다음 저장 앵커 복원 → fit/실제 PartialParagraph 소유를 새 런타임에서 대조한다.
+
+51쪽은 원본22행27열/159셀, 선언 폭72824HU다. 각 물리 행에 걸치는 세로 병합 셀까지
+포함한 폭 합은72536~72806HU지만, 종전 `declared_row_col_x`는 시작 행의 단일행 셀만
+모아 완결 행을 찾지 못했다. 서로 다른 행의 병합 폭 제약을 한 전역 그리드에 누적한 결과
+Native 표 폭은1180.1px로 선언970.99px를 넘었다. 각 물리 행을 덮는 셀을 모으되 기존
+열의 빈틈/겹침/끝점 검사를 유지하여 선언 구획을 소비한다. 새 clamp·문서ID·허용치를
+추가하지 않고 기존1% 이내 선언 폭 정책을 유지한다. `build_row_col_x`는 일반 표·부분 표·
+셀 내 표 배치와 테두리에 공통으로 사용된다. 높이 측정의 `paragraph_frame_owner_widths`는
+원본 셀 폭을 소비하므로 기존 소폭 정규화 후 실제 줄 구성·높이/배치 일치도 검증한다.
+독립 Print의 표 좌우 경계60.42~787.92pt와 각 내부 세로선을 기록했다.
+
+두 보완은 원인 분석 뒤 묶어 수정한 후보이며 아직 새 runtime 결과가 없다.
+필수 lint236의 실제 Cargo writer가 종료된 뒤 새 head에서 영향쪽/정상 대조군과 전60쪽
+Native/fresh WASM을 재출력한다. 전쪽90%·확대 판독 전에는 새 실물 회귀를 추가하지 않는다.
 선행 빌드 종료 순간의 대기 race로 제품 실행 전 중단된229/230/231의 실패 기록은
 성공으로 덮어쓰지 않았다. 성공 종료를 재조회하는 대기로 바꾸어233/234/235를 새로 실행했다.
 

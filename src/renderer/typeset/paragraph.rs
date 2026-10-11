@@ -173,6 +173,31 @@ pub(super) fn place_split_paragraph(
             on_entry_page = false;
             continue;
         };
+        // 배치의 단 원점은 첫 수용 조각의 저장 시작 줄이다. 이어받은
+        // 조각도 그 원점을 확정해야 뒤 문단의 간격 trim을 같은 좌표에서
+        // 복원할 수 있다. 원점 없이 lazy 역산하면 먼저 버린 간격이 기준에
+        // 흡수되어 fit만 실제 배치보다 짧게 세게 된다.
+        if st.current_items.is_empty()
+            && st.col_count == 1
+            && cursor_line > 0
+            && !st.profile.session_edited()
+            && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
+            && para.controls.is_empty()
+            && !para.stored_text_partition_is_dirty()
+            && !para.cell_format_vpos_dirty
+        {
+            if let Some(line) = para.line_segs.get(cursor_line).filter(|line| {
+                line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                    && line.vertical_pos >= 0
+                    && line.line_height > 0
+            }) {
+                st.record_vpos_column_anchor(st.current_height);
+                st.record_vpos_page_origin(Some(line.vertical_pos));
+                st.record_vpos_lazy_origin(None);
+                st.record_vpos_origin_provenance(true);
+                st.record_vpos_ladder_validity(false);
+            }
+        }
         st.commit_split_paragraph_fragment(fragment);
 
         if end_line >= line_count {
