@@ -4,6 +4,7 @@ mod row_block_cut;
 mod stored_body_closed_frame;
 mod stored_complete_block_cut;
 mod stored_first_line_restart;
+mod stored_inline_row_frame;
 mod stored_intra_paragraph_frame;
 mod stored_nested_frame;
 mod stored_ordinary_row_frame;
@@ -20779,6 +20780,15 @@ impl LayoutEngine {
                     cell.paragraphs.get(u.para_idx).is_some_and(|para| {
                         self.stored_plain_zero_origin_line_boundary(cell, table, para, u.vis_start)
                     });
+                // 한 저장 줄이 자식 표 전체를 소유하면, 행으로 펼친 뒤에도 그
+                // 줄의 쪽 시작을 유지한다. 현재 잔여에는 안 들어가지만 새 밴드에는
+                // 전부 들어가는 원본 표에만 적용하며 큰 표의 행 분할은 보존한다.
+                let stored_inline_row_frame_break = self
+                    .stored_inline_row_frame_height(table, cell, &units, j, styles)
+                    .is_some_and(|height| {
+                        height <= avail_height + ROW_CUT_CAPACITY_FP_EPSILON_PX
+                            && h + height > avail_height + ROW_CUT_CAPACITY_FP_EPSILON_PX
+                    });
                 let strict_saved_frame_break = u.stored_frame_break_before
                     && (plain_zero_origin_boundary
                         || body_frame_reset
@@ -20868,6 +20878,7 @@ impl LayoutEngine {
                     && u.page_frame_reset_before
                     && h >= avail_height * 0.7;
                 let strict_saved_frame_break = strict_saved_frame_break
+                    || stored_inline_row_frame_break
                     || hwpx_page_scale_cross_para_reset
                     || hwp5_page_scale_cross_para_reset
                     || shared_empty_frame
