@@ -17381,12 +17381,13 @@ impl LayoutEngine {
             return 0.0;
         }
 
-        let mut declared_box = hwpunit_to_px(signed_hwpunit(table.common.height), self.dpi);
+        let declared_box = hwpunit_to_px(signed_hwpunit(table.common.height), self.dpi);
         if declared_box <= 0.0 {
             return 0.0;
         }
-        // 첫 물리 상자는 앞 행도 포함한다. 셀 로컬 높이와 비교하기 전에
-        // 앞 행의 저장 공간을 빼며, 이미 첫 상자를 지난 행은 다음 프레임이다.
+        // 첫 물리 상자는 앞 행도 포함한다. 이미 첫 상자를 지난 행은 다음
+        // 프레임이다. 아래 비교도 표 원점 기준이므로 선언 상자에서 앞 행을
+        // 다시 빼지 않는다: untrimmed_box가 같은 앞 행 공간을 한 번 포함한다.
         let shrink = table
             .rowspan_declared_overflow_shrink()
             .get(usize::from(cell.row))
@@ -17423,9 +17424,6 @@ impl LayoutEngine {
             };
             if prefix >= declared_box {
                 return trim;
-            }
-            if declared_opening_frame {
-                declared_box -= prefix;
             }
         }
 

@@ -421,7 +421,8 @@ impl TypesetEngine {
         } + (budget.terminal_outer_bottom_overhead
             - budget.fragment_outer_bottom_overhead)
             .max(0.0);
-        // 보호 블록의 일부를 소비한 후보도 종료 캡션 예산을 확인한다.
+        // 마지막 rowspan 블록의 일부를 소비한 후보도 종료 캡션 예산을 확인한다.
+        // 저장 hard break가 없는 재조판 셀도 병합된 종료 상자를 소유한다.
         // 마지막 블록과 캡션이 새 본문에 함께 들어가면 앞 행만 다시 스캔해
         // 블록의 내용 컷과 물리 공간을 같은 조각으로 이월한다.
         if closing_overhead > 0.0
@@ -439,7 +440,10 @@ impl TypesetEngine {
             };
             let last_range = rows.candidate(row_count - 1);
             let last = rows.candidate(last_range.b_start);
-            if last.protected && last.b_start > cursor_row && end_row > last.b_start {
+            if (last.protected || last.block_size > 1)
+                && last.b_start > cursor_row
+                && end_row > last.b_start
+            {
                 let terminal_height = rows.required_height(&last, &[]);
                 if terminal_height + header_overhead + closing_overhead <= budget.fresh_page_avail {
                     let prefix = run_scan(BlockRowScanVars {
@@ -480,7 +484,7 @@ impl TypesetEngine {
                 };
                 let last_range = rows.candidate(row_count - 1);
                 let last = rows.candidate(last_range.b_start);
-                let terminal_start = if last.protected || last.rowbreak_rowspan_block {
+                let terminal_start = if last.protected || last.block_size > 1 {
                     last.b_start
                 } else {
                     row_count - 1
