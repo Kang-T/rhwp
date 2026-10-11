@@ -6442,7 +6442,10 @@ impl LayoutEngine {
             // 좌측 이탈, 한글 PDF x=229.56pt 는 공백 제외 중심). 반례 셋으로
             // 한정한다: ① 셀 내부는 한글이 말미 공백을 포함해 정렬(issue_1285
             // 수험번호 TAC 우단 = 셀 inner 우단 오라클 앵커) — cell_ctx 부재.
-            // ② soft-wrap 지점의 줄끝 공백은 포함 — 문단 마지막 줄 한정.
+            // ② 저장 분할의 중간 줄은 저장 정렬 폭을 유지한다. 재조판으로
+            // 새로 나눈 줄은 wrapping 끝의 비가시 공백을 정렬 폭에서 제외한다.
+            // 변경 이력 투영 뒤 재조판한 #5169 표제의 독립 Print가 이 계약을
+            // 보이며, 저장 줄에도 적용하면 #3837 사진 안내 줄이 인장과 겹친다.
             // ③ TAC 컨트롤이 있는 줄은 공백이 시각적 말미가 아니다 —
             // line_tac_offsets_for_width 비어 있을 때 한정. ④ 전부 공백인
             // 줄(밑줄 친 서명란)과 밑줄 스타일 말미 공백은 보이는 콘텐츠라
@@ -6453,7 +6456,7 @@ impl LayoutEngine {
             // 한/글도 칸 안에서 말미 공백을 빼고 정렬한다(3079571 취소신청서 1쪽,
             // '신청하는' + 공백 5칸 — 한/글 대비 -15.02px = 5 × 6.008 ÷ 2).
             let center_excludes_trailing_ws = alignment == Alignment::Center
-                && is_last_line_of_para
+                && (is_last_line_of_para || !stored_geometry_source)
                 && line_tac_offsets_for_width.is_empty()
                 && comp_line
                     .runs
