@@ -542,3 +542,16 @@ HWPX 큐의 컷 전 marker 검사에는 부모 컷에서 paint가 사용하는 `
 `batch45-source-frame-routing/`의 고정4232 진단에서 표650 첫 컷은 `[6,8]`/193.68px, 그 뒤 컷은 `[6,11]`/58.69px인데 두 번째 조각에873.08px를 예약해 여분 쪽을 만든다. 다음 실제 저장 프레임은857.32px로 독립 원본 빈 끝줄과 패딩에 대응한다. 준비 경로가 legacy 원점의 존재를 이유로 `native_text_frame_first_fragment_saved_top` 조회를 생략해 `source_frame=None`과 실제 기존 각주 경계 미설정을 만드는 소비 경로를 확인했다. 인증한 원본 text frame을 먼저 조회하고 그 원점을 fit과 paint에 같이 전달하도록 보정했다. helper의 원본·dirty·소유·줄 상자 조건을 유지하며 문서 번호나 임의 픽셀 상한을 추가하지 않는다. 이 추가 보정은 새 head 빌드·시각/관계형 회귀 전이고, 원본·Print142쪽·143쪽 기존 검사와47개 전쪽 검증 범위는 보존한다.
 
 `92d35f3af`의 Native Clippy와 Native 빌드 exit0/451.36초를 확인했지만 가맹사업 전체 page plan은 여전히143쪽과 같은 첫 컷이었다. 조회 복원만으로 원본 프레임 인증이 된다고 추정했던 범위를 수정한다. 원본649는 글자·control 없이 `vpos=29976, lh=500, spacing=500`의 실제 저장 빈 줄이고 다음 표 host650은 `vpos=30976`이다. helper가 `!para_has_visible_text(previous)`로 이 선행 줄을 거절하는 추가 소비 경계를 확인했다. 양의 원본 줄 상자를 가진 control-free 선행 문단은 가시 글자 유무와 별개로 원점을 인증할 수 있도록 보정하고 dirty·합성 줄 제외 및 저장 원점/바닥 조건은 유지했다. 새 source의 런타임·시각·관계형 검사 전이며143쪽 기대값을142로 바꾸지 않았다. 추가 원본 진단은 `batch48-frozen-next-owner-diagnosis/franchise-original-host650.txt`에 보존했다.
+
+## 2026-10-11 원 PR 전체 영향 목록 재감사
+
+API로 원 #7611 head `31f5628b68ef4a03700e9b0739959e14b380ff2c`가 그대로임을 확인하고, 그 commit의 `sweep_summary_devel_f0e7228f6_vs_head.json` 실제50문서를 기존48입력 원장과 대조했다. 이전 원장에만 있던 정상 대조2개는 보존하고, 빠진 다음4개도 검증 범위에 복원했다. 기여자의 점수를 통합 head 통과로 사용하지 않는다.
+
+| 누락했던 원본 | repository 기준 PDF | PDF 전체 쪽수 |
+| --- | --- | ---: |
+| `samples/76076_regulatory_analysis.hwp` | `samples/issue1891/76076_regulatory_analysis-2024.pdf` | 82 |
+| `samples/issue6313/microbe_bank_cell_picture.hwpx` | `pdf/microbe_bank_cell_picture-2020.pdf` | 5 |
+| `samples/task1765/merged_cell_trailing_ls.hwp` | `samples/task1765/merged_cell_trailing_ls-2024.pdf` | 4 |
+| `samples/task1765/merged_cell_trailing_ls.hwpx` | 같은 기존 기준 PDF; 원문 대응은 별도로 확인 | 4 |
+
+ignored `batch201-impact-scope-audit/`에 기여 commit의 원 JSON bytes/SHA, 수정 전 원장, 입력/PDF SHA와 실제 PDF 쪽수를 보존했다. summary의 `pages`는 비교한 쪽 수여서 실제 쪽 번호 목록으로 해석하지 않는다. 추가95쪽 전체를 비교하며, 기준 PDF의 원문 대응·확대 판독도 미검증으로 남긴다. 원장은 총52입력/3,726쪽이며 이미 #7445로 이관한3쪽1입력을 계속 별도 보존하면 활성 **51입력/3,723쪽**이다. 기존 활성47/3,628의 수치를 새로운 전체 범위로 재사용하지 않는다. 현재 수정 문서를 이관하거나 샘플을 삭제하지 않았으며 전체 Native/fresh WASM·175글꼴 영향·최종 회귀·개별 검토와 PR/CI/merge는 여전히 미완료다.
