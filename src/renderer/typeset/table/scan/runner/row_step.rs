@@ -122,6 +122,14 @@ impl TypesetEngine {
                 && !is_continuation
                 && r > cursor_row
                 && source_first_fragment_row_end == Some(r + 1)
+                // 최근접 행 끝은 첫 조각의 허용량을 계산하는 기준일 뿐,
+                // 내용 소유의 종료 경계가 아니다. 저장 프레임이 그 행 끝을
+                // 지나면 다음 행의 첫 유닛도 같은 쪽에 속할 수 있으므로
+                // 일반 컷/예산 검사를 계속한다. 프레임이 마지막 행 안에서
+                // 닫힐 때만 완료된 내용 뒤의 빈 물리 밴드를 줄여 예약한다.
+                && source_first_fragment_height.is_some_and(|height| {
+                    height <= cut_row_h[..=r].iter().sum::<f64>() + cs * r as f64
+                })
             {
                 let shape = row_query.band_shape();
                 if shape.has_prior_rowspan_cover && !shape.row_has_nested {
