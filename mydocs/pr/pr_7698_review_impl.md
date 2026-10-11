@@ -66,3 +66,15 @@ ViewText만 제외하고 다른 원 스트림을 모두 보존한 **진단 대�
 사용자가 #5169의 숨긴 변경 이력 표시 결함도 이번 PR에서 해결하도록 지시했다. 삭제 범위가 숨긴 문단 끝·컨트롤을 포함하는 경우를 본문 선택 계약과 함께 처리한다. 한컴이 저장한 표시 상태가 독립 근거이며 문서 ID나 표 개수로 표시 본문을 선택하지 않는다. 같은 visible IR을 측정·Canvas·SVG·PNG가 소비하고 원 이력 보존과 저장 경로도 확인한다. BodyText가 없는 암호 ViewText 경로는 유지한다.
 
 앞선 f90c362511 보정의 전체 nextest 재실행은 10,545 PASS / 50 SKIP다(`maintainer/full-nextest-clean-samples.log`). 이는 숨긴 변경 이력 수정 전 대조군이며 새 구현의 통과 증거로 재사용하지 않는다. 기존 #5169 회귀의 표 개수 기대값은 현재 가시성 계약과 독립 Print를 검증한 후 재검토하며, 90% 미달 상태에서 baseline이나 기대값을 갱신하지 않는다.
+
+
+## 가시성 구현과 중간 검증
+
+`TRACK_CHANGE`(DocInfo tag 96)의 순번 ID·Insert/Delete 유형·hide 값은 독립 한컴 HWPX의 229개 항목 모두와 대응했고 불일치는 0건이다. 이 설정과 RangeTag의 UTF-16 범위를 사용해 parser에서 visible paragraph stream을 생성한다. 숨긴 확장 컨트롤은 소유 subtree와 함께 제거하고, 숨긴 문단 끝은 같은 목록의 다음 문단을 이어받는다. PARA_TEXT 없는 char_count=1 문단의 암묵적 문단 끝도 같은 규칙을 따른다. 일반 빈 문단은 남기며, 삭제된 문단 끝 앞의 문단 모양은 이어받기에 보존한다. 원본 section raw와 DocInfo는 유지한다. 실제 숨김으로 UTF-16 축이 바뀐 문단 및 삭제된 문단 끝으로 이어붙인 문단의 줄 정보만 재조판하고, 가시 내용이 바뀌지 않은 문단의 유효한 저장 LineSeg는 보존한다. strict/lenient 모두 같은 projection을 거쳐 측정·각 backend에 전달한다.
+
+원본 raw를 입력으로 같은 production projection을 실행한 진단은 최상위 문단 99개·표 4개로, 독립 한컴 최종 내용과 대응했다. 원본 BodyText와 visible projection의 재귀 문단 수는 모두 228개이며 완전 삭제·이어받기 후 표제와 삭제 문구의 표시를 확인했다. 이는 독립 Print 전쪽 시각 통과를 대신하지 않는다.
+
+초기 글꼴 대조군은 6쪽이지만 1/3/4쪽이 90% 미달이었다. 실제 설치 face를 공급한 경우에도 남는 배치 차이를 글꼴 예외로 분류하지 않았다. 1쪽 표제의 첫·둘째 줄은 중앙 정렬 폭이 soft-wrap 말미 공백을 포함해 반 칸 좌측에 있었고, 독립 Print는 비가시 말미 공백을 제외했다. 마지막 줄 여부 조건을 제거해 같은 줄의 TAC·밑줄·전부 공백인 줄의 기존 표시 계약을 유지하며 중앙 정렬을 보정한다. 최종 head의 전쪽 Native/fresh WASM Sweep 및 회귀 검증은 진행 중이다. 첫 Clippy의 is_multiple_of 지적을 수정했고 Native Clippy와 release-test CLI build는 통과했다.
+
+
+3·4쪽의 미달은 초기 구현이 같은 section의 **바뀌지 않은 문단**까지 저장 LineSeg를 제거한 탓이었다. 원본 ViewText의 `따라서` 문단은 숨긴 범위가 없고 저장 줄 시작은 0/39, `고위관리` 문단은 0/56이다. 실제 한컴 Print의 줄 나눔과 대응하므로 이를 review-mode 무효 정보라고 단정한 가정을 제거했다. 가시 축이 바뀐 문단·이어붙인 문단만 재조판한 production helper 진단 결과는 6쪽 모두 90% 이상(99.44/92.34/91.69/97.06/99.87/100.00%)이다. 변형 입력 진단은 최종 원본의 Native/fresh WASM 증적을 대신하지 않으며, 원본 기준 재검증을 이어간다.
