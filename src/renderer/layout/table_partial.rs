@@ -1340,7 +1340,7 @@ impl LayoutEngine {
             {
                 self.resolve_cell_padding_for_physical_height(cell, table, cell_h)
             } else {
-                self.resolve_cell_padding(cell, table)
+                self.resolve_stored_nested_cell_padding(cell, table, styles)
             };
 
             // 실제 cut이 있는 셀은 cursor probe와 전체 렌더링이 같은 문단 창을

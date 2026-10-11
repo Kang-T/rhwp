@@ -24,7 +24,7 @@ impl<'a> CellCutFrame<'a> {
         units: &'a [CellUnit],
         start: usize,
     ) -> Self {
-        let (_, _, top, bottom) = engine.resolve_cell_padding(cell, table);
+        let (_, _, top, bottom) = engine.resolve_stored_nested_cell_padding(cell, table, styles);
         Self {
             engine,
             cell,

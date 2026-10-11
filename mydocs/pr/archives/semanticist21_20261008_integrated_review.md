@@ -2172,3 +2172,20 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 정확한HYS·독립Print2024의새42/43/44/45쪽Native는60.04321/54.17450/44.46360/48.99701%,exit1/232.936초/source 및동결CLI 불변이다. 새43/44/45쪽review를실제표시·판독했다.43쪽의범주III 표식과위쪽원점·활자·행끝차이는남아있다. 모든선택쪽이90% 미만으로최종통과가아니다.38개경계결과를이전451개또는전체Rust/freshWASM승인으로확대하지않는다.
 - 다음여백보정의실제생산→소비도별도추적했다(`giant-source-padding-forensics-v149/measure-paint-padding-gdb.log`): root는원래283+283HU 안여백에대해측정의추가예약3.77333px를계상하지만실제부분paint는상하각1.88667px만쓴다. 실제셀980.74px·원래논리행43512.61333px에도선언566HU만으로여백을절반으로축소한다. middle1×1도실제셀975.08px·원래논리행4591.53333px인데선언282HU로141+141HU를각0.94px로줄인다. 두상자는실제확장한행의안여백을예약·배치에서함께소비해야한다. 근거없는offset을넣지않는다.
 - 원본bodyhost는폭0/vpos0/lh1200HU의개체앵커이고표본체는73450HU,위·아래바깥여백은각141HU다(`source-root-host-box.json`). 이앵커의작은줄상자가큰표의바깥프레임을소유한다고보는첫줄조건과,중첩recursive cut의바깥여백예약·실제원점소비를다음단계에서대조한다. 아직여백수정전이며현v148시각차이를해결됐다고보고하지않는다.
+
+
+### 진행125 — 확장된 원본 중첩 행의 안 여백을 컷과 배치에서 공유(v149)
+
+- 직전 v148을07806b486으로 커밋했고 작업 트리 clean 및 Cargo 종료를 확인했다. 현재 giant 원본/Print의44쪽 측정 예약과 부분 배치에서 실제 안 여백 차이가 확인된 범위를 수정한다. root의283+283HU, middle의141+141HU는 이미 확장된 원래 논리 행 안에 들어가지만 부분 배치가 작은 선언566/282HU로 다시 축소했다. 기하 근거는 `giant-source-padding-forensics-v149/measure-paint-padding-gdb.log`와 독립 Print42–44 외곽선 비교다.
+- 공통 helper는 원본 RowBreak 단일 행에서 실제 저장 줄을 가진 중첩 표 호스트만 선택하고, 동일 행 생산자의 확정된 전체 물리 높이를 소비한다. 편집/dirty/synthetic/재조판 및 병합 셀은 제외한다. 원래 행에도 들어가지 않는 비정상 여백은 기존 방어를 유지한다. 조각마다 달라지는 현재 조각 높이를 사용하지 않는다. 원장이 아직 없으면 같은 원래 행 resolver로 한 번 마련하고 호출자의 선언 신뢰 정책을 복구한다.
+- 생산 `resolve_row_heights_trusting_declared`/원래 행 원장 → `row_cut_content_height`·남은/위 여백 예산 → 전체/부분 셀 배치로 연결한다. recursive 부모의 별도 여백 보충도 같은 유효 여백을 빼므로 이중 예약을 피한다. 현재 행/블록 유닛의 내용 및 source cut 소유를 변경하지 않는다. 새 회귀·fixture·기대값·공차는 추가하지 않았다.
+- 후보 빌드와 기존 경계38개·6원본 수량 및 정확한 HYS/Print2024 선택42–45쪽을 한 묶음으로 실행한다. 아직 검증 전이며 기존 결과를 이번 source의 통과로 쓰지 않는다. 바깥 프레임 여백과 범주III 표식, 최종 전체 Rust/lint/Native/fresh 및 초기18개 review/오늘할일·PR/CI/merge는 남아 있다.
+
+- v149 Native 빌드는exit0/107.308초,source 불변이며 동결CLI SHA `e2db2e6b0f90ffd8bb1652ddcd7ab4ed6abe26f08e78c44618c858b8ac2f1c82`다(`stored-nested-padding-artifact-v149.json`). 기존451개와38개 경계 필터를 중복 제거한476개를 한 묶음으로 실행했고471PASS/기존5FAIL/9679skip,실제281.398초·compile 포함623.143초,exit100/source 및929개 case 불변으로 종료됐다(`stored-nested-padding-focused-v149.json`). 실패는Q8/KPS 고정 쪽·행,가맹산업 두 고정 쪽수,편람 셀 넘침32→35로 이전과 동일하다. 전체release-test를 이번 결과로 대신하지 않는다.
+- 실제44쪽 부분 배치는root 상하각3.77333px와middle각1.88px를 사용하고root의예약상자는980.74→982.62px다. 원래 논리행43512.61333/4591.53333px는 같으며재귀부모의별도여백보충은0이됐다(`giant-source-padding-forensics-v149/after44-measure-paint-padding-gdb.log`). 처음진단의CLI `--page44`는0부터세어45쪽을출력했으므로그로그를44쪽증거로쓰지않고 `--page43`으로재실행했다. 이명령오류는제품회귀와구분하고두실행모두보존한다.
+- 6원본runtime 쪽수/넘침은giant48/0,press3637 13/0,external1891 74/10,virtual6776 75/0,water6776 3/0,CGMP48/0으로전부직전과같다(`stored-nested-padding-counters-v149/results.json`). 독립Print시각승인이아니다.
+- 정확한HYS·독립Print2024의새42/43/44/45쪽Native는60.00330/65.01285/51.86651/62.98848%,exit1/280.980초/source 및동결CLI 불변이다. 새43/44/45쪽review를실제표시·직접판독했다.43쪽범주III가Print와같은쪽으로복구됐고44·45쪽문단끝소속은유지됐다.44/45쪽은TextRun의내용·소유·순서가직전과동일하며42→43은표식1개이동으로204/165→203/166개다(`text-owner-order-before-after.json`). 모든선택쪽은90% 미만이며,위쪽원점·글줄/활자차이와표외곽차이가남는다. 원본전체48쪽/freshWASM승인으로확대하지않는다.
+- 다음바깥프레임진단의실제host를원본ZIP에서추출했다(`giant-source-padding-forensics-v149/source-frame-hosts.json`). root는빈폭0/vpos0/lh1200HU,중간표host는빈폭0/vpos500/lh1200HU,grandchild는공백2개/폭46316/vpos30744/lh1200HU다. 셋모두para상단·flowWithText이며각각141/140/140HU 바깥여백을가진다. 작은호스트줄을큰표프레임의여백소유자로대신해도되는지와recursive커서에서누락한바깥여백을추적한다. 이추출은수정완료증거가아니다.
+- 종료된v148 Native/counters와v149 counters의526SVG228,754,431바이트,추가로종료된v149 Native4SVG78,741,822바이트만압축없이제거했다. 기하·해시를보존했고원본/Print/PNG/TSV/tree/로그/동결CLI/공유target은유지했다(`finished-stored-nested-padding-svg-cleanup-v149.json`, `finished-native-stored-nested-padding-svg-cleanup-v149.json`). 필수lint7/freshWASM·최종전체회귀/시각검증및초기18개개별review/오늘할일·PR/CI/merge/후속처리는미완료다.
+
+- 비정상 여백 방어·정상 조밀 행·선언 높이의 안 여백 소유를 확인하는 기존5751/3386 대조3개는3PASS/470skip,exit0/9.477초(실제0.590초),source 및929개 case 불변이다(`stored-nested-padding-guard-controls-v149.json`). `cargo fmt --all -- --check`와`git diff --check`도exit0이고현재source 전체해시는빌드artifact와같으며새82줄helper도해시원장에포함돼있다. 현재단계만일반커밋으로고정하며최종전체통과로쓰지않는다.
