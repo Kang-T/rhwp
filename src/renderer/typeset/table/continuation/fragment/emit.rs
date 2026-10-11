@@ -1486,7 +1486,12 @@ impl TypesetEngine {
                     .sum::<f64>()
                     + mt.cell_spacing * end_row.saturating_sub(bs + 1) as f64
                     + last_height;
-                Some(hwpunit_to_px(source.height as i32, self.dpi) - used)
+                // 앞 밴드는 병합 셀의 빈 공간을 소유할 수 있지만 다음 행의
+                // 독립 최소를 소비하지 않았다. 잔여를 그 행의 상한으로 쓰지 않는다.
+                Some(
+                    (hwpunit_to_px(source.height as i32, self.dpi) - used)
+                        .max(*mt.row_heights.get(end_row)?),
+                )
             });
         let mut next_start_row_height_override = source_opening_row_frame
             .as_ref().map(|(_, _, remaining)| *remaining)
