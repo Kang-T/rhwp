@@ -11894,9 +11894,9 @@ impl LayoutEngine {
                 // 재귀적으로 평탄화하고, 같은 문단의 placeholder line과 표 높이를
                 // 한 번만 회계했다. 단순 legacy 재측정은 그 세 동작을 잃어
                 // #3637이 30쪽으로 과소 조판되거나 p26 source owner를 잃는다.
-                // 현재 canonical CellUnit은 그 재귀 원장을 이미 보유하므로, 높이와
-                // 가시 단위만 재사용하되 HWP5 전용 hard/stored cursor 의미를 제거해
-                // 검증된 HWPX scalar viewport 계약으로 투영한다. reset이 없는 일반
+                // 현재 CellUnit 원장의 높이와 선택 컷을 함께 자식 배치에 전달한다.
+                // HWPX의 로컬 reset은 HWP5 쪽 경계로 승격하지 않지만, 자식 유닛의
+                // 소유권까지 버리고 물리 오프셋으로 다시 선택하지는 않는다. 일반
                 // 중첩 표까지 이 경로로 바꾸면 issue1891의 깊은 표가 마지막 쪽에서
                 // 22줄 더 밀리므로, canonical 승격 대상이었던 반복/authoritative
                 // reset 표에만 이 변환을 적용한다. reset 0개이거나 물리 한 쪽에
@@ -11917,7 +11917,7 @@ impl LayoutEngine {
                             } else {
                                 0.0
                             },
-                            recursive: false,
+                            recursive: true,
                             starts_after_table: unit.mixed_nested_starts_after_table,
                             source_para_idx: Some(unit.para_idx),
                             recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
@@ -27001,10 +27001,10 @@ mod row_cut_tests {
     }
 
     #[test]
-    fn test_direct_hwpx_nested_resets_keep_legacy_parent_projection() {
+    fn test_direct_hwpx_local_resets_do_not_force_parent_page_breaks() {
         // [#3820 Stage 50/#3637] direct HWPX의 반복 vpos reset은 자식 셀의
-        // 로컬 viewport 좌표다. reset 개수만으로 HWP5 canonical cursor를
-        // 적용하면 마지막 RowBreak fragment와 후속 표가 새 쪽으로 밀린다.
+        // 로컬 viewport 좌표다. 이 reset을 부모의 강제 쪽 경계로 승격하지 않는다.
+        // 내용 유닛의 선택 컷 전달은 강제 쪽 나눔 신호와 다른 계약이다.
         let eng = LayoutEngine::new(96.0);
         eng.set_layout_profile(crate::model::provenance::LayoutCompatibilityProfile::new(
             false, false, true, true, false, false,
@@ -27032,9 +27032,17 @@ mod row_cut_tests {
         );
 
         let fragments = eng.nested_table_mixed_fragment_heights(&nested, &styles);
+        let source_lines = nested.cells[0]
+            .paragraphs
+            .iter()
+            .map(|paragraph| paragraph.line_segs.len())
+            .sum::<usize>();
+        assert_eq!(fragments.len(), source_lines, "원래 글줄 유닛을 보존한다");
         assert!(
-            fragments.iter().all(|fragment| !fragment.recursive),
-            "direct HWPX reset은 HWP5 canonical child cursor로 승격하지 않음"
+            fragments.iter().all(|fragment| {
+                !fragment.hard_break_before && !fragment.stored_frame_break_before
+            }),
+            "direct HWPX 로컬 reset은 부모의 강제 쪽 나눔으로 승격하지 않는다"
         );
     }
 
