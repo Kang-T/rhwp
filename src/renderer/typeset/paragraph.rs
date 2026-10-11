@@ -576,7 +576,7 @@ pub(super) fn prepare_fit_budget(
         para_idx,
         para,
         paragraphs,
-        st.profile.hwp5_stored_pagination_layout(),
+        st.profile.hwp5_stored_pagination_layout() || st.profile.hwpx_stored_layout(),
         st.current_height,
         dpi,
         || st.available_height(),

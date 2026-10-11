@@ -14,7 +14,7 @@ e2e 스크립트의 **단일 권위 목록**이다. 파일 추가/변경/폐기 
 
 | 파일 | 분류 | 상태 | 용도 | 샘플 | 배선 | 비고 |
 |------|------|------|------|------|------|------|
-| `automation-commands.test.mjs` | 상시 | active | studio 자동화 표면 — 커맨드 질의·실행·메뉴 모델·드리프트 가드·다이얼로그 정책 | — | npm e2e:automation |  |
+| `automation-commands.test.mjs` | 상시 | active | studio 자동화 표면 — 커맨드 질의·실행·메뉴 모델·드리프트 가드·다이얼로그 정책·`insert:field` 매개변수 삽입 | — | npm e2e:automation |  |
 | `enter-caret-reveal-issue7486.test.mjs` | 상시 | active | #7486 본문 Enter 새 쪽의 DOM 캐럿·viewport 및 Undo/Redo, 100%/66% 배율·160/200/300% 줄간격 | 편집 API 합성 | npm e2e:enter-caret | 추가 입력 없이 layout 완료 경계 검사 |
 | `autosave-recovery.test.mjs` | 상시 | active | Task #1448 — 미저장 문서 자동 백업 복구 E2E | — | 수동 |  |
 | `blogform.test.mjs` | 상시 | active | BlogForm_BookReview.hwp 누름틀 안내문 | BlogForm_BookReview.hwp | 수동 |  |
@@ -62,6 +62,7 @@ e2e 스크립트의 **단일 권위 목록**이다. 파일 추가/변경/폐기 
 | `grid-mode-click-coord.test.mjs` | 진단 | hold | 보류 ① 그리드 좌표 결함 — 정량 e2e 측정 | exam_kor.hwp | 수동 | legacy-name · 보류① 이슈 종속 |
 | `header-footer-selection-issue4121.test.mjs` | 상시 | active | #4121 HF 선택 생성·반복 페이지 투영과 delete/type/paste/copy/cut/format history | biz_plan.hwp | npm e2e:issue-4121 | Stage 2~3 선택 생성·소비 계약 |
 | `home-end-key.test.mjs` | 상시 | active | Home/End 줄 처음·끝, Ctrl+Home/End 문서 처음·끝 — 포커스 밖·머리말·각주 모드 포함 | biz_plan.hwp, footnote-01.hwp | npm e2e:home-end-key |  |
+| `ime-navigation.test.mjs` | 상시 | active | Linux/fcitx 조합 확정 뒤 전달되는 탐색 키 1회 처리·Shift 선택·keyup·Enter·Undo | 합성 새 문서 ABCDEF한글 | npm e2e:ime-navigation | 실제 OS 이벤트 기록을 DOM으로 재생; native 확인과 구분 |
 | `helpers.mjs` | 유틸 | active | E2E 테스트 헬퍼 — Puppeteer + Chrome CDP | — | 수동 |  |
 | `hml-equation-embed.test.mjs` | 상시 | active | PR #2219 HML equation canvas edit/undo/export/reload | — | 수동 |  |
 | `hml-open.check.mjs` | 상시 | active | Standalone HML browser regression. | — | 수동 | legacy-name |
