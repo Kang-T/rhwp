@@ -871,6 +871,7 @@ impl TypesetState {
             self.flush_column();
             self.data.current_column += 1;
             self.data.current_height = 0.0;
+            self.activate_next_column_stored_frames();
         } else {
             self.advance_column_or_new_page();
         }

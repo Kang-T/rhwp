@@ -435,6 +435,7 @@ impl TypesetEngine {
             &mut issue2424_prof.deferred_flush,
             issue2424_final_flush_started,
         );
+        st.finish_next_column_stored_frames();
         if !st.current_items.is_empty() {
             st.flush_column_always();
         }

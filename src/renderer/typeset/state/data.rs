@@ -158,6 +158,9 @@ pub(in crate::renderer::typeset) struct StateView {
     /// 현재 호스트를 남기고 다음 쪽의 저장 상단 프레임만 이월한다.
     pub(in crate::renderer::typeset) deferred_next_page_stored_frames:
         Vec<crate::renderer::typeset::DeferredStoredFrameControl>,
+    /// 본문은 현재 단에 남고 개체 상자만 바로 다음 단으로 넘어간다.
+    pub(in crate::renderer::typeset) deferred_next_column_stored_frames:
+        Vec<crate::renderer::typeset::DeferredStoredFrameControl>,
     /// Source paragraph -> first physical page after its deferred object.
     pub(in crate::renderer::typeset) deferred_source_frame_body_pages:
         std::collections::HashMap<usize, usize>,

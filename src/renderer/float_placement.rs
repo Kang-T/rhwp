@@ -1,5 +1,8 @@
 //! 부동 개체의 흐름 예약과 실제 배치가 함께 쓰는 프레임.
 
+mod column_ole;
+pub(crate) use column_ole::column_ole_placement;
+
 mod stored_cell_flow_picture;
 pub(crate) use stored_cell_flow_picture::{
     stored_cell_flow_picture_extent_hu, stored_cell_flow_picture_frame,

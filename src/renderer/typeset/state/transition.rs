@@ -71,6 +71,7 @@ impl TypesetState {
                 deferred_next_page_square_pictures: Vec::new(),
                 page_start_square_pictures: Vec::new(),
                 deferred_next_page_stored_frames: Vec::new(),
+                deferred_next_column_stored_frames: Vec::new(),
                 deferred_source_frame_body_pages: std::collections::HashMap::new(),
                 page_start_stored_frames: Vec::new(),
                 fragment_queued_table_footnotes: std::collections::HashSet::new(),
@@ -577,6 +578,7 @@ impl TypesetState {
             self.data.hangul2024_reclaimed = 0.0;
             self.data.column_had_compact_endnote_rewind = false;
             self.reset_vpos_cursor();
+            self.activate_next_column_stored_frames();
         } else {
             self.push_new_page();
         }
@@ -597,6 +599,7 @@ impl TypesetState {
 
     /// 새 페이지 push + 상태 리셋
     pub(in crate::renderer::typeset) fn push_new_page(&mut self) {
+        self.finish_next_column_stored_frames();
         self.data
             .layout
             .apply_column_page_number(self.data.pages.len() as u32 + 1);

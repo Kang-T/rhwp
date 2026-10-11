@@ -340,6 +340,9 @@ pub(super) fn place_table_host_shape(
         return;
     }
     let flow = shape_flow::prepare(ctrl, para, ctrl_idx, dpi);
+    if st.defer_table_host_ole_to_next_column(para_idx, ctrl_idx, ctrl, dpi) {
+        return;
+    }
     if flow.needs_advance(st.table_host_shape_page(), || st.available_height()) {
         st.advance_column_or_new_page();
     }

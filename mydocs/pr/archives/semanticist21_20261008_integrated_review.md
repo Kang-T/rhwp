@@ -2936,3 +2936,61 @@ ignored output의 `api-existing-transfer-{audit-v255,applied-v264}.json`,
 각 단계 logs에 명령·원본 SHA·결과를 연결했다. 최신 전체 nextest/Native/fresh WASM,
 Skia·Studio·독립 edited Print 사례의 차트/중첩표 보정은 아직 미완료다.
 마지막 전체29FAIL을 이번47PASS로 대체하지 않으며 개별 PR 보류를 유지한다.
+
+
+### 진행147: 표 뒤 OLE의 단 소유와 본문 흐름 분리 — 집중 검증 완료
+
+API 이관 단계는80908c7cb88cc3e5c0cb3a90cb23ddfb2ddd8a17로 커밋했다.
+이후 fetch도exit0이고 upstream은bfa28 그대로여서 rebase하지 않았다(v272).
+
+독립 edited HWP-endnote Print의 차트 상단은136.01066px인 반면 이전 출력은113.37333px다.
+v273의 실제 GDB 호출은 `controls::place_table_host_shape`에서 왼쪽 current_height745.44px,
+기존 요구332.58667px로 전체 단을 이동해 오른쪽 current_height0을 확정했다.
+`layout_shape_item → layout_column_shapes_pass → layout_shape`도 그113.37333px 원점을 소비했다.
+원본은 비TAC OLE/TopAndBottom/문단Top/단Center, 위1417HU·아래2267HU 바깥 여백이다.
+독립 Print와 이전 review를 직접 대조하면 차트만 오른쪽 단으로 이월되고 뒤 본문의 첫2줄은
+왼쪽 표 아래에 남아야 한다. 기존 코드는 본문까지 오른쪽으로 옮겼다. Square로 분류하지 않는다.
+
+보정은 `column_ole_placement`에서 세로 오프셋·위/아래 여백을 포함한 단 상대 상자를 확정하고,
+현재 본문 커서를 남긴 채 다음 단에 개체만 예약한다. 일반 단 이동과 저장 다단 문단 분할의
+실제 두 경로가 `activate_next_column_stored_frames`를 소비한다. 다음 단의 본문 예산과
+ColumnContent는 같은 occupied_bottom을 쓰고, OLE paint는 같은 ink top을 소비한다.
+layout_shape_item은 이미 확정된 예약을 다시 높이로 더하지 않는다. 쪽 나눔/구역 종료에서도
+뒤 본문 유무와 관계없이 큐의 개체를 원래 다음 단에 발행한다. 여러 이월 개체는 순서대로 예약한다.
+단이 없거나 대상 단에 전체 상자가 안 맞는 경우 및 캡션/다른 앵커 계약은 기존 경로다.
+문서ID·특정 화면 좌표·새 clamp·baseline 공차 변경은 없다. 아직 해당 경계 전부의 실행은 미검증이다.
+
+최초 v275 컴파일은 method visibility 오류로 실패했고 현재 v276에서 고쳤다.
+v276 fmt31.431초·Native build126.806초는exit0/source불변이며 동결 CLI SHA-256은
+62f2f44730d95ab5c82899694565534f292708b659272c0a8552b887273cb2fe다.
+v279의 같은 문단9는 수정 전6줄 전부 오른쪽으로 독립 기대와 달라FAIL,
+수정 후 첫2줄 왼쪽/나머지4줄 오른쪽으로 PASS다. 여섯 줄의 내용/순서가 전후 같고
+누락·중복은 없다. 이는 진단 관계 검사이며 새 정식 회귀는 아직 추가하지 않았다.
+차트 상단은132.3px로 개선됐지만 Print와 약3.7px 차이가 남는다.
+
+v278의19종 전체 geometry 감사는 모두 종료했고 고정 base보다 증가한 본문 하단 초과·
+지면 밖·텍스트 겹침은0이다. 쪽수도 같다. API는 보존한 이슈 원본의 부정 대조이며 활성 회귀로
+복원하지 않았다. CGMP/KPS/가맹사업 최종 전쪽 시각 gate를 이 감사로 대신하지 않는다.
+
+v280/v282에서 독립 edited Print8쌍을 모두 확인했다(v285 집계): blank endnote/footnote는100%,
+HWP footnote는91.23518%, HWP endnote는91.23437/99.07373%, HWPX endnote는
+91.50201/99.07373%, HWPX footnote는91.50275%다. Missing-named-style은3쪽/기준2쪽으로
+미달이며 ClickHere 중첩 wrapper는35.95134%로 미달이다. 페이지 불일치에서 단일 batch가
+중단하므로 남은4쌍은 각각 실행해 실패해도 다음 쌍을 계속 비교했다.
+v277 최초 실행은 systemd의 Chrome 경로 누락으로 실패했고 v280/v282는 실제 설치 경로를
+VISUAL_SWEEP_CHROME으로 명시했다. 환경 오류를 시각 회귀나 수용 증거로 세지 않는다.
+
+`column-ole-direct-v284/review/review_001.png`를 표시·직접 판독했다(91.23437%).
+왼쪽 표 아래 두 줄과 오른쪽 후속 내용 소속은 개선됐다. 차트의 축 최대값/plot 크기/범례 배치,
+글꼴·색상·불투명 배경과 작은 원점 차이는 여전히 Print와 다르므로90%를 수용으로 바꾸지 않는다.
+Native19 감사·진단 관계 검사·8쌍 점수를 최종 fresh WASM/전체 회귀 통과로 보고하지 않는다.
+
+v281은 prepare·fmt check·Native Clippy·WASM lib Clippy·workspace build·workspace all-targets
+Clippy·고정 base manifest/unit 정책·기존 frame/OLE/다단 집중 nextest9단계 모두exit0으로
+종료했다. 집중 nextest는42개 전부PASS(1465개 선택 제외), 컴파일 포함537.378초이며
+실제 검사 실행2.570초다. systemd MainPID0/inactive/ExecMainStatus0과 소스 불변도 확인했다.
+이는 최종 전체 nextest나 fresh WASM 시각 gate의 완료 증거가 아니다. source SHA·원본/Print SHA·실제 명령과
+source 불변은 ignored output의 `column-ole-native-v276-result.json`, `column-layout-source-v273/`,
+`column-ole-{original-geometry-v278,boundaries-v279}/`, `column-ole-native-eight-pairs-v285.json`,
+`column-ole-validation-v281-result.json`에 보존했다. 새 정식 검사/fixture/golden/기대값 변경은
+시각 보정과 최종 선행 조건을 완료할 때까지 보류한다. 개별 PR의 보류 판정도 유지한다.

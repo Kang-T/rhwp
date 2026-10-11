@@ -16372,6 +16372,15 @@ impl LayoutEngine {
                             crate::model::shape::TextWrap::TopAndBottom
                         )
                         && matches!(common.vert_rel_to, crate::model::shape::VertRelTo::Para)
+                        && !ctx
+                            .paragraph_float_placements
+                            .get(&(para_index, control_index))
+                            .is_some_and(|placement| {
+                                matches!(
+                                    placement.flow,
+                                    crate::renderer::float_placement::ParagraphFloatFlow::StoredPicture { .. }
+                                )
+                            })
                     {
                         // [Issue #1156] 비-TAC 자리차지(TopAndBottom) 객체(차트 OLE 등):
                         // 자리차지 객체는 본문 텍스트를 위/아래로 밀어내므로, 후속 콘텐츠
@@ -16797,6 +16806,34 @@ impl LayoutEngine {
                 let ordinary_para_y = accepted_shape_origin
                     .or_else(|| para_start_y.get(para_index).copied())
                     .unwrap_or(col_area.y);
+                // 단을 넘긴 OLE는 본문 cursor가 아니라 조판이 확정한 잉크 원점을 쓴다.
+                // compute_object_position이 signed offset을 소비하므로 그 몫만 분리한다.
+                let deferred_ole_origin = paragraphs
+                    .get(*para_index)
+                    .and_then(|para| para.controls.get(*control_index))
+                    .and_then(|control| match control {
+                        Control::Shape(shape)
+                            if matches!(shape.as_ref(), ShapeObject::Ole(_)) =>
+                        {
+                            col_content
+                                .paragraph_float_placements
+                                .get(&(*para_index, *control_index))
+                                .filter(|placement| {
+                                    matches!(
+                                        placement.flow,
+                                        crate::renderer::float_placement::ParagraphFloatFlow::StoredPicture { .. }
+                                    )
+                                })
+                                .map(|placement| {
+                                    col_area.y + placement.table_top
+                                        - hwpunit_to_px(
+                                            signed_hwpunit(shape.common().vertical_offset),
+                                            self.dpi,
+                                        )
+                                })
+                        }
+                        _ => None,
+                    });
                 // 원본 한 줄의 장식 표는 앞/뒤 컨트롤 순서와 무관하게 같은
                 // 확정 inline pen을 앵커로 쓴다. 진행 끝으로 갱신된 문단 y는
                 // 해당 줄의 장식 원점이 아니다. 재조판·다줄·복수 소유자는 제외한다.
@@ -16840,7 +16877,9 @@ impl LayoutEngine {
                         owners.next().is_none().then_some(col_area.y + pen.y)
                     })
                     .flatten();
-                let para_y = shared_inline_origin.unwrap_or(ordinary_para_y);
+                let para_y = deferred_ole_origin
+                    .or(shared_inline_origin)
+                    .unwrap_or(ordinary_para_y);
                 // [#6134] 같은 문단에 앞선 자리차지(TopAndBottom) 개체가 있으면 문단의
                 // 글줄은 그 밴드 **아래**로 내려간다. "문단 기준" 세로 오프셋을 가진
                 // 뒤 개체의 기준점도 문단 상단(=밴드 상단)이 아니라 그 글줄이다.
