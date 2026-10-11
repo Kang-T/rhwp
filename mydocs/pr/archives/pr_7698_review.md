@@ -9,15 +9,15 @@ last_verified: 2026-10-11
 
 ## 최종 판정
 
-**메인터너 보정 후 수용 가능 — HWP/HWPX 메인터너 직접 시각 판정 통과. 최신 devel 통합 뒤 code `c2f0bad49959b853a100458b3d74810c37d0b385`의 Native/fresh Docker WASM 전쪽 90%와 전체 nextest 10,565건을 통과했다. Native Skia lib·placeholder·직접 PDF 출력까지 모두 통과해 로컬 보정 검증을 완료했다. 원격 새 head CI/CodeQL과 병합은 아직 수행하지 않았다.**
+**병합 완료 — 제출 head `34e1276015eb892a199cfa576b1d90fdd194135b`의 CI·CodeQL 및 로컬 보정 검증 성공 후 원 기여 commit을 보존하는 merge로 devel에 반영했다. merge SHA `4020c0428defba3459c22879f38facd8019da2d7`, 병합 시각 `2026-10-11T06:42:52Z`. #7674는 `2026-10-11T06:43:20Z`에 completed로 자동 종료됐다.**
 
 scari님의 원 기여 commit `1489ca1d95e3d6e6b888870d3b14cf240866ef00`은 ancestor로 보존한다. 사용자가 지시한 공개 #5169 변경 추적 표시 결함도 이번 보정 범위에 포함했다. HWP/HWPX 모두 독립 한컴 Print와 같은 6쪽이고 Native/fresh WASM 각각 HWP 최저 91.69413%, HWPX 및 XML 형식 공백 대조군 최저 90.87964%다. 전체 쪽수 일치, 누락·90% 미달 없음. 새 대표 2·3·4쪽 review gate는 passed이고 직접 판독에서 숨긴 내용 제외·빈 줄/제목의 새 쪽 소속·본문 및 표 관계를 확인했다.
 
-저장 표시 설정을 공통 visible IR에 적용하며, 바뀌지 않은 문단의 유효한 저장 LineSeg를 보존한다. 미편집 HWP 저장본의 한컴 Print는 정상 6쪽이며 원본 PDF와 전쪽 raster가 동일하다. 보기 전환 UI, 변경 수락/거부, 서식 변경의 원본 복원, HWPX 이력 전체 저장·재열기는 완료 범위에 포함하지 않는다. 비공개 기업 원본은 제공되지 않아 공개 실제 암호 대조군과 합성 Section1 재현의 한계를 구분했다. [보정·검증 기록](pr_7698_review_impl.md)과 [대표 PNG](assets/pr7698/README.md)를 연결한다.
+저장 표시 설정을 공통 visible IR에 적용하며, 바뀌지 않은 문단의 유효한 저장 LineSeg를 보존한다. 미편집 HWP 저장본의 한컴 Print는 정상 6쪽이며 원본 PDF와 전쪽 raster가 동일하다. 보기 전환 UI, 변경 수락/거부, 서식 변경의 원본 복원, HWPX 이력 전체 저장·재열기는 완료 범위에 포함하지 않는다. 비공개 기업 원본은 제공되지 않아 공개 실제 암호 대조군과 합성 Section1 재현의 한계를 구분했다. [보정·검증 기록](pr_7698_review_impl.md)과 [대표 PNG](../assets/pr7698/README.md)를 연결한다.
 
-원 head의 CodeQL high 경고 69건 실패는 아래 최초 진단으로 보존한다. 파서 반환값 명칭·계약 보정 뒤 새 SARIF로 재판정하며 이전 Build 성공이나 로컬 검사로 CodeQL 해소를 주장하지 않는다. 원격 push·PR 본문 갱신·merge·이슈 종료 전이다. 아래 최초 접수·검증과 마지막 절의 통합 보정 결과를 구분한다.
+원 head의 CodeQL high 경고 69건 실패는 아래 최초 진단으로 보존한다. 새 분석의 Rust SARIF 결과는 0건이며 `rust/cleartext-logging`의 실제 평가·해석 로그를 확인했다. 쿼리 제외·일괄 dismissal 없이 새 head의 CodeQL 보안 gate가 성공했다. 아래 접수 당시 상태와 마지막 절의 최종 원격 결과를 구분한다.
 
-## 접수와 트리아지
+## 최초 접수 당시 트리아지
 
 | 항목 | 확인 결과 |
 | --- | --- |
@@ -30,7 +30,7 @@ scari님의 원 기여 commit `1489ca1d95e3d6e6b888870d3b14cf240866ef00`은 ance
 | 작업공간 | 주 작업공간 `review/scari-pr7698-20261011`; 별도 worktree 없음 |
 | 트리아지 | assignee=scari / reviewer=edwardkim / milestone=v1.0.0 / labels=bug, hwp5, rust; REST 재조회 확인 |
 | 변경 | `src/parser/mod.rs`, `tests/cases/issue_7674_encrypted_viewtext.rs`; +285/-28 |
-| 현재 상태 | OPEN, non-draft, mergeable=true / unstable. 최신 base와 원 head merge-tree 성공: `cee0d60ab6f145fdb5acdf6c7432393a5002c135` |
+| 접수 당시 상태 | OPEN, non-draft, mergeable=true / unstable. 최신 base와 원 head merge-tree 성공: `cee0d60ab6f145fdb5acdf6c7432393a5002c135` |
 
 maintainer 일반 경로와 intake·local validation·visual fixture·post-merge 가이드를 적용했다. 로컬 통합 후보는 원 PR head나 원격 CI 대상과 구분한다. 기여자 fork를 갱신하지 않았다.
 
@@ -90,7 +90,7 @@ SARIF 분석 ID `1922558100`, ref `refs/pull/7698/merge`, 분석 당시 merge SH
 
 CodeQL의 [공식 규칙](https://codeql.github.com/codeql-query-help/rust/rust-cleartext-logging/)과 [민감 이름 heuristic](https://codeql.github.com/codeql-standard-libraries/rust/codeql/concepts/internal/SensitiveDataHeuristics.qll/module.SensitiveDataHeuristics%24HeuristicNames.html)을 대조하면 password 이름을 포함한 helper의 반환값에 광범위한 민감도 추적이 생긴 **오탐 가능성이 높다**. 다만 이는 SARIF·코드·공식 문서에 근거한 추론이며, 이름 변경 실험이나 새 CodeQL 분석으로 확정한 결과는 아니다. 암호 문서의 복호화 본문도 민감할 수 있으므로 이름만 바꿔 경고를 숨기는 방법을 해결책으로 확정하지 않는다.
 
-다음 보완은 source 의미와 실제 logger 인자를 분리해 설명하고, 필요한 코드/모델 보정 후 새 head에서 CodeQL을 다시 확인하는 것이다. 실제 시험 경로는 근거를 붙여 별도 분류할 수 있지만 test 전체 제외·규칙 제외·언어 제외·69건 일괄 dismissal은 수행하지 않는다. 재분류가 필요한 경우 [GitHub 운영 지침 9.4](../manual/github_operations.md)의 승인 절차를 따른다.
+다음 보완은 source 의미와 실제 logger 인자를 분리해 설명하고, 필요한 코드/모델 보정 후 새 head에서 CodeQL을 다시 확인하는 것이다. 실제 시험 경로는 근거를 붙여 별도 분류할 수 있지만 test 전체 제외·규칙 제외·언어 제외·69건 일괄 dismissal은 수행하지 않는다. 재분류가 필요한 경우 [GitHub 운영 지침 9.4](../../manual/github_operations.md)의 승인 절차를 따른다.
 
 증적: `codeql-check.json`, `codeql-alerts.json`, `codeql-rust.sarif.json`, `alert-classification-summary.json`, `production-sink-review.txt`, `test-sink-review.txt`, `production-sink-origins.txt`, `exact-head-checks-final.jsonl`.
 
@@ -129,4 +129,18 @@ CodeQL의 [공식 규칙](https://codeql.github.com/codeql-query-help/rust/rust-
 | 최종 source 검증 | 충족 | fmt·세 Clippy·workspace·정책·집중 13건·전수 10,565 PASS. Native Skia lib rhwp 3,927 PASS/13 IGNORE 및 내부 crate 182 PASS, placeholder 2 PASS, 직접 PDF 4 PASS |
 | 직접 시각 판정 | 충족 | 메인터너 HWP 해결 확인 및 HWPX Studio 시각 통과. 최종 18장 WASM PNG는 승인 당시와 byte-identical; 자형·미세 간격 잔차 별도 기록 |
 | 비공개 기업 원본 / 전체 보기·편집 | 미검증 | 원본 미제공. 전체 모드 전환·서식 복원·수락/거부·HWPX 이력 저장 범위 미구현/미검증 |
-| 원격 CI/CodeQL 및 merge | 미검증 | 최종 source는 아직 fork에 반영하지 않음. 새 exact head CI/SARIF 재판정과 merge 직전 최신 base·head 확인 필요 |
+| 원격 CI/CodeQL 및 merge | 충족 | head `34e1276015`의 필수 CI·CodeQL·CI 정책 성공, 최신 base merge-tree 성공 뒤 merge `4020c0428d`. Rust SARIF 0건이며 해당 쿼리 실행 확인 |
+
+
+## 승인 후 원격 반영·병합 결과
+
+사용자가 보정 검증 통과 뒤 다음 절차 진행을 승인했다. 원 fork `scari/rhwp`의 `fix/7674-encrypted-viewtext`에 원 기여 이력을 보존한 head `34e1276015eb892a199cfa576b1d90fdd194135b`를 fast-forward push하고 한국어 제목·본문을 갱신했다. 본문 일치·UTF-8과 정확한 head SHA의 대표 PNG 4개 raw URL을 확인했다. 신규 LFS pointer는 0개이며 fork lock 인증 실패에는 해당 push 한 번의 `lfs.locksverify=false`만 적용했다. hook을 우회하거나 영구 설정을 변경하지 않았다.
+
+- [CI 38117884014](https://github.com/edwardkim/rhwp/actions/runs/38117884014) success. Lint·Native Skia·Archive A/B/C/D·필수 Build & Test가 성공했다. CI WASM Build는 skipped이며 실제 WASM 증거는 로컬 Docker 빌드·브라우저 검사다.
+- [CodeQL 38117884066](https://github.com/edwardkim/rhwp/actions/runs/38117884066)와 별도 GHAS check success. CI merge SHA `96bc1e2471fe93b229af73e9c73c90dc832ef8cd`의 네 언어 SARIF 결과는 각각 0건, Rust 분석 ID `1930807311`이다. CodeQL 2.27.2 / rust-queries 0.1.44에서 `CleartextLogging.ql`의 로드·평가·해석을 실제 로그로 확인했다. 이름·반환 계약 보정의 새 분석 결과이며 문서 본문 일반의 비민감성을 주장하지 않는다.
+- merge 직전 base `90fa2f8955c2dd21e9f0ea8fd0c6ee8dc5996a47`를 fetch하고 head·필수 checks·MERGEABLE/CLEAN 및 merge-tree `e7f587ea2d9f75a7012575136ca65b162d906470`을 재확인했다. 총 37개 check가 종료됐고 failure/pending은 없었다.
+- [PR #7698](https://github.com/edwardkim/rhwp/pull/7698)을 `--merge --admin --match-head-commit`으로 병합했다. merge `4020c0428defba3459c22879f38facd8019da2d7`, 시각 `2026-10-11T06:42:52Z`. 원 기여 `1489ca1d95e3d6e6b888870d3b14cf240866ef00`과 제출 head가 upstream/devel의 ancestor인 것을 확인했다.
+- [#7674](https://github.com/edwardkim/rhwp/issues/7674)는 [devel push 종료 작업](https://github.com/edwardkim/rhwp/actions/runs/38118957938)으로 `2026-10-11T06:43:20Z`에 completed 종료됐다. #5169 등 참조 이슈를 함께 닫지 않았다.
+- [duration 갱신](https://github.com/edwardkim/rhwp/actions/runs/38118957946)은 success, `refreshed_targets=46`으로 metrics branch에 반영됐다. 병합 후 검증 CI를 재실행하지 않았다.
+
+후속 운영 기록은 archive review 두 파일과 오늘할일만 devel에 직접 반영한다. PR 전용 clean worktree `/tmp/rhwp-pr7698-before-hwpx-20261011`와 local review branch는 clean·ancestor·활성 프로세스 부재 확인 뒤 제거 완료했다. contributor fork branch·다른 검토 worktree·공용 `target/pr-review`는 보존한다. 기본 작업공간의 Studio 7700은 메인터너가 확인 중인 환경이므로 유지한다. 초기 진단 전용 ref는 merged source에 없는 로컬 기록을 포함하므로 유지한다. ignored 원문 검증 자료도 댓글용 상세 검증 근거 보존을 위해 유지한다. 이번 승인 범위의 push·본문·merge·이슈 종료 확인은 완료했으며 별도 PR/issue 댓글은 게시하지 않았다.

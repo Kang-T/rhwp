@@ -170,7 +170,7 @@ code SHA는 `c2f0bad49959b853a100458b3d74810c37d0b385`, base는 `90fa2f8955c2dd2
 
 최종 root Docker WASM과 Studio public의 WASM 해시는 `3988720b9da0d2fac1a3a59d612a8c291950d0e2a6669aa008cdbd70166e3a4a`로 일치한다. 최신 JS에는 동일 core setter의 생성 binding도 포함했다. Studio `http://localhost:7700/?review=pr7698-c2f0bad49-final`의 실제 초기화 응답도 같은 해시이며 6쪽·표제 표시·숨긴 두 문구 제외를 확인했다(`studio-hwpx-compatible-final.json`). 메인터너가 승인한 앞선 Docker WASM과 최종 WASM의 세 입력 18장 raster는 각각 byte-identical하다. API 노출 보정 뒤 기존 시각 판정을 임의로 재요청하지 않는다.
 
-전쪽 새 Native/fresh Docker WASM TSV는 `maintainer/compatible-{native,wasm}/{hwp,hwpx,xml-spacing}/silhouette.tsv`다. 세 입력 모두 각각 6쪽이고 누락·90% 미달은 0쪽이다. HWP 최소 91.69413%, HWPX 및 의미 동등 XML 공백 대조군 최소 90.87964%다. TSV 해시와 전후 PNG 비교는 `compatible-final-evidence.json`에 고정했다. 최종 대표 HWPX 2·3·4쪽의 Native/fresh WASM review·overlay는 `compatible-{native,wasm}-review/hwpx/`에서 새로 생성했고 gate passed 및 직접 확대 판독을 확인했다. 빈 줄의 새 쪽 소속, 제목·본문 순서, 표 괘선과 앞뒤 문단을 대조했다. 남은 자형·글자 폭·미세 간격 차이는 픽셀 동일로 표현하지 않는다. 공개 PNG는 [안정 경로](assets/pr7698/README.md)에 보존했다.
+전쪽 새 Native/fresh Docker WASM TSV는 `maintainer/compatible-{native,wasm}/{hwp,hwpx,xml-spacing}/silhouette.tsv`다. 세 입력 모두 각각 6쪽이고 누락·90% 미달은 0쪽이다. HWP 최소 91.69413%, HWPX 및 의미 동등 XML 공백 대조군 최소 90.87964%다. TSV 해시와 전후 PNG 비교는 `compatible-final-evidence.json`에 고정했다. 최종 대표 HWPX 2·3·4쪽의 Native/fresh WASM review·overlay는 `compatible-{native,wasm}-review/hwpx/`에서 새로 생성했고 gate passed 및 직접 확대 판독을 확인했다. 빈 줄의 새 쪽 소속, 제목·본문 순서, 표 괘선과 앞뒤 문단을 대조했다. 남은 자형·글자 폭·미세 간격 차이는 픽셀 동일로 표현하지 않는다. 공개 PNG는 [안정 경로](../assets/pr7698/README.md)에 보존했다.
 
 최종 fresh WASM `openWithPassword` 검사는 압축 여부·BodyText Section1 유무·strict/lenient의 8조건, 비밀번호 누락/오답 거부를 통과했다. 공개 암호 대조군과 동일 cipher View 복제 대조군 모두 64쪽이고 64쪽 전체 text-layout/SVG가 동등하다. 공개 HWP 원본/미편집 저장본은 visible text·6쪽이 동일하다(`browser-contract-compatible-result.json`). 실제 비공개 기업 원본의 독립 Print 검증으로 확장하지 않는다.
 
@@ -181,3 +181,17 @@ code SHA는 `c2f0bad49959b853a100458b3d74810c37d0b385`, base는 `90fa2f8955c2dd2
 `validate-compatible.sh`는 전체 단계 exit 0으로 종료했다. 전체 nextest는 10,565 PASS / 0 FAIL / 50 SKIP(513.110s). Native Skia lib는 rhwp 3,927 PASS / 13 IGNORE 및 내부 crate 15·165·2 PASS, placeholder 2 PASS, 직접 PDF 4 PASS다. 단계별 로그는 `compatible-final-*.log`, `compatible-nextest.log`, `compatible-native-skia-{lib,placeholder,direct-pdf}.log`다. 이전 0건 실행/중단 로그와 구분하며 테스트·baseline·허용치 변경 없이 기존 래칫까지 통과했다. 사용한 nextest 0.9.137의 권장 버전 경고는 기록하고 실제 실행 건수·exit 0을 확인했다.
 
 원 fork head는 SSH/REST 모두 `1489ca1d95e3d6e6b888870d3b14cf240866ef00`, 기존 branch `fix/7674-encrypted-viewtext`이며 maintainer 수정 허용이다. upstream/devel은 REST 재조회에서도 고정 base와 동일하고 merge-tree는 충돌 없이 `dbcd5a61cd3d30e0d7cfdf77bb4d63d39a65cfde`다. 제출 diff의 신규 HWPX/PDF/PNG는 일반 Git 바이너리이고, 원 fork head 이후 553개 object의 사전 판독에서 신규 LFS pointer는 0개다(`lfs-range-preflight.json`). 전체 역사 대상으로 URL 직접 지정한 LFS dry-run은 기존 역사의 19개 객체를 열거했으며 신규 자료 업로드 범위로 취급하지 않는다. lock 확인의 URL 인증 오류도 제품·검증 실패로 세지 않는다. 원격 source push·본문 갱신·새 CI/CodeQL·merge는 별도 승인 범위에 따라 진행하며 아직 수행하지 않았다.
+
+
+## 승인 후 원격 반영·병합 결과
+
+사용자가 보정 검증 통과 뒤 다음 절차 진행을 승인했다. 원 fork `scari/rhwp`의 `fix/7674-encrypted-viewtext`에 원 기여 이력을 보존한 head `34e1276015eb892a199cfa576b1d90fdd194135b`를 fast-forward push하고 한국어 제목·본문을 갱신했다. 본문 일치·UTF-8과 정확한 head SHA의 대표 PNG 4개 raw URL을 확인했다. 신규 LFS pointer는 0개이며 fork lock 인증 실패에는 해당 push 한 번의 `lfs.locksverify=false`만 적용했다. hook을 우회하거나 영구 설정을 변경하지 않았다.
+
+- [CI 38117884014](https://github.com/edwardkim/rhwp/actions/runs/38117884014) success. Lint·Native Skia·Archive A/B/C/D·필수 Build & Test가 성공했다. CI WASM Build는 skipped이며 실제 WASM 증거는 로컬 Docker 빌드·브라우저 검사다.
+- [CodeQL 38117884066](https://github.com/edwardkim/rhwp/actions/runs/38117884066)와 별도 GHAS check success. CI merge SHA `96bc1e2471fe93b229af73e9c73c90dc832ef8cd`의 네 언어 SARIF 결과는 각각 0건, Rust 분석 ID `1930807311`이다. CodeQL 2.27.2 / rust-queries 0.1.44에서 `CleartextLogging.ql`의 로드·평가·해석을 실제 로그로 확인했다. 이름·반환 계약 보정의 새 분석 결과이며 문서 본문 일반의 비민감성을 주장하지 않는다.
+- merge 직전 base `90fa2f8955c2dd21e9f0ea8fd0c6ee8dc5996a47`를 fetch하고 head·필수 checks·MERGEABLE/CLEAN 및 merge-tree `e7f587ea2d9f75a7012575136ca65b162d906470`을 재확인했다. 총 37개 check가 종료됐고 failure/pending은 없었다.
+- [PR #7698](https://github.com/edwardkim/rhwp/pull/7698)을 `--merge --admin --match-head-commit`으로 병합했다. merge `4020c0428defba3459c22879f38facd8019da2d7`, 시각 `2026-10-11T06:42:52Z`. 원 기여 `1489ca1d95e3d6e6b888870d3b14cf240866ef00`과 제출 head가 upstream/devel의 ancestor인 것을 확인했다.
+- [#7674](https://github.com/edwardkim/rhwp/issues/7674)는 [devel push 종료 작업](https://github.com/edwardkim/rhwp/actions/runs/38118957938)으로 `2026-10-11T06:43:20Z`에 completed 종료됐다. #5169 등 참조 이슈를 함께 닫지 않았다.
+- [duration 갱신](https://github.com/edwardkim/rhwp/actions/runs/38118957946)은 success, `refreshed_targets=46`으로 metrics branch에 반영됐다. 병합 후 검증 CI를 재실행하지 않았다.
+
+후속 운영 기록은 archive review 두 파일과 오늘할일만 devel에 직접 반영한다. PR 전용 clean worktree `/tmp/rhwp-pr7698-before-hwpx-20261011`와 local review branch는 clean·ancestor·활성 프로세스 부재 확인 뒤 제거 완료했다. contributor fork branch·다른 검토 worktree·공용 `target/pr-review`는 보존한다. 기본 작업공간의 Studio 7700은 메인터너가 확인 중인 환경이므로 유지한다. 초기 진단 전용 ref는 merged source에 없는 로컬 기록을 포함하므로 유지한다. ignored 원문 검증 자료도 댓글용 상세 검증 근거 보존을 위해 유지한다. 이번 승인 범위의 push·본문·merge·이슈 종료 확인은 완료했으며 별도 PR/issue 댓글은 게시하지 않았다.
