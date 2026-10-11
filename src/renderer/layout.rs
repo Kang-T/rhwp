@@ -10467,6 +10467,7 @@ impl LayoutEngine {
                     None,
                     None,
                     &[],
+                    &[],
                     &overlay_ctx,
                     col_area.y,
                 );

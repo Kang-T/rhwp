@@ -160,6 +160,7 @@ impl TypesetEngine {
             is_continuation: continuation.is_continuation,
             start_cut_is_block: continuation.start_cut_is_block,
             start_row_height_override: continuation.start_row_height_override,
+            fragment_starts_intra_row: continuation.start_cut_is_block || !start_cut.is_empty(),
             start_cut,
             rowspan_physical_space: continuation.rowspan_physical_space.clone(),
         };

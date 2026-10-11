@@ -4420,6 +4420,7 @@ impl LayoutEngine {
                                             source_frame_height
                                                 .filter(|_| !recursive_cut.start_cut.is_empty()),
                                             &[],
+                                            &[],
                                             0.0,
                                             0.0,
                                             None,
@@ -5968,9 +5969,9 @@ impl LayoutEngine {
                         table,
                         self.dpi,
                     ).or_else(|| {
-                        crate::renderer::float_placement::stored_single_cell_closing_frame_height(
+                        crate::renderer::float_placement::stored_single_cell_closing_frame_bottom(
                             &paragraphs[para_index], next, table, self.dpi,
-                        )
+                        ).map(|bottom| bottom - (y_start - col_area.y))
                     })
                     })
                     .is_some_and(|height| {

@@ -6915,6 +6915,7 @@ impl LayoutEngine {
                     Some(bin_data_content),
                     stored_square_picture_wrap_anchor.as_ref(),
                     false,
+                    false,
                     None,
                     stored_inline_frame.map(|_| text_y_start),
                 );
@@ -13189,6 +13190,7 @@ impl LayoutEngine {
                 .line_advances_hu()
                 .into_iter()
                 .map(|(pi, li, advance)| CellUnit {
+                    trailing_blank_height: 0.0,
                     height: hwpunit_to_px(advance, self.dpi),
                     hard_break_before: false,
                     stored_frame_break_before: false,
@@ -25588,6 +25590,24 @@ impl LayoutEngine {
         self.row_remaining_visible_cell_padding(table, row, start_cut, styles)
             .into_iter()
             .fold(0.0, f64::max)
+    }
+
+    fn has_stored_square_picture_flow_in_row(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+    ) -> bool {
+        self.profile.get().hwp5_stored_pagination_layout()
+            && matches!(table.page_break, TablePageBreak::RowBreak)
+            && table.cells.iter().any(|cell| {
+                cell.row as usize == row
+                    && cell.row_span == 1
+                    && cell.paragraphs.iter().enumerate().any(|(para_idx, para)| {
+                        para.controls.iter().enumerate().any(|(control_idx, _)| {
+                            stored_square_picture_has_adjacent_text(cell, para_idx, control_idx)
+                        })
+                    })
+            })
     }
 
     fn row_remaining_visible_cell_padding(
