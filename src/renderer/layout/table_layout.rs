@@ -24779,6 +24779,7 @@ impl LayoutEngine {
         prior_space: &[(usize, f64)],
         accepted_rows: &[(usize, f64)],
         styles: &ResolvedStyleSet,
+        cut_minimum_height: Option<f64>,
     ) -> Option<f64> {
         let profile = self.profile.get();
         if !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
@@ -24814,7 +24815,10 @@ impl LayoutEngine {
             return None;
         }
         let spacing = hwpunit_to_px(table.cell_spacing as i32, self.dpi);
-        let mut height = self.row_cut_content_height(table, row, &[], &[], styles);
+        // 호출자가 현재 내용 컷과 원본 잔여 상자로 확정한 행 하한이다.
+        // 원래 행 전체를 다시 재면 앞 조각에서 소비한 글줄이 중복 예약된다.
+        let mut height = cut_minimum_height
+            .unwrap_or_else(|| self.row_cut_content_height(table, row, &[], &[], styles));
         for (index, cell) in ending {
             if !self.cell_has_original_physical_minimum(cell) {
                 return None;

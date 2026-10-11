@@ -111,6 +111,7 @@ impl TypesetEngine {
                         &input.start.rowspan_physical_space,
                         &physical_rows[..index],
                         styles,
+                        Some(height),
                     )
                     .map(|_| (row, height))
             })
