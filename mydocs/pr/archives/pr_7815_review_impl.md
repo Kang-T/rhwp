@@ -40,3 +40,22 @@ curly quote 원본·Print 전쪽과 배치 순서를 확인한다. TAC 각주 fl
 입력/Print SHA, 실제 source SHA·명령·관측값과 `충족 / 미충족 / 미검증 / 비해당`
 판정은 실행 결과로 이 기록을 보완한다. 필요한 오늘할일은 최종 검토 묶음과 함께 통합 PR에
 포함하며 별도 기록 PR을 만들지 않는다.
+
+## 전체 회귀에서 확인한 분류 원장 변경
+
+`ab5112e29a2a23535525e4fe1dc96936defbe4e1` 전체 회귀에서 #4962의 공개 분류 원장
+검사가 실패했다. 별도 aggregate 실행으로 3개 원본을 재측정했다. HWP/HWPX format parity
+2개는 counts·categories·두 hash가 기존 원장과 같았다. 수출입 현황 원본은 문장부호의
+언어 슬롯 경계가 바뀌어 source run 합이 4,573→4,585였고, HFT 원본 메트릭을 사용하는
+글리프 대체 경로에서 metricFace 보고도 달라졌다. #7701까지의 source
+`f22cdb0359cd0c0c400e1b0348c7f8c63f53be0c`와 비교한 원문 aggregate를 보존했다.
+
+전후 coverage 16,685·layout 16,872·paragraph 2,565 및 모든 category 합·width source별
+문자 수는 동일하다. 바뀐 분류 키·run 소유로 canonical aggregate/legacy hash가 달라져
+원장의 run 합과 두 hash만 재측정값으로 갱신한다. 배치 좌표·실루엣 허용치·겹침 baseline은
+이 작업으로 바꾸지 않는다. 자료는 ignored 검토 output의
+`coverage-current-*.json`, `coverage-through-7701-overlay-and-policy-heuristic-hwp.json`,
+`coverage-language-slot-run-boundary-differences.json`이다. 강제 재컴파일한 주 작업공간의
+production 라이브러리에서 기존 정식 분류 검사 원본을 실행해 PASS했다
+(`coverage-formal-test-after-verified.log`). 최종 source의 전체 회귀·lint와
+curly 원본의 전쪽 Native/fresh WASM 시각 미달 보정은 여전히 필요하다.

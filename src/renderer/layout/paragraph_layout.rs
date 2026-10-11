@@ -10996,9 +10996,9 @@ mod issue_2809_split_alignment_tests {
         assert_eq!(extra_char, 0.0);
         assert_eq!(extra_dash, 0.0);
 
-        // A synthetic soft-wrap keeps its consumed separator in the projected
-        // run. The renderer advances that final space too, so it participates
-        // in the slot count and the complete run stays inside the line box.
+        // 독립 Print와 전쪽 Native/fresh WASM 대조는 마지막 보이는 글자가
+        // 문단 오른쪽 끝에 맞는다는 계약을 증명한다. 말미 구분 공백은 원문에
+        // 남지만 내부 공백의 정렬 배분에 참여하지 않는다.
         let trailing_line = ComposedLine {
             runs: vec![ComposedTextRun {
                 text: "다 같 이 ".to_string(),
@@ -11030,9 +11030,9 @@ mod issue_2809_split_alignment_tests {
         );
         let mut distributed_style = text_style;
         distributed_style.extra_word_spacing = extra_word;
-        assert!(
-            (estimate_text_width("다 같 이 ", &distributed_style) - available_width).abs() < 0.001
-        );
+        let visible_advance = estimate_text_width("다 같 이", &distributed_style);
+        assert!((visible_advance - available_width).abs() < 0.001);
+        assert_eq!(trailing_line.runs[0].text, "다 같 이 ");
         assert_eq!(extra_char, 0.0);
         assert_eq!(extra_dash, 0.0);
     }
