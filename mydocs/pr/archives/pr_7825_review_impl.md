@@ -135,6 +135,39 @@ HWP serializer/parser → 기존 합성 줄 판별 → 셀 유닛·측정·배�
 검증은 진행 중이며, 미주 편집본과 교육과정 전체 검증의 남은 실패를 통과로 세지 않는다.
 절대 px 기반인 기존 #7816 검사의 관계형 재작성도 이 결과와 직접 판독을 연결해 계속한다.
 
+## 고정 px 기대값을 관계형 검사로 전환 — 2026-10-12
+
+production `467bfd1d87a8801632a253c595065d58edb63138`의 동결 Native CLI와 같은 source에서
+새로 빌드한 web WASM으로 #7816 합성9개 전쪽 TSV를 재산출했다. 관련9개와 #7824 대조군 모두
+최저99.83377% 이상이며 쪽수 불일치·누락이 없다. indent room 경계와 바탕글20pt의 소유 문단
+영역을 Print/Native/fresh WASM 같은 배율로 확대해 줄나눔·내용 순서·간격을 직접 확인했다.
+원본 TSV는 ignored output의 `current-small-native-results-467.json`,
+`current-small-wasm-results-467.json`과 `current-small-owned-region-review/`에 연결한다.
+
+이 선행 증거 뒤 `tests/cases/issue_7816_char_unit_paragraph_margins.rs`의 절대 px 원점 표를
+제거했다. 같은 문구의 기준 문단과 변형 문단을 대조해 CHAR/HU 비율, 바탕글 크기의2배 관계,
+양쪽/왼쪽·가운데/오른쪽 정렬 불변식, 과도한 들여쓰기 취소, 내어쓰기 후속 줄, 위/아래 간격의
+귀속을 검사한다. 문단 전체 글자 순서·내용 복원과 대조하는 문단의 쪽 소속도 확인한다.
+고정 px 영역으로 대상 글자를 선택하지 않으며 반올림 범위는 해당 글자의 실제 advance에 상대적이다.
+SVG 기준선의 불필요한0.1px 반올림도 제거했다.
+
+수정 전 `f22cdb0359cd0c0c400e1b0348c7f8c63f53be0c`의 검증된 동결 library에 최종 검사 본문을
+연결해 실제 실행했다. 빌드는 성공했고 과도한 CHAR 들여쓰기 취소 assertion에서 FAIL했다.
+현재 production에서 최종 정식 nextest는1건 실행·1PASS·202SKIP, exit0이다.
+`char-margin-relational-before-final-build.log`, `char-margin-relational-before-final.log`,
+`char-margin-relational-focused-3.log`를 보존했다.
+
+최종 검사 파일 SHA-256은 `68d02504b9da845e2c8b606ebb39ad438667f74077b274e2c2150e84efab0d65`다.
+초기 focused 실행은 포맷 뒤 source weight 변경으로 runner의 suite 배정과 생성 harness가 달라
+0건 실행 오류였다. 이를 통과로 세지 않고 최종 포맷 뒤 `--prepare`로 재생성해 실제 실행을 확인했다.
+파생 파일은 stage하지 않았다.
+
+같은 고정 base `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`를 다시 fetch했으며 변경이 없었다.
+fmt/native Clippy/WASM lib Clippy/workspace build/workspace all-targets Clippy/manifest base 비교/
+source unit tier base 비교는 모두 exit0이다. `relational-final-lint-results.json`과 단계별
+`relational-final-*.log`에 command·base·검사 파일 SHA·종료 결과가 있다.
+전체 회귀 재실행과 다른 원 PR의 미달 문서 수용은 이 focused 통과로 대신하지 않는다.
+
 실제 로그는 ignored `output/pr-review/planet6897-followup-20261011/`의
 `curly-host-line-all-targets-clippy-3.log`(전체 workspace/all-targets, exit 0),
 `trailing-separator-clippy-fix-focused.log`(1/1),

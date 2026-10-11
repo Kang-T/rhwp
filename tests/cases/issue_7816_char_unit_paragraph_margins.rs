@@ -1,42 +1,21 @@
-//! [#7816] 문단 여백의 홀수 저장값은 «글자» 단위이고, 들여쓴 뒤 남는 폭이 1,500 HU 미만이면
-//! 한/글은 들여쓰기를 버린다.
+//! #7816: 한컴 Print에서 확인한 문단 여백·들여쓰기·간격의 관계를 검사한다.
 //!
-//! 입력은 `samples/issue7702/curly_quote_latin_slot.hwpx` 의 secPr 문단만 남기고 문단 모양 45 를
-//! 복제해 정렬·여백 한 항목만 바꾼 합성 HWPX 다. 저장 줄(`linesegarray`)이 없어 한/글도 줄을 새로
-//! 나눈다. 문단마다 짧은 글(`가나다라마바사아`, 1줄 — `S`)과 긴 글(3줄 — `L`)을 하나씩 둔다.
-//! 시험 파일에는 rhwp 내부 표지 `META-INF/rhwp-hwp5-origin` 이 없다(한/글 출력은 표지 유무와 무관).
-//!
-//! 기대값은 같은 문서를 한/글 2020(MCP engine 2020)으로 출력한 `pdf/issue7816/<이름>-2020.pdf` 의
-//! 글자 원점(px, 96dpi)이다. 홀수 저장값 `s` 는 HWPX HwpUnitChar `case` 에 `unit="CHAR"` ·
-//! `(s − 1) / 2` 로 적히고, 한/글은 그 값에 바탕글 글자 크기 / 200 HU 를 곱한다.
-//! 수정 전 rhwp 는 홀수도 `s / 2` HU 로 읽어 1/5 만 들여 쓰고(1001 → 6.7px, 한/글 33.3px),
-//! 줄 상자를 넘는 들여쓰기도 그대로 얹었다(20445 → 136.3px, 한/글 0).
-//!
-//! 허용 오차는 PDF 좌표 격자와 글자 원점 반올림을 합친 0.5px 다.
+//! 동일 문구의 기준 문단과 변형 문단을 비교하며 절대 px 원점·고정 영역으로 선택하지 않는다.
+//! 짝수 HU 여백과 홀수 CHAR 여백의 비율, 바탕글 크기 변경의 배율, 정렬 불변식,
+//! 남는 폭이 작은 들여쓰기의 취소를 독립 입력 조합으로 확인한다.
+//! 원본 9종의 전체 Native/fresh WASM TSV와 확대 판독은 PR #7825 검토 기록에 연결한다.
+//! 실제 glyph·미세 간격의 정확성은 독립 한컴 Print와 Visual Sweep에서 확인한다.
 
 use rhwp::document_core::DocumentCore;
+use std::collections::BTreeMap;
 
 const SHORT: &str = "가나다라마바사아";
 const LONG: &str = "한글문서의문단모양에는첫줄들여쓰기가있는데이값을정렬방식과함께바꾸면서저장된줄정보가없는문서를한글이어떻게다시나누는지살펴보려고이문장을충분히길게적어둔다.";
-const TOLERANCE_PX: f64 = 0.5;
-
-#[derive(Clone, Copy, Debug)]
-enum Probe {
-    /// 문단 첫 줄 첫 글자 x
-    FirstGlyphX,
-    /// 문단 둘째 줄 첫 글자 x (내어쓰기)
-    SecondLineFirstGlyphX,
-    /// 앞 문단 마지막 줄 기준선 → 이 문단 첫 줄 기준선
-    BaselineGapFromPrevious,
-}
 
 struct Fixture {
     name: &'static str,
     bytes: &'static [u8],
-    /// 문단 순서의 종류 (`S` 짧은 글, `L` 긴 글)
     paragraphs: &'static str,
-    /// (표지, 문단 번호, 탐침, 한/글 값 px)
-    probes: &'static [(&'static str, usize, Probe, f64)],
 }
 
 fn attr<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
@@ -73,7 +52,6 @@ fn glyph_lines(core: &DocumentCore) -> Vec<GlyphLine> {
             };
             let text = rest[tag_end + 1..close].trim().to_string();
             if let (Some((x, y)), false) = (origin(&rest[..tag_end]), text.is_empty()) {
-                let y = (y * 10.0).round() / 10.0;
                 match lines.iter_mut().find(|(line_y, _)| *line_y == y) {
                     Some((_, line)) => line.push((x, text)),
                     None => lines.push((y, vec![(x, text)])),
@@ -117,226 +95,251 @@ fn paragraph_lines(lines: &[GlyphLine], kinds: &str) -> Vec<Vec<GlyphLine>> {
     out
 }
 
-fn measure(paragraphs: &[Vec<GlyphLine>], para: usize, probe: Probe) -> Option<f64> {
-    let lines = &paragraphs[para];
-    match probe {
-        Probe::FirstGlyphX => lines.first()?.2.first().map(|g| g.0),
-        Probe::SecondLineFirstGlyphX => lines.get(1)?.2.first().map(|g| g.0),
-        Probe::BaselineGapFromPrevious => {
-            let previous = paragraphs.get(para.checked_sub(1)?)?.last()?;
-            let first = lines.first()?;
-            (previous.0 == first.0).then_some(first.1 - previous.1)
-        }
-    }
-}
-
 const FIXTURES: &[Fixture] = &[
     Fixture {
-        // 정렬 4종 × 첫 줄 들여쓰기 0·2000·6000·10000·20444·20445·30000·−6000. 20445(홀수, 글자 단위 681.5px)만 버린다.
         name: "indent_align_matrix",
         bytes: include_bytes!("../../samples/issue7816/indent_align_matrix.hwpx"),
         paragraphs: "SLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSL",
-        probes: &[
-            ("J0S", 0, Probe::FirstGlyphX, 94.51),
-            ("J2000S", 2, Probe::FirstGlyphX, 107.78),
-            ("J6000S", 4, Probe::FirstGlyphX, 134.49),
-            ("J10000S", 6, Probe::FirstGlyphX, 161.19),
-            ("J20444S", 8, Probe::FirstGlyphX, 230.75),
-            ("J20445S", 10, Probe::FirstGlyphX, 94.51),
-            ("J30000S", 12, Probe::FirstGlyphX, 294.40),
-            ("J-6000S", 14, Probe::FirstGlyphX, 94.51),
-            ("L0S", 16, Probe::FirstGlyphX, 94.51),
-            ("L2000S", 18, Probe::FirstGlyphX, 107.78),
-            ("L6000S", 20, Probe::FirstGlyphX, 134.49),
-            ("L10000S", 22, Probe::FirstGlyphX, 161.19),
-            ("L20444S", 24, Probe::FirstGlyphX, 230.75),
-            ("L20445S", 26, Probe::FirstGlyphX, 94.51),
-            ("L30000S", 28, Probe::FirstGlyphX, 294.40),
-            ("L-6000S", 30, Probe::FirstGlyphX, 94.51),
-            ("C0S", 32, Probe::FirstGlyphX, 343.49),
-            ("C2000S", 34, Probe::FirstGlyphX, 350.05),
-            ("C6000S", 36, Probe::FirstGlyphX, 363.48),
-            ("C10000S", 38, Probe::FirstGlyphX, 376.76),
-            ("C20444S", 40, Probe::FirstGlyphX, 411.46),
-            ("C20445S", 42, Probe::FirstGlyphX, 343.49),
-            ("C30000S", 44, Probe::FirstGlyphX, 443.44),
-            ("C-6000S", 46, Probe::FirstGlyphX, 343.49),
-            ("R0S", 48, Probe::FirstGlyphX, 592.32),
-            ("R2000S", 50, Probe::FirstGlyphX, 592.32),
-            ("R6000S", 52, Probe::FirstGlyphX, 592.32),
-            ("R10000S", 54, Probe::FirstGlyphX, 592.32),
-            ("R20444S", 56, Probe::FirstGlyphX, 592.32),
-            ("R20445S", 58, Probe::FirstGlyphX, 592.32),
-            ("R30000S", 60, Probe::FirstGlyphX, 592.32),
-            ("R-6000S", 62, Probe::FirstGlyphX, 592.32),
-        ],
     },
     Fixture {
-        // 양쪽·가운데 × 홀수 들여쓰기 1~20001 · 내어쓰기 −1001·−2001. 20001(666.7px)은 버린다.
         name: "odd_indent_ladder",
         bytes: include_bytes!("../../samples/issue7816/odd_indent_ladder.hwpx"),
         paragraphs: "SLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSLSL",
-        probes: &[
-            ("J1S", 0, Probe::FirstGlyphX, 94.51),
-            ("J3S", 2, Probe::FirstGlyphX, 94.51),
-            ("J101S", 4, Probe::FirstGlyphX, 97.87),
-            ("J201S", 6, Probe::FirstGlyphX, 101.23),
-            ("J401S", 8, Probe::FirstGlyphX, 107.78),
-            ("J1001S", 10, Probe::FirstGlyphX, 127.77),
-            ("J2001S", 12, Probe::FirstGlyphX, 161.19),
-            ("J4001S", 14, Probe::FirstGlyphX, 227.72),
-            ("J8001S", 16, Probe::FirstGlyphX, 361.08),
-            ("J10001S", 18, Probe::FirstGlyphX, 427.61),
-            ("J20001S", 20, Probe::FirstGlyphX, 94.51),
-            ("J-1001S", 22, Probe::FirstGlyphX, 94.51),
-            ("J-1001L", 23, Probe::SecondLineFirstGlyphX, 127.93),
-            ("J-2001S", 24, Probe::FirstGlyphX, 94.51),
-            ("J-2001L", 25, Probe::SecondLineFirstGlyphX, 161.19),
-            ("C1S", 26, Probe::FirstGlyphX, 343.49),
-            ("C3S", 28, Probe::FirstGlyphX, 343.49),
-            ("C101S", 30, Probe::FirstGlyphX, 345.09),
-            ("C201S", 32, Probe::FirstGlyphX, 346.69),
-            ("C401S", 34, Probe::FirstGlyphX, 350.05),
-            ("C1001S", 36, Probe::FirstGlyphX, 360.12),
-            ("C2001S", 38, Probe::FirstGlyphX, 376.76),
-            ("C4001S", 40, Probe::FirstGlyphX, 410.02),
-            ("C8001S", 42, Probe::FirstGlyphX, 476.70),
-            ("C10001S", 44, Probe::FirstGlyphX, 509.96),
-            ("C20001S", 46, Probe::FirstGlyphX, 343.49),
-            ("C-1001S", 48, Probe::FirstGlyphX, 343.49),
-            ("C-1001L", 49, Probe::SecondLineFirstGlyphX, 140.24),
-            ("C-2001S", 50, Probe::FirstGlyphX, 343.49),
-            ("C-2001L", 51, Probe::SecondLineFirstGlyphX, 173.51),
-        ],
     },
     Fixture {
-        // 왼쪽 여백 0·2000·1001·2001·4001.
         name: "odd_margin_left",
         bytes: include_bytes!("../../samples/issue7816/odd_margin_left.hwpx"),
         paragraphs: "SLSLSLSLSL",
-        probes: &[
-            ("J0S", 0, Probe::FirstGlyphX, 94.51),
-            ("J2000S", 2, Probe::FirstGlyphX, 107.78),
-            ("J1001S", 4, Probe::FirstGlyphX, 127.77),
-            ("J2001S", 6, Probe::FirstGlyphX, 161.19),
-            ("J4001S", 8, Probe::FirstGlyphX, 227.72),
-        ],
     },
     Fixture {
-        // 오른쪽 정렬 × 오른쪽 여백 0·2000·1001·2001·4001.
         name: "odd_margin_right",
         bytes: include_bytes!("../../samples/issue7816/odd_margin_right.hwpx"),
         paragraphs: "SLSLSLSLSL",
-        probes: &[
-            ("R0S", 0, Probe::FirstGlyphX, 592.32),
-            ("R2000S", 2, Probe::FirstGlyphX, 579.05),
-            ("R1001S", 4, Probe::FirstGlyphX, 559.06),
-            ("R2001S", 6, Probe::FirstGlyphX, 525.64),
-            ("R4001S", 8, Probe::FirstGlyphX, 459.11),
-        ],
     },
     Fixture {
-        // 문단 위 간격 0·2000·1001·2001·4001 (앞 문단 끝 줄 → 첫 줄 기준선).
         name: "odd_spacing_prev",
         bytes: include_bytes!("../../samples/issue7816/odd_spacing_prev.hwpx"),
         paragraphs: "SLSLSLSLSL",
-        probes: &[
-            ("J0L", 1, Probe::BaselineGapFromPrevious, 19.80),
-            ("J2000S", 2, Probe::BaselineGapFromPrevious, 33.10),
-            ("J2000L", 3, Probe::BaselineGapFromPrevious, 33.10),
-            ("J1001S", 4, Probe::BaselineGapFromPrevious, 53.10),
-            ("J1001L", 5, Probe::BaselineGapFromPrevious, 53.00),
-            ("J2001S", 6, Probe::BaselineGapFromPrevious, 86.30),
-            ("J2001L", 7, Probe::BaselineGapFromPrevious, 86.40),
-            ("J4001S", 8, Probe::BaselineGapFromPrevious, 153.00),
-            ("J4001L", 9, Probe::BaselineGapFromPrevious, 152.80),
-        ],
     },
     Fixture {
-        // 문단 아래 간격 0·2000·1001·2001·4001 (앞 문단 끝 줄 → 첫 줄 기준선).
         name: "odd_spacing_next",
         bytes: include_bytes!("../../samples/issue7816/odd_spacing_next.hwpx"),
         paragraphs: "SLSLSLSLSL",
-        probes: &[
-            ("J0L", 1, Probe::BaselineGapFromPrevious, 19.80),
-            ("J2000S", 2, Probe::BaselineGapFromPrevious, 19.80),
-            ("J2000L", 3, Probe::BaselineGapFromPrevious, 33.00),
-            ("J1001S", 4, Probe::BaselineGapFromPrevious, 33.10),
-            ("J1001L", 5, Probe::BaselineGapFromPrevious, 52.90),
-            ("J2001S", 6, Probe::BaselineGapFromPrevious, 53.10),
-            ("J2001L", 7, Probe::BaselineGapFromPrevious, 86.30),
-            ("J4001S", 8, Probe::BaselineGapFromPrevious, 86.30),
-            ("J4001L", 9, Probe::BaselineGapFromPrevious, 152.90),
-        ],
     },
     Fixture {
-        // 글자 모양 0 만 20pt — 글자 단위가 바뀌지 않는다.
         name: "base_charpr0_20pt",
         bytes: include_bytes!("../../samples/issue7816/base_charpr0_20pt.hwpx"),
         paragraphs: "SLSLSLSL",
-        probes: &[
-            ("J0S", 0, Probe::FirstGlyphX, 94.51),
-            ("J1001S", 2, Probe::FirstGlyphX, 127.77),
-            ("J2001S", 4, Probe::FirstGlyphX, 161.19),
-            ("J4001S", 6, Probe::FirstGlyphX, 227.72),
-        ],
     },
     Fixture {
-        // 바탕글 스타일의 글자 모양(1)만 20pt — 글자 단위가 두 배가 된다.
         name: "base_style_charpr_20pt",
         bytes: include_bytes!("../../samples/issue7816/base_style_charpr_20pt.hwpx"),
         paragraphs: "SLSLSLSL",
-        probes: &[
-            ("J0S", 0, Probe::FirstGlyphX, 94.51),
-            ("J1001S", 2, Probe::FirstGlyphX, 161.19),
-            ("J2001S", 4, Probe::FirstGlyphX, 227.72),
-            ("J4001S", 6, Probe::FirstGlyphX, 361.08),
-        ],
     },
     Fixture {
-        // 들여쓴 뒤 남는 폭 30·20·14·13·10·5px(짝수 저장값). 20px 이상만 적용한다.
         name: "indent_room_boundary",
         bytes: include_bytes!("../../samples/issue7816/indent_room_boundary.hwpx"),
         paragraphs: "SLSLSLSLSLSLSLSLSLSLSLSL",
-        probes: &[
-            ("J86212S", 0, Probe::FirstGlyphX, 668.92),
-            ("J87712S", 2, Probe::FirstGlyphX, 678.99),
-            ("J88612S", 4, Probe::FirstGlyphX, 94.51),
-            ("J88762S", 6, Probe::FirstGlyphX, 94.51),
-            ("J89212S", 8, Probe::FirstGlyphX, 94.51),
-            ("J89962S", 10, Probe::FirstGlyphX, 94.51),
-            ("C86212S", 12, Probe::FirstGlyphX, 670.68),
-            ("C87712S", 14, Probe::FirstGlyphX, 682.35),
-            ("C88612S", 16, Probe::FirstGlyphX, 343.49),
-            ("C88762S", 18, Probe::FirstGlyphX, 343.49),
-            ("C89212S", 20, Probe::FirstGlyphX, 343.49),
-            ("C89962S", 22, Probe::FirstGlyphX, 343.49),
-        ],
     },
 ];
 
+fn first_x(paragraphs: &[Vec<GlyphLine>], index: usize) -> f64 {
+    paragraphs[index][0].2[0].0
+}
+
+fn second_x(paragraphs: &[Vec<GlyphLine>], index: usize) -> f64 {
+    assert!(
+        paragraphs[index].len() > 1,
+        "문단 {index}의 이어지는 줄 보존"
+    );
+    paragraphs[index][1].2[0].0
+}
+
+fn gap(paragraphs: &[Vec<GlyphLine>], index: usize) -> f64 {
+    let previous = paragraphs[index - 1].last().expect("앞 문단");
+    let next = &paragraphs[index][0];
+    assert_eq!(previous.0, next.0, "간격 대조 문단의 쪽 소속");
+    assert!(next.1 > previous.1, "문단 순서와 기준선 전진");
+    next.1 - previous.1
+}
+
+/// 같은 문구의 실제 글자 advance에 상대적인 반올림 범위다. 절대 px 허용치를 두지 않는다.
+fn assert_relation(actual: f64, expected: f64, glyph_advance: f64, label: &str) {
+    assert!(glyph_advance > 0.0);
+    let rounding = glyph_advance / 32.0;
+    assert!(
+        (actual - expected).abs() <= rounding,
+        "{label}: 관계값 {actual} ≠ {expected}, 글자 advance {glyph_advance}"
+    );
+}
+
 #[test]
 fn odd_paragraph_margins_are_char_units_and_overlong_indents_drop_like_hangul() {
-    let mut failures = Vec::new();
+    let mut all = BTreeMap::new();
     for fixture in FIXTURES {
         let core = DocumentCore::from_bytes(fixture.bytes)
             .unwrap_or_else(|e| panic!("{} 열기: {e:?}", fixture.name));
         let paragraphs = paragraph_lines(&glyph_lines(&core), fixture.paragraphs);
-        assert!(!fixture.probes.is_empty(), "{} 탐침이 없다", fixture.name);
-        for &(label, para, probe, hangul) in fixture.probes {
-            match measure(&paragraphs, para, probe) {
-                Some(got) if (got - hangul).abs() <= TOLERANCE_PX => {}
-                got => failures.push(format!(
-                    "{} {label} {probe:?}: rhwp {got:?} · 한/글 {hangul:.2}",
-                    fixture.name
-                )),
+        assert_eq!(
+            paragraphs.len(),
+            fixture.paragraphs.len(),
+            "{} 문단 보존",
+            fixture.name
+        );
+        all.insert(fixture.name, paragraphs);
+    }
+    let matrix = &all["indent_align_matrix"];
+    let first_line = &matrix[0][0].2;
+    assert!(first_line.len() >= 2, "원점 대조의 두 글자");
+    let advance = first_line[1].0 - first_line[0].0;
+    let equal = |actual, expected, label| assert_relation(actual, expected, advance, label);
+    let delta = |p: &[Vec<GlyphLine>], index, base| first_x(p, index) - first_x(p, base);
+    let even_step = delta(matrix, 2, 0); // 짝수 저장2000: 1000 HU
+    assert!(even_step > 0.0);
+    for group in 0..4 {
+        let base = group * 16;
+        equal(
+            first_x(matrix, base + 10),
+            first_x(matrix, base),
+            "폭을 넘는 CHAR 들여쓰기 취소",
+        );
+        equal(
+            first_x(matrix, base + 14),
+            first_x(matrix, base),
+            "짧은 첫 줄의 내어쓰기 취소",
+        );
+        for index in [2, 4, 6, 8, 12] {
+            match group {
+                0 | 1 => equal(
+                    delta(matrix, base + index, base),
+                    delta(matrix, index, 0),
+                    "양쪽/왼쪽 동일 들여쓰기",
+                ),
+                2 => equal(
+                    delta(matrix, base + index, base) * 2.0,
+                    delta(matrix, index, 0),
+                    "가운데 원점 변화는 왼쪽의 절반",
+                ),
+                _ => equal(
+                    first_x(matrix, base + index),
+                    first_x(matrix, base),
+                    "오른쪽 정렬 원점 보존",
+                ),
             }
         }
     }
-    assert!(
-        failures.is_empty(),
-        "{}개 불일치\n{}",
-        failures.len(),
-        failures.join("\n")
-    );
+    let odd = &all["odd_indent_ladder"];
+    for (index, factor) in [
+        (4, 0.25),
+        (6, 0.5),
+        (8, 1.0),
+        (10, 2.5),
+        (12, 5.0),
+        (14, 10.0),
+        (16, 20.0),
+        (18, 25.0),
+    ] {
+        equal(
+            delta(odd, index, 0),
+            even_step * factor,
+            "CHAR 대 HU 단위 관계",
+        );
+        equal(
+            delta(odd, index + 26, 26) * 2.0,
+            delta(odd, index, 0),
+            "CHAR 가운데 정렬 관계",
+        );
+    }
+    for base in [0, 26] {
+        equal(
+            first_x(odd, base + 20),
+            first_x(odd, base),
+            "과도한 CHAR 들여쓰기 취소",
+        );
+        for index in [22, 24] {
+            equal(
+                first_x(odd, base + index),
+                first_x(odd, base),
+                "내어쓰기 첫 줄 보존",
+            );
+        }
+        assert!(
+            second_x(odd, base + 25) > second_x(odd, base + 23),
+            "CHAR 내어쓰기 후속 줄 여백 증가"
+        );
+    }
+    for (key, direction) in [("odd_margin_left", 1.0), ("odd_margin_right", -1.0)] {
+        let p = &all[key];
+        equal(delta(p, 2, 0) * direction, even_step, "좌우 짝수 여백");
+        for (index, factor) in [(4, 2.5), (6, 5.0), (8, 10.0)] {
+            equal(
+                delta(p, index, 0) * direction,
+                even_step * factor,
+                "좌우 CHAR 여백 관계",
+            );
+        }
+    }
+    for key in ["odd_spacing_prev", "odd_spacing_next"] {
+        let p = &all[key];
+        let natural = gap(p, 1);
+        let even = gap(p, 3) - natural;
+        assert!(even > 0.0, "짝수 문단 간격 증가");
+        for (index, factor) in [(5, 2.5), (7, 5.0), (9, 10.0)] {
+            equal(
+                gap(p, index) - natural,
+                even * factor,
+                "CHAR 문단 간격 관계",
+            );
+        }
+        if key == "odd_spacing_prev" {
+            for index in [2, 4, 6, 8] {
+                equal(
+                    gap(p, index),
+                    gap(p, index + 1),
+                    "위 간격은 현재 문단에 귀속",
+                );
+            }
+        } else {
+            equal(gap(p, 2), natural, "아래 간격은 다음 문단에 귀속");
+            for index in [4, 6, 8] {
+                equal(gap(p, index), gap(p, index - 1), "앞 문단 아래 간격 보존");
+            }
+        }
+    }
+    let ordinary = &all["base_charpr0_20pt"];
+    let doubled = &all["base_style_charpr_20pt"];
+    for (index, factor) in [(2, 2.5), (4, 5.0), (6, 10.0)] {
+        equal(
+            delta(ordinary, index, 0),
+            even_step * factor,
+            "비바탕 글자 모양은 CHAR 단위에 영향 없음",
+        );
+        equal(
+            delta(doubled, index, 0),
+            delta(ordinary, index, 0) * 2.0,
+            "바탕글 크기에 비례하는 CHAR 여백",
+        );
+    }
+    let room = &all["indent_room_boundary"];
+    for base in [0, 12] {
+        let accepted = first_x(room, base);
+        assert!(
+            first_x(room, base + 2) > accepted,
+            "남는 폭이 충분한 양쪽/가운데 들여쓰기"
+        );
+        let dropped = first_x(room, base + 4);
+        assert!(dropped < accepted, "남는 폭이 작은 들여쓰기 취소");
+        for index in [6, 8, 10] {
+            equal(
+                first_x(room, base + index),
+                dropped,
+                "취소한 들여쓰기 원점 일치",
+            );
+        }
+        equal(
+            dropped,
+            first_x(matrix, if base == 0 { 0 } else { 32 }),
+            "취소 후 무들여쓰기 대조군 원점",
+        );
+    }
 }

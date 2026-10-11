@@ -26,7 +26,7 @@ last_verified: 2026-10-12
 
 ## 구현 주장과 확인할 경로
 
-row-boundary continuation → 요구/예약 높이 → 표 조각 top과 후속 본문을 대조한다. 기존 관계형 종료 검사는 유지했다. 다만 새 incoming `rowbreak_continuation_reopens_outer_top`의 415쪽 assertion이 기존 #7445/#7743 이관 범위를 다시 검사하므로 재등록 적합성을 검토 중이다. 이를 이관 범위 복원 없음으로 기록했던 문장은 정정한다.
+row-boundary continuation → 요구/예약 높이 → 표 조각 top과 후속 본문을 대조한다. 기존 관계형 종료 검사는 유지했다. 새 incoming `rowbreak_continuation_reopens_outer_top`의 415쪽 assertion은 기존 #7445/#7743 이관 범위를 다시 등록한 것이었으며, 아래 동일 입력 base/current 근거로 신규 등록을 철회했다. 기존 정상 회귀와 공유 IR/소유 계약 검사는 유지한다.
 
 ## 독립 기대값과 검증 계획
 
@@ -62,3 +62,23 @@ Native121/Print120은 88.71813%, Native271/Print269는 96.3668%다. 쪽수가 �
 `1342000-section-opening-diagnostic-results.json`과 구역별 `review/review_001.png`다.
 추가한 1342000용 유효 Unicode 글꼴 subset은 사용 cmap·glyph ID·outline·hmtx를 원본
 프로그램과 대조한 비공개 검증 산출물이며 저장소에 포함하지 않는다.
+
+## 고정 upstream base 재검증과 신규 검사 재등록 철회
+
+`bfa28a77a2714482f647ee6a7b9aa7f7876d8404`의 실제 Native CLI를 별도로 빌드·동결한 뒤
+동일 입력·독립 Print·글꼴로 `c9323fd56` production과 비교했다. 양쪽 모두 418≠415이며,
+선택한 같은 물리121·124·271쪽의 내용·소유 순서, 표와 TextLine 좌표는 동일했다.
+TextRun의 가로 원점/폭 차이만 작게 남았고 세로 원점/높이는 동일했다. 전415쪽 또는 fresh WASM
+교육과정 검증으로 보고하지 않는다. 124쪽에서 Print의 표 내용·세로 괘선 차이가 양쪽에 보인다.
+
+18쪽 rowbreak 반례는 Native/fresh WASM 전쪽 최저55.00512%, 미달4·6·7·8·15·16쪽이다.
+7쪽 저장 frame 대조군은 두 backend 최저96.93933%지만 7쪽 체크박스 모양 차이가 남았다.
+따라서 신규 mixed 함수와 절대 px 검사 두 함수를 활성 suite에서 철회했다. 정확한415쪽 기대값을
+418쪽으로 바꾸거나 `ignore` 처리하지 않는다. #7743/#7741의 실제 결함은 해결되지 않았다.
+
+원 검사·동일124쪽 대표 PNG·상세 범위는
+[보존 기록](../assets/issue7445/rowbreak_continuation_20261012/README.md)에 있다.
+기존 원문/PDF는 공유 계약 검사 사용 때문에 사용자 지시에 따라 유지한다.
+파생 manifest 재준비 결과1456sources/6177test attributes이며 검사 함수가2개 줄었다.
+`c9323fd56` 전체 회귀는10243건 중10242PASS/1FAIL(교육과정 쪽수),45SKIP였고,
+철회 후 실행은 이 이전 결과와 구분해 이어서 기록한다.
