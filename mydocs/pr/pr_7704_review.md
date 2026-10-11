@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-11
+last_verified: 2026-10-12
 ---
 
 # PR #7704 검토 — 표 조각의 반복 셀 검사 성능
@@ -144,3 +144,11 @@ head에 고정된 Native/WASM rowbreak HWP 7쪽 review PNG를 실제로 열었�
 
 - 로컬 검증 종료 후 원격 `devel`은 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`였다. 검증 기준 `920dc29284`보다 266개 커밋 앞서며 조판 코드도 변경됐다. 기존 검증 결과를 최신 통합 코드의 통과로 바꾸어 보고하지 않는다.
 - 최신 코드에도 HWP 전용 range gate와 spacing 적용 뒤 원점 복원이 남아 있는 것은 확인했다. 기존 검증 보정본을 먼저 보존하며, 최신 코드와 통합한 뒤 영향 경계·필수 검사·전쪽 시각 결과를 다시 확인해야 한다. 원격 push/PR 생성/approve/merge는 수행하지 않았다.
+
+### 최신 기준 통합과 범위 확장 (2026-10-12)
+
+- 16쪽 통과 보정은 `ce4189473`에 보존했다. 최신 devel `bfa28a77a2` 통합 head는 `1990ae5c1cf019b9d6cbf8553d87489243a2730a`. 충돌 한 곳은 새 셀별 예산·native 저장 프레임 변수를 유지하면서 HWPX에도 range 검사를 적용하도록 해결했다. 변경된 조판 코드를 포함하므로 이전 전체 회귀를 이 head의 결과로 재사용하지 않는다.
+- 이 head의 관련 경계 4건, fmt, Native/WASM/all-target Clippy, workspace build, manifest 정책(base `bfa28a77a2`)은 통과했다. 전체 회귀는 추가 보정 범위가 승인되어 실행 중 중단했으며 최신 head의 완료 검사로 세지 않는다(`current-base/validation-stopped.json`). 기존 `ce4189473` 검증의 전회귀/Skia 통과 기록은 보존한다.
+- Native 전11문서·393쪽 완료: 정상6문서 전쪽90%이상, 나머지5문서316쪽 미달. HWPX16쪽 98.30924% / 17쪽 99.83140%. 직접 review PNG에서 표 앞 간격과 17쪽 글상자 시작·윤곽·후속 내용을 다시 확인했다. 최신 devel의 다른 변경도 포함된 결과이므로 과거312쪽과의 차이를 이번 보정의 개선/회귀로 단정하지 않는다. 이 head의 고정 Docker WASM package 전쪽 실행은 계속한다.
+- 사용자 범위 결정: **기존 시각 미달도 보정한 후 PR 처리**. 이번 PR에서 시각 게이트 예외는 적용하지 않는다. 순서: rowbreak HWPX 4·6·7·8·15쪽 → overfill HWPX → nested HWP/HWPX → scattered HWP. 원본/Print 및 전체 TSV를 보존하고, 원인 규칙별로 영향 경계·시각 출력을 먼저 고친 뒤 최종 source에서 필수 회귀를 다시 수행한다.
+- 최신 증적은 `output/pr-review/oksure-20261011/pr7704-maintainer/current-base/`의 `provenance.json`, `native-summary.json`, `validation-results.json`, `native-review/`, `sweeps/` 및 실행 로그. 사용자 시각 판정은 `ce4189473`의16쪽 판정이며 최신 통합본 직접 판독과 구분한다.
