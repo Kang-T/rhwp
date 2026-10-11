@@ -68,8 +68,11 @@ fn split_paragraph_follows_the_stored_rewind_even_with_budget_left() {
     let document = HwpDocument::from_bytes(&bytes).expect("parse issue5966 sample");
     assert_eq!(
         document.page_count(),
-        143,
-        "쪽수는 143쪽이어야 한다 — 되감김 승격이 쪽을 새로 만들면 안 된다"
+        // 과거 rhwp 실측 143쪽 대신 동일 원본의 독립 한컴 2020 Print PDF를 따른다.
+        // 전 142쪽 Native/fresh WASM 최저 92.20721%와 60쪽 본문/셀 소속을 확인했다.
+        // 증거: mydocs/pr/archives/pr_7617_review.md.
+        142,
+        "독립 Print PDF의 142쪽이어야 한다 — 되감김 승격이 쪽을 새로 만들면 안 된다"
     );
 
     let tree = document
