@@ -91,3 +91,33 @@ fresh로 오판했다. 최초 `trailing-separator-test-after.log`는 해당 중�
 갱신해 재컴파일했다. 검증 라이브러리 SHA-256은
 `cb86bf181478945ad6e50ab0fcdc2ec76a33ce8a4f36e544a1c350155091b0a8`이며,
 `shared-cargo-worktree-stale-artifact.json`에 발견·교정 근거를 보존했다.
+
+## 글자 단위 간격 보정 뒤 저장·재열기 회귀
+
+전체 회귀의 #7114 실패 4건은 삭제·이관하지 않았다. 이전 통합과 #7701까지의 source에서
+통과한 저장 보존 계약이다. #7815까지의 source도 56자 편집의 페이지별 내용이 같았지만,
+통합 source에서는 로터리 조종기 행이 재열기 후 103→104쪽으로 이동했다.
+
+원인은 기존 저장 프레임 재작성의 출처 계약이다. 빈 문단 2279의 `spacing_after=161`은
+글자 단위이며 원본 저장 사다리에도 뒤 여백 400HU가 있다
+(`41206−38886−1200−720=400`). 새 해석의 30.9px가 이 간격과 맞고 종전 26.7px는 짧다.
+이 올바른 간격이, 재열기에서 중첩 호스트 마지막 유닛 3곳에 9.6px를 더하는 기존 차이를
+페이지 경계에서 드러냈다. 간격 해석이나 검사의 기대값을 되돌리지 않았다.
+
+`writeback_reflowed_table_frames`가 실제 `cell_units`의 `CellUnitLineAnchor`를 소비한다.
+같은 빈 비인라인 표 호스트 줄에 여러 물리 유닛이 속하면 부모 LINE_SEG 하나는 그 내부 컷을
+증언할 수 없다. 재작성 스냅숏에서 그 줄만 기존 `TAG_IMPLEMENTATION_PROPERTY`로 구분해,
+reader가 이를 한컴의 독립 저장 프레임으로 다시 해석하지 않게 한다. 원문·줄 메트릭·다른
+tag와 live IR은 보존한다. 무편집 저장은 진입하지 않고 단일 유닛·인라인 표·글자 줄은
+기존 저장 조성 정보를 유지한다. 문서 ID·고정 좌표·페이지 수 분기는 없다.
+
+생산은 `cell_units`의 줄 소유와 실제 pagination 컷 → 저장 스냅숏의 줄 tag이며, 소비는
+HWP serializer/parser → 기존 합성 줄 판별 → 셀 유닛·측정·배치이다. 빈 호스트의 내부 컷은
+뒤 본문 줄에 거짓 reset으로 쓰지 않는다. 실제 호출 경로의 같은 소유 결과를 사용한다.
+
+후보 라이브러리의 기존 정식 #7114 원본 5건이 모두 PASS했다
+(`giant-frame-provenance-formal-tests.log`, 41.89s). 1·55·56·61·200자, 무편집 저장,
+독립 Print의 첫 쪽 끝/둘째 쪽 시작을 포함한다. fmt·Native Clippy·base 고정 manifest/tier도
+통과했다. source 파일 hash와 라이브러리는 `giant-frame-provenance-candidate/provenance.json`에
+고정했다. 이 판정은 저장 보존 회귀의 focused 결과이며 giant 문서의 기존 전쪽 시각 미달
+해결이나 #7813 종료를 뜻하지 않는다. 최종 통합 source의 전체 검증은 별도로 남는다.

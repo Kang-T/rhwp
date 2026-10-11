@@ -1,5 +1,7 @@
 //! 문서 생성/로딩/저장/설정 관련 native 메서드
 
+mod reflowed_table_frames;
+
 use crate::document_core::validation::{
     CellPath, ValidationReport, ValidationWarning, WarningKind,
 };
@@ -1879,6 +1881,9 @@ impl DocumentCore {
     /// 공간이 아닌 조각(rowspan 블록 분할·중첩 행 커서)은 이 매핑으로 줄 자리를 정할 수
     /// 없으므로 그 표의 사다리를 그대로 둔다 — 종전 동작이다.
     fn writeback_reflowed_table_frames(&self, snapshot: &mut Document) {
+        use self::reflowed_table_frames::{
+            generated_block_host_lines, mark_generated_host_lines, CellFrameWriteback,
+        };
         use crate::model::control::Control;
         use crate::renderer::layout::table_layout::CellUnitLineAnchor;
         use crate::renderer::pagination::PageItem;
@@ -1890,15 +1895,7 @@ impl DocumentCore {
 
         // 1단계 — 고칠 자리를 live IR 에서 정한다. 유닛 캐시가 live 셀 포인터로 메모이즈
         // 돼 있으므로 스냅숏 포인터를 캐시에 넣지 않는다.
-        struct FrameWriteback {
-            section: usize,
-            paragraph: usize,
-            control: usize,
-            cell: usize,
-            resets: Vec<(usize, usize)>,
-            preserved_frames: Vec<((usize, usize), (usize, usize))>,
-        }
-        let mut plans = Vec::new();
+        let mut plans: Vec<CellFrameWriteback> = Vec::new();
         for (section_idx, section) in self.document.sections.iter().enumerate() {
             let Some(pagination) = self.pagination.get(section_idx) else {
                 continue;
@@ -2003,6 +2000,7 @@ impl DocumentCore {
                             }
                         }
                         let mut preserved_frames = Vec::new();
+                        let generated_host_lines = generated_block_host_lines(cell, &anchors);
                         let mut resets: Vec<(usize, usize)> = Vec::with_capacity(units.len());
                         for unit in units.iter() {
                             match anchors.get(*unit) {
@@ -2068,12 +2066,13 @@ impl DocumentCore {
                         if resets.is_empty() {
                             continue;
                         }
-                        plans.push(FrameWriteback {
-                            section: section_idx,
-                            paragraph: para_idx,
-                            control: control_idx,
-                            cell: cell_idx,
+                        plans.push(CellFrameWriteback {
+                            section_idx,
+                            para_idx,
+                            control_idx,
+                            cell_idx,
                             resets,
+                            generated_host_lines,
                             preserved_frames,
                         });
                     }
@@ -2087,12 +2086,13 @@ impl DocumentCore {
         // 나르고(조판의 `vpos_gap_before` 등이 읽는다), 촘촘한 사다리로 덮으면 그 신호가
         // 사라져 읽는 쪽이 더 채운다(실측: 문단 2276 편집에서 103쪽이 11낱말 더 먹었다).
         // 그래서 줄 사이 **원래 간격을 그대로 이어 붙이고**, 되감김만 실제 컷 자리로 옮긴다.
-        for FrameWriteback {
-            section: section_idx,
-            paragraph: para_idx,
-            control: control_idx,
-            cell: cell_idx,
+        for CellFrameWriteback {
+            section_idx,
+            para_idx,
+            control_idx,
+            cell_idx,
             resets,
+            generated_host_lines,
             preserved_frames,
         } in plans
         {
@@ -2147,6 +2147,7 @@ impl DocumentCore {
                     previous = Some((stored, next, occupied));
                 }
             }
+            mark_generated_host_lines(cell, &generated_host_lines);
         }
     }
 
