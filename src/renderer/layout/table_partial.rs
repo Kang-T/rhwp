@@ -2400,6 +2400,15 @@ impl LayoutEngine {
             if preserve_linear_single_cell_vpos && resumed_stored_frame_origin.is_some() {
                 frag_vpos_origin = vpos_origin;
             }
+            // 선형 저장 좌표 스냅은 앞 간격도 이미 배치한다. 그 경로를 타지 않는
+            // 조각의 첫 원본 TAC 호스트만, 수용 유닛에 예약된 앞 간격을 따로 소비한다.
+            let first_stored_inline_owner_lead = if preserve_linear_single_cell_vpos {
+                None
+            } else {
+                cut_units.and_then(|(start, _)| {
+                    self.stored_inline_owner_lead_for_cut(table, cell, styles, start)
+                })
+            };
             // [#4149] windowed 프로브: 컷 창에 유닛이 없는 문단은 아래 skip 판정의
             // 네 조건(line_ranges·mixed·nested·non-inline)이 모두 창 유닛에서만
             // 유도되므로 전량 레이아웃에서도 반드시 skip 된다 — 순회 자체를 생략한다.
@@ -3881,6 +3890,16 @@ impl LayoutEngine {
                                         frame.table_top
                                     } else if let Some(offset) = stored_square_offset {
                                         para_y_before_lines + hwpunit_to_px(offset, self.dpi)
+                                    } else if let Some((_, lead)) = first_stored_inline_owner_lead
+                                        .filter(|(owner, _)| {
+                                            *owner == cp_idx
+                                                && !has_preceding_text
+                                                && table_host_line_only_fragment
+                                        })
+                                    {
+                                        // 첫 표의 앞 간격은 내용 유닛에 이미 포함되어 있다.
+                                        // 뒤 문단은 자신의 저장 좌표 스냅을 계속 소비한다.
+                                        para_y_before_lines + lead
                                     } else if resumed_stored_frame_origin.is_some()
                                         && nested_table.common.treat_as_char
                                         && table_host_line_only_fragment
