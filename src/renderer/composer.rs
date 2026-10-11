@@ -722,14 +722,30 @@ pub(crate) fn tac_next_line_full_spacing(
         && next_para.is_some_and(|next| {
             (current_owned_row || !next.stored_text_partition_is_dirty())
                 && next.line_segs.first().is_some_and(|first| {
-                    (current_owned_row || first.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0)
-                        && seg
-                            .vertical_pos
-                            .saturating_add(seg.line_height)
-                            .saturating_add(seg.line_spacing)
-                            .saturating_add(current_spacing_after_hu)
-                            .saturating_add(next_spacing_before_hu)
-                            == first.vertical_pos
+                    if !current_owned_row
+                        && (first.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                            || next.cell_format_vpos_dirty)
+                    {
+                        return false;
+                    }
+                    let owned_end = i64::from(seg.line_height)
+                        + i64::from(seg.line_spacing)
+                        + i64::from(current_spacing_after_hu)
+                        + i64::from(next_spacing_before_hu);
+                    let same_frame =
+                        i64::from(seg.vertical_pos) + owned_end == i64::from(first.vertical_pos);
+                    // 통째로 새 쪽에 실린 원본 TAC는 호스트 vpos가 이전 쪽에
+                    // 남을 수 있다. 완전한 개체 줄의 높이·간격이 새 원점 0에서
+                    // 다음 줄을 정확히 닫으면 그 간격 전량은 같은 새 프레임의
+                    // 소유다. 단순 되감김이나 불완전한 줄은 이 근거가 아니다.
+                    let rebased_object_frame = stored_host
+                        && !para.cell_format_vpos_dirty
+                        && para.line_segs.len() == 1
+                        && seg.vertical_pos > first.vertical_pos
+                        && stored_first_tac_line(para)
+                            .is_some_and(|owned| std::ptr::eq(owned, seg))
+                        && owned_end == i64::from(first.vertical_pos);
+                    same_frame || rebased_object_frame
                 })
         })
 }
