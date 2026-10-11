@@ -119,6 +119,7 @@ pub(in crate::renderer::typeset) fn place(
             is_last_placed,
             styles,
             preceding_stored_vpos(paragraphs_all, para_idx),
+            next_para,
         );
     } else if engine.try_typeset_empty_para_float_table(
         st,

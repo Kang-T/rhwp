@@ -5122,6 +5122,8 @@ pub struct InlineBoxPlacement {
     pub x: f64,
     pub y: f64,
     pub clearance: f64,
+    /// 회피 프레임이 x도 확정했는가. 저장 줄의 수직 끝점과 독립된 소유권이다.
+    pub resolved_x: bool,
     /// 저장 TAC 줄이 확정한 다음 흐름 위치(단 상대). 이 경우 x는 기존 표 정렬이 담당한다.
     pub advance_end: Option<f64>,
 }
@@ -5185,6 +5187,7 @@ pub(crate) fn place_inline_box(
         x,
         y,
         clearance: y - top,
+        resolved_x: true,
         advance_end: None,
     })
 }

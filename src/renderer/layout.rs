@@ -12168,7 +12168,7 @@ impl LayoutEngine {
                 None
             };
             let tbl_inline_x = flow_placement
-                .filter(|placement| placement.advance_end.is_none())
+                .filter(|placement| placement.resolved_x)
                 .map(|placement| {
                     col_area.x + placement.x + hwpunit_to_px(t.outer_margin_left as i32, self.dpi)
                 })
