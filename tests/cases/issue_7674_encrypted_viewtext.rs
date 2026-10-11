@@ -4,6 +4,7 @@ use rhwp::model::document::{Document, HwpVersion, Section};
 use rhwp::model::paragraph::Paragraph;
 use rhwp::parser::{self, cfb_reader::CfbReader, crypto::CryptoError, ParseError};
 use std::io::{Cursor, Read, Write};
+use std::process::{Command, Stdio};
 
 const PASSWORD: &[u8] = b"public-test-input-7674";
 type Compound = cfb::CompoundFile<Cursor<Vec<u8>>>;
@@ -218,5 +219,51 @@ fn viewtext_output_limit_is_not_hidden_by_bodytext_fallback() {
                 CryptoError::DecompressedStreamLimitExceeded { .. }
             ))
         ));
+    }
+}
+
+#[test]
+fn cli_viewtext_open_keeps_the_credential_out_of_diagnostics() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!(
+        "rhwp-viewtext-7674-{}-{nonce}.hwp",
+        std::process::id()
+    ));
+    let bin = std::env::var("CARGO_BIN_EXE_rhwp")
+        .unwrap_or_else(|_| env!("CARGO_BIN_EXE_rhwp").to_owned());
+    for lenient in [false, true] {
+        let bytes = fixture(true, true, false);
+        let bytes = if lenient { force_lenient(bytes) } else { bytes };
+        std::fs::write(&path, bytes).unwrap();
+        let mut child = Command::new(&bin)
+            .arg("info")
+            .arg(&path)
+            .arg("--password-stdin")
+            .env("RHWP_2424_PROFILE", "1")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut stdin = child.stdin.take().unwrap();
+        stdin.write_all(PASSWORD).unwrap();
+        stdin.write_all(b"\n").unwrap();
+        drop(stdin);
+        let output = child.wait_with_output().unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert!(output.status.success(), "ViewText CLI open failed");
+        for stream in [&output.stdout, &output.stderr] {
+            assert!(
+                !stream
+                    .windows(PASSWORD.len())
+                    .any(|bytes| bytes == PASSWORD),
+                "credential appeared in CLI diagnostics"
+            );
+        }
+        assert!(String::from_utf8_lossy(&output.stdout).contains("암호화: 예"));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("RHWP_2424_PAGINATION_PROFILE"));
     }
 }

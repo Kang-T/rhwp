@@ -811,7 +811,8 @@ fn starts_with_paragraph_header(data: &[u8]) -> bool {
 
 /// 암호 문서도 #5169의 ViewText 우선 정책을 따른다. 스텁은 BodyText로 내려가되,
 /// 읽기 오류와 자원 제한 초과는 숨기지 않는다. DocInfo에서 비밀번호는 이미 검증됐다.
-fn decode_password_rendered_viewtext(
+/// 반환값은 복호화된 문단 레코드 스트림이며, 비밀번호나 파생 키가 아니다.
+fn decode_viewtext_paragraph_stream(
     raw: Result<Vec<u8>, cfb_reader::CfbError>,
     password: &[u8],
     compressed: bool,
@@ -853,7 +854,7 @@ fn parse_sections_strict(
             crypto::decrypt_viewtext_section_limited(&raw, compressed, section_output_limit)
                 .map_err(ParseError::CryptoError)?
         } else if encrypted {
-            let rendered = decode_password_rendered_viewtext(
+            let rendered = decode_viewtext_paragraph_stream(
                 cfb.read_viewtext_section_raw_limited(i, section_raw_limit),
                 password.unwrap(),
                 compressed,
@@ -982,7 +983,7 @@ fn parse_hwp_with_lenient(
             crypto::decrypt_viewtext_section_limited(&raw, compressed, section_output_limit)
                 .map_err(ParseError::CryptoError)?
         } else if encrypted {
-            let rendered = decode_password_rendered_viewtext(
+            let rendered = decode_viewtext_paragraph_stream(
                 lenient.read_viewtext_section_raw_limited(i, section_raw_limit),
                 password.unwrap(),
                 compressed,
