@@ -128,6 +128,26 @@ fn owned_slot(unit: u16) -> bool {
     matches!(unit, 1..=3 | 11..=12 | 14..=18 | 21..=23)
 }
 
+fn retain_visible_control_bits(node: &mut Node) {
+    let mut present = 0u32;
+    if let Some(index) = text_child(node) {
+        let bytes = &node.children[index].record.data;
+        let mut offset = 0;
+        while offset + 2 <= bytes.len() {
+            let unit = u16::from_le_bytes([bytes[offset], bytes[offset + 1]]);
+            if unit < 32 {
+                present |= 1u32 << unit;
+            }
+            offset += if extended_slot(unit) { 16 } else { 2 };
+        }
+    }
+    // A hidden control must not leave its source presence bit in visible IR.
+    // Preserve the original mask convention for every surviving control.
+    if let Some(mask) = word(&node.record.data, 4) {
+        node.record.data[4..8].copy_from_slice(&(mask & present).to_le_bytes());
+    }
+}
+
 /// Carry a hidden terminator and wholly hidden content separately. A deleted
 /// paragraph can still supply the paragraph format when its end joins the next.
 fn project_paragraph(
@@ -274,6 +294,9 @@ fn project_paragraph(
         children.push(child);
     }
     node.children = children;
+    if source_changed {
+        retain_visible_control_bits(&mut node);
+    }
     let fully_hidden = fully_hidden
         && !node
             .children
@@ -361,6 +384,9 @@ fn merge_paragraphs(first: &mut Node, mut next: Node) -> Result<(), BodyTextErro
     }
     // The final paragraph owns the list-end flag after the hidden boundary.
     first.record.data[3] = (first.record.data[3] & 0x7f) | (next.record.data[3] & 0x80);
+    let mask = word(&first.record.data, 4).unwrap() | word(&next.record.data, 4).unwrap();
+    first.record.data[4..8].copy_from_slice(&mask.to_le_bytes());
+    retain_visible_control_bits(first);
     update_header(first)
 }
 

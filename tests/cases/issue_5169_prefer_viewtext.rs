@@ -137,3 +137,121 @@ fn unaffected_visible_paragraphs_keep_valid_saved_line_boundaries() {
         );
     }
 }
+
+// The HWPX is an independent Hancom 2020 conversion of the same public
+// HWP input. Its six-page Print, Native and fresh Docker WASM all-page minima
+// exceed 90%; XML inter-element spacing has the same independent Print oracle.
+fn hwpx_source() -> Vec<u8> {
+    std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "tests/fixtures/issue5169_tracked_visibility/issue5169_viewtext_changetracking.hwpx",
+        ),
+    )
+    .expect("public Hancom-converted HWPX")
+}
+
+#[test]
+fn hwpx_applies_saved_change_visibility_to_text_and_owned_objects() {
+    let doc = rhwp::parser::parse_document(&hwpx_source()).expect("HWPX parse");
+    assert_visible_content(&doc);
+}
+
+fn with_interparagraph_xml_spacing(bytes: &[u8]) -> Vec<u8> {
+    use std::io::{Cursor, Read, Write};
+    let mut source = zip::ZipArchive::new(Cursor::new(bytes)).expect("ZIP");
+    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..source.len() {
+        let mut entry = source.by_index(index).expect("ZIP entry");
+        let name = entry.name().to_owned();
+        let method = entry.compression();
+        let mut contents = Vec::new();
+        entry.read_to_end(&mut contents).expect("entry bytes");
+        if name == "Contents/section0.xml" {
+            contents = String::from_utf8(contents)
+                .expect("section XML")
+                .replace("</hp:p><hp:p", "</hp:p>\n<hp:p")
+                .into_bytes();
+        }
+        output
+            .start_file(
+                name,
+                zip::write::SimpleFileOptions::default().compression_method(method),
+            )
+            .expect("write entry");
+        output.write_all(&contents).expect("entry contents");
+    }
+    output.finish().expect("ZIP finish").into_inner()
+}
+
+#[test]
+fn hwpx_xml_formatting_keeps_owned_paragraph_merges_and_visible_content() {
+    let source = hwpx_source();
+    let spaced = with_interparagraph_xml_spacing(&source);
+    let before = rhwp::parser::parse_document(&source).expect("original");
+    let after = rhwp::parser::parse_document(&spaced).expect("formatted XML");
+    assert_visible_content(&after);
+    assert_eq!(visible_content(&before), visible_content(&after));
+    assert_eq!(before.sections.len(), after.sections.len());
+    for (original, formatted) in before.sections.iter().zip(&after.sections) {
+        assert_eq!(
+            original.paragraphs.len(),
+            formatted.paragraphs.len(),
+            "inter-element XML whitespace must not change paragraph ownership"
+        );
+    }
+    assert_eq!(
+        rhwp::document_core::DocumentCore::from_bytes(&spaced)
+            .expect("formatted layout")
+            .page_count(),
+        6
+    );
+}
+
+fn paragraph_line_boxes(
+    node: &rhwp::renderer::render_tree::RenderNode,
+    para: usize,
+    out: &mut Vec<(f64, f64)>,
+) {
+    use rhwp::renderer::render_tree::RenderNodeType;
+    if let RenderNodeType::TextLine(line) = &node.node_type {
+        if line.section_index == Some(0) && line.para_index == Some(para) {
+            out.push((node.bbox.y, node.bbox.height));
+        }
+    }
+    for child in &node.children {
+        paragraph_line_boxes(child, para, out);
+    }
+}
+
+#[test]
+fn hwpx_saved_leading_empty_lines_and_heading_share_the_new_page() {
+    let core = rhwp::document_core::DocumentCore::from_bytes(&hwpx_source()).expect("HWPX layout");
+    assert_eq!(core.page_count(), 6, "independent Hancom Print");
+    let paras = &core.document().sections[0].paragraphs;
+    let heading = paras
+        .iter()
+        .position(|p| p.text.contains("연구의 필요성 및 목적"))
+        .expect("first body heading");
+    assert!(heading >= 2);
+    assert!(paras[heading - 2].text.trim().is_empty());
+    assert!(paras[heading - 1].text.trim().is_empty());
+    let first = core.build_page_render_tree(0).expect("cover");
+    let second = core.build_page_render_tree(1).expect("first body page");
+    let mut previous_page = Vec::new();
+    paragraph_line_boxes(&first.root, heading - 2, &mut previous_page);
+    assert!(
+        previous_page.is_empty(),
+        "leading blank line must not stay on cover"
+    );
+    let mut blank = Vec::new();
+    let mut host = Vec::new();
+    let mut title = Vec::new();
+    paragraph_line_boxes(&second.root, heading - 2, &mut blank);
+    paragraph_line_boxes(&second.root, heading - 1, &mut host);
+    paragraph_line_boxes(&second.root, heading, &mut title);
+    assert_eq!(blank.len(), 1);
+    assert_eq!(host.len(), 1);
+    assert!(!title.is_empty());
+    assert!(blank[0].0 + blank[0].1 <= host[0].0);
+    assert!(host[0].0 + host[0].1 <= title[0].0);
+}
