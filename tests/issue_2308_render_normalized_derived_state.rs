@@ -175,7 +175,6 @@ fn text_run_is_partially_painted(node: &RenderNode, needle: &str, clip: Option<C
         .any(|child| text_run_is_partially_painted(child, needle, clip))
 }
 
-
 /// 한컴 PDF p33의 마지막 "현황 추이(p.270)" 줄은 p33의 셀 안에 온전히 남고,
 /// p34는 다음 문단에서 시작한다. 중첩 표 조각 유닛을 기본 inMargin 폭으로
 /// 재조판하면 한 줄을 덜 측정해 이 경계가 각각 하단/상단 clip에 반쯤 걸린다.

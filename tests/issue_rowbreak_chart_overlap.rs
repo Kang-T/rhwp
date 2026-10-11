@@ -505,7 +505,6 @@ fn rowbreak_hwpx_page5_table_split_keeps_page6_notes_off_page5() {
     );
 }
 
-
 #[test]
 fn rowbreak_hwpx_page10_keeps_csap_table_near_title() {
     let doc = load_doc(SAMPLE);

@@ -103,7 +103,6 @@ fn the_page_ending_fragment_box_folds_to_the_hancom_height() {
     );
 }
 
-
 /// ③ 비적용 경로 — 쪽이 상자를 정한 조각은 접지 않는다.
 ///
 /// `#7095`·`#7063` 레인②가 세운 갈래다. 그 높이는 내용이 아니라 **쪽**이 정한 값이고

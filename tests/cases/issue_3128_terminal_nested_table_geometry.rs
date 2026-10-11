@@ -44,7 +44,6 @@ fn text_line_contains(node: &RenderNode, needles: &[&str]) -> bool {
         .any(|child| text_line_contains(child, needles))
 }
 
-
 #[test]
 fn issue_3128_terminal_continuation_keeps_hancom_line_wrap() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(SAMPLE);
