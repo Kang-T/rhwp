@@ -4,6 +4,7 @@ mod stored_cell_flow_picture;
 pub(crate) use stored_cell_flow_picture::{
     stored_cell_flow_picture_extent_hu, stored_cell_flow_picture_frame,
 };
+mod stored_empty_host_frame;
 mod stored_nested_before_host;
 pub(crate) use stored_nested_before_host::stored_nested_before_host_placement;
 mod stored_cut_outer_frame;
@@ -4093,71 +4094,15 @@ impl ParagraphFloatPlacement {
         measured_table_height: f64,
         dpi: f64,
     ) -> Option<Self> {
-        let stored_line = |paragraph: &Paragraph| {
-            let [line, ..] = paragraph.line_segs.as_slice() else {
-                return None;
-            };
-            (line.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
-                && !paragraph.stored_text_partition_is_dirty()
-                && !paragraph.cell_format_vpos_dirty)
-                .then_some(line.vertical_pos)
-        };
-        let is_paragraph_square = !table.common.treat_as_char
-            && table.common.text_wrap == TextWrap::Square
-            && matches!(table.common.vert_rel_to, VertRelTo::Para);
-        if !matches!(para.controls.as_slice(), [Control::Table(_)])
-            || para
-                .text
-                .chars()
-                .any(|ch| !ch.is_whitespace() && !ch.is_control() && ch != '\u{FFFC}')
-            || !(is_para_topbottom_float(&table.common) || is_paragraph_square)
-            || next.column_type != crate::model::paragraph::ColumnBreakType::None
-            || !matches!(table.common.vert_align, VertAlign::Top)
-            || signed_hwpunit(table.common.vertical_offset) < 0
-            || table.caption.is_some()
-            || !origin.is_finite()
-            || !spacing_before.is_finite()
-            || spacing_before < 0.0
-            || !measured_table_height.is_finite()
-        {
-            return None;
-        }
-        // 사다리는 선언 높이로 적힌다. 행이 선언보다 커진 표(측정이 선언을 넘는 RowBreak
-        // 규정 표 등)는 그 상자가 실제 그려지는 표를 담지 못하므로 이 계약 밖이다.
-        let declared = hwpunit_to_px(table.common.height.min(i32::MAX as u32) as i32, dpi);
-        if (measured_table_height - declared).abs() > 1.0 {
-            return None;
-        }
-        let host_vpos = stored_line(para)?;
-        let next_vpos = stored_line(next)?;
-        let physical_hu = i64::from(signed_hwpunit(table.common.vertical_offset))
-            + i64::from(table.outer_margin_top)
-            + i64::from(table.common.height.min(i32::MAX as u32))
-            + i64::from(table.outer_margin_bottom);
-        let spacing_before_hu = crate::renderer::px_to_hwpunit(spacing_before, dpi) as i64;
-        let stored_delta = i64::from(next_vpos) - i64::from(host_vpos);
-        if stored_delta <= 0 || (stored_delta - (physical_hu - spacing_before_hu)).abs() > 2 {
-            return None;
-        }
-        let table_top = origin
-            + hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), dpi)
-            + hwpunit_to_px(i32::from(table.outer_margin_top), dpi);
-        let occupied_bottom = table_top
-            + hwpunit_to_px(table.common.height.min(i32::MAX as u32) as i32, dpi)
-            + hwpunit_to_px(i32::from(table.outer_margin_bottom), dpi);
-        // The independently stored successor line closes this complete object
-        // frame. Square wrapping also owns this end when the ladder proves that
-        // the successor is below the object, rather than beside it. The next
-        // paragraph's leading band is already inside its saved line origin.
-        Some(Self {
-            flow: ParagraphFloatFlow::Exclusion,
-            anchor_y: origin,
-            stored_host_origin: None,
-            stored_successor_line_origin: Some(occupied_bottom),
-            table_left: None,
-            table_top,
-            occupied_bottom,
-        })
+        stored_empty_host_frame::from_stored_ladder(
+            para,
+            next,
+            table,
+            origin,
+            spacing_before,
+            measured_table_height,
+            dpi,
+        )
     }
 
     /// 저장 LineSeg 대신 현재 frame에서 계산된 줄로 앵커를 결정한다.

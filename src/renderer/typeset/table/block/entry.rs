@@ -1895,7 +1895,9 @@ impl TypesetEngine {
                         paragraphs_all.get(para_idx + 1)?,
                         table,
                         placement_para_start_height,
-                        ft.host_spacing.before,
+                        // 저장 vpos는 문단 앞 간격 뒤의 줄 원점이다. 표 바깥
+                        // 여백을 빼면 같은 프레임을 다른 원점으로 인증하게 된다.
+                        fmt.spacing_before,
                         (table_total - host_spacing_total).max(0.0),
                         self.dpi,
                     )
@@ -2097,27 +2099,6 @@ impl TypesetEngine {
                         + ft.effective_height
                         + hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi),
                 }
-            })
-            .or_else(|| {
-            (legacy_whole_fits && ft.table_footnotes.is_empty())
-                .then(|| {
-                    super::stored_empty_host_margin::prepare(
-                        para,
-                        table,
-                        super::stored_empty_host_margin::FrameInput {
-                            original: st.profile.hwp5_stored_pagination_layout()
-                                && !st.profile.session_edited()
-                                && !self.render_normalization.table_text_reflowed(table),
-                            anchor: placement_para_start_height,
-                            height: ft.effective_height,
-                            before: ft.host_spacing.before,
-                            after: ft.host_spacing.after,
-                            dpi: self.dpi,
-                        },
-                    )
-                })
-                .flatten()
-                .map(|frame| constrain_host_placement.constrain(frame, st))
             })
         });
         if !painted_rowbreak_exceeds_paper

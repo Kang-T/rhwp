@@ -2684,3 +2684,103 @@ API18쪽은 고정 base와 최신 실제 출력의 표·뒤 본문을 대조했�
 배치에 전달한다(`remaining-regression-source-diagnosis-v212/api18-saved-host.log`).
 이 값은 원인 조사 자료이며 아직 API 수정·해결로 보고하지 않는다.
 원본의 유효 저장 앵커와 fallback의 여백 소유 근거를 다음 보정에서 대조한다.
+
+
+### 진행144 — 빈 저장 호스트의 여백 소유를 원본 사다리로 인증(v235–v245)
+
+사용자가 승인한 메인터너 보정을 계속한다. 검토 base는
+`bfa28a77a2714482f647ee6a7b9aa7f7876d8404`, 이 단계 직전 head는
+`0cce247c5d909be7b77bccf4a34d07861723606f`다. 추가 체리픽·원격 push/PR 생성은 없다.
+현재 라우팅은 `collaborator_external_pr`와 `intake_and_review`·`local_validation`·
+`multi_pr_update_branch`·`visual_fixture_evidence`다. 개별 PR 판정은 머지 보류를 유지한다.
+
+#### 독립 근거와 실제 소비 경로
+
+추가했던 `stored_empty_host_margin::prepare`는 빈 원본과 선언/측정 높이의 일치만으로
+상자를 수용했다. 다음 저장 줄이 그 여백을 소유하는지는 확인하지 않고 표 위 여백과
+문단 뒤 간격을 다시 더했다. API18쪽과 #7333의9/24쪽에서 실제 이 경로를 GDB로 확인했다.
+음수 좌표 clamp·내용 숨김·문서ID 분기는 추가하지 않는다.
+
+| 원본 저장 증거 | 기대 계약과 수정 |
+| --- | --- |
+| API의 앞 문단 마지막 줄은 새 쪽vpos0+1000+300=1300HU. 표 host1800은 문단 앞 간격500을 포함. 표 바깥 상자56475HU와1300을 더하면 다음 원본 줄57775를 정확히 닫음 | 사다리 인증에는 표 위 여백283이 아니라 문단 앞 간격500을 사용. 다음 줄의 원점이 이미 닫은 상자에 문단 뒤 간격500을 더하지 않음. 비대칭 여백의 기존 그림 원점과 전체 흐름 점유를 구분 |
+| KPS73쪽의 앞 줄 끝5640, host6640, 문단 앞 간격1000, 표 offset3085+위283+본체33632+아래283=37283HU. 다음 줄42923=5640+37283 | 종이/쪽 기준의 nonTAC·흐름 및 줄높이 비참여 장식은 단독 흐름 표를 배제하지 않음. 문단 앞 간격·원본 offset·양쪽 여백과 다음 줄이 닫는 물리 상자를 유지 |
+| #7333의 다음 저장 줄은 새 쪽으로 되감고 NONE-fill15의 다음 줄 델타1980은 표 offset433+높이3397을 닫지 않음 | 높이가 같다는 이유만으로 저장 원점을 대체하지 않음. 인증되지 않은 후보는 기존 분할·배치 경로가 소유 |
+
+기존 `from_empty_stored_ladder_host`의 원본 인증을 작은
+`float_placement/stored_empty_host_frame.rs`로 옮기고 흐름에 참여하지 않는 장식을 대조한다.
+높이만 확인하던 별도 fallback과 모듈을 제거했다. 비대칭 여백의 기존 원점 판별은
+`stored_float_anchor::stored_outer_box_table_top_hu`로 공유하며 기존 원본 앵커 동작을 유지한다.
+최상위는 `entry.rs`의 같은 결과를 제약·예약·기록하고 최종 배치가 소비한다.
+중첩 경로 `table_layout.rs::stored_nested_float_placement`도 같은 사다리 helper를 소비한다.
+호스트의 문단 앞 간격과 표 바깥 위 여백은 별도 값으로 전달한다.
+
+#### 실행과 실제 출력
+
+v237 fmt33.654초·Native build123.381초는exit0이다.
+동결 CLI SHA-256은 `58d9e265ff4715f6a2c7851ebf6bebf8a0464357d11ff1477d049ef5fbfe7d4a`이며
+새 파일까지 포함한 생산Rust1107개 해시와 `source_unchanged=true`를 보존했다.
+
+v239는 같은19종 원본 전체 geometry를 재검사했다. API의 본문 하단 초과는2→1로
+고정 base의 기존1건과 같고, NONE-fill은1→0, #7333 텍스트 겹침은3→0이다.
+화학제품 두 원본·보도자료7종·K-water 두 원본·inner-table의 앞 단계 개선도 유지했다.
+59043은38쪽·새 하단 초과1건으로 남는다. 집계의 일치를 전체 시각 완료로 세지 않는다.
+
+v241의 실제 출력 관계 검사에서는 API18쪽 Example의 본문 포함, #7333의9/24쪽
+제목 뒤 표의 비겹침, NONE-fill1쪽 후속 본문의 포함이 각각 수정 전FAIL/수정 후PASS다.
+같은 네 비교의 모든 TextRun 내용과 순서도 유지됐다.
+KPS의 원본9008HU 표 윗변·42923HU 다음 줄은 각각 실제248.6/700.8px와 대응한다.
+이 자료는 진단이며 정식 회귀 신규 추가·기대값 변경으로 대체하지 않는다.
+
+| v237 Native 영향/대조 범위 | 페이지별 실루엣 |
+| --- | --- |
+| API18/25/32쪽 | 58.93130 / 98.30699 / 99.43698%;18쪽 미달 |
+| KPS73쪽 | 97.62566% |
+| #7333 9/24/40쪽 | 99.71248 / 99.66730 / 99.88917% |
+| NONE-fill1/9쪽 | 98.80053 / 96.96571% |
+
+API18쪽은 같은 원본·Print·글꼴로 고정 upstream 바이너리에서도 **58.93130%**이며,
+base/현재 PNG의SHA-256까지 동일하다(v244/v245). 실제 새 넘침은 고쳤지만 원본의
+기존 표 행 경계 차이는 남는다. 현재 원격 #7731의 같은 입력SHA와 #7445 이관 본문을
+읽기 전용으로 확인했다. 이 문서는 초기 직접 보정 대상으로 추가하지 않으며,
+원본과 정확한 검사 범위를 대조한 뒤 사용자 승인에 따른 부적합 회귀 처리를 진행한다.
+이 단계에서는 검사 삭제·기대값 갱신·원본 이동을 하지 않았다.
+`stored-empty-frame-selected-review-v243/api/review/review_018.png`를 표시·직접 확인했다.
+
+v240의 fmt·Native/WASM/workspace-all-targets 세Clippy·workspace build·고정base
+manifest/unit 정책은 모두exit0·source불변이다. #6950/#7552/#7203/#7333/#7235/
+#7620/#6378/#1921의 기존 집중 nextest는 실제 unit이 live인 상태로 컴파일 중이다.
+원래 기대값은 변경하지 않았다. 전체 nextest·Skia·fresh WASM·Studio의 완료가 아니다.
+
+직전 v224의 K-water2024 전체27쪽 Native는최저3쪽96.61647%·미달/누락0으로 종료했다.
+`physical-frame-selected-review-v236/kwater2024/review/review_024.png`를 실제 표시하고,
+중첩 표·부모 마지막 행 외곽·뒤의 `끝`·쪽번호를 Print와 대조했다(24쪽99.95378%).
+작은 획/AA 차이는 남는다. 이 증거를 v237의 최신 whole/fresh로 재사용하지 않는다.
+v227의 원래 K-water 전쪽과 v232의 화학제품103쪽은 고정 v224로 계속 실행 중이다.
+소스가 바뀐 사실과 다음 과제의 source 검사를 `source-correction-invalidates-v238.json`에
+남겼으며, 종료 또는 관측 timeout을 이유로 재시작하지 않는다. 새 source의 qualification은 별도다.
+
+59043은 최초 다른 컷을26쪽 pi163에서 찾았다(base86,현재83).
+실제 `scan_rowspan_block_step → advance_row_block_cut_with_row_offsets → CellCutFrame`
+호출의 row offset50.34667·padding3.76px와 앞/뒤 원본 줄의 페이지 되감김을 수집했다.
+한컴 Print26/27쪽의 오른쪽 본문은77.12/77.44px에서 시작한다.
+이미 소비한 앞 행의 원점·패딩을 스캔/예약/paint가 어떻게 공유하는지 다음 보정에서 확인한다.
+48px sliver 허용치를 늘리거나 새 쪽수 회귀를 삭제해 통과시키지 않는다.
+
+상대 증거 경로는 ignored `output/pr-review/semanticist21-20261008/`다.
+`stored-empty-margin-source-v235/`, `stored-empty-frame-{native-v237,validation-v239,
+focused-nextest-v240}-result.json`, `stored-empty-frame-boundaries-v241/`,
+`59043-fragment-source-v242/`, `stored-empty-frame-api-existing-fidelity-v245.json`에 연결했다.
+전체 Native/fresh·직접 확대 판독·전체 회귀가 미완료이므로 PR 준비 완료나 수용 전환은 보류한다.
+
+
+v239의 모든19종 geometry와6개 Native 명령도 종료했다.
+inner-table 전2쪽은99.82283% 이상이며, API·59043 명령은미달로exit1,
+나머지4명령은exit0이다. 전체 미달0이나 PR gate 통과로 보고하지 않는다.
+모든 관측의 `source_unchanged=true`를 확인했다.
+
+#7333의 새9쪽 `stored-empty-frame-selected-review-v246/7333/review/review_009.png`도
+실제 표시·판독했다. 스크린샷 뒤 `3.1.1 메인화면`과 다음 표의 순서·간격은 Print와
+대응하며 앞 단계의 제목/표 겹침은 없어졌다. 작은 활자·그림 주석·꼬리말 그림의
+잔여 차이는 전체50쪽/fresh 검증에서 계속 대조한다.
+59043 선택30/31/32쪽은31.01006/22.68149/18.24037%로 쪽 소속 차이가 실제로 남는다.

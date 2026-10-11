@@ -11,7 +11,6 @@ use host_placement::HostPlacementConstraint;
 mod entry;
 mod host_placement;
 mod prepare;
-mod stored_empty_host_margin;
 mod whole_fit;
 
 #[derive(Clone, Copy)]
