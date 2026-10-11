@@ -24,6 +24,7 @@ last_verified: 2026-10-11
 | 전체 회귀 | 검증 source `7dd9572b7fecbc602c9e5ab47c4a6c9d6422b4bd`: 10,215PASS·실패0·skip45 |
 | lint·정책 | fmt·Native/WASM/all-target Clippy·workspace build·base 고정 manifest/unit-tier PASS |
 | Studio | 1,834PASS·실패0·skip2, TypeScript 검사 PASS |
+| optimized fresh WASM | code source `03a987f4a`: 빌드exit0, `pkg/`·Studio `public/` JS/WASM SHA-256 일치 |
 | 시각 선행 조건 | table-text·stored-vpos·hwp-multi·해외투자3입력의 Native/fresh WASM 전쪽 TSV 모두90% 이상. table-text·stored-vpos 변경 영역 확대 판독 완료 |
 | 승인된 이관 | #7813 giant-cell, #7830 sample2 HWP, #7831 가정폭력 조사. 각 출력 문제는 후속 이슈에서 해결 |
 | rebase 후 재검사 | 오늘할일만 충돌했고 양쪽 기록을 보존했다. 사용자 지시에 따라 통과한 전체 회귀·lint·Studio를 반복하지 않음 |
@@ -33,7 +34,7 @@ last_verified: 2026-10-11
 
 ## 통합 전 조건
 
-- 진행 중인 optimized fresh WASM 빌드와 #7768 현재 Native/fresh WASM TSV·review 확인을 완료한다. `Closes #7768`은 이 결과에 연결한다.
+- #7768 현재 Native/fresh WASM TSV·review 확인을 완료한다. `Closes #7768`은 이 결과에 연결한다.
 - 미실행 Native Skia3종을 완료한다.
 - 통합 PR의 실제 head CI와 mergeability를 확인한다. 현재 원격 push·PR 생성·merge 완료로 보고하지 않는다.
 

@@ -128,4 +128,8 @@ Clippy·workspace build·base 고정 manifest/unit-tier 검사를 통과했다.
 head는 `03a987f4aeded1d2b03415e7edecac5c833ca5cd`이다.
 충돌은 `mydocs/orders/20261011.md` 한 파일뿐이며 양쪽 기록을 보존했다.
 사용자 지시에 따라 이미 통과한 전체 회귀·lint·Studio를 rebase 후 반복하지 않는다.
-미실행 Native Skia 검증과 #7768용 새 WASM 빌드는 진행 중이다.
+optimized fresh WASM 빌드는 source `03a987f4a`에서 exit0으로 완료됐고 root `pkg/`와
+Studio `public/`의 JS/WASM SHA-256 일치를 확인했다. WASM SHA-256은
+`e235c944e4921b80a30e347bf28f74503b0be02ce6398c41d280cf79bfb72cd5`다.
+명령·JS 해시·package snapshot은 ignored `final-fresh-wasm-provenance.json`에 고정했다.
+#7768의 해당 package TSV·review와 미실행 Native Skia 검증은 이어 진행한다.
