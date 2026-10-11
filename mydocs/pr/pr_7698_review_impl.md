@@ -81,3 +81,48 @@ ViewText만 제외하고 다른 원 스트림을 모두 보존한 **진단 대�
 
 
 저장 경로도 대조 중이다. 종전 writer는 채택한 review stream을 BodyText에만 쓰고 ViewText를 버렸으며, Native 재파싱/쪽수 검사는 통과해도 한컴 상호운영을 입증하지 못한다. 수정하지 않은 section의 raw provenance가 유효할 때 동일 visibility projection을 BodyText로, 원본 review history를 ViewText로 각각 저장하도록 보정한다. 암호 저장은 두 stream에 같은 압축·암호 계약을 적용한다. 편집으로 seal이 무효화된 section에는 오래된 ViewText를 재삽입하지 않는다. 한컴 Print 재열기 확인은 아직 진행 중이며, 변경 추적 편집 기능 전체를 구현한 것으로 보고하지 않는다.
+
+
+원본 기준 정식 Native Sweep(가시성 code `1f218aa8e37488979298f4f2723177740dbf2f61`)은 6/6쪽·최저 91.69413%로 통과했다. 대표 1쪽은 99.44182%이며 90% 미달·누락 쪽은 없다(`maintainer/visible-native-final/visible/silhouette.tsv`). 이후 저장 보정은 별도 code `422e09032`에 두었고 같은 원본의 최종 Native/fresh WASM 검증을 재실행한다.
+
+종전 writer 저장본은 한컴 Print가 600초 timeout으로 실패했다(job `9a9a13eb-644b-4546-92b7-cba940961561`). 그 저장본에 원본 ViewText만 복원한 대조군은 17초 만에 한컴 Print 6쪽으로 성공했다(job `9a39a02f-0fcd-4616-a8c7-8b898471156c`, build 11.0.0.9136, method 0, `hancom2020_pdf_driver_one_up`). 이 대조군은 스트림 누락의 독립 진단이며 production writer 보정의 최종 상호운영 통과로 대신하지 않는다.
+
+
+production writer code `422e09032`로 저장한 `visible-preserved-roundtrip.hwp`도 한컴 2020 Print가 17초에 정상 완료했다(job `0d9a455e-458a-4a6a-b5af-314a33e83a32`, build 11.0.0.9136, method 0, 6쪽). 원본과 이 저장본의 독립 Print PDF를 96dpi로 전쪽 raster 비교한 결과 6쪽 모두 동일하다(`maintainer/diagnosis-5169/preserved-print-comparison.json`). 원본 ViewText의 압축 해제 바이트도 저장본에 그대로 보존됐으며, Native 재열기 IR/쪽수는 6/6으로 일치했다. 수정하지 않은 변경 이력 문서의 읽기·저장 계약 확인이며 변경 추적 편집 UI 전체의 보존 증거로 넓히지 않는다.
+
+최종 Rust lint는 fmt, Native Clippy, wasm32 lib Clippy, workspace build, workspace/all-targets Clippy, 고정 base `90fa2f8955c2dd21e9f0ea8fd0c6ee8dc5996a47` 대비 manifest를 순차 통과했다(`maintainer/tracked-*-final.log`). 이후 Docker `docker compose --env-file .env.docker run --rm wasm`으로 root web package를 재빌드했다. pkg와 Studio public의 JS 및 WASM 해시가 각각 일치하고, 브라우저가 실제 내려받은 WASM SHA-256은 `fc14e5272d5bbc3840c99461ee7d98e647620250fa438b8174803010ef1930ad`다. Studio `http://localhost:7700/`에 원본(6쪽)과 공개 암호 ViewText 대조군(64쪽)을 새 탭으로 열었다(`maintainer/studio-final-preparation.json`). 전쪽 fresh WASM Sweep 및 보정 후 정식 회귀는 이어서 검증한다.
+
+
+최종 원본 code `422e09032`에서 전쪽 Native TSV 최저 91.69413%, fresh Docker WASM TSV 최저 91.69413%다. 둘 다 6/6쪽·누락 없음·90% 미달 없음이며 각 TSV는 `maintainer/visible-native-422e/visible/silhouette.tsv`, `maintainer/visible-wasm-422e/visible/silhouette.tsv`에 보존했다. 실루엣-only 실행의 `not_evaluated`를 최종 승인으로 바꾸어 해석하지 않는다. 별도 대표 1·3·4쪽 Native/fresh WASM review/overlay 실행은 gate `passed`이며 표제·날짜·표 괘선·문단 순서와 중앙 정렬 영역을 직접 대조했다. 1쪽 표제는 같은 영역 확대 대조도 남겼다(`maintainer/visible-wasm-review/visible/review/cover-enlarged.png`). 본문 글리프·말미 인용 부호와 미세 자간의 차이는 전체 픽셀 동일으로 주장하지 않으며 메인터너 직접 Studio 판정이 남아 있다.
+
+fresh WASM API 재검증은 Section1 Body 누락/공존·압축 여부·strict/lenient 8조건, 잘못된/없는 비밀번호 거부, 공개 실제 암호 대조군/동일 cipher View 복제 대조군의 64쪽 텍스트·SVG 동등성을 통과했다. 원본 변경 이력 문서는 제목이 표시되고 두 삭제 문구는 추출에서도 사라졌으며, production 저장본과 visible text/6쪽도 일치했다(`maintainer/browser-contract-final-result.json`). 이는 실제 비공개 원본의 한컴 출력 검증을 대신하지 않는다.
+
+전쪽 Native/fresh WASM 90% 조건과 영향 영역 직접 판독 후 기존 `issue_5169_prefer_viewtext.rs`의 잘못된 `tables >= 8`을 재검토했다. 독립 Print의 표시 표 4개, 부분/전체 삭제 문구 제외, 원본 변경 이력과 ViewText 보존, 숨김이 없는 문단의 저장 LineSeg 유지로 검사 의미를 바꾼다. 수정본 집중 검사는 3 PASS다(`maintainer/tracked-5169-focused-final.log`). 최초 suite 번호가 prepare 뒤 바뀌어 0건 실행된 로그는 통과 증거로 세지 않으며 실제 재실행 결과만 사용한다. 숨김 구현 전 `f90c362511`에서 같은 검사 실행의 red/green 대조와 최종 전체 회귀는 진행 중이다.
+
+
+같은 정식 source 검사를 숨김 보정 전 code `f90c362511d46255c353bc8867401b769b12cdf4`에 연결해 1 PASS / 2 FAIL을 확인했다. 표시 검사는 실제 표 10/기대 4로, 저장 검사는 ViewText stream 누락으로 각각 실패했다. LineSeg 대조군은 수정 전에도 PASS이므로 결함 검출 주장 대신 정상 보존 검사로 구분한다(`maintainer/tracked-5169-before-final.log`, 검사 원본 `tracked-5169-before-case.rs`). 임시 detached worktree는 이 진단용으로만 만들었고 원본/검사/로그를 보존한 뒤 제거했다. 공용 target은 유지했다.
+
+
+검사 code head `9908d6ec2f3cab28ed32af87d556682d58ae7318`에서 필수 lint 묶음과 고정 base manifest 재검증은 모두 PASS, #5169 집중 3 PASS 및 #7674 집중 7 PASS다. 포맷 변경으로 prepare 산출물의 weight/harness가 한 번 drift해 재생성한 뒤 동일 묶음을 다시 통과했다. 파생 harness/manifest는 PR source에 포함하지 않는다. 전체 nextest 및 Native Skia 3종은 이 code head에서 순차 실행 중이다. host는 논리 CPU 16개·사용 가능 메모리 약 22GiB이며 브라우저/개발 서버와의 공존을 고려해 test threads 8을 사용한다. 새 실행의 완료 결과를 이전 f90 전체 PASS로 대신하지 않는다.
+
+원격 PR head는 재조회에서도 원 기여 SHA `1489ca1d95e3d6e6b888870d3b14cf240866ef00`이고 maintainer_can_modify=true다. 원격 source에 아직 보정 commit을 push하지 않았다. 최신 `upstream/devel` fetch는 고정 base와 같았고 현 code head와 merge-tree는 conflict 없이 생성됐다(`maintainer/tracked-final-merge-tree.txt`). Studio의 새 6쪽 원본 탭을 앞으로 가져왔으며 전쪽 PDF/WASM PNG의 상대 경로 비교 뷰는 `maintainer/visible-review.html`이다.
+
+## 공식 기술 정의와 Studio 재확인
+
+공개 [HWP 5.0 revision 1.3 명세](https://cdn.hancom.com/link/docs/한글문서파일형식_5.0_revision1.3.pdf)는 변경 추적 플래그·레코드 식별자와 범위 태그의 시작/끝·상위 8bit 종류/하위 24bit 데이터를 정의한다. 그러나 이번 구현이 사용하는 TRACK_CHANGE의 hide 필드 바이트 위치, 순번 ID 및 Insert/Delete 범위 종류의 전체 의미를 상세히 기술하지 않는다. 해당 바이너리 해석은 독립 한컴 저장 HWPX 229개 항목의 대응과 원본 Print 검증으로 뒷받침하며, 공개 바이너리 명세에 모두 명시된 사실로 보고하지 않는다.
+
+한컴의 [공식 개발자 답변](https://forum.developer.hancom.com/t/hwp-binary-format/1963/5)은 ViewText에 변경 추적 정보, BodyText에 최종본을 저장한다고 설명한다. 공식 [OWPML TrackChange 모델](https://github.com/hancom-io/hwpx-owpml-model/blob/main/OWPML/Class/Head/trackchange.cpp)과 저장소의 Header/ParaList 스키마에는 type·hide·id와 변경 범위의 TcId·paraend가 있다. XML 필드의 존재와 HWP 바이너리 payload의 상세 정의는 구분한다. BodyText가 빠진 #7674 입력도 처리해야 하므로 이 설명만으로 무조건 BodyText를 선택하는 정책으로 되돌리지 않는다.
+
+메인터너가 직접 판정을 '추가 수정 필요'로 답하고, 이어 해당 샘플을 Studio로 다시 열었지만 변화가 없었다고 알려왔다. 이는 수치 통과로 면제하지 않으며 원격 push/merge를 진행하지 않는다. CDP 탭 재조회에서는 원본이 6쪽이고 `연구계획서`가 남으며 `연구제안계획서`와 삭제된 옛 제목은 추출에서 제외됐다(`maintainer/studio-user-recheck.json`, 화면 `studio-user-recheck.png`). 따라서 아직 구체적인 추가 출력 결함이나 사용자 환경의 이전 WASM 로드를 확정하지 않는다.
+
+구분 가능한 새 검증 URL `http://localhost:7700/?review=pr7698-9908d6e-visible`을 열어 캐시를 끄고 원본을 실제 file-input 이벤트로 로드했다. 초기화에 실제 사용된 `/@fs/home/edward/mygithub/rhwp/pkg/rhwp_bg.wasm` 응답의 SHA-256은 Docker 산출물과 동일한 `fc14e5272d5bbc3840c99461ee7d98e647620250fa438b8174803010ef1930ad`였고, 6쪽·제목 표시·두 삭제 문구 제외를 확인했다(`maintainer/studio-identified-recheck.json`, 화면 `studio-identified-recheck.png`). 서버 제공 파일을 별도 fetch한 해시 확인보다 실제 초기화 응답 확인을 강화한 것이다. 새 탭을 앞으로 가져왔으며 메인터너가 확인한 URL·전체 쪽수의 응답을 기다린다.
+
+최종 head `9908d6ec2f3cab28ed32af87d556682d58ae7318` 전체 nextest는 10,545 PASS / 2 FAIL / 50 SKIP로 종료했다(493.884s). `text_overlaps_do_not_grow_partition_10`은 `issue3837/stored_vpos_rewind_form.hwp`의 겹침이 3→4로 늘었고, `ir_field_sweep_does_not_regress`는 #5169의 control_mask·has_para_text 및 #6778의 has_para_text 발산 증가를 검출했다. 연속 실행 스크립트는 첫 실패에서 중단되어 Native Skia 3종은 아직 미실행이다. baseline은 갱신하지 않는다.
+
+왕복 메타데이터 집중 진단(`maintainer/inspect-rebuild-metadata.rs`, `.log`)에서 #5169 visible 문단 20의 control_mask는 제거한 표 비트가 남아 2099200→2097152이고, 문단 96의 mask는 2048→0이다. 또한 #5169 문단 60·62·96 및 #6778 문단 25는 내용 없는 명시적 PARA_TEXT가 재생성 저장 후 생략된다(has_para_text true→false). 해당 관측은 레코드 재생성 경로의 계약 확인이며, 이것만으로 visible 출력의 손상을 단정하거나 래칫 허용치를 올리지 않는다. 현재 표시·독립 Print와 별도로 projection의 마스크 유지 및 serializer의 빈 텍스트 레코드 보존을 보정해야 한다.
+
+## HWPX 표시 상태 누락으로 추가 범위 구체화
+
+메인터너는 HWP는 해결됐고 `/mnt/e/tmp/issue5169_viewtext_changetracking.hwpx`가 해결되지 않았다고 명확히 했다. 앞선 '추가 수정 필요'는 같은 HWP 출력의 거부로 해석하지 않는다. 제공 HWPX SHA-256은 `1c822a1c9962eadf9ae4a68206051c7d1474f811d5401074fbb05de309f36b26`이다. header.xml/section0.xml은 기존 독립 한컴 2020 변환 HWPX와 각각 byte-for-byte 같다. header에는 229개 trackChange, section에는 deleteBegin/End 182쌍과 insertBegin/End 328쌍이 있으며, hide=1인 삭제 정보가 실제 존재한다. 현재 HWPX header/section 파서는 이 표시 설정과 범위 태그를 처리하지 않아 이력 텍스트와 개체가 모두 visible IR에 들어간다.
+
+메인터너는 한컴의 '원본', '원본 및 변경 내용', '최종본' 보기에 비추어 현재 rhwp가 변경 내용을 함께 보이는 상태라고 설명했다. 이번 보정은 저장된 trackChange type/hide 및 범위·문단 병합 정보를 반영해 같은 visible IR을 생성하는 범위다. 보기 전환 UI·승인/거부 전체를 구현한 것으로 확장하지 않는다. 독립 공식 모델/스키마에는 hide·TcId·paraend와 문단 merged·paraTcId가 있으며, 문단 목록의 소유 경계를 넘지 않는 병합 및 저장 LineSeg의 유효 축을 실제 한컴 출력으로 검증한다. 표시 불일치는 backend paint에서 글자만 지우는 방식으로 처리하지 않는다.
