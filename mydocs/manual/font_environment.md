@@ -123,6 +123,12 @@ SVG는 체인 구성 face를 각각 임베드하고 Canvas와 Native Skia도 같
 미지의 OS 선택을 메트릭 DB의 이름만으로 추정하지 않는다. DB에 없는 글자의 기존 보충 측정
 계약도 유지한다.
 
+확인한 SFNT의 `unitsPerEm`과 historical DB의 `em_size`가 다를 수 있다. 추출 시 실제 DB face와
+em을 확인하고 `scripts/extract_verified_symbol_metrics.py --metric-em`으로 DB 단위를 지정한다.
+원 프로그램의 폭과 em을 증거로 보존하고, 메트릭 소비에는 같은 비율로 환산한 폭을 쓴다.
+cmap의 글자 유무는 단위 변환과 독립이다. 이름이나 숫자가 같다는 이유만으로 프로그램의
+동일성을 주장하지 않으며, 실제 파일 해시·독립 Print의 glyph·backend 선택을 함께 확인한다.
+
 최대256개 key, key마다1~16개의 단일 face 이름을 허용한다. 빈 목록·중복·자기 참조·CSS 삽입
 문자열은 거절한다. 이 설정만으로 설치·선택·PDF 일치를 입증할 수 없다. 실제 출력 프로그램,
 glyph cmap/전진폭, 공급 파일의 SHA-256과 backend 선택을 확인하고 동일 설정의
