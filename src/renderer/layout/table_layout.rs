@@ -24614,9 +24614,10 @@ impl LayoutEngine {
                 .unwrap_or(0.0);
             let offset_within_start = (offset - first_visible_content_height).max(0.0);
             let terminal = end_unit >= units.len();
-            let authoritative_recursive_run = self.profile.get().hwp5_stored_pagination_layout()
-                && has_recursive_fragment
-                && !has_non_recursive_fragment;
+            // mixed_nested_recursive는 원본 자식 CellUnit 서수를 그대로 투영한
+            // 표시다. 입력 형식에 관계없이 실제 child RowCut이 같은 내용을
+            // 소유하므로 legacy scalar의 첫 유닛을 부모 높이에 다시 예약하지 않는다.
+            let authoritative_recursive_run = has_recursive_fragment && !has_non_recursive_fragment;
             let single_cell_nested_continuation = table.row_count == 1
                 && table.col_count == 1
                 && cell.paragraphs.get(para_idx).is_some_and(|paragraph| {

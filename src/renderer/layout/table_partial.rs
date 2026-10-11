@@ -1783,54 +1783,27 @@ impl LayoutEngine {
             let owns_empty_paragraph = |pi: usize| {
                 empty_paragraphs[pi] && empty_owners.as_ref().is_none_or(|owners| owners[pi])
             };
-            let linear_single_cell = matches!(
-                table.page_break,
-                crate::model::table::TablePageBreak::RowBreak
-            ) && !table.common.treat_as_char
-                && table.row_count == 1
-                && table.col_count == 1;
-            // 확인한 저장 프레임 재시작에서 이어받는 조각도 프레임의 첫 빈 문단을
-            // 소유한다. 가시 줄 범위는 뒤에서 시작할 수 있으므로 원본 유닛에서
-            // 직접 원점을 구한다.
-            let resumed_stored_frame_origin = cut_units.and_then(|(su, _)| {
-                if su == 0
-                    || !linear_single_cell
-                    || !self.profile.get().hwp5_stored_pagination_layout()
-                    || cell
-                        .paragraphs
-                        .iter()
-                        .any(|para| para.stored_text_partition_is_dirty())
-                {
-                    return None;
-                }
-                self.stored_frame_origin_for_cut(cell, table, styles, su)
-            });
-            // 저장 첫 빈 줄과 다음 줄이 연결된 원본 HWPX는 셀 내부 원점을
-            // 보존한다. 표 바깥의 문단 상대 앵커 오프셋은 셀 내부 줄 좌표를
-            // 바꾸지 않는다. 명시적 원점이 없는 다른 첫 조각은 종전 범위를 쓴다.
-            let preserve_linear_single_cell_vpos = linear_single_cell
-                && ((cut_units.is_some_and(|(su, _)| su == 0)
-                    && ((table.common.vertical_offset as i32).unsigned_abs() <= 141
-                        || (self.profile.get().hwpx_stored_layout()
-                            && !self.profile.get().session_edited()
-                            && cell.paragraphs.first().is_some_and(|first| {
-                                first.text.is_empty()
-                                    && first.controls.iter().all(|control| {
-                                        matches!(control, Control::ColumnDef(columns) if columns.column_count == 1)
-                                    })
-                                    && !first.stored_text_partition_is_dirty()
-                                    && first.line_segs.len() == 1
-                                    && first.line_segs[0].vertical_pos == 0
-                                    && cell.paragraphs.get(1).is_some_and(|next| {
-                                        !next.stored_text_partition_is_dirty()
-                                            && next.line_segs.first().is_some_and(|line| {
-                                                line.vertical_pos
-                                                    == first.line_segs[0].line_height
-                                                        + first.line_segs[0].line_spacing
-                                            })
-                                    })
-                            }))))
-                    || resumed_stored_frame_origin.is_some());
+            // 단일 단 정의는 문맥만 설정하며 별도의 줄·개체 공간을 소비하지 않는다.
+            // 저장된 빈 첫 줄과 다음 줄의 연결을 원점 보존 판정에 사용한다.
+            let stored_hwpx_empty_cell_lead = self.profile.get().hwpx_stored_layout()
+                && !self.profile.get().session_edited()
+                && cell.paragraphs.first().is_some_and(|first| {
+                    first.text.is_empty()
+                        && first.controls.iter().all(|control| {
+                            matches!(control, Control::ColumnDef(columns) if columns.column_count == 1)
+                        })
+                        && !first.stored_text_partition_is_dirty()
+                        && first.line_segs.len() == 1
+                        && first.line_segs[0].vertical_pos == 0
+                        && cell.paragraphs.get(1).is_some_and(|next| {
+                            !next.stored_text_partition_is_dirty()
+                                && next.line_segs.first().is_some_and(|line| {
+                                    line.vertical_pos
+                                        == first.line_segs[0].line_height
+                                            + first.line_segs[0].line_spacing
+                                })
+                        })
+                });
             // 셀 내 텍스트 높이 (분할 행이면 줄 범위 내만 계산)
             // spacing_before: 셀 첫 문단 제외, spacing_after: 셀 마지막 문단 제외
             let split_para_count = cell.paragraphs.len();
@@ -2482,23 +2455,7 @@ impl LayoutEngine {
             let preserve_linear_single_cell_vpos = linear_single_cell
                 && ((cut_units.is_some_and(|(su, _)| su == 0)
                     && ((table.common.vertical_offset as i32).unsigned_abs() <= 141
-                        || (self.profile.get().hwpx_stored_layout()
-                            && !self.profile.get().session_edited()
-                            && cell.paragraphs.first().is_some_and(|first| {
-                                first.text.is_empty()
-                                    && first.controls.is_empty()
-                                    && !first.stored_text_partition_is_dirty()
-                                    && first.line_segs.len() == 1
-                                    && first.line_segs[0].vertical_pos == 0
-                                    && cell.paragraphs.get(1).is_some_and(|next| {
-                                        !next.stored_text_partition_is_dirty()
-                                            && next.line_segs.first().is_some_and(|line| {
-                                                line.vertical_pos
-                                                    == first.line_segs[0].line_height
-                                                        + first.line_segs[0].line_spacing
-                                            })
-                                    })
-                            }))))
+                        || stored_hwpx_empty_cell_lead))
                     || resumed_stored_frame_origin.is_some());
             let vpos_origin = if preserve_linear_single_cell_vpos {
                 resumed_stored_frame_origin

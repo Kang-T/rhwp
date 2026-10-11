@@ -2272,6 +2272,8 @@ pub(crate) fn stored_rowbreak_closing_frame_height(
 /// 셀 선언 높이에는 여러 앞 조각이 들어갈 수 있으므로 첫 상자 하나만
 /// 빼서 마지막 상자를 추측하지 않는다. 호출자가 실제 재개 컷의 출처를
 /// 확인하고 이 하단과 현재 조각 원점의 차이를 예약·배치에 함께 전달한다.
+/// 후속 문단 원점에는 아래 바깥여백도 들어 있다. 표 상자의 하단에서는
+/// 이를 제외하여 예약과 배치가 같은 여백을 다시 내용 높이로 소비하지 않는다.
 pub(crate) fn stored_single_cell_closing_frame_bottom(
     host: &Paragraph,
     successor: &Paragraph,
@@ -2314,7 +2316,8 @@ pub(crate) fn stored_single_cell_closing_frame_bottom(
     {
         return None;
     }
-    Some(hwpunit_to_px(next.vertical_pos, dpi))
+    let table_bottom = next.vertical_pos - i32::from(table.outer_margin_bottom);
+    (table_bottom > 0).then(|| hwpunit_to_px(table_bottom, dpi))
 }
 
 /// 다음 빈 문단이 누적 저장 원점과 개체 프레임의 끝을 정확히 잇는 경우,
