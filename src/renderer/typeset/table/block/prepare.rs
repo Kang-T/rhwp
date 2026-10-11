@@ -473,7 +473,10 @@ impl TypesetEngine {
                     // 전체 개체 상자를 첫 조각으로 바꾸면서 빠진 바깥 위 여백도
                     // 예약·배치가 소비할 같은 원점에 한 번만 포함한다.
                     if !reflow_empty_host
-                        && (crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
+                        && (crate::renderer::float_placement::stored_hwpx_cut_owns_outer_frame(
+                            st.profile.hwpx_stored_layout() && !st.profile.hwp5_origin_hwpx() && !st.profile.session_edited(),
+                            para, table,
+                        ) || crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
                         para,
                         table,
                         st.layout.body_area.height,

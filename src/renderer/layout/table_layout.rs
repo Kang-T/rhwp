@@ -8,6 +8,7 @@ mod stored_first_line_restart;
 mod stored_inline_row_frame;
 mod stored_intra_paragraph_frame;
 mod stored_nested_frame;
+mod stored_nested_outer_frame;
 mod stored_nested_padding;
 mod stored_nested_source_cut;
 mod stored_ordinary_row_frame;
@@ -9829,9 +9830,9 @@ impl LayoutEngine {
                 bin_data_content,
             );
 
-            // 셀 패딩 (cell.padding이 0이면 table.padding fallback)
+            // 전체 셀도 부분 컷과 같은 원래 물리 행으로 안 여백을 판단한다.
             let (mut pad_left, mut pad_right, pad_top, pad_bottom) =
-                self.resolve_cell_padding_for_context(cell, table);
+                self.resolve_stored_nested_cell_padding(cell, table, styles);
 
             let mut composed_paras: Vec<_> = cell
                 .paragraphs
@@ -17743,7 +17744,7 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
     ) -> f64 {
         let nested_bottom =
-            self.nested_source_frame_bottom_padding(table, cell, units, start_cut, end_cut);
+            self.nested_source_frame_bottom_padding(table, cell, units, start_cut, end_cut, styles);
         if nested_bottom > 0.0 {
             return nested_bottom;
         }
@@ -22236,7 +22237,8 @@ impl LayoutEngine {
             };
             let content: f64 =
                 (units[su..eu].iter().map(|u| u.height).sum::<f64>() - trailing_trim).max(0.0);
-            let (_, _, pad_top, pad_bottom) = self.resolve_cell_padding(cell, table);
+            let (_, _, pad_top, pad_bottom) =
+                self.resolve_stored_nested_cell_padding(cell, table, styles);
             let h = content + pad_top + pad_bottom;
             // [#2287 진단] start_cut 적용 잔여 평가 분해 — 동작 불변.
             if std::env::var("RHWP_DIAG_BLKH").is_ok() && !start_cut.is_empty() {
@@ -22390,7 +22392,8 @@ impl LayoutEngine {
             if content <= 0.0 {
                 continue;
             }
-            let (_, _, pad_top, pad_bottom) = self.resolve_cell_padding(cell, table);
+            let (_, _, pad_top, pad_bottom) =
+                self.resolve_stored_nested_cell_padding(cell, table, styles);
             let h = content + pad_top + pad_bottom;
             if h > max_h {
                 max_h = h;
@@ -24369,6 +24372,7 @@ impl LayoutEngine {
         extra
             + recursive_parent_padding.max(0.0)
             + self.atomic_nested_header_reservation(cell, table, styles, lo, hi)
+            + self.stored_nested_cut_outer_margin_extra(cell, &units, lo, hi)
     }
 
     /// Physical rows for an ordinary row-cut fragment. Acceptance and paint

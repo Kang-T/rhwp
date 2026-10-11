@@ -157,19 +157,23 @@ impl TypesetEngine {
                     input.source.styles,
                 );
         let source_body_frame_opens_outer_top = st.current_height <= 0.5
-            && (crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
-                para,
-                table,
-                st.layout.body_area.height,
-                self.dpi,
-                st.profile.hwpx_stored_layout(),
-                st.profile.session_edited(),
-            ) || (is_continuation
-                && prepared.layout_engine.original_body_closed_table_frame(
+            && (prepared
+                .layout_engine
+                .stored_hwpx_cut_owns_outer_frame(para, table)
+                || crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
                     para,
                     table,
                     st.layout.body_area.height,
-                )));
+                    self.dpi,
+                    st.profile.hwpx_stored_layout(),
+                    st.profile.session_edited(),
+                )
+                || (is_continuation
+                    && prepared.layout_engine.original_body_closed_table_frame(
+                        para,
+                        table,
+                        st.layout.body_area.height,
+                    )));
         let fragment_opens_outer_top = std::ptr::eq(row_geometry_table, table)
             && (source_body_frame_opens_outer_top
                 || crate::renderer::float_placement::column_rowbreak_fragment_opens_outer_top(

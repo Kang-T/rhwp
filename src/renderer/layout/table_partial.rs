@@ -4350,6 +4350,9 @@ impl LayoutEngine {
                                                         stored_float_frame
                                                             .map(|f| f.table_top)
                                                             .or_else(|| {
+                                                                self.stored_hwpx_cut_owns_outer_frame(para, nested_table).then(|| nested_y + hwpunit_to_px(nested_table.outer_margin_top as i32, self.dpi))
+                                                            })
+                                                            .or_else(|| {
                                                                 self.reflow_nested_table_origin(
                                                                     para,
                                                                     nested_table,
@@ -5449,6 +5452,7 @@ impl LayoutEngine {
                 self.profile.get().session_edited(),
             );
         let stored_body_frame_opens_outer_top = (body_filling_source_frame
+            || (enclosing_cell_ctx.is_none() && paragraphs.get(para_index).is_some_and(|host| self.stored_hwpx_cut_owns_outer_frame(host, table)))
             || (is_continuation && self.original_body_closed_table_frame(
                 &paragraphs[para_index], table, col_area.height)))
             && col_node.children.is_empty()

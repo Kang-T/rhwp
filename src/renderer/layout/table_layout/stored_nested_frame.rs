@@ -2,7 +2,7 @@
 
 use crate::model::table::{Cell, Table, TablePageBreak};
 
-use super::{CellUnit, LayoutEngine};
+use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
     pub(super) fn nested_source_frame_bottom_padding(
@@ -12,6 +12,7 @@ impl LayoutEngine {
         units: &[CellUnit],
         start: usize,
         end: usize,
+        styles: &ResolvedStyleSet,
     ) -> f64 {
         let profile = self.profile.get();
         if !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
@@ -40,7 +41,7 @@ impl LayoutEngine {
         {
             return 0.0;
         }
-        let (_, _, _, bottom) = self.resolve_cell_padding(cell, table);
+        let (_, _, _, bottom) = self.resolve_stored_nested_cell_padding(cell, table, styles);
         bottom.min(closing.height)
     }
 }

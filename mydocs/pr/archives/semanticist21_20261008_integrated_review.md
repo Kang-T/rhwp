@@ -2189,3 +2189,23 @@ SVG와 WebCanvas의 switch를 serializer/PatternFillInfo/CanvasKit과 동일한 
 - 종료된v148 Native/counters와v149 counters의526SVG228,754,431바이트,추가로종료된v149 Native4SVG78,741,822바이트만압축없이제거했다. 기하·해시를보존했고원본/Print/PNG/TSV/tree/로그/동결CLI/공유target은유지했다(`finished-stored-nested-padding-svg-cleanup-v149.json`, `finished-native-stored-nested-padding-svg-cleanup-v149.json`). 필수lint7/freshWASM·최종전체회귀/시각검증및초기18개개별review/오늘할일·PR/CI/merge/후속처리는미완료다.
 
 - 비정상 여백 방어·정상 조밀 행·선언 높이의 안 여백 소유를 확인하는 기존5751/3386 대조3개는3PASS/470skip,exit0/9.477초(실제0.590초),source 및929개 case 불변이다(`stored-nested-padding-guard-controls-v149.json`). `cargo fmt --all -- --check`와`git diff --check`도exit0이고현재source 전체해시는빌드artifact와같으며새82줄helper도해시원장에포함돼있다. 현재단계만일반커밋으로고정하며최종전체통과로쓰지않는다.
+
+
+### 진행126 — 원본 중첩 컷의 바깥 프레임 예약과 원점 소비(v150)
+
+- 직전v149는bc01c5903으로커밋했고fetch된upstream/devel은90fa2f895로동일해rebase하지않았다. 작업트리clean·Cargo종료를확인하고다음보정에들어갔다. 직전476개471PASS/기존5FAIL과새42–45쪽Native미달을현재수정전증거로보존한다.
+- 독립Print42–44의root/middle/grandchild위괘선과원본바깥여백141/140/140HU,직전실제배치의원점을대조했다. 원본작은호스트줄은표전체프레임을담지않으며중첩typed/recursive컷배치는원본host없이바깥위여백을열지않았다. 원본유닛생산은첫/마지막유닛에만위/아래여백을싣는다(`source-frame-hosts.json`, `print42-44-top-border-segments.json`). 전체표배치는별도로바깥여백을소비하므로컷경로의누락을대조한다.
+- 새공통판별자는원본직접HWPX·빈/공백단일호스트·실제저장줄·비TAC/문단상단흐름표의작은앵커와큰표프레임을구분한다. HWP5유래HWPX·편집/dirty/synthetic·본문텍스트·표전체를담는저장줄은기존계약이다. root본문상단의예산/배치는같은판별자를사용한다. 중첩은실제선택원본run의첫/마지막유닛이이미소유한여백을중복하지않고중간컷이새로여는몫을추가예약한다.
+- 생산 `cell_units_uncached` 첫/마지막여백 → `mixed_nested_flow_extra_from_cut`의같은source run·recursive부모예약 → 실제child RowCut·`resolved_table_top`의위바깥여백 → 부분표최종원점으로연결한다. 이미stored float계획을소비한원점은재가산하지않는다. root는prepare/continuation budget/부분paint의동일판별을연결하고captionedwhole-fit조회도같이유지한다. 문서ID·추정offset·기대값·공차·새회귀/fixture는추가하지않는다.
+- 후보빌드후직전476기존검사와3여백대조·6원본runtime·정확한HYS/Print2024선택42–45쪽을같은source로묶어확인한다. 아직검증전이며이번source의전체Rust/lint/freshWASM또는18개검토완료로쓰지않는다.
+
+- 첫v150 Native 빌드는exit0/120.777초·source불변·동결CLI SHA97621775c5270c6797b5bcd69f7be9e2008e62aef567e63acedc2a51b3b12c54다. 아직회귀/시각검증전이며다음추가연결의검증으로쓰지않는다. 전체paint실제호출을대조해일반 `layout_table_cells`의안여백소비가v149에서빠졌음을확인했다. v149는TAC전체셀과부분배치를연결했지만일반전체셀8887경로는선언가드를다시썼다. 이번묶음에같은helper를연결하고,block컷frame·block높이·원본열린컷의종료여백회수도같은유효여백을사용하도록추가연결한다.
+- 추가연결을포함한후보를v151로구분한다. 한묶음의기존필터476+여백대조3=479개·6원본runtime·Native42–45쪽을새후보에서실행한다. 새source/회귀/fixture/기대값을고정하기전Native/fresh90%와직접판독조건은그대로이며새회귀는추가하지않는다. 원래선언여백방어와원본유닛의내용생산은전역변경하지않는다.
+
+- v151 Native는exit0/51.781초·source불변·동결CLI SHA cb5c9764ed7e18d8a8bf225936f7dc90e8ab6596a95ed670389ede84c3c3eaed다. 이어block잔여높이의실제scan호출까지대조해동일안여백helper를한곳더연결한v152로최종묶음을동결한다. 이번원본의바깥프레임회계는일반RowCut·typed/recursivechild경로의실제증거로판정하며,rowspan블록의깊은중첩바깥프레임회계는독립반례없이는검증완료로쓰지않는다.
+
+- v152 Native 빌드는exit0/48.725초·source불변이며 동결CLI SHA `b6e84ce4e7dad762502e611cadd8331ff74f93a3cc4a71b6e82c72d3c0d3404d`다. 기존479개 묶음은474PASS/직전과같은5FAIL/9676skip, 실제286.351초·compile포함567.8초,exit100/source및929개case불변으로종료됐다(`stored-source-outer-frame-artifact-v152.json`, `stored-source-outer-frame-focused-v152.json`). 편람Q8/KPS행핀/가맹사업두쪽수/편람넘침partition9가실패하며새실패는없다. 최종전체회귀/lint/fresh를대신하지않는다.
+- 같은원본SHA5d7eb4a21e46…와독립Print2024/정확한HYS의새42/43/44/45쪽Native는88.49199/95.60783/79.43550/99.83296%,전체48/48쪽,exit1/279.065초·source/동결CLI불변이다. 같은canonical232마스크·2px반경·32색차이며이진화경계보정픽셀은전부0이다. `native-giant-stored-source-outer-frame-selected-v152/giant/direct/review/review_042.png`부터045까지새로생성해실제표시·판독했다.43쪽범주III와45쪽PCB꼬리·다음본문소속은대응하지만42쪽아래경계·44쪽PCB조건문의줄바꿈/아래글줄차이가남는다. 선택4쪽을전48쪽Native/fresh승인으로확대하지않고gate보류를유지한다.
+- 6원본runtime쪽수/넘침은giant48/0,press3637 13/0,external1891 74/10,virtual6776 75/0,water6776 3/0,CGMP48/0으로직전과같다(`stored-source-outer-frame-counters-v152/results.json`). CGMP의선택35/39/42/47쪽Native도98.46300/95.37392/98.77537/94.05301%,exit0/102.217초·source/CLI불변이다. 같은Print2020·compat2022를사용한정상대조일뿐전48쪽/fresh 또는새직접보정완료가아니다.
+- root바깥위여백의미소비를실제44쪽GDB로확인했다(`giant-outer-frame-forensics-v152/root-paint-contract-gdb.log`). 원본/배치호스트의저장줄·dirty·profile·표속성은같고source작은앵커1200HU/표73450HU이나,원본컨트롤은SectionDef/ColumnDef/**PageNumberPos**/Table이다. 새판별자의구조컨트롤허용목록에서쪽번호위치를누락해본문상단75.58667px에서위여백이열리지않았다. 쪽번호위치는본문표의줄흐름개체가아니며기존 `stored_body_filling_rowbreak_frame`도같이허용한다. 첫GDB의Vec직접첨자오류exit1은제품회귀가아니며Rust필드포인터로교정한exit0/20.703초의결과로판정한다. 원본/기준/기대값을바꾸지않고다음단계에서같은메타데이터계약을연결한다.
+- 종료된위3개진단의SVG269개310,143,254바이트는기하·해시를보존한뒤압축없이삭제했다(`finished-source-outer-frame-svg-cleanup-v152.json`). 원본/Print/새PNG/TSV/tree/로그/동결CLI/공유target은유지했다. fmt검사와diff검사는exit0이며현재source해시는v152빌드와같다. 이단계는부분개선커밋이며90%미달·기존5실패·최종전체검증및18개개별review/오늘할일·PR/CI/merge/후속처리는미완료다.
