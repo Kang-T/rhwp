@@ -13390,6 +13390,16 @@ impl LayoutEngine {
                         }
                         _ => None,
                     });
+            // 오프셋 부동 개체가 먼저 흐름을 전진했어도 호스트 글줄은 문단
+            // 원점에 남는다. 원점을 먼저 복원하고, 그 줄이 소유한 문단 위
+            // 간격과 표 바깥여백은 아래에서 한 번 적용한다. 간격을 적용한
+            // 뒤 되돌리면 부동 개체가 아직 배치되지 않은 경우에도 지워진다.
+            let tac_above_offset_float_flow =
+                (is_tac && tac_line_fits_above_offset_float && y_offset > para_y_for_table + 1.0)
+                    .then_some(y_offset);
+            if tac_above_offset_float_flow.is_some() {
+                y_offset = para_y_for_table;
+            }
             // ── 표 위 간격 ──
             {
                 let comp = composed.get(para_index);
@@ -13551,12 +13561,6 @@ impl LayoutEngine {
                         }
                     }
                 }
-            }
-            let tac_above_offset_float_flow =
-                (is_tac && tac_line_fits_above_offset_float && y_offset > para_y_for_table + 1.0)
-                    .then_some(y_offset);
-            if tac_above_offset_float_flow.is_some() {
-                y_offset = para_y_for_table;
             }
             // ── 표 레이아웃 ──
             let tac_table_y_before = y_offset; // Task #9: 표 렌더 전 y 보존

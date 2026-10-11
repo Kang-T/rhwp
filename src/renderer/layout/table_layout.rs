@@ -16969,13 +16969,10 @@ impl LayoutEngine {
         let allow_midpage_reset_absorb =
             self.profile.get().hwpx_stored_layout() || row_has_top_and_bottom_flow;
         let rewind_internal_hard_break_orphan = Self::row_has_prior_rowspan_cover(table, row);
-        let native_hwp5_atomic_non_inline_entry =
-            self.profile.get().hwp5_stored_pagination_layout()
-                && matches!(
-                    table.page_break,
-                    crate::model::table::TablePageBreak::RowBreak
-                )
-                && !table.common.treat_as_char;
+        let rowbreak_atomic_non_inline_entry = matches!(
+            table.page_break,
+            crate::model::table::TablePageBreak::RowBreak
+        ) && !table.common.treat_as_char;
         for (i, cell) in row_cells.iter().enumerate() {
             let units = self.cell_units(cell, table, styles);
             let source_row_height = self.stored_full_width_row_source_height(table, row, styles);
@@ -17009,13 +17006,13 @@ impl LayoutEngine {
                     j = units.len();
                     break;
                 }
-                // CellUnit fragment는 Square/Tight/Through control의 source range를
-                // 나눌 수 있지만 renderer는 entry fragment에서 picture 전체를 한 번
-                // emit한다. native HWP5 RowBreak에서 entry만 넣으면 cell clip이 picture
-                // 를 자르고 continuation은 owner가 없어지는 반쪽 control이 된다. 이미
-                // content를 소비한 page에서는 range 전체가 fit할 때만 시작한다. page보다
-                // 큰 control의 fresh fragment(start/h==0)는 기존 progress 경로를 보존한다.
-                if native_hwp5_atomic_non_inline_entry && h > 0.5 {
+                // Square/Tight/Through control의 filler는 실제 개체의 점유 range다.
+                // 이미 본문을 소비한 조각에는 전체 요구 높이가 fit할 때만 entry를
+                // 둔다. Picture는 entry 조각만 소유하므로 clip으로 잘린 부분을
+                // 되찾을 수 없고, Shape는 내부 내용을 이어 그리더라도 새 쪽에
+                // 들어갈 개체의 첫 filler만 앞 쪽에 남겨서는 안 된다. 페이지보다
+                // 큰 개체의 fresh fragment(start/h==0)는 기존 progress를 보존한다.
+                if rowbreak_atomic_non_inline_entry && h > 0.5 {
                     if let Some(control_end) =
                         Self::entering_non_inline_control_range_end(&units, j)
                     {
