@@ -2,7 +2,7 @@
 kind: evidence
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-11
+last_verified: 2026-10-12
 ---
 
 # PR #7669 후속 체리픽·보정 계획
@@ -63,3 +63,32 @@ scan 요구/예약 높이 → `table_partial.rs` 행 상자·cut unit 정렬 →
 실행 로그·TSV·중간 JSON은 ignored
 `output/pr-review/planet6897-followup-20261011/`에 보존한다.
 검증한 source SHA와 원 PR 제공 자료의 SHA를 구분해 후속 결과를 이 파일에 연결한다.
+
+## #7669 첫 경계 검증 결과 (통합 전 source)
+
+검증한 source는 `f083228cd1eaa12db194a6c275f695fdadcfc4b8`다. 이후 8개 PR을
+누적한 최신 후보에 이 결과를 그대로 적용하지 않는다. 첫 빌드는 stored-tail helper 누락으로
+E0599가 발생했고, 별도 `table_partial/tail_alignment.rs`로 helper를 복원한 뒤 Native·fresh WASM
+빌드가 각각 성공했다. 최적화된 WASM package와 Studio public의 JS/WASM SHA-256도 일치한다.
+
+| 대응 입력 / 독립 Print | Native 전쪽 | 최적화 fresh WASM 전쪽 |
+| --- | --- | --- |
+| `samples/issue7344/original/36308670_seoul_approval.hwpx` / `pdf/issue7344/36308670-2020.pdf` | 2쪽, 99.46689 / 99.99288% | 2쪽, 같은 점수 |
+| `samples/issue7095/36308670_split_row_declared_tail.hwpx` / `pdf/issue7095/36308670-split-row-declared-tail-2020.pdf` | 2쪽, 99.46689 / 99.99918% | 2쪽, 같은 점수 |
+
+축소본의 조판 XML 6개는 원본과 byte 동일하며 이미지 5개만 축소했다. 축소본의 대응 Print는
+Hancom 2020 MCP engine 2020, PrintMethod=0으로 별도 생성했다. 입력 SHA-256은
+`4982d53c16ba51c0366aea8eb9303d748a26750849f582fb47413e1a80979de4`, Print는
+`42ad85ae601c832778e7501c57b6d10448bc7741c1e00f564beb344c6e88da02`다.
+
+실행은 96dpi, compat 2022, full embedded fonts이며
+`RHWP_FONT_PATH=/opt/hnc/hoffice11/Shared/Fonts:/usr/local/share/fonts:/usr/share/fonts:/home/tsjang/.local/share/fonts`를 사용했다.
+`pr7669-native-build-2.log`, `pr7669-fresh-wasm-build.log`,
+`candidate-native-full-scores/`, `pr7669-optimized-wasm-scores/`에 명령과 전쪽 TSV를 보존했다.
+대표 Native review 1·2쪽에서 표 외곽·이어받기·그림 포함·caption·뒤 `끝.`의 순서를 직접 확인했다.
+제목·본문의 글꼴 획 무게와 사진 raster 차이는 남는다. Native와 최적화 WASM 4 raster는 byte 동일하다.
+
+이 원본은 #7832 직전 보존 바이너리의 layout 출력과도 동일했다. 따라서 첫 원본 점수만으로
+#7669의 추가 개선을 주장하지 않는다. 기여자가 보고한 다른 문서의 악화·쪽수 불일치와
+통합 후보의 최종 시각·관계형 회귀 검증이 남아 있다. 공개 CLI의 정렬 관계 진단은
+정식 Rust 회귀 통과를 대신하지 않는다.
