@@ -135,3 +135,33 @@ fresh WASM·정상 대조군은 새 런타임에서 확인해야 한다. 현재 
 98.09390%다. 전142쪽 Native와 fresh WASM은 별도 실행 중이다.
 기본 환경 정상7문서·317쪽의 page plan과 모든 RenderTree는 b886과 동일했다
 (`batch226-current-normal-control/`). 이 동일성을 독립 Print 시각 통과로 바꾸어 보고하지 않는다.
+
+### 원점 보완 Native의 실제 결과와 남은 검증
+
+보완 source `488c5dec0aaac4058c217c6f01986921f3be3a82`는 release-test Native 빌드
+exit0/18분51초이며 `batch233-asset-origin-native-build/`에 실제 명령과 실행 파일 SHA를
+기록했다. `batch234-asset-origin-selected/`의9/37/38/39쪽은 각각
+98.48709/99.35586/96.26262/96.69418%다. 같은39쪽은67.28760→96.69418%이며
+새 review를 직접 읽어 첫 제목 뒤의 전체 본문이 위로 이동하던 차이가 해소됐음을 확인했다.
+일부 글자 간격·획 차이는 남으며 전60쪽 Native/fresh WASM과 확대 판독은 미완료다.
+전60쪽 Native는 `batch235-asset-origin-full-native/`, 필수 lint와 새 WASM package는
+`batch236-asset-origin-validation-wasm/`, 전60쪽 WASM은 `batch237-asset-origin-full-wasm/`에서 이어간다.
+선행 빌드 종료 순간의 대기 race로 제품 실행 전 중단된229/230/231의 실패 기록은
+성공으로 덮어쓰지 않았다. 성공 종료를 재조회하는 대기로 바꾸어233/234/235를 새로 실행했다.
+
+정상7문서·317쪽은 보완 전717과 보완 후488의 모든 RenderTree가 byte 동일하다
+(`batch238-current-normal-control/`). `aaaaaa.hwp`47쪽의 dump-page `usedHeight`만
+752.97333→783.09333px, `usedDiff`는−41.85333→−11.73333px로 변했다.
+전체 쪽수50과 해당 쪽의 항목 소속·실제 render tree는 그대로다. 측정 메타데이터의 변화를
+실제 독립 Print 시각 통과나 모든 경로의 회귀 통과로 바꾸어 주장하지 않는다.
+
+### 시험지 입력을 명시한 M-sec 봉투의 제외
+
+추가 감사에서 `exam_kor.hwp`를 CLI source로 명시한 cached 보안 봉투
+`uni-zw-hangul-pua-typesetting`1건이 활성 catalog에 남아 있었다.
+사용자가 요청한 시험지 회귀 제외에 따라 이 봉투와 catalog 행·재생성 함수만 제거했다.
+원본 `samples/exam_kor.hwp`의 Git blob/실제 파일 SHA 불변을 확인했다.
+다른215개 계약과 기존 탐지 규칙·하한·허용치를 보존하고 기술 통계만193/22/215,
+unicode43건으로 맞췄다. 새 generator의 catalog/matrix bytes와 전체 봉투 JSON 값이
+현행과 같고 기존 도구 계약22개가 PASS다(`batch240-exam-envelope-exclusion-audit/`).
+이 검사와 일반 합성 유니코드 계약을 실물 시험지 렌더링 검증으로 사용하지 않는다.
