@@ -1787,9 +1787,9 @@ impl LayoutEngine {
             } else {
                 vec![None; cell.paragraphs.len()]
             };
-            // #7032: composition intentionally emits zero lines for text="".
-            // Keep the existing empty-paragraph eligibility and unit ledger;
-            // neither the cut policy nor the global composer is changed here.
+            // #7032: 빈 문자열의 줄 구성은 의도적으로 줄을 생성하지 않는다.
+            // 기존 빈 문단 적용 조건과 유닛 원장을 유지하며, 이 경로에서
+            // 컷 정책이나 공통 줄 구성기를 변경하지 않는다.
             let empty_paragraphs: Vec<bool> = cell
                 .paragraphs
                 .iter()
@@ -2621,6 +2621,9 @@ impl LayoutEngine {
                     para_y = text_y_start
                         + hwpunit_to_px(*origin - single_column_frame_origin_hu, self.dpi)
                         - spacing_before;
+                    // 공통 저장 프레임의 줄 원점을 실제로 소비했다. 앞 간격이 0이어도
+                    // 표 호스트 원점의 소유는 같으며, 단순 누적 흐름 커서와 구분한다.
+                    table_host_has_stored_origin = has_table_ctrl;
                     single_column_snap_spacing_before = spacing_before > 0.0;
                 } else if preserve_linear_single_cell_vpos {
                     let target_seg = para
@@ -2826,9 +2829,9 @@ impl LayoutEngine {
                     && !table_host_has_stored_origin
                     && owns_paragraph_entry
                 {
-                    // This path skips layout_composed_paragraph. Consume the same
-                    // paragraph-before band as cell measurement, once before the
-                    // first object line. A saved line origin already includes it.
+                            // 이 경로는 layout_composed_paragraph를 거치지 않는다.
+                            // 셀 측정과 같은 문단 앞 간격을 첫 개체 줄 앞에서 한 번
+                            // 소비한다. 저장 줄 원점에는 이 간격이 이미 포함돼 있다.
                     para_y += crate::renderer::cell_paragraph_spacing_before(
                         para,
                         cp_idx,
@@ -3876,10 +3879,9 @@ impl LayoutEngine {
                                         .flatten();
                                     let stored_float_frame = (start_line == 0)
                                         .then(|| {
-                                            // A snapped empty host starts at its
-                                            // stored line, after paragraph-before.
-                                            // The block frame consumes the origin
-                                            // before that band, as whole-cell paint does.
+                                            // 저장 위치에 맞춘 빈 호스트는 문단 앞 간격
+                                            // 뒤의 저장 줄에서 시작한다. 블록 프레임은
+                                            // 전체 셀 배치와 같이 그 간격 앞 원점을 쓴다.
                                             let origin = if table_host_line_only_fragment
                                                 && (table_host_has_stored_origin
                                                     || single_column_snap_spacing_before)
@@ -3901,8 +3903,13 @@ impl LayoutEngine {
                                                 origin,
                                                 styles,
                                             ).filter(|frame| {
+                                                // 표 앞 공간을 역산하는 프레임의 원점은
+                                                // 저장 호스트 줄이다. 누적 흐름 커서는
+                                                // 아직 자식 표를 소비하지 않았으므로 그
+                                                // 커서에서 표 높이를 다시 빼면 앞 행에 겹친다.
                                                 !matches!(frame.flow, crate::renderer::float_placement::ParagraphFloatFlow::NextLine)
-                                                    || cut_units.is_none()
+                                                    || (cut_units.is_none()
+                                                        && table_host_has_stored_origin)
                                             })
                                         })
                                         .flatten()
@@ -4585,9 +4592,9 @@ impl LayoutEngine {
                                                 self.dpi,
                                             );
                                     }
-                                    // An uncut stored float already resolved its physical
-                                    // body and margins. The renderer's returned total band
-                                    // must not add those margins again at table_top.
+                                    // 컷 없는 저장 떠 있는 개체는 물리 본문과 여백을
+                                    // 이미 확정했다. 배치가 반환한 전체 띠의 여백을
+                                    // table_top에서 다시 더하지 않는다.
                                     para_y = stored_float_frame
                                         .filter(|_| {
                                             split_info.as_ref().is_none_or(|split| {
@@ -5228,10 +5235,10 @@ impl LayoutEngine {
         };
         let start_cut = physical_start_cut.as_slice();
 
-        // [#3820 Stage 120] A native-HWP5 empty-host 1x1 RowBreak table can store the
-        // physical first-fragment height in `common.height`, then restart its cell LINE_SEG
-        // ladder at zero for the successor page.  Keep this paint-only witness separate from
-        // pagination: the PageItem cuts and logical consumed height remain authoritative.
+        // [#3820 단계120] 원본 HWP5의 빈 호스트 1×1 RowBreak 표는 common.height에
+        // 첫 조각의 물리 높이를 저장하고, 다음 쪽의 셀 LINE_SEG 사다리를 0에서
+        // 재시작할 수 있다. 이 배치 근거를 쪽 나누기와 구분한다. 내용 소유는
+        // PageItem 컷과 논리 소비 높이를 기준으로 유지한다.
         let stored_reset_paint_geometry =
             if enclosing_cell_ctx.is_none() && std::ptr::eq(table, outer_table) {
                 paragraphs.get(para_index).and_then(|host_para| {
@@ -6228,10 +6235,9 @@ impl LayoutEngine {
         let mut render_rows: Vec<usize> = Vec::new();
         render_rows.extend_from_slice(&header_rows);
         for r in start_row..end_row.min(row_count) {
-            // The block-cut scan sums spacing only between retained rows.
-            // Rows whose complete content belongs to an earlier fragment have
-            // no physical box here. A reserved empty band still has positive
-            // row height (including the explicit height overrides above).
+            // 블록 컷 스캔은 현재 조각에 남긴 행 사이의 간격만 합산한다.
+            // 내용 전부가 앞 조각에 속한 행은 여기서 물리 상자를 갖지 않는다.
+            // 예약한 빈 띠는 위의 명시적 높이 보정을 포함해 양수 행 높이를 유지한다.
             if row_heights[r] > 0.0 {
                 render_rows.push(r);
             }
@@ -6506,7 +6512,7 @@ impl LayoutEngine {
                 || page_cap_fold > 0.5)
                 && enclosing_cell_ctx.is_none()
                 && !align_saved_opening_frame
-                // A carried source row owns its accepted blank band, too.
+                // 이어받은 원본 행은 수용한 빈 띠도 소유한다.
                 && !(fold_row == 0 && start_row == 0 && is_continuation
                     && source_first_row_frame.as_ref().is_some_and(|(cut, _, remaining)| {
                         cut.as_slice() == start_cut && start_row_height_override == Some(*remaining)

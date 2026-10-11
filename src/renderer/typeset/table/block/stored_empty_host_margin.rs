@@ -62,7 +62,9 @@ pub(super) fn prepare(
         || table.caption.is_some()
         || para.stored_text_partition_is_dirty()
         || para.cell_format_vpos_dirty
-        || !para.text.trim().is_empty()
+        // 공백도 별도의 호스트 글줄을 소유한다. 글자가 없는 개체 앵커만
+        // 표 포맷의 앞·뒤 상자로 닫아야 줄 전진을 중복 소비하지 않는다.
+        || !para.text.is_empty()
         || !has_single_flow_table(para)
         || para.line_segs.len() != 1
         || para.line_segs[0].tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0

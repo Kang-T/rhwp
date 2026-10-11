@@ -88,9 +88,8 @@ impl TypesetEngine {
         .filter(|(cut, height, _)| {
             cut == &split_end_cut && end_row_height_override == Some(*height)
         });
-        // A cut consumes content; the declared cell minimum also owns blank
-        // physical space. Carry actual accepted boxes rather than estimating
-        // them from preceding content cuts.
+        // 컷은 내용을 소비하지만 셀의 선언 최소 높이는 빈 물리 공간도 소유한다.
+        // 앞 내용 컷으로 높이를 추정하지 않고 실제로 수용한 상자를 이어받는다.
         let stored_row_frame = end_row.checked_sub(1).and_then(|row| {
             if split_end_limit <= 0.0
                 || split_end_cut.is_empty()
@@ -99,9 +98,8 @@ impl TypesetEngine {
             {
                 return None;
             }
-            // Frame ownership uses the same unreserved source body height as
-            // paint. Footnotes and zones constrain acceptance below, not the
-            // existence of the source-owned minimum.
+            // 프레임 소유는 배치와 같은 예약 전 원본 본문 높이를 사용한다.
+            // 각주와 영역은 아래의 수용 예산을 제한하며 원본 최소 높이를 없애지 않는다.
             let declared = layout_engine
                 .stored_full_width_row_declared_height(
                     table,
@@ -132,14 +130,12 @@ impl TypesetEngine {
             let accepted_scan_height = end_row_height_override.unwrap_or(current_content);
             let before_row = (consumed - accepted_scan_height).max(0.0);
             let available = (avail_for_rows - before_row).max(0.0);
-            // The scanner's override may describe only the accepted content
-            // cut. It is a lower bound, not proof that the saved row's blank
-            // physical band has already been reserved. Allocate that band in
-            // the available fragment and carry the actual box in the ledger.
-            // Later content cuts are not physical boxes already accepted on
-            // earlier pages. In particular, a saved page reset can leave a
-            // centered picture in a tall source frame. Deduct only the boxes
-            // actually placed, rather than the height of future content.
+            // 스캐너의 덮어쓴 높이는 수용한 내용 컷만 나타낼 수 있다. 이는 하한이며
+            // 저장 행의 빈 물리 띠까지 예약했다는 증거가 아니다. 조각의 가용 공간에
+            // 그 띠를 배정하고 실제 상자를 원장에 남긴다.
+            // 뒤 내용 컷은 앞쪽에 이미 수용한 물리 상자가 아니다. 특히 저장 쪽의
+            // 재시작은 높은 원본 프레임 안에 가운데 정렬 그림을 남길 수 있다.
+            // 미래 내용 높이 대신 실제로 배치한 상자만 차감한다.
             let source_space = (declared - used).max(0.0).min(available);
             let height = accepted_scan_height.max(current_content).max(source_space);
             Some((row, used, height, accepted_scan_height))
@@ -1575,12 +1571,11 @@ impl TypesetEngine {
                     &[],
                     styles,
                 );
-                // A source row minimum can be almost exhausted while a visible
-                // line still belongs to the next frame. Produce the complete
-                // continuation box here: the carried-row scanner and paint both
-                // consume this exact value instead of reserving only the blank
-                // minimum and expanding the glyph box afterwards. Block cuts
-                // retain their own multi-row frame accounting.
+                // 원본 행의 최소 공간을 거의 소진해도 가시 줄은 다음 프레임에
+                // 속할 수 있다. 여기서 완전한 이어받기 상자를 만들어 스캐너와
+                // 배치가 같은 값을 소비하게 한다. 빈 최소 공간만 예약한 뒤
+                // 글자 상자를 늘리지 않는다. 블록 컷은 별도의 여러 행 프레임
+                // 계산을 유지한다.
                 let height = if split_block_start.is_none() {
                     let content = layout_engine.row_cut_content_height(
                         table, end_row - 1, &next_cut, &[], styles,

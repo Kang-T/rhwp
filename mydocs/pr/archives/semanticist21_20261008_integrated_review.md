@@ -2514,3 +2514,60 @@ HWPX 미주1/2쪽88.68987/4.39631%, HWPX 각주1쪽88.69135%다. wrapper 원본�
 Native Skia3종·복합 release/lib/doc/Studio 검증·전쪽 fresh·남은 직접 판독·PR/CI/merge/후속 처리는
 아직 완료되지 않았다. 새 head로 source가 바뀌면 관련 이전 결과는 역사 증거로 남기고 최종
 검증에 재사용하지 않는다. 조건부 수용 지시를 현재 승인 판정으로 앞당기지 않는다.
+
+
+## 진행142 — 전체 회귀 종료와 기준 브랜치 대조, 원점 보정 묶음
+
+검증 기준은 `upstream/devel`의 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`로 유지한다.
+전체 nextest v173은 exit100으로 종료했다. 최종 결과는 **10,287개 실행: 10,258 PASS,
+29 FAIL, 45 SKIP**, 테스트 실행 2,819.236초다. 진행141의 21실패는 중간 관측이며
+최종 실패 수가 아니다. `whole-nextest-terminal-failures-v197.json`에 고유 검사29개와
+원 로그를 연결했다. 후속 Skia·release/lib/doc·Studio 전체 검증은 이 실패 뒤 미실행이다.
+
+동일 입력 SHA19종(경로20개)을 frozen base Native와 frozen 통합 Native에서 각각
+실행한 `failed-original-anomaly-base-head-v188-result.json`의38명령은 모두 exit0이다.
+이는 진단 명령 성공이며 출력 무회귀 판정이 아니다. 기준에서는 없던 K-water24쪽47겹침,
+inner-table2쪽38겹침과 보도자료 첫쪽 넘침이 현재 출력에서 새로 발생했다. 기존 미달 이관이나
+래칫 완화로 처리하지 않고 실제 생산·소비 원점을 추적했다.
+
+| 원인과 독립 근거 | 보정한 생산·소비 경로 | 현재 검증 상태 |
+| --- | --- | --- |
+| K-water24쪽의 부모 셀은 그대로인데 자식 표가484.5px에서172.8px로 이동. 부분 셀 누적 커서를 저장된 표 뒤 호스트 줄로 해석하고 표 높이를 다시 뺌 | `layout_partial_table_cells`의 저장 줄 원점 소비 여부를 기록하고, `stored_nested_float_placement`의 `NextLine` 결과는 실제 저장 호스트 원점에서만 수용. 전체 셀의 기존 원점 계약과 일치시킴 | 수정 전 frozen CLI의 실제 호출·값은 `kwater-inner-final-origin-forensics-v190`. 수정 후 검증은v194/v196에서 진행 |
+| 미주2쪽의 원본 page fill은SHOW_ALL이며 독립 Print에 워터마크가 있음. 기존 painter는 이미지 배경을 첫쪽으로만 제한 | `layout.rs` page background image도 색·그라데이션과 같은hide_fill/SHOW_FIRST 조건을 소비 | 수정 전 Native/fresh2쪽4.39631%. 수정 후2쪽 진단·PNG 대조 대기;1쪽 차트 차이는 별도 미해결 |
+| 공백4자를 소유한 보도자료 문단19는 실제8px 글줄이 따로 출력됨. 빈 앵커 상자가 줄간격을 담고 painter가 다시 더해 하단3.81333px 넘침 | `stored_empty_host_margin::prepare`가trim 후 빈 문자열을 글줄 없는 앵커로 간주하던 조건을 제거. 실제 빈 문자열만 표 포맷 상자로 처리 | 실제 호출의표 끝1015.57333px·공유 흐름 끝1020.65333px·호스트 줄1023.85333px는 `first-body-overflow-origin-v193`. 수정 후 전체 원본 재측정 대기 |
+
+v194는 네 source 파일의 조건·한국어 주석 변경을 한 번에fmt/Native build하고 생산 소스
+해시를 고정한다. v196은 그 성공한 frozen CLI로 동일 원본19종 진단과 대표 영향 페이지
+비교를 수행한다. source/test 기대값·baseline은 이 진행에서 변경하지 않았다.
+
+CGMP의 frozen v172 fresh WASM48쪽은v184에서exit0/2,145.332초로 종료했고 최저47쪽
+**94.05301%**, 미달0이다. Native48쪽도 같은 최저값이다. 실행 중 새 원점 보정이 시작돼
+`source_unchanged=false`이므로 이 결과는 **보정 전 소스 증거**로 보존하며 새 보정의 통과로
+재사용하지 않는다. KPS77쪽과 편집 저장본의 같은 frozen WASM 작업은 실제 실행 핸들을
+확인하며 계속 관측한다.
+
+현재 저장본의 wrapper35.95134%, 각주·미주1쪽88%대와 스타일 저장본3쪽/Print2쪽 불일치는
+여전히 보류 사유다. 미주 배경 보정으로 이 차이까지 해결됐다고 판정하지 않는다.
+차트 Contents의기존 parser는VtChart6 혼합형9만 지원하고 해당 저장본은컬럼형1이다.
+기존 진단 parser로 같은Contents의제목·범례·색·축 메타데이터를 확인했으며,
+`note-legacy-presentation-inventory-v195.json`·`note-legacy-full-metadata-v195.txt`에 보존했다.
+
+**판정은 머지 보류를 유지한다.** 모든 필수 검증과 직접 확대 판독이 끝난 뒤에만 각PR의
+보류 사유를 “메인터너 보정으로 수용 가능”으로 변경한다. 아직 push·PR 생성은 하지 않았다.
+
+
+진행142의 묶음 Native 빌드는exit0/313.826초, fmt는exit0/51.674초다.
+frozen CLI의SHA-256은 `543a3c46744a7ad558368ff35e5b8cfc77423f318dc825c680a1d2846e6e7add`이며
+`batch-origin-native-v194-result.json`에 생산 source 해시를 연결했다.
+v196의19개 원본 재측정에서 보도자료7종의 새 본문 하단 넘침1→0,
+K-water 두 입력의 새겹침47→0·47→0, inner-table의38→0을 확인했다.
+API·화학연구·#7333·59043·none-image-fill의 기존 관측 실패는 이 묶음에서 해소되지 않았다.
+
+대표 Native TSV는K-water24쪽97.63240%, inner-table2쪽97.64176%다.
+K-water의 `batch-origin-native-selected-visual-v196/kwater2024/review/review_024.png`를
+직접 대조했다. 자식12×2표는y172.8에서484.5로 돌아와 부모 셀 안에 있고,
+요구사항 행의 내용·순서는 PDF와 대응한다. 부모 외곽 아래와 가운데 정렬 문구에는
+높이 차이가 남는다. 이 페이지의97% 점수를 표 외곽 완료 근거로 사용하지 않는다.
+보도자료1쪽·미주2쪽의 새출력 비교는 같은 frozen CLI로 계속 실행한다.
+회귀 기대값·baseline은 아직 변경하지 않았으며, 전체 문서·fresh WASM·최종lint의 통과로
+이 대표 Native 결과를 확대하지 않는다.
