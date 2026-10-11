@@ -1255,13 +1255,16 @@ fn measure_char_width_embedded_decision_for_font<'a>(
                 character_match: "miss",
             };
         };
-        // HMKMM TrueType의 가운뎃점·이중 따옴표는 원 프로그램의 전진폭을 쓴다.
+        // HMKMM TrueType의 가운뎃점·따옴표는 원 프로그램의 전진폭을 쓴다.
         // 독립 Print의 같은 glyph outline과 이웃 글자 원점도 전각 전진을 입증한다.
         // 같은 이름의 HFT 출력은 좁은 호환 폭을 쓰므로 확인된 프로그램 선택에서만
-        // raw hmtx 값을 소비한다. 단일 따옴표·다른 face의 기존 계약은 유지한다.
+        // raw hmtx 값을 소비한다. 다른 face의 기존 계약은 유지한다.
         let human_true_type_width = (font_metric_trusted
             && matches!(primary_name, "휴먼명조" | "HumanMyeongJo")
-            && matches!(c, '\u{00B7}' | '\u{201C}' | '\u{201D}'))
+            && matches!(
+                c,
+                '\u{00B7}' | '\u{2018}' | '\u{2019}' | '\u{201C}' | '\u{201D}'
+            ))
         .then(|| font_metrics_data::verified_program_punctuation_width(mm.metric, c))
         .flatten();
         // [#7051] HWP3 변환본의 HFT 한글 전용 face 는 ASCII 를 반각(`em/2`)으로 전진시킨다.
