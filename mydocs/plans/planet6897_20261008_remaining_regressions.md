@@ -121,8 +121,10 @@ Clippy·workspace build·base 고정 manifest/unit-tier 검사를 통과했다.
 이관은 해당 출력 결함의 해결을 뜻하지 않는다.
 
 #7768은 현재 브랜치 재확인 작업이다. 같은 입력·독립 Print의 base 전1쪽
-최저92.73966%를 확인했다. 새 head의 Native/fresh WASM TSV와 review PNG는
-빌드 완료 후 연결하며, 아직 새 head의 통과로 보고하지 않는다.
+최저92.73966%를 확인했다. Native/fresh WASM 전1쪽 TSV는 각각92.73966%, 누락0이며 같은 raster bytes를
+확인했다. 양 경로 실제 review/overlay의 canonical gate는 passed다. 캡션·표·
+체크박스3개·후행 용지 규격을 확대 판독하고 공개 `mydocs/pr/assets/issue7768/`에 연결했다.
+이 결과는 기존 #7568 보정의 무회귀이며 새 개선으로 계산하지 않는다.
 
 최신 `upstream/devel` `f79f2e1d6831a2187657b9c60deabc5d7c8b8e0d`로 rebase한
 head는 `03a987f4aeded1d2b03415e7edecac5c833ca5cd`이다.
@@ -132,4 +134,15 @@ optimized fresh WASM 빌드는 source `03a987f4a`에서 exit0으로 완료됐고
 Studio `public/`의 JS/WASM SHA-256 일치를 확인했다. WASM SHA-256은
 `e235c944e4921b80a30e347bf28f74503b0be02ce6398c41d280cf79bfb72cd5`다.
 명령·JS 해시·package snapshot은 ignored `final-fresh-wasm-provenance.json`에 고정했다.
-#7768의 해당 package TSV·review와 미실행 Native Skia 검증은 이어 진행한다.
+#7768의 해당 package TSV·review와 실제 Studio 초기화/CanvasKit Type7 대조군 확인을 완료했다.
+별도 로컬 Native Skia3종은 미실행이며 사용자 추가 테스트 금지 지시에 따라 GitHub CI에서 확인한다.
+
+## PR 생성 직전 최신 base 정렬
+
+최신 base `920dc29284e8a6e624861bfccf68903e19ae309b`, rebase 뒤 code head `9b4817473b2a3515ea27eefef9d20731258433e4`다.
+upstream #7703의 확장 프로그램·오늘할일만 추가됐으며 오늘할일 한 파일의 충돌에서
+양쪽 기록을 보존했다. `493a979d2` 대비 Rust·tests·Cargo tree가 동일함을 확인했고
+사용자 지시에 따라 추가 테스트하지 않는다. 중단된 Native 재빌드는 성공으로 세지 않고
+완료된7dd 빌드의 해당 SVG 경로 동일성·입력/출력 해시를 근거로 재사용했다.
+
+제출 head의 GitHub CI·Native Skia·CodeQL·mergeability는 PR 생성 뒤 확인한다.

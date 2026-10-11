@@ -19,8 +19,8 @@ last_verified: 2026-10-11
 | 항목 | 확인한 상태 |
 | --- | --- |
 | 검토 branch | `review/planet6897-20261008` |
-| rebase 후 통합 code head | `03a987f4aeded1d2b03415e7edecac5c833ca5cd` |
-| 최신 upstream base | `f79f2e1d6831a2187657b9c60deabc5d7c8b8e0d` |
+| rebase 후 통합 code head | `9b4817473b2a3515ea27eefef9d20731258433e4` |
+| 최신 upstream base | `920dc29284e8a6e624861bfccf68903e19ae309b` |
 | 전체 회귀 | 검증 source `7dd9572b7fecbc602c9e5ab47c4a6c9d6422b4bd`: 10,215PASS·실패0·skip45 |
 | lint·정책 | fmt·Native/WASM/all-target Clippy·workspace build·base 고정 manifest/unit-tier PASS |
 | Studio | 1,834PASS·실패0·skip2, TypeScript 검사 PASS |
@@ -32,11 +32,16 @@ last_verified: 2026-10-11
 전체 결과·시각 점수·source와 로그는 [남은 회귀 보정 기록](../../plans/planet6897_20261008_remaining_regressions.md#현재-시각-검증-상태-정정--2026-10-11)에 연결한다.
 위 시각 결과는 해당 입력과 기록한 renderer source의 증거이며, 원 PR 전체 영향 목록의 전수 통과를 주장하지 않는다.
 
-## 통합 전 조건
+## #7768 재확인과 통합 조건
 
-- #7768 현재 Native/fresh WASM TSV·review 확인을 완료한다. `Closes #7768`은 이 결과에 연결한다.
-- 미실행 Native Skia3종을 완료한다.
-- 통합 PR의 실제 head CI와 mergeability를 확인한다. 현재 원격 push·PR 생성·merge 완료로 보고하지 않는다.
+#7768 원본 전1쪽의 Native/fresh WASM 최저92.73966%, 누락0을 확인했다.
+양 경로 raster bytes와 review/overlay의 canonical gate `passed`를 확인하고 캡션·표·
+체크박스3개·후행 용지 규격 줄을 확대 판독했다. [공개 시각 증적](../assets/issue7768/README.md)을
+통합 PR의 `Closes #7768` 근거로 연결한다.
+
+- 최신 upstream의 확장 프로그램 #7703·기존 오늘할일을 보존해 rebase했다. 충돌은 오늘할일 한 파일뿐이며 Rust/test/Cargo tree는 rebase 전과 같다.
+- 사용자 지시에 따라 rebase 후 추가 로컬 테스트를 하지 않는다. 별도 로컬 Native Skia3종은 미실행으로 기록하고 통합 PR의 Native Skia CI 결과를 확인한다.
+- 남은 통합 조건은 제출 head의 GitHub CI·CodeQL·Native Skia 및 mergeability 확인이다. 원격 CI 완료·merge를 미리 보고하지 않는다.
 
 <details>
 <summary>이전 검토 이력 — 당시 판정과 단계별 실행 기록</summary>
