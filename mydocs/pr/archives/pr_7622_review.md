@@ -106,3 +106,32 @@ build-jobs8/test-threads10으로 시작했으며, 최종 요약·세 Clippy·다
 기여자 원 TSV의175문서/1,566영향쪽을 실제 읽고 각 원본과 repository 기준 PDF의 존재·SHA 및 PDF 전체 쪽수를 확인했다. 입력 누락0, PDF 누락0, PDF 읽기 실패0이며 대응 PDF 쪽수 합은6,078쪽이다. ignored `batch208-font-impact-inventory/provenance.json`에 전 입력을 기록했다. 이 감사는 현재 base/head의 시각·원문 대응 검증이나 이전 낮은 점수의 #7445 이관 근거가 아니다.
 
 자산관리규정 `samples/issue6031/3249937_asset_management_rules.hwpx`도 이 목록에 있다. 기준 `pdf/3249937_asset_management_rules-2020.pdf`는 전체60쪽이고 기여자의 영향쪽은37/38/39다. b886 frozen Native의37쪽을 실제 재출력하여99.35586%를 측정했다. 다음38쪽 브라우저 raster는 `ENOSPC`로 실패했으므로39쪽·전체60쪽·fresh WASM과 직접 판독은 미검증이다. 원본·Print·검사를 삭제하거나 이 문서를 이관하지 않는다. 실패한 실행은 `batch209-asset-boundary-diagnosis/`에 보존했다.
+
+### 자산관리규정의 저장 원점 진단과 보완 후보
+
+리베이스 뒤 검증 source `717783327367995f5d49c43a7d965ae3f83c50d0`의
+release-test Native 빌드는 exit0/562.03초다. 같은 원본·독립 Print를 다시 실행한
+`batch225-asset-current-diagnosis/`의37/38/39쪽은 각각99.35586/96.26262/67.28760%다.
+38·39쪽 review를 직접 읽었으며39쪽은 첫 제목 뒤 본문이 위로 이동했다.
+점수 미달을 글꼴 차이로 면제하거나 #7445로 이관하지 않는다.
+
+`batch227-asset-origin-audit/origin-evidence.json`은 원 HWPX의 pi538 첫 줄
+`vertpos=500`, 앞 간격500HU와 pi539의 앞 간격0을 확인한다. 두 문단 경계는
+`3492 − 500 − 1300 − 1692 = 0HU`로 정상 저장 사다리다. 첫 두 줄의 저장 거리는
+39.89333px, 독립 Print의 기준선 거리는39.79651px지만 실제 SVG는33.22667px다.
+차이는 첫 문단 앞 간격500HU=6.66667px와 정확히 같다.
+
+원인 연결은 `stored_first_margin_is_page_relative`의 `next_before > 0.5` 조건 →
+측정 `section/vpos.rs::vpos_snap_current_height`의 page base500HU →
+배치 `layout.rs::build_single_column`의 같은 page base →
+`HeightCursor`/`vpos_corrected_end_y`의 후속 저장 좌표 차감이다. 다음 문단의 앞 간격이
+0이어도 경계 등식은 원점을 입증하므로 그 불필요한 양수 조건만 제거한다.
+원본 ID·새 임계값·좌표 clamp를 추가하지 않고 두 소비 경로가 같은 helper를 유지한다.
+원 XML의 같은 등식 후보는9·39쪽이며, control/profile 조건의 실제 적용과 전체60쪽·
+fresh WASM·정상 대조군은 새 런타임에서 확인해야 한다. 현재 보완은 미검증이다.
+이 단계에서는 실물 회귀 기대값·baseline·새 테스트를 추가하거나 변경하지 않았다.
+
+동시에717의 가맹사업 Native 선택13쪽은 최저92.20721%를 확인했으며 작은따옴표 영향23쪽은
+98.09390%다. 전142쪽 Native와 fresh WASM은 별도 실행 중이다.
+기본 환경 정상7문서·317쪽의 page plan과 모든 RenderTree는 b886과 동일했다
+(`batch226-current-normal-control/`). 이 동일성을 독립 Print 시각 통과로 바꾸어 보고하지 않는다.
