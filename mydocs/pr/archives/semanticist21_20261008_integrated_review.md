@@ -2873,3 +2873,22 @@ ignored `output/pr-review/semanticist21-20261008/`의
 `chemical-base-native-v258-{result,build-provenance}.json`에 실제 명령·원본SHA·관측을 연결했다.
 현재 실행 중인 v251/v258은 종료 후 결과를 이어서 기록한다.
 개별 PR의 머지 보류와 최종 전체 Native/fresh·확대 판독·회귀·lint gate는 유지한다.
+
+
+진행145의 소스는 `5eda5d45f100f9d0d4635c9e65a09a341145d3b3`로 커밋했다.
+v259에서 생산Rust1107개가 동결v249 빌드와 전부 같고 불일치0임을 확인했다.
+커밋 뒤 fetch는exit0이며 upstream/devel은bfa28 그대로다. 사용자 지시대로 rebase하지 않았다(v260).
+59043의 최신26쪽 `remaining-row-frame-selected-review-v262/review/review_026.png`를
+직접 표시·판독했다(96.99%). 표 윗변과 앞/뒤 내용 순서·하단 이어짐이 Print와 대응하며
+작은 획/AA 차이는 남는다. 전체37쪽/fresh의 시각 통과를 뜻하지 않는다.
+
+v258의 정확한 upstream Native15/79/85쪽은69.53622/17.91785/22.66846%로 종료했고,
+세PNG가 기존0cce v232의 같은쪽 출력과 바이트까지 같다. #7739의 원격OPEN 본문에 같은
+화학제품 원본SHA가 있음을 읽기 전용으로 확인했다(v261). 최신v251 영향 비교는 계속 진행 중이다.
+
+필요한 미추적 한컴 Print PDF4개를 대응 edited HWPX4개 및 입력/PDF SHA·쪽수·Creator/Producer와
+함께 보존했다. 기준PDF는 `pdf/semanticist21-20261008/pr-preparation-current-inputs-v175/`,
+입력 및 작은 출처JSON은 `mydocs/pr/assets/semanticist21-20261008/current-print-inputs-v175/`다.
+모두 기존 v175의 실제 Hancom2020 변환 종료/다운로드 기록과 해시가 같다.
+해당 편집 사례의 시각 보정은 아직 미완료이고 회귀 추가·기대값 변경·PR 수용 전환은 보류한다.
+기존 시험지/HML59개와 모든 원본 파일의 내용·경로는 이 단계에서 변경하지 않았다.
