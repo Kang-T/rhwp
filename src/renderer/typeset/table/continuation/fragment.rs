@@ -1,5 +1,5 @@
 //! One continuation iteration: budget, read-only row scan/refit, then emission.
-//! The start cut is snapshotted once before queued notes can advance the cursor.
+//! The physical-frame and capacity queries finalize the start cut before queued notes advance it.
 
 use crate::renderer::typeset::{
     row_geometry_table, BlockTableContinuationSource, TableContinuationIteration, TypesetEngine,
@@ -152,7 +152,7 @@ impl TypesetEngine {
                     Some(relieve(&prepared.whole_row_fit_heights)),
                 )
             };
-        let start = FragmentStart {
+        let mut start = FragmentStart {
             straddle_row_relief,
             relieved_cut_row_heights,
             relieved_whole_row_fit_heights,
@@ -163,7 +163,7 @@ impl TypesetEngine {
             start_cut,
             rowspan_physical_space: continuation.rowspan_physical_space.clone(),
         };
-        let input = FragmentInput {
+        let mut input = FragmentInput {
             source,
             prepared,
             start: &start,
@@ -196,7 +196,7 @@ impl TypesetEngine {
             return TableContinuationIteration::Skipped;
         }
 
-        let budget = self.prepare_table_fragment_budget(st, input);
+        let mut budget = self.prepare_table_fragment_budget(st, input);
         // 현재 쪽의 앞 내용과 캡션·여백을 예약한 뒤 양수 행 공간이 남지 않으면
         // 첫 행 강제 전진으로 내용 컷을 소비하지 않는다. 같은 커서와 캡션을
         // 새 쪽에서 재시도하며, 빈 새 쪽의 거대 행 전진은 기존 스캔이 맡는다.
@@ -210,7 +210,70 @@ impl TypesetEngine {
             st.advance_column_or_new_page();
             return TableContinuationIteration::Skipped;
         }
-        let scan = self.scan_table_fragment(st, input, &budget, profile);
+        let mut scan = self.scan_table_fragment(st, input, &budget, profile);
+        // 비소유 빈 prefix도 끝 조각의 가운데 정렬 공간으로 쓰일 수 있다.
+        // 이미 들어가는 물리 프레임은 보존한다. 내용 예산에서 제외했던
+        // prefix 때문에 선택한 부분 컷의 실제 점유만 예산을 넘으면, 같은
+        // 시작 컷을 예약과 paint에 전달하도록 커서를 갱신하고 재스캔한다.
+        if continuation.is_continuation
+            && !continuation.start_cut_is_block
+            && continuation.start_row_height_override.is_none()
+            && prepared.can_intra_split
+            && !continuation.start_cut.is_empty()
+            && !scan.split_end_cut.is_empty()
+            && scan.consumed > budget.avail_for_rows + 0.1
+        {
+            // 원본 쪽 상자가 소유한 빈 정렬 공간은 내용 높이 합만으로
+            // 지우지 않는다. 이어받기 상자의 원점/아래끝은 emit의 같은
+            // placement와 공통 frame-bottom Query에서 온다.
+            let page_box_height = budget.single_cell_box_height.unwrap_or_else(|| {
+                (crate::renderer::float_placement::single_cell_page_fragment_bottom(
+                    source.table,
+                    st.available_height(),
+                    self.dpi,
+                ) - st.current_height
+                    - budget.host_before_overhead
+                    - budget.vert_offset_overhead)
+                    .max(0.0)
+            });
+            let owns_page_box = std::ptr::eq(source.table, source.row_geometry_table)
+                && crate::renderer::float_placement::native_single_cell_rowbreak_page_fragment(
+                    true,
+                    source.table,
+                )
+                && source.table.cells.first().is_some_and(|cell| {
+                    prepared.layout_engine.cell_cut_owns_page_box(
+                        cell,
+                        source.table,
+                        source.styles,
+                        continuation.start_cut.first().copied().unwrap_or(0),
+                        scan.split_end_cut.first().copied().unwrap_or(0),
+                        page_box_height,
+                    )
+                });
+            if owns_page_box {
+                return self.emit_table_fragment(st, continuation, input, &budget, scan);
+            }
+            let mut effective_cut = continuation.start_cut.clone();
+            prepared.layout_engine.consume_row_continuation_spacers(
+                source.row_geometry_table,
+                continuation.row,
+                &mut effective_cut,
+                source.styles,
+            );
+            if effective_cut != continuation.start_cut {
+                continuation.start_cut = effective_cut.clone();
+                start.start_cut = effective_cut;
+                input = FragmentInput {
+                    source,
+                    prepared,
+                    start: &start,
+                    row_cursor_is_nested,
+                };
+                budget = self.prepare_table_fragment_budget(st, input);
+                scan = self.scan_table_fragment(st, input, &budget, profile);
+            }
+        }
         if scan.end_row == cursor_row && scan.consumed == 0.0 {
             // 캡션 종료 예산 때문에 마지막 유닛 전체를 이월했다.
             // 현재 조각에서는 내용이나 물리 높이를 소비하지 않았다.
