@@ -78,3 +78,6 @@ ViewText만 제외하고 다른 원 스트림을 모두 보존한 **진단 대�
 
 
 3·4쪽의 미달은 초기 구현이 같은 section의 **바뀌지 않은 문단**까지 저장 LineSeg를 제거한 탓이었다. 원본 ViewText의 `따라서` 문단은 숨긴 범위가 없고 저장 줄 시작은 0/39, `고위관리` 문단은 0/56이다. 실제 한컴 Print의 줄 나눔과 대응하므로 이를 review-mode 무효 정보라고 단정한 가정을 제거했다. 가시 축이 바뀐 문단·이어붙인 문단만 재조판한 production helper 진단 결과는 6쪽 모두 90% 이상(99.44/92.34/91.69/97.06/99.87/100.00%)이다. 변형 입력 진단은 최종 원본의 Native/fresh WASM 증적을 대신하지 않으며, 원본 기준 재검증을 이어간다.
+
+
+저장 경로도 대조 중이다. 종전 writer는 채택한 review stream을 BodyText에만 쓰고 ViewText를 버렸으며, Native 재파싱/쪽수 검사는 통과해도 한컴 상호운영을 입증하지 못한다. 수정하지 않은 section의 raw provenance가 유효할 때 동일 visibility projection을 BodyText로, 원본 review history를 ViewText로 각각 저장하도록 보정한다. 암호 저장은 두 stream에 같은 압축·암호 계약을 적용한다. 편집으로 seal이 무효화된 section에는 오래된 ViewText를 재삽입하지 않는다. 한컴 Print 재열기 확인은 아직 진행 중이며, 변경 추적 편집 기능 전체를 구현한 것으로 보고하지 않는다.
