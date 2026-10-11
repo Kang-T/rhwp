@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 
 const PRESERVED_HWP5_INPUTS: &[(&str, &str)] = &[
     (
+        "hwpctl_API_v2.4.hwp",
+        "mydocs/pr/assets/issue7445/hwpctl_API_v2.4.hwp",
+    ),
+    (
         "issue5679/10857_delegation_rules.hwp",
         "mydocs/pr/assets/issue7700/delegation-rules/10857_delegation_rules.hwp",
     ),

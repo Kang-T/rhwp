@@ -2892,3 +2892,47 @@ v258의 정확한 upstream Native15/79/85쪽은69.53622/17.91785/22.66846%로 �
 모두 기존 v175의 실제 Hancom2020 변환 종료/다운로드 기록과 해시가 같다.
 해당 편집 사례의 시각 보정은 아직 미완료이고 회귀 추가·기대값 변경·PR 수용 전환은 보류한다.
 기존 시험지/HML59개와 모든 원본 파일의 내용·경로는 이 단계에서 변경하지 않았다.
+
+
+### 진행146: API 기존 미달 회귀24개 이관과 보존 계약 검증
+
+고정 base `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`의 API18쪽은58.93130%이며,
+최신 생산 소스 `5eda5d45f100f9d0d4635c9e65a09a341145d3b3`도 같은 값이다.
+같은 원본/독립 Print/글꼴 조건의 양쪽 PNG는 SHA-256까지 동일하다.
+직접 review_018.png를 판독해 표 행 높이·누적 세로 위치와 글자 획 차이가 남음을 확인했다.
+이미 #7445의 하위 #7731에서 같은 원본을 추적하므로 중복 원격 이슈를 만들지 않았다.
+앞 단계에서 새 본문 초과를 구현으로 먼저 해결한 뒤, base에 이미 등록돼 있던 API 전용
+부적합 렌더링 함수24개만 제거했다. 이는 API 출력 해결이나 시각 통과가 아니다.
+
+전용5파일16검사를 제거하고 공유5파일의 API 검사8개만 제거했다.
+공유 파일의 다른 원본 검사·정상 대조군·helper는 유지했다. 전용 renderer manifest1행과
+text overlap/page count baseline 각1행을 제거했으며 다른 기준값·공차는 바꾸지 않았다.
+활성 samples의 중복 API 원본은 기존 issue7445 자산의 동일262144byte/해시 원본으로 보존한다.
+독립 Print PDF3개는 바이트/해시 그대로 `mydocs/pr/assets/issue7731/api-reference/`로 옮겼다.
+이 경로의 `transfer_provenance.json`에는 검사 이름·변경 전 commit 링크·이전/새 경로와
+해시를 기록했다. `review_018.png`/`overlay_018.png`는 이관의 부정 증거이며 새 golden이 아니다.
+순수 structure-auto IR 계약은 이관 원본을 읽고, 공통 preserved-format helper로 전체 HWP5
+roundtrip·IR field sweep의 기존 검사 및 IR baseline2행을 유지했다. ignore/조용한 return은 없다.
+
+v267은 prepare·fmt check·Native Clippy·WASM lib Clippy·workspace build·workspace all-targets
+Clippy·고정 base manifest/unit 정책·집중 nextest9단계가 모두exit0이다.
+유지한 관련 문서 검사와 전체 HWP5 roundtrip16분할/IR sweep은47개 전부PASS다.
+nextest230.211초(컴파일 포함), 실행 summary172.893초이며 선택 대상 내1550개 제외다.
+검증 소스/test 해시를 v271에서 현재 작업트리와 재대조했고 생산Rust1107개는5eda와 전부 같다.
+runner의 원래 head 필드는 v249의 이전 메타데이터를 상속했으므로 수용 SHA로 쓰지 않는다.
+실제 검증 작업트리03c5e62b26ed181e74ebd82ff9895f72dc1e4ce3와 생산 SHA·해시 대조를
+별도 필드로 정정했다. 최초 fmt는 stale generated suite를 준비하지 않아 실패했으며,
+정식 prepare 후 fmt/lint를 전부 통과했다. 이 준비 오류를 제품 회귀로 세지 않는다.
+시험지/HML 원본59개는 기존 v112와 내용/실행모드가 모두 같고 경로도 보존했다(v271).
+
+v251 Native 선택 쪽 비교는 모두 종료했다. 화학제품 미달10쪽은 정확한 upstream의
+같은 쪽과 PNG 바이트까지 동일함을 v258/v268/v269로 확인했다. 최저79쪽17.91785%이며
+동일 원본SHA를 열린 #7739에서 확인했다. 59043의25/28/30쪽48.57985/78.26698/79.45617%도
+정확한 base/current PNG가 전부 같다(v263/v270). 이들 이관 여부는 현재 보정 범위와
+검사의 의미를 분리해 계속 검토하며, 이전 제거목록을 일괄 재적용하지 않는다.
+
+ignored output의 `api-existing-transfer-{audit-v255,applied-v264}.json`,
+`api-transfer-validation-v267-result.json`, `exam-originals-preserved-v271.json`과
+각 단계 logs에 명령·원본 SHA·결과를 연결했다. 최신 전체 nextest/Native/fresh WASM,
+Skia·Studio·독립 edited Print 사례의 차트/중첩표 보정은 아직 미완료다.
+마지막 전체29FAIL을 이번47PASS로 대체하지 않으며 개별 PR 보류를 유지한다.
