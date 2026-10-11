@@ -16,7 +16,7 @@
   },
   "other_baseline_rows_unchanged": true,
   "partition_policy": "Partition on the existing complete sample list, then remove only this transferred row from active workers. All other input partition assignments remain unchanged.",
-  "current_direct_target": "samples/table_giant_cell_overfill.hwpx",
+  "current_direct_target": "superseded: giant excluded from current scope by #7812 and user correction",
   "retained_maintainer_target": "samples/issue6035/cgmp_evaluation_table.hwpx",
   "kps_and_franchise": "No matching #7445 direct subissue found in live 86-child audit; do not remove their three current failing tests.",
   "live_previous_validation": "IR/overlap worker has already completed compilation; its production/IR/case inputs are unchanged. No overlapping Cargo invocation.",
@@ -71,5 +71,6 @@
       "seconds": 77.583
     },
     "scope_limit": "Three remaining existing tests passed. Removed function/input were not executed or counted as successes. Whole Rust/fresh WASM/visual qualification remain pending."
-  }
+  },
+  "scope_correction": "giant-regression-scope-20261011/transfer-inventory.json"
 }
