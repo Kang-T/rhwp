@@ -3820,6 +3820,12 @@ impl LayoutEngine {
                             .map(|cs| cs.char_shape_id as u32)
                             .unwrap_or(char_style_id)
                     };
+                    // [#7702] 글자의 언어 슬롯 — composer 의 run 분할과 같은 규칙이다(중립
+                    // 문자는 앞 글자 언어를 잇는다). run 은 슬롯이 바뀌는 자리에서도 끊고 그
+                    // run 의 슬롯으로 잰다. 첫 글자 슬롯으로 run 전체를 재면 `(’24.)` 처럼
+                    // 영문 슬롯 따옴표가 한글 슬롯 글꼴 폭으로 잡혀 다음 run 과 겹친다.
+                    let mut carry_lang = 0usize;
+                    let mut run_lang: Option<usize> = None;
 
                     for ch_idx in *s..*e {
                         // 각주 마커 삽입: 현재 문자 위치에 각주가 있으면 먼저 run flush + FootnoteMarker 노드 삽입
@@ -3832,19 +3838,16 @@ impl LayoutEngine {
                             if ch_idx > line_run_start {
                                 let run_text: String =
                                     text_chars[line_run_start..ch_idx].iter().collect();
-                                let first_lang = super::super::style_resolver::detect_lang_category(
-                                    text_chars[line_run_start],
-                                );
                                 let run_ts = with_stored_tabs(
                                     metric_scope.style(
                                         styles,
                                         current_cs_id,
-                                        first_lang,
+                                        run_lang.unwrap_or(carry_lang),
                                         line_run_start,
                                     ),
                                     line_run_start,
                                 );
-                                let run_width = estimate_text_width(&run_text, &run_ts);
+                                let run_width = inline_x - line_run_x;
                                 let run_bbox_h = stored_line_baseline_at(line_run_start).unwrap_or(
                                     if wrapped_below_table {
                                         text_line_baseline
@@ -3882,9 +3885,9 @@ impl LayoutEngine {
                                     BoundingBox::new(line_run_x, current_y, run_width, run_bbox_h),
                                 );
                                 col_node.children.push(run_node);
-                                inline_x += run_width;
                                 line_run_x = inline_x;
                                 line_run_start = ch_idx;
+                                run_lang = None;
                             }
                             // FootnoteMarker 노드 삽입 (위첨자로 렌더링됨)
                             let fn_text = note_marker_text_from_control(
@@ -3939,7 +3942,12 @@ impl LayoutEngine {
                             .unwrap_or(char_style_id);
 
                         let ch = text_chars[ch_idx];
-                        let lang = super::super::style_resolver::detect_lang_category(ch);
+                        let lang = if crate::renderer::composer::is_lang_neutral(ch) {
+                            carry_lang
+                        } else {
+                            carry_lang = super::super::style_resolver::detect_lang_category(ch);
+                            carry_lang
+                        };
                         let ts = with_stored_tabs(
                             metric_scope.style(styles, cs_id, lang, ch_idx),
                             ch_idx,
@@ -3982,9 +3990,7 @@ impl LayoutEngine {
                         // 폭을 측정한 style과 첫 문자의 paint style이 다른 경우만
                         // 나눈다. 슬롯이 달라도 실제 style이 같으면 기존 run을 유지한다.
                         let slot_metrics_changed = ch_idx > line_run_start && {
-                            let run_lang = super::super::style_resolver::detect_lang_category(
-                                text_chars[line_run_start],
-                            );
+                            let run_lang = run_lang.unwrap_or(lang);
                             let run_style =
                                 metric_scope.style(styles, current_cs_id, run_lang, line_run_start);
                             ts.font_family != run_style.font_family
@@ -3994,7 +4000,8 @@ impl LayoutEngine {
                         };
                         let cs_changed = cs_id != current_cs_id
                             || metric_scope.allows(ch_idx) != metric_scope.allows(line_run_start)
-                            || slot_metrics_changed;
+                            || slot_metrics_changed
+                            || run_lang.is_some_and(|run_lang| run_lang != lang);
 
                         // 줄바꿈된 텍스트의 BoundingBox 높이: 표 줄 vs 텍스트 줄
                         let run_bbox_h = stored_line_baseline_at(line_run_start).unwrap_or(
@@ -4009,19 +4016,18 @@ impl LayoutEngine {
                             // 누적된 run 출력
                             let run_text: String =
                                 text_chars[line_run_start..ch_idx].iter().collect();
-                            let first_lang = super::super::style_resolver::detect_lang_category(
-                                text_chars[line_run_start],
-                            );
                             let run_ts = with_stored_tabs(
                                 metric_scope.style(
                                     styles,
                                     current_cs_id,
-                                    first_lang,
+                                    run_lang.unwrap_or(lang),
                                     line_run_start,
                                 ),
                                 line_run_start,
                             );
-                            let run_width = estimate_text_width(&run_text, &run_ts);
+                            // [#7702] 글자는 `ch_w` 합으로 놓였다 — 상자도 그 전진량이다.
+                            // run 을 다시 재 반올림하면 다음 run 과 몇 px 씩 겹친다.
+                            let run_width = inline_x - line_run_x;
 
                             let run_id = tree.next_id();
                             let run_node = RenderNode::new(
@@ -4055,6 +4061,10 @@ impl LayoutEngine {
                             col_node.children.push(run_node);
                             line_run_start = ch_idx;
                             line_run_x = inline_x;
+                            run_lang = None;
+                        }
+                        if run_lang.is_none() {
+                            run_lang = Some(lang);
                         }
 
                         if need_wrap {
@@ -4102,14 +4112,14 @@ impl LayoutEngine {
                     // 남은 run 출력
                     if line_run_start < *e {
                         let run_text: String = text_chars[line_run_start..*e].iter().collect();
-                        let first_lang = super::super::style_resolver::detect_lang_category(
-                            text_chars[line_run_start],
-                        );
-                        let run_ts = with_stored_tabs(
-                            metric_scope.style(styles, current_cs_id, first_lang, line_run_start),
+                        let run_ts = metric_scope.style(
+                            styles,
+                            current_cs_id,
+                            run_lang.unwrap_or(carry_lang),
                             line_run_start,
                         );
-                        let run_width = estimate_text_width(&run_text, &run_ts);
+                        let run_ts = with_stored_tabs(run_ts, line_run_start);
+                        let run_width = inline_x - line_run_x;
 
                         let run_id = tree.next_id();
                         let run_node = RenderNode::new(
