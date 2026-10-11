@@ -2311,6 +2311,54 @@ pub(crate) fn stored_single_cell_closing_frame_bottom(
         || !is_para_topbottom_float(&table.common)
         || table.page_break != TablePageBreak::RowBreak
         || table.caption.is_some()
+        || table.outer_margin_bottom != 0
+        || table.common.height == 0
+        || table.common.height >= cell.height
+        || cell.height > i32::MAX as u32
+        || !host.text.is_empty()
+        || !matches!(host.controls.as_slice(), [Control::Table(_)])
+        || !successor.text.is_empty()
+        || !successor.controls.is_empty()
+        || host.stored_text_partition_is_dirty()
+        || successor.stored_text_partition_is_dirty()
+        || host.cell_format_vpos_dirty
+        || successor.cell_format_vpos_dirty
+        || next.vertical_pos <= 0
+        || host.line_segs.is_empty()
+        || host
+            .line_segs
+            .iter()
+            .chain(&successor.line_segs)
+            .any(|line| line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0)
+    {
+        return None;
+    }
+    Some(hwpunit_to_px(next.vertical_pos, dpi))
+}
+
+/// 독립 두 프레임 종료식으로 입증된 종료 조각 본체 높이.
+/// 바깥 여백은 기존 예약·배치 경로에서 별도로 소유한다.
+pub(crate) fn stored_single_cell_closing_frame_height(
+    host: &Paragraph,
+    successor: &Paragraph,
+    table: &Table,
+    dpi: f64,
+) -> Option<f64> {
+    use crate::model::paragraph::LineSeg;
+    let [cell] = table.cells.as_slice() else {
+        return None;
+    };
+    let [next] = successor.line_segs.as_slice() else {
+        return None;
+    };
+    if table.row_count != 1
+        || table.col_count != 1
+        || cell.row_span != 1
+        || cell.col_span != 1
+        || table.common.treat_as_char
+        || !is_para_topbottom_float(&table.common)
+        || table.page_break != TablePageBreak::RowBreak
+        || table.caption.is_some()
         || table.common.height == 0
         || table.common.height >= cell.height
         || cell.height > i32::MAX as u32
@@ -2958,8 +3006,10 @@ pub(crate) fn stored_two_frame_successor_origin_hu(
                 && para.line_segs.get(2).is_some_and(|next| {
                     next.vertical_pos == seg.line_height.saturating_add(seg.line_spacing.max(0))
                 });
-            if previous.is_some_and(|pos| seg.vertical_pos < pos) || zero_restart
-                || previous.is_some_and(|pos| flat_index == 1 && pos == 0 && seg.vertical_pos == 0) {
+            if previous.is_some_and(|pos| seg.vertical_pos < pos)
+                || zero_restart
+                || previous.is_some_and(|pos| flat_index == 1 && pos == 0 && seg.vertical_pos == 0)
+            {
                 if seg.vertical_pos != 0 {
                     return None;
                 }

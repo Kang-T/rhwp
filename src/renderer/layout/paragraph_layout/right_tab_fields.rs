@@ -100,6 +100,7 @@ pub(super) fn apply_block_width(
         },
         style.auto_tab_right,
         style.available_width,
+        style.text_start_offset,
     );
     if tab_type != 1 {
         return;

@@ -23,7 +23,6 @@ impl TypesetEngine {
         ctrl_idx: usize,
         fn_ctrl: &Footnote,
         styles: &ResolvedStyleSet,
-        has_table: bool,
         native_hwp5_footnote_break: Option<super::boundary::NativeHwp5FootnoteBreak>,
     ) {
         // 본문 내 참조는 그대로 배치하며, 원본에 없는 각주 번호/구분선을 만들지 않는다.

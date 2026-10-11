@@ -625,7 +625,6 @@ impl TypesetEngine {
                         ctrl_idx,
                         fn_ctrl,
                         styles,
-                        has_table,
                         native_hwp5_footnote_break,
                     );
                     self.reserve_current_body_note_area(st, paragraphs, styles);

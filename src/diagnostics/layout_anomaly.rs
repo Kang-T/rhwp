@@ -62,9 +62,6 @@ use crate::model::shape::TextWrap;
 use crate::renderer::render_tree::{BoundingBox, RenderNode, RenderNodeType};
 use crate::HwpError;
 
-mod text_occupancy;
-use text_occupancy::glyph_band_horizontal;
-
 // ─────────────────────────────────────────────────────────────────────────
 // 판정 옵션 · 데이터 모델
 // ─────────────────────────────────────────────────────────────────────────

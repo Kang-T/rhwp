@@ -190,7 +190,6 @@ impl TypesetEngine {
             start_row_height_override: continuation.start_row_height_override,
             stored_fragment_outer_frame: continuation.stored_fragment_outer_frame,
             stored_fragment_closes_body: continuation.stored_fragment_closes_body,
-            fragment_starts_intra_row: continuation.start_cut_is_block || !start_cut.is_empty(),
             start_cut,
         };
         let physical_rows = self.stored_fragment_row_plan(st, prepared, continuation, source);

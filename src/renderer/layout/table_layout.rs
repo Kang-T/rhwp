@@ -21704,6 +21704,11 @@ impl LayoutEngine {
             {
                 return None;
             }
+            if let Some(frame) = crate::renderer::float_placement::stored_nested_before_host_placement(
+                cell, para_index, child, control, origin, body_height, styles, self.dpi,
+            ) {
+                return Some(frame);
+            }
             // The independently stored successor can close an empty block
             // host too. Reuse its before/body/after frame in units and paint,
             // instead of placing the body at the host line's outer origin.
@@ -25690,7 +25695,8 @@ impl LayoutEngine {
                 padding.push(0.0);
                 continue;
             }
-            let (_, _, pad_top, pad_bottom) = self.resolve_stored_nested_cell_padding(cell, table, styles);
+            let (_, _, pad_top, pad_bottom) =
+                self.resolve_stored_nested_cell_padding(cell, table, styles);
             padding.push(pad_top + pad_bottom);
         }
         padding

@@ -23,7 +23,7 @@ use super::pagination::{
     ColumnContent, EndnoteParaSource, FootnoteRef, FootnoteSource, PageContent, PageItem,
 };
 use super::render_tree::*;
-use super::stored_page_origin::stored_first_margin_is_page_relative;
+pub(crate) use super::stored_page_origin::stored_first_margin_is_page_relative;
 use super::style_resolver::ResolvedStyleSet;
 use super::{
     format_number, hwpunit_to_px, px_to_hwpunit, ArrowStyle, AutoNumberCounter, LineStyle,
@@ -3338,92 +3338,6 @@ fn tac_in_front_decoration_fixed_line_spacing_deduction_hu(
         + i64::from(table.outer_margin_bottom);
     (seg.line_spacing < 0 && i64::from(seg.line_height) >= outer_box_height - 10)
         .then_some(-seg.line_spacing)
-}
-
-/// 쪽 첫 저장 줄의 vpos가 문단 앞 간격을 포함하면 쪽 원점은 0이다.
-/// 다음 문단의 저장 사다리도 앞 간격을 계상하는지 확인하여 측정과 배치가
-/// 같은 원점을 소비한다. 명시적 쪽 나눔과 합성 줄은 이 증거로 사용하지 않는다.
-pub(crate) fn stored_first_margin_is_page_relative(
-    first: &Paragraph,
-    next: Option<&Paragraph>,
-    styles: &ResolvedStyleSet,
-    dpi: f64,
-) -> bool {
-    let Some(first_seg) = first.line_segs.first() else {
-        return false;
-    };
-    let Some(last_seg) = first.line_segs.last() else {
-        return false;
-    };
-    let Some(next) = next else {
-        return false;
-    };
-    let Some(next_seg) = next.line_segs.first() else {
-        return false;
-    };
-    let first_before = styles
-        .para_styles
-        .get(first.para_shape_id as usize)
-        .map(|style| style.spacing_before)
-        .unwrap_or(0.0);
-    let next_before = styles
-        .para_styles
-        .get(next.para_shape_id as usize)
-        .map(|style| style.spacing_before)
-        .unwrap_or(0.0);
-    let first_after = styles
-        .para_styles
-        .get(first.para_shape_id as usize)
-        .map(|style| style.spacing_after)
-        .unwrap_or(0.0);
-    // A paragraph-relative float can reserve the intervening band instead
-    // of ordinary text advances. Its complete outer frame independently
-    // closes the next saved line, so the first margin is still page-relative.
-    let float_closes_next = matches!(first.controls.as_slice(), [Control::Table(table)]
-        if !table.common.treat_as_char && table.common.flow_with_text
-            && !table.common.allow_overlap
-            && table.caption.is_none()
-            && table.common.text_wrap == crate::model::shape::TextWrap::TopAndBottom
-            && table.common.vert_rel_to == crate::model::shape::VertRelTo::Para
-            && table.common.vert_align == crate::model::shape::VertAlign::Top
-            && table.common.height > 0 && table.common.height < 0x8000_0000
-            && (table.common.vertical_offset as i32) >= 0
-            && i64::from(table.common.vertical_offset) + i64::from(table.common.height)
-                + i64::from(table.outer_margin_top) + i64::from(table.outer_margin_bottom)
-                == i64::from(next_seg.vertical_pos)
-            && i64::from(last_seg.vertical_pos) + i64::from(last_seg.line_height)
-                <= i64::from(table.common.vertical_offset) + i64::from(table.outer_margin_top))
-        && !first.stored_text_partition_is_dirty()
-        && !next.stored_text_partition_is_dirty()
-        && !first.cell_format_vpos_dirty
-        && !next.cell_format_vpos_dirty
-        && next.controls.is_empty();
-    // 글자처럼 취급되는 도형이 있는 첫 문단은 제목과 개체가 저장 원점을 함께
-    // 소유한다. 문단 앞 여백만으로 쪽 원점을 다시 정하면 후속 표가 그 여백만큼
-    // 위로 이동한다. 일반 텍스트 문단의 여백 사다리와 구분한다(#6797 7쪽).
-    !first
-        .controls
-        .iter()
-        .any(|control| matches!(control, Control::Shape(shape) if shape.common().treat_as_char))
-        && !para_has_overlay_shape(first)
-        && !para_has_overlay_shape(next)
-        && first_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
-        && last_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
-        && next_seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
-        && first_before > 0.5
-        && next_before > 0.5
-        && (hwpunit_to_px(first_seg.vertical_pos, dpi) - first_before).abs() <= 0.5
-        && (float_closes_next
-            || (hwpunit_to_px(
-                next_seg.vertical_pos
-                    - last_seg.vertical_pos
-                    - last_seg.line_height
-                    - last_seg.line_spacing,
-                dpi,
-            ) - first_after
-                - next_before)
-                .abs()
-                <= 0.5)
 }
 
 pub(crate) fn para_has_overlay_shape(para: &Paragraph) -> bool {

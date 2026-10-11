@@ -5509,9 +5509,15 @@ impl LayoutEngine {
                 self.profile.get().session_edited(),
             );
         let stored_body_frame_opens_outer_top = (body_filling_source_frame
-            || (enclosing_cell_ctx.is_none() && paragraphs.get(para_index).is_some_and(|host| self.stored_hwpx_cut_owns_outer_frame(host, table)))
-            || (is_continuation && self.original_body_closed_table_frame(
-                &paragraphs[para_index], table, col_area.height)))
+            || (enclosing_cell_ctx.is_none()
+                && paragraphs
+                    .get(para_index)
+                    .is_some_and(|host| self.stored_hwpx_cut_owns_outer_frame(host, table)))
+            || (is_continuation
+                && enclosing_cell_ctx.is_none()
+                && paragraphs.get(para_index).is_some_and(|host| {
+                    self.original_body_closed_table_frame(host, table, col_area.height)
+                })))
             && col_node.children.is_empty()
             && (y_start - col_area.y).abs() <= 0.5;
         // 저장 HWP5의 반복 제목행을 가진 다행 RowBreak 표도 첫 저장 앵커와

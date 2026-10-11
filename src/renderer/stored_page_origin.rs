@@ -39,6 +39,33 @@ pub(crate) fn stored_first_margin_is_page_relative(
         .get(next.para_shape_id as usize)
         .map(|style| style.spacing_before)
         .unwrap_or(0.0);
+    let first_after = styles
+        .para_styles
+        .get(first.para_shape_id as usize)
+        .map(|style| style.spacing_after)
+        .unwrap_or(0.0);
+    // A paragraph-relative float can reserve the intervening band instead
+    // of ordinary text advances. Its complete outer frame independently
+    // closes the next saved line, so the first margin is still page-relative.
+    let float_closes_next = matches!(first.controls.as_slice(), [Control::Table(table)]
+        if !table.common.treat_as_char && table.common.flow_with_text
+            && !table.common.allow_overlap
+            && table.caption.is_none()
+            && table.common.text_wrap == crate::model::shape::TextWrap::TopAndBottom
+            && table.common.vert_rel_to == crate::model::shape::VertRelTo::Para
+            && table.common.vert_align == crate::model::shape::VertAlign::Top
+            && table.common.height > 0 && table.common.height < 0x8000_0000
+            && (table.common.vertical_offset as i32) >= 0
+            && i64::from(table.common.vertical_offset) + i64::from(table.common.height)
+                + i64::from(table.outer_margin_top) + i64::from(table.outer_margin_bottom)
+                == i64::from(next_seg.vertical_pos)
+            && i64::from(last_seg.vertical_pos) + i64::from(last_seg.line_height)
+                <= i64::from(table.common.vertical_offset) + i64::from(table.outer_margin_top))
+        && !first.stored_text_partition_is_dirty()
+        && !next.stored_text_partition_is_dirty()
+        && !first.cell_format_vpos_dirty
+        && !next.cell_format_vpos_dirty
+        && next.controls.is_empty();
     // 다음 앞 간격이 0이어도 저장 전진 끝과 정확히 이어지면 같은 쪽 상대 사다리다.
     // 빈 첫 문단의 유효한 앞 간격도 줄 점유에 포함되며 쪽 원점으로 빼지 않는다.
     // 글자처럼 취급되는 도형이 있는 첫 문단은 제목과 개체가 저장 원점을 함께
@@ -56,13 +83,14 @@ pub(crate) fn stored_first_margin_is_page_relative(
         && first_before > 0.5
         && next_before >= 0.0
         && (hwpunit_to_px(first_seg.vertical_pos, dpi) - first_before).abs() <= 0.5
-        && (hwpunit_to_px(
-            next_seg.vertical_pos
-                - last_seg.vertical_pos
-                - last_seg.line_height
-                - last_seg.line_spacing,
-            dpi,
-        ) - next_before)
-            .abs()
-            <= 0.5
+        && {
+            let gap = hwpunit_to_px(
+                next_seg.vertical_pos - last_seg.vertical_pos - last_seg.line_height - last_seg.line_spacing,
+                dpi,
+            );
+            // 기존 0 앞간격 사다리와 뒤간격을 따로 저장한 사다리를 같은 원점에서 판정한다.
+            (gap - next_before).abs() <= 0.5
+                || (next_before > 0.5
+                    && (float_closes_next || (gap - first_after - next_before).abs() <= 0.5))
+        }
 }
