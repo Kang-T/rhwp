@@ -29,6 +29,7 @@ pub(crate) mod font_rule_layout_metric_projection;
 pub(crate) mod font_rule_layout_name_projection;
 pub mod form_appearance;
 pub(crate) mod form_caption;
+pub(crate) mod reflow_float_host_line;
 pub(crate) mod hancom_pua;
 pub mod height_cursor;
 pub mod height_measurer;

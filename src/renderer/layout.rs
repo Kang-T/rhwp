@@ -14367,6 +14367,14 @@ impl LayoutEngine {
                     .unwrap_or(false);
                 let suppress_empty_anchor_spacing =
                     is_current_empty_para_float && !next_is_empty_topbottom_table_anchor;
+                let reflow_host_tail = para.controls.get(control_index).and_then(|control| {
+                    let Control::Table(table) = control else {
+                        return None;
+                    };
+                    crate::renderer::reflow_float_host_line::trailing_advance(
+                        para, table, comp, styles, self.dpi,
+                    )
+                });
                 if let Some(seg) = para.line_segs.last() {
                     // [#4533 ⑥] 위-예약 Square 판별 재계산(렌더 함수와 동일식) —
                     // 앵커·후속 문단 vpos 동일(붕괴 사다리)이라 후행 간격도 0.
@@ -14484,9 +14492,13 @@ impl LayoutEngine {
                                 next_first.vertical_pos > host_first.vertical_pos
                                     && (next_ladder_y - y_offset).abs() <= 0.5
                             });
-                    if gap > 0 && !ladder_already_at_flow {
+                    if let Some(advance) = reflow_host_tail {
+                        y_offset += advance;
+                    } else if gap > 0 && !ladder_already_at_flow {
                         y_offset += hwpunit_to_px(gap, self.dpi);
                     }
+                } else if let Some(advance) = reflow_host_tail {
+                    y_offset += advance;
                 }
             }
             if let Some((x_start, x_end, raw_top, lane_top, global_y_before, stored_flow_advance)) =
