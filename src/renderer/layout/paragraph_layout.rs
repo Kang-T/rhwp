@@ -1341,7 +1341,6 @@ struct RunEmitVars {
     line_spacing_px: f64,
     max_fs: f64,
     runs_all_whitespace: bool,
-    renders_synthetic_wrap_trailing_space: bool,
     start_line: usize,
     tab_width: f64,
     section_index: usize,
@@ -2257,7 +2256,6 @@ fn compute_line_extra_spacing(
     justify_spaces_only: bool,
     needs_distribute: bool,
     has_tabs: bool,
-    renders_synthetic_wrap_trailing_space: bool,
     suppress_cell_overflow_spacing: bool,
     converge_auto_shrink_cell: bool,
     total_char_count: usize,
@@ -2442,23 +2440,12 @@ fn compute_line_extra_spacing(
             } else {
                 0.0
             };
-            // A fresh soft-wrap consumes the separator before starting the next
-            // row, but LineSeg can encode only the next row's start. Composition
-            // therefore leaves that separator at the end of this row. The run
-            // painter advances every preserved space, so its distribution must
-            // account for that slot and its natural width; otherwise a corrected
-            // break immediately before a word can push the trailing separator
-            // beyond the line box (#4956).
-            let rendered_space_slots = if renders_synthetic_wrap_trailing_space {
-                interior_spaces + trailing_spaces
-            } else {
-                interior_spaces
-            };
-            let effective_used = if renders_synthetic_wrap_trailing_space {
-                total_text_width + split_ink_overhang
-            } else {
-                total_text_width - trailing_width + split_ink_overhang
-            };
+            // 줄 나눔이 소비한 구분 공백은 다음 줄의 시작 오프셋과 소유를 보존하지만
+            // 가시 내용의 양쪽 정렬 폭에는 포함하지 않는다. 저장 줄과 합성 줄 모두
+            // 같은 내부 공백 수·말미 공백 제외 폭을 사용한다. 별도 합성 분기는
+            // 한컴 Print의 같은 줄을 마지막 공백 한 칸만큼 왼쪽으로 압축했다.
+            let rendered_space_slots = interior_spaces;
+            let effective_used = total_text_width - trailing_width + split_ink_overhang;
             let slack = available_width - effective_used;
             if leader_dashes > 0 && slack > 0.0 {
                 // Task #352: 라인에 dash leader 가 있고 슬랙이 양수면
@@ -6724,16 +6711,6 @@ impl LayoutEngine {
             let needs_distribute = alignment == Alignment::Distribute;
 
             let has_tabs = comp_line.runs.iter().any(|r| r.text.contains('\t'));
-            let renders_synthetic_wrap_trailing_space = !is_last_line_of_para
-                && para
-                    .and_then(|p| p.line_segs.get(line_idx))
-                    .is_some_and(|seg| seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0)
-                && comp_line
-                    .runs
-                    .iter()
-                    .rev()
-                    .find_map(|run| run.text.chars().next_back())
-                    == Some(' ');
             // 자간은 **그려지는 글자**에 나눠 붙으므로 폭(`total_text_width`)과 같은
             // 텍스트로 센다. 머리말 필드처럼 모델 1자가 표시 N자면 모델로 세었을 때
             // 글자당 몫이 N배로 부풀어 글자가 흩어진다 (Task #3216).
@@ -6798,7 +6775,6 @@ impl LayoutEngine {
             // 동일한 점유 폭으로 압축 여부와 실제 시작점을 결정한다.
             let centered_measure = if alignment == Alignment::Center
                 && !has_tabs
-                && !renders_synthetic_wrap_trailing_space
                 && line_tac_offsets_for_width.is_empty()
             {
                 CenteredTextLineMeasure::new(comp_line, styles)
@@ -6842,7 +6818,6 @@ impl LayoutEngine {
                     false,
                     needs_distribute,
                     has_tabs,
-                    renders_synthetic_wrap_trailing_space,
                     suppress_cell_overflow_spacing,
                     converge_auto_shrink_cell,
                     total_char_count,
@@ -7181,7 +7156,6 @@ impl LayoutEngine {
                     line_spacing_px,
                     max_fs,
                     runs_all_whitespace,
-                    renders_synthetic_wrap_trailing_space,
                     start_line,
                     tab_width,
                     section_index,
@@ -7928,7 +7902,6 @@ impl LayoutEngine {
             line_spacing_px,
             max_fs,
             runs_all_whitespace,
-            renders_synthetic_wrap_trailing_space,
             start_line,
             tab_width,
             section_index,
@@ -7972,10 +7945,10 @@ impl LayoutEngine {
         // 말미 공백이 여분까지 얹어 그려져 run bbox 와 x 전진이 줄 상자를
         // 여분×말미공백수 만큼 넘는다(10857 p11: '외부 평가전문위원 ' 144.0 vs
         // 줄 122.1 — 가시 글리프는 정확히 줄 끝에서 끝나고 초과 전량이 부풀린
-        // 말미 공백). 분모에 말미 공백을 넣는 synthetic-wrap 모드는 제외.
+        // 말미 공백). 저장 줄과 합성 줄 모두 이 회수 규칙을 사용한다.
         let line_trailing_space_by_run: Vec<usize> = {
             let mut counts = vec![0usize; comp_line.runs.len()];
-            if !renders_synthetic_wrap_trailing_space && extra_word_sp != 0.0 {
+            if extra_word_sp != 0.0 {
                 let mut budget = comp_line
                     .runs
                     .iter()
@@ -8316,8 +8289,7 @@ impl LayoutEngine {
                 && run_border_fill_id == 0
                 && extra_word_sp.abs() <= f64::EPSILON
                 && extra_char_sp.abs() <= f64::EPSILON
-                && extra_dash_sp.abs() <= f64::EPSILON
-                && !renders_synthetic_wrap_trailing_space;
+                && extra_dash_sp.abs() <= f64::EPSILON;
             // NodeId를 먼저 고정하되 attach가 실패하면 같은 id로 legacy TextRun을
             // 만든다. 따라서 실패는 id hole이나 K1 suppression을 남기지 않는다.
             let reserved_shaping_run_id = shaping_candidate.then(|| tree.next_id());
@@ -11014,7 +10986,6 @@ mod issue_2809_split_alignment_tests {
             false,
             false,
             false,
-            false,
             5,
             30.0,
             90.0,
@@ -11050,7 +11021,6 @@ mod issue_2809_split_alignment_tests {
             false,
             false,
             false,
-            true,
             false,
             false,
             6,
@@ -11088,7 +11058,6 @@ mod issue_2809_split_alignment_tests {
             Alignment::Split,
             true,
             true,
-            false,
             false,
             false,
             false,
@@ -11144,7 +11113,6 @@ mod issue_2809_split_alignment_tests {
             false,
             false,
             false,
-            false,
             12,
             62.5,
             481.8,
@@ -11163,7 +11131,6 @@ mod issue_2809_split_alignment_tests {
             Alignment::Justify,
             false,
             true,
-            false,
             false,
             false,
             false,
@@ -11213,7 +11180,6 @@ mod issue_4657_distribute_alignment_tests {
             false,
             false,
             true,
-            false,
             false,
             false,
             false,
