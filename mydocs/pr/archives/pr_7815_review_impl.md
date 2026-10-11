@@ -119,3 +119,42 @@ harness로 수행한 첫 manifest 검사는 drift로 실패했고, `--prepare`�
 준비한 뒤 manifest와 포맷 check 모두 통과했다. 파생 파일은 PR에 stage하지 않는다.
 워크스페이스 build/all-targets Clippy·전체 회귀·Skia·Studio 브라우저와 fresh WASM은
 최종 source의 추가 필수 게이트로 남아 있다. 최신 upstream fetch도 동일 base였다.
+
+
+## 새 production source의 fresh WASM·브라우저와 관계형 회귀
+
+`467bfd1d87a8801632a253c595065d58edb63138`의 루트 기본 release web package를 고정
+`target/pr-review`에서 새로 빌드했다(18분01초, exit0). 루트 pkg와 Studio public의
+JS/WASM SHA-256이 일치하며 새 package는 ignored `curly-host-line-fresh-wasm-candidate/`에
+동결했다. WASM SHA-256은
+`f9fd949a405793a9cf667821c264b9f9e4b2448f3d51577a831eb50393f26a02`다.
+원본 전체 한쪽 fresh WASM TSV98.50387%가 Native98.50387%와 같았다.
+WASM 실행의 font policy·note metadata 조회는 동결한 AB CLI(동일 font 코드)를 사용했고,
+실제 WASM 기하는 새467 package에서 산출했다. 최신 Native CLI도467 production으로
+별도 빌드·동결했다. 마지막 통합 증적에서는 이 최신 CLI와 새 package를 사용한다.
+
+실제 Chrome·Vite의 HWPX 로드 완료를 확인한 뒤 WASM Canvas2D API로 출력했다.
+Canvas 출력1쪽, 실제 잉크17,727픽셀과 독립 Print98.25768%를 확인했고 review에서
+표 뒤 제목·후속 본문의 같은 소속과 간격을 직접 판독했다. 최초 진단은 초기 빈 HWP를
+성급히 캡처해 실패했으므로 제외했으며 SourceFormat=hwpx 로드 완료를 기다리도록
+진단을 고친 재실행은 exit0이다. 로그·해시·Canvas TSV·review는
+`curly-host-line-browser-canvas/`와 `curly-host-line-browser-canvas-2.log`에 있다.
+
+이 선행 증거 뒤 `tests/cases/issue_reflow_empty_float_host_line.rs`에 정식 회귀를 추가한다.
+뒤 제목의 원본 소유를 찾아 그 앞 표와 제목 줄 사이에 선언 종단 글꼴의 줄 높이가 들어가는지
+확인한다. 바깥 아래 여백은 원본에서 가져오고 고정 페이지 좌표·고정 px 영역·SVG 해시는
+쓰지 않는다. 실제 수정 전 AB production library에서 gap1.88 < declared em13.333으로
+의도한 assertion FAIL, 수정 후 PASS다. 같은 원본의 들여쓰기 없는 표 뒤 독립 빈 문단이
+가짜 호스트 줄에 의해 밀리지 않는 정상 대조도 PASS했다. 실제 두 검사 로그는
+`curly-host-line-relational-before-two.log`와 `curly-host-line-relational-after-two.log`다.
+정식 suite 재준비·통합 전체 실행은 아직 남아 있다. 큰 offset 등 별도 대조의 남은 차이를
+이 원본·정상 대조의 통과로 면제하지 않는다.
+
+
+파생 suite 재준비 뒤 실제 `run-rust-test.mjs`가 새 모듈을
+`regression_suite_010::issue_reflow_empty_float_host_line`로 해석했고,
+nextest가 **2건 실행·2PASS·205SKIP, exit0**으로 끝났다. 0건 실행을 통과로 세지 않는다.
+두 검사 최종 본문은 수정 전 library에서 1FAIL/정상대조1PASS, 수정 후2PASS다.
+같은 production source의 Studio 재실행은1,834PASS/0FAIL/2SKIP이고 TypeScript exit0이다.
+Node 전용 package가 필요한 기존2개 skip은 web WASM·브라우저 검증으로 대체 실행했다고
+기록하지 않는다. 전체 Rust/Skia·나머지 미달 문서·통합 PR/CI/merge는 아직 남아 있다.
