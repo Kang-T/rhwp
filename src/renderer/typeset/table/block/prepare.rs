@@ -1393,9 +1393,6 @@ impl TypesetEngine {
             })
             .or_else(|| {
                 let end = declared_cellbreak_prefix_end?;
-                let line = para.line_segs.first()?;
-                let anchor =
-                    hwpunit_to_px(line.vertical_pos - st.vpos_page_base.unwrap_or(0), self.dpi);
                 let frame = hwpunit_to_px(table.common.height as i32, self.dpi);
                 let top = fragment_host_placement.map_or(
                     st.current_height
@@ -1403,10 +1400,11 @@ impl TypesetEngine {
                         + hwpunit_to_px(table.common.vertical_offset as i32, self.dpi),
                     |placement| placement.table_top,
                 );
-                // 행 합의 일치만으로 다른 쪽의 원점을 재사용하지 않는다.
-                // 실제 호스트·캡션·바깥 상자도 현재 본문 프레임 안에 있어야 한다.
-                ((anchor - st.current_height).abs() <= 0.5
-                    && top >= st.current_height
+                // 선언 상자가 닫는 행 경계는 소속만 정하며 저장 원점을 가져오지 않는다.
+                // LineSeg의 글줄 원점과 앞 개체 뒤의 논리 흐름 끝을 비교하면 빈 호스트의
+                // 줄 상자가 다른 두 좌표를 같게 취급해 유효한 첫 조각을 버린다.
+                // 실제 호스트·캡션·바깥 상자는 현재 배치 원점의 본문 예산 안에 있어야 한다.
+                (top >= st.current_height
                     && top
                         + caption_overhead
                         + frame
