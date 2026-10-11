@@ -31,6 +31,7 @@ pub mod ingest;
 pub mod ole_container;
 pub mod record;
 pub mod tags;
+mod tracked_viewtext;
 
 use crate::model::bin_data::BinDataContent;
 use crate::model::document::{
@@ -465,6 +466,7 @@ fn parse_hwp_with_cfb(
         encrypted,
         password,
         &mut decompression_budget,
+        &doc_info,
     )?;
 
     // 5-7. 미리보기, BinData, 추가 스트림
@@ -780,19 +782,9 @@ fn apply_hwp3_origin_fixup(doc: &mut Document, summary_hwp3_era: bool) {
     }
 }
 
-/// [#5169] 비배포 문서의 `ViewText/Section{N}` 을 렌더 본문으로 채택할지 판정한다.
-///
-/// 배포용(0x04) 문서만 `ViewText` 를 읽던 종전 규칙은, **변경 추적**(0x4000) 등으로
-/// `BodyText` 와 `ViewText` 가 갈라진 일반 문서에서 rhwp 가 한글이 **렌더하지 않는**
-/// `BodyText` 를 읽게 만들었다(예: 연구계획서 — `BodyText` 표 4·3,540자 vs `ViewText`
-/// 표 10·10,210자). 한글은 `ViewText` 가 있으면 그것을 렌더하므로, 정상 복호되는
-/// `ViewText` 를 우선한다.
-///
-/// 단 일부 문서는 압축 비트가 서 있어도 `ViewText` 가 deflate 로 풀리지 않는 스텁이라
-/// (예: `20250130-hongbo.hwp`), 무조건 우선하면 본문을 잃는다. 그래서 **복호에 성공하고
-/// 첫 레코드가 `PARA_HEADER`(구역 시작 문단) 인 경우에만** 채택하고, 아니면 `None` 을
-/// 돌려 호출부가 `BodyText` 로 폴백하게 한다. 배포용 문서는 이 경로로 오지 않는다
-/// (암호화된 `ViewText` 라 별도 복호 경로가 처리한다).
+/// Decode a non-distribution ViewText paragraph stream, falling back on stubs.
+/// Change-tracking streams contain review history, not just visible content;
+/// DocInfo visibility must be applied before this stream becomes layout IR.
 fn decode_rendered_viewtext(
     raw: Vec<u8>,
     compressed: bool,
@@ -830,6 +822,14 @@ fn decode_viewtext_paragraph_stream(
     }
 }
 
+fn parse_visible_section(
+    data: &[u8],
+    doc_info: &crate::model::document::DocInfo,
+) -> Result<crate::model::document::Section, body_text::BodyTextError> {
+    let projected = tracked_viewtext::project(data, doc_info)?;
+    body_text::parse_body_text_section(projected.as_deref().unwrap_or(data))
+}
+
 /// CfbReader로 섹션들 파싱
 #[allow(clippy::too_many_arguments)]
 fn parse_sections_strict(
@@ -840,6 +840,7 @@ fn parse_sections_strict(
     encrypted: bool,
     password: Option<&[u8]>,
     decompression_budget: &mut Hwp5DocumentOpenDecompressionBudget,
+    doc_info: &crate::model::document::DocInfo,
 ) -> Result<Vec<crate::model::document::Section>, ParseError> {
     let mut sections = Vec::new();
 
@@ -876,8 +877,8 @@ fn parse_sections_strict(
                 }
             }
         } else {
-            // [#5169] 비배포 문서라도 정상 복호되는 ViewText 가 있으면 한글이 렌더하는
-            // 본문이므로 우선한다. 복호 실패·스텁이면 BodyText 로 폴백한다.
+            // ViewText may be the only complete section. Apply its visibility
+            // separately after decoding; existence alone does not mean visible.
             let rendered = cfb
                 .read_viewtext_section_raw_limited(i, section_raw_limit)
                 .ok()
@@ -897,13 +898,16 @@ fn parse_sections_strict(
             .consume(section_data.len())
             .map_err(ParseError::CfbError)?;
 
-        match body_text::parse_body_text_section(&section_data) {
+        match parse_visible_section(&section_data, doc_info) {
             Ok(mut section) => {
                 // 원본 BodyText 스트림 보존 (라운드트립용)
                 section.raw_stream = Some(section_data);
                 sections.push(section);
             }
-            Err(e @ body_text::BodyTextError::DrawingTextStructure(_)) => {
+            Err(
+                e @ (body_text::BodyTextError::DrawingTextStructure(_)
+                | body_text::BodyTextError::ChangeTrackingStructure(_)),
+            ) => {
                 return Err(ParseError::BodyTextError(e));
             }
             Err(e) => {
@@ -1026,12 +1030,15 @@ fn parse_hwp_with_lenient(
             .consume(section_data.len())
             .map_err(ParseError::CfbError)?;
 
-        match body_text::parse_body_text_section(&section_data) {
+        match parse_visible_section(&section_data, &doc_info) {
             Ok(mut section) => {
                 section.raw_stream = Some(section_data);
                 sections.push(section);
             }
-            Err(e @ body_text::BodyTextError::DrawingTextStructure(_)) => {
+            Err(
+                e @ (body_text::BodyTextError::DrawingTextStructure(_)
+                | body_text::BodyTextError::ChangeTrackingStructure(_)),
+            ) => {
                 return Err(ParseError::BodyTextError(e));
             }
             Err(e) => {
