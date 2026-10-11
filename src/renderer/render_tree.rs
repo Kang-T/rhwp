@@ -64,6 +64,16 @@ pub fn tab_dot_leader_stroke(font_size: f64) -> (f64, f64, f64) {
     (width, dash, (pitch - dash).max(0.1))
 }
 
+/// 원형 점선 탭(채움 종류 7)의 실제 원 지름·중심 간격(96dpi 좌표).
+///
+/// 한컴 2020 가맹사업 보고서 5쪽의 733개 원은 글자 크기 12.5/13/14pt와
+/// 무관하게 외곽 지름 1.5987px, 간격 3.998px다. 한컴 2024 평가 지침 6쪽의
+/// 575개 원도 같은 값이다. 폰트 비례 점선(종류 3)과 별개인 1.2pt/3pt 패턴이다.
+/// 0 길이 dash의 round cap을 사용해 짧은 타원 대신 원을 그린다.
+pub(crate) fn tab_circle_leader_stroke() -> (f64, f64, f64) {
+    (1.6, 0.0, 4.0)
+}
+
 pub const REAL_PICTURE_WATERMARK_PAGE_OPACITY: f64 = 0.26;
 pub const REAL_PICTURE_WATERMARK_FILL_OPACITY: f64 = 0.15;
 pub const REAL_PICTURE_WATERMARK_OPACITY: f64 = REAL_PICTURE_WATERMARK_PAGE_OPACITY;
