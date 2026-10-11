@@ -126,3 +126,32 @@ fresh WASM API 재검증은 Section1 Body 누락/공존·압축 여부·strict/l
 메인터너는 HWP는 해결됐고 `/mnt/e/tmp/issue5169_viewtext_changetracking.hwpx`가 해결되지 않았다고 명확히 했다. 앞선 '추가 수정 필요'는 같은 HWP 출력의 거부로 해석하지 않는다. 제공 HWPX SHA-256은 `1c822a1c9962eadf9ae4a68206051c7d1474f811d5401074fbb05de309f36b26`이다. header.xml/section0.xml은 기존 독립 한컴 2020 변환 HWPX와 각각 byte-for-byte 같다. header에는 229개 trackChange, section에는 deleteBegin/End 182쌍과 insertBegin/End 328쌍이 있으며, hide=1인 삭제 정보가 실제 존재한다. 현재 HWPX header/section 파서는 이 표시 설정과 범위 태그를 처리하지 않아 이력 텍스트와 개체가 모두 visible IR에 들어간다.
 
 메인터너는 한컴의 '원본', '원본 및 변경 내용', '최종본' 보기에 비추어 현재 rhwp가 변경 내용을 함께 보이는 상태라고 설명했다. 이번 보정은 저장된 trackChange type/hide 및 범위·문단 병합 정보를 반영해 같은 visible IR을 생성하는 범위다. 보기 전환 UI·승인/거부 전체를 구현한 것으로 확장하지 않는다. 독립 공식 모델/스키마에는 hide·TcId·paraend와 문단 merged·paraTcId가 있으며, 문단 목록의 소유 경계를 넘지 않는 병합 및 저장 LineSeg의 유효 축을 실제 한컴 출력으로 검증한다. 표시 불일치는 backend paint에서 글자만 지우는 방식으로 처리하지 않는다.
+
+
+## 저장 보기 상태에 따른 HWPX visible IR 보정
+
+제공 원본의 독립 Hancom 2020 Print는 job `9d83c530-a806-405a-8a10-216a591b8d26`(Hwp 11.0.0.9136, method 0, 6쪽)이며 `maintainer/hwpx-reference/issue5169-hwpx-2020.pdf`에 보존했다. HWPX header의 `type/hide`와 문단 내부 `Id/TcId/paraend`, 같은 소유 목록의 `merged`를 XML parsing 전에 투영한다. 숨김 범위가 실제로 없는 구역은 원래 parsing 경로를 유지한다. 텍스트뿐 아니라 범위 소유 개체도 같은 IR에서 제외하며, 실제 문자 축·병합이 변경된 문단의 LineSeg만 무효화한다. 원본 입력은 수정하지 않았다.
+
+초기 생산 코드의 HWPX는 6쪽/99문단이 됐으나 2쪽 27.65746%로 실패했다. 원인은 저장 빈 줄의 쪽 귀속이다. `DocumentCore::from_bytes_inner`의 XML reflow 후에도 문단 19의 저장 vpos=0 및 앞 문단의 꼬리 끝은 보존됐지만, `typeset/paragraph.rs::prepare_fit_budget`가 `entry::stored_tail_fills_page`를 HWP5에만 허용해 빈 줄을 1쪽 하단에 남겼다. `paragraph/entry.rs`의 실제 저장 줄 출처·앞 줄 꼬리 공간·현재 흐름 일치 조건은 유지하고 같은 HWPX 저장 사다리에도 적용했다. 문단 19·20의 빈 줄 두 개가 2쪽을 점유한 뒤 제목 문단이 이어지는 것을 직접 PNG로 확인했다. 좌표/문서 ID로 출력 위치를 맞추지 않았다.
+
+현재 Native 최종 원본 전쪽 TSV(`maintainer/tracking-native-final/{hwp,hwpx}/silhouette.tsv`)는 HWP 최저 91.69413%, HWPX 최저 90.87964%로 전쪽 90% 이상이다. 이 결과는 Git HEAD `9e6882188` 위 로컬 보정의 산출이며 원격 PR 결과가 아니다. 문단 사이 XML 개행만 추가한 의미 동등 진단 입력은 앞선 코드에서 12쪽/164문단이 되어 병합 누락을 검출했다. inter-element XML whitespace를 같은 문단 목록의 소유 경계로 보지 않도록 보정한 뒤 6쪽/99문단으로 복원됐다(`hwpx-whitespace-before.json`, `hwpx-whitespace-after.json`). 최종 fresh WASM은 진행 중이다. 원문 paragraph 내부 공백과 빈 줄은 별도로 보존한다.
+
+앞선 전체 회귀 두 실패도 baseline을 바꾸지 않고 구현을 보정했다. `tracked_viewtext`에서 숨김 축 제거 뒤 남은 제어 슬롯으로 mask를 재계산하고, writer는 명시적 terminator-only PARA_TEXT를 보존한다(원본의 PARA_TEXT 부재와 구분). 실제 #5169/#6778의 재구성 전후 control_mask/has_para_text 차이가 0인 진단 로그는 `maintainer/inspect-rebuild-metadata-after.log`다. 중앙 정렬은 유효한 저장 중간 줄의 정렬 폭을 보존하며 재조판으로 새로 나눈 줄의 비가시 trailing whitespace를 제외하도록 수정했다. #3837 실제 anomaly는 4→3으로 돌아왔다(`overlap3837-after.json`). 최종 전수 회귀·lint·fresh WASM과 메인터너 HWPX 시각 판정은 별도로 확인해야 한다.
+
+검토 보기는 원본/원본 및 변경 내용/최종본 및 변경 내용/최종본을 구분하는 한컴 계약이다([공식 도움말](https://help.hancom.com/hoffice110/ko-KR/Hwp/view/toolbar/menu_review.htm)). 이번 구현은 저장된 visibility를 열람 IR에 적용한다. 보기 전환 UI, 서식 변경의 원본 복원, 변경 수락·거부 편집, HWPX 변경 이력 전체의 저장·재열기는 완료로 주장하지 않는다. HWP의 미편집 원 이력 보존 증거를 HWPX 저장 증거로 대체하지 않는다.
+
+최종 XML 공백 보정 뒤 Native 전쪽 TSV는 `maintainer/tracking-native-whitespace-final/{hwp,hwpx}/silhouette.tsv`이며 앞선 Native 최소값을 유지했다. HWPX 대표 2·3·4쪽 `maintainer/hwpx-native-review-final/hwpx/review/`의 동일 배율 직접 비교에서 숨김 내용 제외·선행 빈 줄·표 소속·앞뒤 본문을 확인했다. 2쪽의 한 줄 위 이동은 해소됐고 남은 글자 폭·자형 및 표 괘선의 모양 차이는 화면에 보존했다. 이는 메인터너의 HWPX 직접 판정과 fresh WASM 검증을 대신하지 않는다.
+
+## HWPX 추가 범위의 직접 판정과 통합 전 검증
+
+메인터너가 `http://localhost:7700/?review=pr7698-hwpx-tracking-final`의 제공 HWPX를 확인하고 **시각 판정 통과**로 답했다. 초기화에 실제 사용된 WASM 응답 SHA-256 `58a0e64473c5f57d624419055c71b874b3716b879390cb192f598f8b3598f5de`는 Docker 빌드의 pkg/public과 동일하다(`studio-hwpx-tracking-final.json`).
+
+- 통합 전 code: `060f38ba5`; 원 기여 commit은 보존했다.
+- 전쪽 Native: HWP 최저 91.69413%, HWPX 및 XML 개행 대조군 최저 90.87964%.
+- 전쪽 fresh Docker WASM: HWP 최저 91.69413%, HWPX 및 XML 개행 대조군 최저 90.87964%. 전쪽 TSV는 `tracking-wasm-final/{hwp,hwpx,xml-spacing}/silhouette.tsv`에 있다.
+- HWPX Native/fresh WASM 대표 2·3·4쪽 review gate는 passed다. 직접 확대 대조와 메인터너 판정은 자동 gate와 따로 기록했다.
+- 전체 nextest: 10,547 PASS / 0 FAIL / 50 SKIP(597.697s). 기존 두 실패는 모두 구현 보정으로 통과했으며 baseline을 바꾸지 않았다.
+- HWPX 정식 회귀 3건 추가: 가시 텍스트·개체, 같은 소유 목록의 XML 공백 병합, 실제 빈 줄·제목의 새 쪽 소속. 수정 전 `9e6882188` 라이브러리에 같은 최종 테스트를 연결하면 HWP 3 PASS / HWPX 3 FAIL(가시 표 10→4, 18→6쪽)이다. 수정본 전체 6 PASS(`issue5169-hwpx-{before,final}-tests.log`). XML 개행만의 초기 12쪽/164문단 실패와 빈 줄 한 줄의 2쪽 27.65746%는 위 진단 증거로 구분하며, 이 원인의 각각에 대한 분리된 정식 수정 전 실행을 주장하지 않는다.
+- Native Skia lib는 rhwp 3,927 PASS / 13 IGNORE이며 workspace lib 15·165·2건도 PASS다. placeholder/direct-PDF 검사는 아직 진행 중이다.
+
+검토 종료 전 fetch한 upstream/devel은 여전히 `90fa2f8955c2dd21e9f0ea8fd0c6ee8dc5996a47`이다. 원 기여 이력을 유지한 source branch는 이후 devel 27개 commit을 포함하지 않는다. 여기의 통과는 통합 전 source의 결과로 구분하며, devel을 통합한 뒤 바뀐 실제 소비 경로의 lint·회귀·fresh Docker WASM·시각 증적을 갱신한다. 통합 후 source로 이미 통과했다고 보고하지 않는다.

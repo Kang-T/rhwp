@@ -9,9 +9,9 @@ last_verified: 2026-10-11
 
 ## 최종 판정
 
-**머지 보류 — 메인터너는 Studio에서 변화가 없었다며 추가 수정을 요청했다. 확인한 CDP 탭은 수정본 6쪽이므로, 메인터너가 확인한 URL·전체 쪽수와 실제 표시 차이를 대조 중이다.** 로컬 시각 수치 충족만으로 직접 판정을 대신하지 않는다. 원 head의 파서 결함은 실제 재현됐고, 추가 범위인 변경 추적 숨김도 같은 PR에서 보정했다. 원 기여 commit `1489ca1d95e3d6e6b888870d3b14cf240866ef00`을 보존해 source head 위에서 진행한다.
+**메인터너 보정 후 수용 가능 — HWP와 HWPX 모두 직접 시각 판정을 받았고 통합 전 Native/fresh Docker WASM 전쪽 90% 및 전체 회귀를 통과했다. 최신 devel 27개 commit 통합과 통합 후 검증이 남아 있으므로 아직 원격 반영·merge를 수행하지 않는다.** 앞선 URL·캐시 추정은 차이의 원인이 아니었다. 로컬 시각 수치 충족만으로 직접 판정을 대신하지 않는다. 원 head의 파서 결함은 실제 재현됐고, 추가 범위인 변경 추적 숨김도 같은 PR에서 보정한다. 원 기여 commit `1489ca1d95e3d6e6b888870d3b14cf240866ef00`을 보존해 source head 위에서 진행한다.
 
-최종 가시성·저장 code `422e09032`의 공개 #5169 원본은 Native/fresh Docker WASM 모두 독립 한컴 Print와 같은 6쪽이다. 전쪽 TSV 최저는 각각 91.69413%로 90% 미달·누락이 없고 대표 1·3·4쪽 review gate도 passed다. 숨긴 변경 내용은 공통 visible IR에서 제외하고, 바뀌지 않은 문단의 저장 LineSeg와 원본 이력은 보존했다. production 저장본의 한컴 Print는 정상 6쪽이며 원본 PDF와 전쪽 raster가 동일하다. 증적·한계와 회귀 기대값 재검토는 [메인터너 보정 기록](pr_7698_review_impl.md)에 연결한다. 직접 시각 판정은 통과로 기록하지 않는다.
+최종 가시성·저장 code `422e09032`의 공개 #5169 원본은 Native/fresh Docker WASM 모두 독립 한컴 Print와 같은 6쪽이다. 전쪽 TSV 최저는 각각 91.69413%로 90% 미달·누락이 없고 대표 1·3·4쪽 review gate도 passed다. 숨긴 변경 내용은 공통 visible IR에서 제외하고, 바뀌지 않은 문단의 저장 LineSeg와 원본 이력은 보존했다. production 저장본의 한컴 Print는 정상 6쪽이며 원본 PDF와 전쪽 raster가 동일하다. 증적·한계와 회귀 기대값 재검토는 [메인터너 보정 기록](pr_7698_review_impl.md)에 연결한다. 메인터너는 HWP의 숨김 표시 해결을 확인했다. HWPX의 최종 Docker Studio도 시각 판정 통과를 받았다.
 
 원 head의 Build & Test 성공과 CodeQL high 경고 69건 실패는 아래 최초 진단으로 남긴다. 최신 보정본의 전체 회귀나 CodeQL 해소 증거로 이전 결과를 재사용하지 않는다. 원격 source push·새 CI 확인·merge·close는 아직 수행하지 않았다. 아래 원 head 최초 검증과 로컬 최신 결과를 구분한다.
 
