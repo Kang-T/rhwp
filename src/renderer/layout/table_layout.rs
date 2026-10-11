@@ -9986,23 +9986,6 @@ impl LayoutEngine {
                 }
             };
 
-            // 수직 정렬 (분할 표에서는 Top 강제 — 보이는 영역이 전체 셀보다 작음)
-            // 중첩 표 행 범위 부분 렌더에서, **셀이 실제로 잘릴 때만** Top 을 강제한다.
-            //
-            // `row_filter` 는 행 단위로 자르므로 필터 안에 온전히 들어가는 셀은 잘리지
-            // 않는다. 그런 셀까지 Top 으로 덮으면 세로로 긴 병합 라벨이 정중앙이 아니라
-            // 맨 위에 붙는다 (한컴 pdf/kps-ai-2022.pdf p65 실측 = 정중앙. rhwp p66 은
-            // 상단). 실측: kps-ai 의 Center 지정 셀 57건 중 55건이 안 잘리는데도 Top
-            // 강제를 받았다.
-            //
-            // 잘리는 두 경우는 이 조건과 무관하게 결과가 Top 으로 수렴한다 —
-            // 상단 잘림(r < sr)은 라벨이 앞 페이지에 이미 렌더돼 문단을 비우고(아래 #1073
-            // 처리), 하단 잘림은 콘텐츠가 가시 높이를 넘어 정렬 오프셋이 0 으로 클램프된다.
-            // 그래도 종전 동작을 그 두 경우에 한해 그대로 남긴다.
-            let cell_clipped_by_row_filter = row_filter.is_some_and(|(sr, er)| {
-                let cell_end_row = (r + cell.row_span as usize).min(row_count);
-                r < sr || cell_end_row > er
-            });
             // 이 표 자신은 `nested_split`을 받지 않아도, 현재 표가 부모 1×1
             // RowBreak continuation의 남은 viewport 안에서 호출될 수 있다. 이때 큰
             // 하위 셀은 부모 Cell clip에 의해 위나 아래가 잘린다. 원래 Center/Bottom
@@ -10068,15 +10051,6 @@ impl LayoutEngine {
                 } else {
                     0.0
                 };
-            let effective_valign = if cell_clipped_by_row_filter
-                || scalar_single_row_continuation
-                || cell_clipped_by_parent_viewport
-                || cell_clipped_by_page_viewport
-            {
-                VerticalAlign::Top
-            } else {
-                cell.vertical_align
-            };
             // Task #347: HWP는 LineSeg.vertical_pos에 첫 줄의 절대 위치(셀 내부 컨텐츠 상단부터)
             // 를 기록한다. 다만 이 값을 모든 vertical_align에 곧바로 적용하면 Center/Bottom
             // 지정 셀도 Top처럼 배치된다. vpos 앵커링은 Top 셀의 세부 줄 위치 보정으로만
@@ -10303,6 +10277,24 @@ impl LayoutEngine {
                 0.0
             };
             let total_content_height = total_content_height + hwpx_reset_first_lead;
+            // 행 범위의 아래쪽이 잘려도 전체 내용이 현재 셀 상자에 들어가면
+            // 그 상자를 기준으로 선언된 가운데/아래 정렬을 유지한다. 짧은 병합
+            // 라벨도 뒤쪽 행을 소유할 수 있으므로 행 컷만으로 내용 잘림을 추정하지 않는다.
+            // 위쪽 이어받기는 이미 소비한 내용을 되돌리지 않도록 Top을 유지한다.
+            // 내용이 현재 안 높이를 넘는 아래쪽 조각과 실제 viewport 잘림도 그대로다.
+            let cell_clipped_by_row_filter = row_filter.is_some_and(|(sr, er)| {
+                let cell_end_row = (r + cell.row_span as usize).min(row_count);
+                r < sr || (cell_end_row > er && total_content_height > inner_height)
+            });
+            let effective_valign = if cell_clipped_by_row_filter
+                || scalar_single_row_continuation
+                || cell_clipped_by_parent_viewport
+                || cell_clipped_by_page_viewport
+            {
+                VerticalAlign::Top
+            } else {
+                cell.vertical_align
+            };
             let use_top_vpos_anchor = matches!(effective_valign, VerticalAlign::Top);
             // [#6630] 세로 가운데/아래 셀: 첫 문단의 위 여백(저장 vpos 상한)이 내용 높이에 없어
             // 정렬이 그만큼 위로 쏠린다 — 정렬 계산에만 넣는다. Top 셀은 text_y_start 가 저장
