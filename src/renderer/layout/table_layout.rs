@@ -13906,13 +13906,13 @@ impl LayoutEngine {
             .first()
             .and_then(|p| p.line_segs.first().map(|s| s.vertical_pos))
             .unwrap_or(-1);
-        // A certified shared source frame can begin at positive inner padding.
-        // Its reset ownership is independent of the local-zero compatibility
-        // rule; all reset/cut consumers below must receive that same decision.
+        // 첫 저장 줄의 문단 위 간격은 셀 좌표계의 이동이 아니다. 배치가 사용하는
+        // 같은 원점에서 이 간격을 분리해, 뒤의 실제 저장 되감김도 보존한다.
         let cell_has_local_vpos_origin = direct_hwpx_stored_frame_cell
             || before_space_proves_local_origin
             || cell_first_vpos == 0
-            || (is_block_rowbreak_table && (0..=500).contains(&cell_first_vpos));
+            || (is_block_rowbreak_table
+                && (0..=500).contains(&self.stored_cell_initial_frame_origin_hu(cell, styles)));
         // [#5995] 셀 내부 vpos 사다리는 셀 콘텐츠 기준 좌표라 표 자신의 세로
         // 오프셋과 무관하다. 저자가 남긴 미세 오프셋(30269 문단 0.136: -98HU =
         // -0.03mm)이 `== 0` 판정으로 vpos 유닛 체계 전체를 끄면, 리셋(조각 경계)
@@ -20806,7 +20806,7 @@ impl LayoutEngine {
                             && self.row_has_stored_vpos_frame_rewind(table, row)
                             && self.row_has_single_visible_source_cell(table, row, styles)
                             && !hwpx_local_reset_stream));
-                // [#5880] 직접 HWPX 1×1 RowBreak 칸의 문단 경계 vpos 리셋은
+                // [#5880] 직접 HWPX RowBreak 칸의 문단 경계 vpos 리셋은
                 // 한글이 저장한 쪽 프레임이다(2737927: p18 끝 70231HU ≈ 본문
                 // 높이에서 p19 vpos=0 되감김). relaxed 규칙이 이것을 "공간이
                 // 남은 로컬 재시작"으로 흡수하면 컷이 한글 경계를 몇 줄 지나쳐,
@@ -20820,9 +20820,13 @@ impl LayoutEngine {
                         table.page_break,
                         crate::model::table::TablePageBreak::RowBreak
                     )
-                    && table.row_count == 1
-                    && table.col_count == 1
                     && row_cells.len() == 1
+                    // 쪽 프레임은 표 전체의 행 수가 아니라, 이 행을 단독으로
+                    // 차지하는 전폭 셀에 속한다. 여러 행 표의 전폭 본문도 같다.
+                    && cell.row as usize == row
+                    && cell.row_span == 1
+                    && cell.col == 0
+                    && cell.col_span == table.col_count
                     && !u.empty_spacer
                     && h >= avail_height * 0.7;
                 let shared_empty_frame = self.profile.get().hwp5_stored_pagination_layout()
