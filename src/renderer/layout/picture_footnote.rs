@@ -1299,15 +1299,18 @@ impl LayoutEngine {
             // reserve that demand rather than clipping it into the saved line.
             advance = advance.max(line_height);
             let style = styles.para_styles.get(composed.para_style_id as usize);
+            let margin_left = style.map_or(0.0, |style| style.margin_left);
+            let right = style.map_or(0.0, |style| style.margin_right);
             let indent = crate::renderer::equation_tac_flow::paragraph_line_indent_for_source(
                 style.map_or(0.0, |style| style.indent),
                 0,
                 Some(para),
                 composed.lines.len(),
                 true,
+                area_width - margin_left - right,
+                self.dpi,
             );
-            let left = style.map_or(0.0, |style| style.margin_left) + indent;
-            let right = style.map_or(0.0, |style| style.margin_right);
+            let left = margin_left + indent;
             let outer_left = hwpunit_to_px(table.outer_margin_left as i32, self.dpi);
             let outer_right = hwpunit_to_px(table.outer_margin_right as i32, self.dpi);
             let width = self
