@@ -1,5 +1,7 @@
 //! 페이지 분할 표 레이아웃 (layout_partial_table)
 
+mod tail_alignment;
+
 use super::super::composer::{compose_paragraph, ComposedParagraph};
 use super::super::float_placement::{
     native_hwp5_stored_reset_fragment_paint_geometry, topbottom_flow_vertical_offset_hu,
