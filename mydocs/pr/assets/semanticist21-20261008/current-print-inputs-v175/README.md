@@ -27,3 +27,16 @@ SHA-256은 `778594c4e099ec86ddaa825f1dd307c195c4ffe49b842a5082df0c15274d6828`다
 정식 검사는 `tests/cases/footnote_stored_width_body_ownership.rs`에서 실제 Native 인쇄 SVG의
 쪽 소속·내용 순서·보존을 검사한다. 글꼴 raster와 기존 가는 선의 잔여 차이, 별도 차트와
 직접 보정 세 문서·전체 회귀·backend의 미검증을 이 검사 통과로 해소했다고 보고하지 않는다.
+
+## 2026-10-13 최종 검증 입력 누락 보완
+
+최종 재검증 준비에서 아래 세 편집 저장본이 ignored output에만 있고 커밋된 입력에
+없음을 확인했다. 기존 독립 Print를 생성한 입력 바이트 그대로 보존하며 새로 재생성하거나
+기준 PDF를 바꾸지 않았다. 이 보존은 현재 소스의 시각 통과 판정이 아니며,
+7749d의 Native/fresh 재검증을 이어서 수행한다.
+
+| 입력 | SHA-256 | 같은 입력의 독립 Print |
+| --- | --- | --- |
+| `additional-edited-note-style-blank-endnote-v175.hwpx` | `31414e6363d510ce28bdbb933b24431ac1f2642f7d65b4ef219c74340a3e973d` | `pdf/semanticist21-20261008/new_note_paragraph_style-0460-31414e6363d5-2020.pdf` |
+| `additional-edited-note-style-blank-footnote-v175.hwpx` | `56839e167e1177d8c29b636a93508e0d59e7874e5242fc8ae6cb6c320a361d3d` | `pdf/semanticist21-20261008/new_note_paragraph_style-0458-56839e167e11-2020.pdf` |
+| `additional-edited-note-style-hancom-hwp-footnote-v175.hwpx` | `b3c9896ea898d3b3f9185b473a7328bc53ac886c0f607221a9df28b7d483f5ad` | `pdf/semanticist21-20261008/new_note_paragraph_style-0464-b3c9896ea898-2020.pdf` |

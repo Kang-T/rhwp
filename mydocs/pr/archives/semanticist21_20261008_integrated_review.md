@@ -4554,3 +4554,34 @@ canonical webfontChrome캡처했다(23개모두exit0). 기존54PNG는정상파�
 안정경로에보존했다. K-water24쪽의직접판독과#4514부분복구/10·11쪽미달을함께기록했다.
 현재세Native문서와이전원PR계약의통과를최종전체nextest·fresh/Skia·원격CI완료로승격하지않는다.
 CGMP검사보정은현재fresh48쪽확인뒤에진행하며초기17개의최종판정은여전히머지보류다.
+
+
+## 진행 갱신182 — 현재 Native 경계 판독과 검증 입력 누락 보완 (2026-10-13)
+
+Rust 생산 소스는7749d로 유지하며 현재 HEAD c0fb6734e의 실제 CGMP 정식 소스5개를
+같은 debug library에 링크해 실행했다.4PASS/1FAIL·exit101이며, 실패는
+`issue_6035_complete_row_does_not_emit_a_line_advance_only_tail`의 `split_pair`가
+완료된 행에도 비어 있지 않은 endCut을 요구하는 전제다. 다른4검사는 통과했다.
+현재 Native review34/35/36/47쪽을 직접 열었다. 원자재 입고 행은34쪽에서 끝나고
+35쪽은 다음 항목부터 시작하며 물 공급 설비 제목35쪽/세 항목36쪽의 소속을 보존한다.
+47쪽은 표 외곽·제목/본문/발급자 위치가 대응하며 기준의 굵은 글꼴과 raster 차이가 남는다.
+현재 fresh 전48쪽을 확인한 뒤에만 완료 행의 잘못된 전제를 교정하며 아직 검사 source를 바꾸지 않았다.
+
+KPS 현재 Native review37/38/42/65/66쪽도 직접 확인했다.37쪽 성능 요구사항의 끝과
+38쪽 다음 데이터 요구사항의 소속,65/66쪽 병합 제목·본문의 이어받기와 뒤 내용이 대응한다.
+42쪽은90.85010%이며 글꼴/글줄 내부 raster 차이가 남지만 본문 순서·줄바꿈·쪽 끝은 보존된다.
+대표 review 생성은 기존 현재 Native PNG/독립Print PNG를 canonical compare·overlay·review 함수로
+합성했으며 새 렌더 실행과 구분한다. 명령·실패/성공·이미지는 ignored v449에 보존한다.
+
+초기 체리픽 편집 사례의 최종 재검증 준비에서 독립Print의 입력3개가 ignored output에만
+있었음을 발견했다. [현재 편집 입력 자산](../assets/semanticist21-20261008/current-print-inputs-v175/README.md)에
+blank endnote/blank footnote/Hancom HWP footnote의 실제 기존 바이트를 추가 보존했다.
+각 입력 SHA와 같은 입력의 독립2020 Print를 연결하며 새로 생성하거나 기준을 교체하지 않았다.
+이 커밋은 입력 보존 보완이고 현재 시각 통과·새 회귀 추가·PR 승인으로 보고하지 않는다.
+
+현재 frontend source의 TypeScript 검사는exit0,Studio 단위 검사는1836개 중1834PASS/2SKIP/0FAIL·exit0이다.
+동일 frontend 파일 hash guard를 확인했으며 Studio production build·현재 JS/WASM 실제 browser
+검증을 대신하지 않는다. 공용target의 현재 freshWASM은 Rust 컴파일12분59초를 마치고
+같은 wrapper/cache의 wasm-opt 단계다. 가맹사업 Native142쪽은 전체SVG/render tree 내보내기
+이후 임베딩 글꼴 검증 중이다. 전체 회귀·fresh·NativeSkia·원격PR/CI/merge는 여전히 미완료다.
+개별17개는 머지보류를 유지하며 모든 필수 검증과 해결 뒤 **메인터너 보정 후 승인**으로 변경한다.
