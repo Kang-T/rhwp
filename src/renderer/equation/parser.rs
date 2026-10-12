@@ -9,6 +9,7 @@ use super::symbols::{
     FontStyleKind, DECORATIONS, FONT_STYLES,
 };
 use super::tokenizer::{tokenize, Token, TokenType};
+use super::symbol_tokens::symbol_node;
 
 /// 수식 중첩 깊이 상한.
 ///
@@ -233,12 +234,7 @@ impl EqParser {
             }
             TokenType::Symbol => {
                 self.pos += 1;
-                // -> 는 →로 변환
-                if val == "->" {
-                    EqNode::MathSymbol("→".to_string())
-                } else {
-                    EqNode::Symbol(val)
-                }
+                symbol_node(val)
             }
             TokenType::Text => {
                 self.pos += 1;
@@ -714,7 +710,7 @@ impl EqParser {
             TokenType::Number => EqNode::Number(val),
             TokenType::Text => EqNode::Text(val),
             TokenType::Quoted => EqNode::Quoted(val),
-            TokenType::Symbol => EqNode::Symbol(val),
+            TokenType::Symbol => symbol_node(val),
             _ => EqNode::Text(val),
         }
     }
@@ -749,12 +745,7 @@ impl EqParser {
         while self.is_tight_relational() {
             let sym = self.current_value().to_string();
             self.pos += 1;
-            // `->` 는 화살표 기호로 변환 (parse_element 와 동일)
-            if sym == "->" {
-                items.push(EqNode::MathSymbol("→".to_string()));
-            } else {
-                items.push(EqNode::Symbol(sym));
-            }
+            items.push(symbol_node(sym));
             items.push(self.parse_single_or_group());
         }
         EqNode::Row(items).simplify()

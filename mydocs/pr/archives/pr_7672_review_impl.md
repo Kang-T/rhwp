@@ -312,3 +312,27 @@ partial PNG를 같은 완료 raster로 다시 합성하고 현재/BFA14·15·17�
 빌드·manifest/base 비교·unit-tier/base 비교까지 통과**했다. 전체nextest는
 UTC2026-10-12 15:19:45에 시작했으며 최종summary/exit code는 아직 없다.
 `shared-first-paragraph-band-validation-resume-jobs2-all-nextest.log`에 연결한다.
+
+## 수식 관계 기호 의미 결함 보정 시작 — 2026-10-13
+
+C16 `a727185524b0383257d64f2f0a981a790189f585`의 경계22건·필수 lint는 모두exit0이다.
+별도 미니 문서는 fresh WASM의 실제 빈 템플릿 API와 `insertEquation("x!=0",1200)`로 생성했으며
+수동 HWP 레코드를 작성하지 않았다. 입력SHA-256은
+`802b7ec604be9b134938e491881cde825462fbc766bb4339e6149baca59b2bdf`다.
+동일 입력의 독립 한컴2020 Print job `5eee145d-60e6-49de-bdaa-1b6769ef7214`는
+runtime11.0.0.9136 / PrintMethod0 / one-up으로 성공했다. Print는 `≠`, 현재 Native는 `!=`이며
+1쪽 Native 보조값84.01639%와 확대 PNG에서 기호 차이를 확인했다.
+
+실제 소비 경로 `parse_element`, `parse_single_or_group`, `parse_script_operand`의
+관계 기호 토큰을 공통 AST 생산 helper에 연결한다. 기존 symbols 사전의 의미를 재사용하며
+일반 한 글자 구두점과 기존 `->` 화살표는 보존한다. SVG·Canvas·Native의 EqLayout은 같은 AST를
+소비한다. 문서ID·px 좌표·별도 glyph paint 보정 조건을 추가하지 않는다.
+동결 C16 라이브러리로 독립 문법 진단을 compile0 / run101로 실행했다:
+일반·첨자·무브레이스 하한의3경로 실패, 구두점/기존 화살표 대조군1통과다.
+진단 원문은 아직 활성suite에 등록하지 않는다. 보정 후 같은 미니 문서의 Native/fresh WASM
+전체1쪽90% 이상·직접 glyph 판독을 확인한 뒤 정식 `tests/cases/`에 넣는다.
+미니 문서 검증을 기존 편집본20쪽과 나머지 편집본의 개선·통과로 보고하지 않는다.
+
+원본·Print·진단·확대 PNG·세 소비 경로 초안은 ignored
+`output/pr-review/planet6897-followup-20261011/equation-ascii-relations-diagnostic/`에 보존한다.
+현재20쪽 미주 편집 범위의 시각 수용과 전체 PR 검증은 계속 미완료다.
