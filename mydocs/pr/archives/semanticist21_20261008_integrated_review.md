@@ -12,7 +12,7 @@ last_verified: 2026-10-12
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행158): v345 전체 회귀는10,266개 중10,254PASS/12FAIL/45제외로 종료했다. 이 중 이미 #7445/#7731로 이관한 API 목록의 잔여1행을 정리한 뒤 관련 계약6개가PASS다(v371). 전체를 다시 실행하기 전이므로 전체 무실패로 보고하지 않는다. KPS Native77쪽은최저90.91935%·미달/누락0이며 fresh WASM은진행 중이다(v347). Native Skia11문서14쪽은최저91.21234%·미달/누락0이고 대표PNG·래퍼3배확대를판독했다(v369/v372). 실제 페이지 수 회귀·차트·TAC·기존 검사 보정과 직접3문서의 최종 전쪽/전체회귀는 미완료다. 개별18PR 보류 판정을 유지한다.
+- 최신 단계(진행159): v345 전체 회귀는10,254PASS/12FAIL이며 이 중 이관 API 잔여1행은 관련6검사 재실행PASS다. KPS Native/fresh WASM 각각77쪽은최저90.91935%·미달/누락0, CGMP Native48쪽은최저94.05301%·미달/누락0으로 완료 산출물을 재확인했다. 디스크 부족으로 중단된 CGMP fresh/가맹 전쪽은 재개 대기다. Visual Sweep의 선택 쪽 중복SVG 저장을 수정했고 관련Python100검사가PASS다. 실제 회귀·출력 보정·최종 전체검증은 미완료이며 개별18PR 보류를 유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. PR 생성은 사용자 승인 후 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -3532,3 +3532,44 @@ wrapper-native-skia-compare-v372, remaining-failures-independent-print-v366,
 issue157-flow-advance-base-current-v370, issue157-certified-origin-diagnostic-v373,
 education-source-row-owner-v374, education-row-fragments-v375, education-exact-row-visual-v376에
 명령·로그·관측을 연결한다.
+
+
+### 진행159: 디스크 부족 복구와 선택 쪽 WASM 내보내기의 중복 저장 수정
+
+교육과정139/140쪽만 요청한 v376의 WASM 경로가 Native 글꼴 정책 SVG를 전쪽 생성하고,
+최종 WASM SVG도422쪽 복사해 정책 디렉터리만 약22GB를 사용했다. 디스크 부족으로
+v347/v376 서비스가 실제 실패 종료했고 집계 JSON 두 개가 잘렸다. 완료 표식이나 빈 진단 스크립트의
+exit0을 검증 성공으로 간주하지 않는다. 특히 디스크 부족으로 작성되지 않은 v382의 빈 스크립트는
+KPS 경계 검사 증거가 아니다.
+
+수정 경로는 `export_wasm_target`의 전체 raw SVG/render tree·pageCount 확인 → 문서 전체의
+글꼴 별칭 CSS 수집 → 정책용 중간 Native SVG 정리 → 요청 쪽의 최종 SVG/트리 복사다.
+다른 쪽에 저장된 글꼴도 공급하며 WASM 소유 텍스트·좌표·전체 쪽수를 바꾸지 않는다.
+`render_target`은 완료 표식 외에 요청한 SVG와 트리의 존재를 확인해 다른 부분 내보내기를
+잘못 이어받지 않는다. 중간 SVG의 경로·크기·CSS SHA는 작은 JSON으로 남긴다.
+측정 지표·90% 기준·문서 쪽수 gate는 유지한다. 같은 결과가 필요한 전체 내보내기는 여전히
+전쪽을 복사한다. 새 도구 계약은 선택 쪽만 저장되는지, 비선택 쪽의 글꼴이 공급되는지,
+비선택 raw/트리 누락도 실패하는지, 전체 쪽수·이어받기·범위 밖 요청을 검사한다.
+
+`venv/bin/python -m unittest scripts.tests.test_visual_sweep
+scripts.tests.test_visual_sweep_generation scripts.tests.test_visual_sweep_document_pages
+scripts.tests.test_visual_sweep_wasm_pages`는100검사/24.866초/exit0이다.
+실물 재실행으로 저장량 감소를 확인하기 전이므로 이 결과만으로 실물 검증 완료를 주장하지 않는다.
+
+`visual-recovery-v384/result.json`에서 잘린 집계의 원래 바이트·SHA를 보존하고1111개 생산 소스와
+Native 바이너리 해시를 확인했다. 각 완료 `silhouette_manifest.json`의 전체 PNG 입력 해시를
+다시 검사한 결과는 다음과 같다. 잘린 집계의 process exit code를 새로 만들어 채우지 않았다.
+
+| 재확인한 완료 출력 | 비교 쪽 | 최저 일치율 | 전체 쪽수/남은 판단 |
+| --- | ---: | ---: | --- |
+| KPS Native | 77 | 90.91935% | 77/77, 미달·누락0. 경계 직접 판독·기존 검사 보정 남음 |
+| KPS fresh WASM | 77 | 90.91935% | 77/77, 미달·누락0. 직접 판독 남음 |
+| CGMP Native | 48 | 94.05301% | 48/48, 미달·누락0. fresh 재개 필요 |
+| 교육과정 base Native139/140 | 2 | 75.29239% | base418/Print415, 이관된 고정 높이 검사의 적합성 증거 |
+| 교육과정 현재 Native139/140 | 2 | 74.39013% | 현재422/Print415, 현재 fresh 확인 남음. 전쪽 통과 아님 |
+
+종료된 작업의 중간 SVG와 더 이상 필요한 검증에 사용하지 않는 초기 frozen 바이너리만
+정확한 경로·프로세스 미사용 확인 후 제거했다. 원본·Print·PNG·TSV·트리·현재 Native/fresh·공유
+`target/pr-review`를 보존했고 현재31GB 공간을 확보했다. 삭제 경로·크기·해시는
+`completed-education-native-svg-cleanup-v383.json`, `obsolete-frozen-binary-cleanup-v383.json`,
+`terminal-incomplete-svg-cleanup-v383.json`에 남겼다. 원격 GitHub 변경은 없다.

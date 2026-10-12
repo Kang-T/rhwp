@@ -720,7 +720,23 @@ def check_sweep_embedded_fonts(svg_paths: list[Path], report_path: Path) -> None
         raise SystemExit("임베딩 글꼴 검사 실패 — 캡처/시각 통과 판정을 중단합니다.\n" + "\n".join(failures))
 
 
-def export_wasm_target(root: Path, hwp: Path, package: Path, rhwp_bin: str, base: Path, font_environment: Path | None = None, font_args: list[str] | None = None, compat: str = "2022") -> None:
+def wasm_export_has_pages(base: Path, selected_pages: list[int] | None) -> bool:
+    """완료 표식만으로 다른 쪽의 부분 내보내기를 재사용하지 않는다."""
+    metadata = base / "wasm-export-complete.json"
+    if not metadata.is_file():
+        return False
+    count = load_json_object(metadata, "WASM export").get("pageCount")
+    if type(count) is not int or count < 1:
+        return False
+    expected = set(range(1, count + 1))
+    required = set(selected_pages) if selected_pages is not None else expected
+    return bool(required) and required <= expected and all(
+        required <= {page_num(path) for path in (base / folder).glob(pattern)}
+        for folder, pattern in (("svg", "*.svg"), ("render_tree", "*.json"))
+    )
+
+
+def export_wasm_target(root: Path, hwp: Path, package: Path, rhwp_bin: str, base: Path, font_environment: Path | None = None, font_args: list[str] | None = None, compat: str = "2022", selected_pages: list[int] | None = None) -> None:
     environment_args = ["--compat", compat]
     if font_environment:
         environment_args.extend(["--font-environment", str(font_environment)])
@@ -747,16 +763,28 @@ def export_wasm_target(root: Path, hwp: Path, package: Path, rhwp_bin: str, base
     count = manifest.get("pageCount")
     raw = {page_num(path): path for path in (wasm_dir / "raw_svg").glob("*.svg")}
     trees = {page_num(path): path for path in (wasm_dir / "render_tree").glob("*.json")}
-    expected = set(range(1, count + 1)) if isinstance(count, int) and count > 0 else set()
+    expected = set(range(1, count + 1)) if type(count) is int and count > 0 else set()
     if not expected or set(raw) != expected or set(trees) != expected or not policies:
         raise SystemExit("WASM SVG/render tree 페이지가 누락됐거나 글꼴 정책이 없습니다.")
     # 별칭은 문서의 글꼴 공급 계약이다. 네이티브의 페이지 소속을 WASM에 강제하지 않는다.
     # 전체 글꼴 SVG에는 본문도 있다. CSS만 읽어 긴 문서의 반복 스캔을 피한다.
-    policy_rules = list(dict.fromkeys(
-        rule for path in policies.values() for rule in svg_font_face_rules(path)
-    ))
-    for page in sorted(expected):
-        svg = apply_svg_font_policy(raw[page].read_text(encoding="utf-8"), policy_rules)
+    requested = set(selected_pages) if selected_pages is not None else expected
+    if not requested or not requested <= expected:
+        raise SystemExit(f"요청 쪽이 WASM 전체 {count}쪽 범위를 벗어납니다.")
+    policy_rules = {}
+    policy_sources = []
+    for path in policies.values():
+        rules = svg_font_face_rules(path)
+        policy_rules.update(dict.fromkeys(rules))
+        policy_sources.append({
+            "path": str(path), "bytes": path.stat().st_size,
+            "font_face_css_sha256": hashlib.sha256("\n".join(rules).encode("utf-8")).hexdigest(),
+        })
+        # 이 실행이 만든 정책용 중간 SVG만 정리한다. 원본 WASM과 최종 출력은 보존한다.
+        path.unlink()
+    write_json_atomic(base / "font-policy-sources.json", {"removed_svg": policy_sources})
+    for page in sorted(requested):
+        svg = apply_svg_font_policy(raw[page].read_text(encoding="utf-8"), list(policy_rules))
         (base / "svg" / raw[page].name).write_text(svg, encoding="utf-8")
         shutil.copyfile(trees[page], base / "render_tree" / trees[page].name)
     # 출력 복사까지 끝난 경우에만 내보내기 완료를 표시한다.
@@ -1538,8 +1566,8 @@ def render_target(
         note_shape = load_note_shape(root, hwp, rhwp_bin, note_shape_path)
     compact_shapes = compact_note_shape(note_shape)
     if wasm_pkg is not None:
-        if not (base / "wasm-export-complete.json").is_file():
-            export_wasm_target(root, hwp, wasm_pkg, rhwp_bin, base, font_environment, font_args, compat)
+        if not wasm_export_has_pages(base, selected_pages):
+            export_wasm_target(root, hwp, wasm_pkg, rhwp_bin, base, font_environment, font_args, compat, selected_pages)
     else:
         export_native_target(root, hwp, rhwp_bin, base, selected_pages, font_args, environment_args)
 
