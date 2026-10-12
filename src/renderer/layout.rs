@@ -10316,9 +10316,10 @@ impl LayoutEngine {
                         .iter()
                         .find(|m| m.para_index == cont.para_index);
                     for r in cont.start_row..row_count {
-                        let rh = mt
-                            .and_then(|m| m.row_heights.get(r))
-                            .copied()
+                        let rh = (r == cont.start_row)
+                            .then_some(cont.start_row_height)
+                            .flatten()
+                            .or_else(|| mt.and_then(|m| m.row_heights.get(r)).copied())
                             .unwrap_or(0.0);
                         if cum + rh > room {
                             break;
@@ -10339,13 +10340,13 @@ impl LayoutEngine {
                     cont.start_row,
                     end_row,
                     true,
-                    &[],
+                    &cont.start_cut,
                     &[],
                     false,
                     false,
                     false,
                     None,
-                    None,
+                    cont.start_row_height,
                     &[],
                     &[],
                     None,
@@ -16976,14 +16977,49 @@ impl LayoutEngine {
                     // `overflow_cell_baseline` 래칫에 계상된다. 컷의 권위는 typeset 이다
                     // — 여기서 재계산하면 다음 쪽 페인트와 어긋나 행이 소실되거나
                     // 중복될 수 있다.
-                    let overlay_cut = col_content
+                    let source_cut = col_content
                         .overlay_cuts
                         .iter()
                         .find(|(pi, ci, _)| *pi == para_index && *ci == control_index)
-                        .map(
-                            |(_, _, end_row)| super::layout::table_layout::NestedTableSplit {
+                        .map(|(_, _, cut)| cut);
+                    if let Some(cut) = source_cut.filter(|cut| !cut.end_cut.is_empty()) {
+                        self.layout_partial_table(
+                            tree,
+                            &mut temp_parent,
+                            paragraphs,
+                            para_index,
+                            control_index,
+                            page_content.section_index,
+                            styles,
+                            0,
+                            col_area,
+                            para_y,
+                            bin_data_content,
+                            0,
+                            cut.end_row,
+                            false,
+                            &[],
+                            &cut.end_cut,
+                            false,
+                            false,
+                            false,
+                            cut.end_row_height,
+                            None,
+                            &[],
+                            0.0,
+                            0.0,
+                            None,
+                            None,
+                            false,
+                            None,
+                            None,
+                            None,
+                        );
+                    } else {
+                        let overlay_cut =
+                            source_cut.map(|cut| super::layout::table_layout::NestedTableSplit {
                                 start_row: 0,
-                                end_row: *end_row,
+                                end_row: cut.end_row,
                                 visible_height: 0.0,
                                 flow_height: 0.0,
                                 offset_within_start: 0.0,
@@ -16992,39 +17028,39 @@ impl LayoutEngine {
                                 replay_terminal_boundary_unit: false,
                                 terminal: false,
                                 recursive_cut: None,
-                            },
-                        );
-                    self.layout_table(
-                        tree,
-                        &mut temp_parent,
-                        table,
-                        page_content.section_index,
-                        styles,
-                        0,
-                        col_area,
-                        para_y,
-                        bin_data_content,
-                        None,
-                        0,
-                        Some((para_index, control_index)),
-                        alignment,
-                        None,
-                        0.0,
-                        0.0,
-                        None,
-                        overlay_cut.as_ref(),
-                        None,
-                        None,
-                        false,
-                        false,
-                        0.0,
-                        None,
-                        Self::standalone_table_char_border_fill(
-                            paragraphs.get(para_index),
+                            });
+                        self.layout_table(
+                            tree,
+                            &mut temp_parent,
                             table,
+                            page_content.section_index,
                             styles,
-                        ),
-                    );
+                            0,
+                            col_area,
+                            para_y,
+                            bin_data_content,
+                            None,
+                            0,
+                            Some((para_index, control_index)),
+                            alignment,
+                            None,
+                            0.0,
+                            0.0,
+                            None,
+                            overlay_cut.as_ref(),
+                            None,
+                            None,
+                            false,
+                            false,
+                            0.0,
+                            None,
+                            Self::standalone_table_char_border_fill(
+                                paragraphs.get(para_index),
+                                table,
+                                styles,
+                            ),
+                        );
+                    }
                     let layer =
                         Self::render_layer_from_common(&table.common, para_index, control_index);
                     Self::push_layered_paper_children(paper_images, &mut temp_parent, layer);

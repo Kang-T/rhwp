@@ -4442,3 +4442,42 @@ Rust·workflow 변경이나 원격 PR·merge는 없다. 원본 기여자의 범�
 #4514 현재 변경의 이어받기 행 소실은 이관으로 면제하지 않고 구현 보정 대상으로 유지한다.
 CGMP·KPS·가맹사업은 직접 보정 대상이며 제거하지 않는다. 아직 전체 검증이 완료되지 않았으므로
 미병합17개 원 PR은 머지 보류다. 모두 해결·필수 검증 후에만 **메인터너 보정 후 승인**으로 바꾼다.
+
+
+## 진행 갱신179 — 장식 표의 부분 행 소유·물리 높이 전달 보정 후보 (2026-10-13)
+
+#4514의 독립 Print는 ECR-004 앞쪽 마지막 행의 `도입수량`을 앞쪽에, `기능 및 구성`부터
+다음 쪽에 소유한다. 원본 셀의 두 첫 문단은 저장 vpos500HU에서 새로 시작한다. 현재는
+전체 행470.42667px을 다음 표 위 예산464.12px에 수용하지 못하면 통째로 버려지는 실제 회귀다.
+base는463.8px을 통째로 그려 기존 내용 컷 오류도 갖는다. 합성 입력이나 전체 점수로 이 손실을 면제하지 않는다.
+
+보정 후보의 생산→소비 연결:
+
+- `typeset/controls/decoration_table/row_fragment.rs`: 일반 분할의 `LayoutEngine::advance_row_cut`과
+  `row_cut_content_height`를 동일 프로파일·column 환경·정규화·원본 행 높이로 조회한다.
+  boundary에 걸친 rowspan은 기존 경로로 남기고 RowBreak의 실제 패딩 포함 앞 조각이 예산에 맞을 때만 수용한다.
+- `decoration_table::continuation`은 prefix 행·행간격 뒤 예산에서 선택한 유닛 컷과 앞/뒤 물리 높이를 함께 반환한다.
+- `state::finish_decoration_table`은 앵커 `OverlayCut`과 이어받는 `OverlayContinuation`에 같은 컷을 복사한다.
+  기존 필러 흐름은 reserve0을 유지하고 저장 사다리 reset 후 흐름만 잔여 높이를 예약한다.
+- `layout.rs` shapes pass는 부분 마지막 행을 `layout_partial_table`로 같은 end_cut·높이로 그린다.
+  이어받기 pass는 같은 start_cut·잔여 높이로 예산을 확인한 뒤 기존 부분 표 경로에 전달한다.
+  단순히 선언 전체 행 높이를 반복하거나 허용 px를 늘려 소실을 숨기지 않는다.
+- 부분 행이 없는 장식 표의 기존 whole-row paint 경로는 유지한다. 문서 ID나 임의 좌표로 분기하지 않는다.
+
+최초 `cargo check --locked --lib --target-dir /home/tsjang/rhwp/target/pr-review`는 exit0(1분35초)다.
+뒤 행간격 회계와 주석을 함께 정리했고 현재 source의 CLI 빌드·기존 실제 실패 검사·경계 Visual Sweep으로 검증한다.
+아직 출력 보정 완료·전쪽≥90%·최종 전체 회귀로 보고하지 않는다. 신규 실물 회귀는 선행 시각 검증 뒤 추가한다.
+
+
+K-water 하단 괘선의 소비 지점도 이어 추적했다. 현재d7 24쪽의 Table bbox 끝은980.4px이나
+실제 최종 수평선은964.95px이다. 독립 Print의 같은 선은735.875pt=981.16667px이다.
+원본 마지막 빈 문단은vpos44053HU+lh1200HU까지의 점유를 갖는다. `row_cut_content_height`
+whole-row가 중첩 셀의 컷 없는 행을 별도 CellUnit 합으로 다시 계산하며 닫힌 원본 프레임의 빈 꼬리를 잃는다.
+새 후보는 `StoredBlockCellFlow::closed_before_host`에 생산한 프레임 종류를 보존하고,
+온전한 행의 높이 계산도 같은 `flow.bottom`을 소비한다. 부분 start/end컷은 기존 선택 유닛 회계를 유지한다.
+어긋난 선을 clamp하거나 높이 숫자만 덧붙이는 방식이 아니다. Native/fresh 경계·전쪽으로 검증할 예정이다.
+
+장식 표 후보의 기존 #4514 검사는 ECR-001~005가3쪽이라는 assertion에서 FAIL했다(실제4쪽).
+독립 Print10/11쪽을 대조한 결과 ECR-005의 뒷 본문은11쪽에서 계속되므로 원본 범위는4쪽이다.
+현재 후보가 기존에 누락하던 ECR-005 이어받기를 복구했는지 직접 배치와 함께 확인 중이다.
+이전 test PASS는 그 뒷 본문 누락으로 얻은 것일 수 있어 정답지와 비교하며, 미달 상태에서 기대값을 먼저 바꾸지 않았다.

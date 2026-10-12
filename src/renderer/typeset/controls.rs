@@ -96,16 +96,26 @@ pub(super) fn place_decoration_table(
     dpi: f64,
     anchor_origin: Option<f64>,
     format: impl FnOnce(bool) -> FormattedTable,
+    engine: &super::TypesetEngine,
+    styles: &ResolvedStyleSet,
 ) {
     st.emit_decoration_table(para_idx, ctrl_idx);
     // [#4568] 현재 쪽을 넘는 잔여 행만 다음 쪽 대기열에 남긴다.
     // 포맷은 Shape 발행 뒤, 앵커/가용 영역 조회 전에 수행한다.
     let origin = anchor_origin.unwrap_or_else(|| st.decoration_table_flow_height());
     let ft = format(origin < 1.0);
-    let continuation =
-        decoration_table::continuation(para, table, next_para, &ft, origin, dpi, || {
-            st.base_available_height()
-        });
+    let continuation = decoration_table::continuation(
+        para,
+        table,
+        next_para,
+        &ft,
+        origin,
+        dpi,
+        || st.base_available_height(),
+        |row, available| {
+            decoration_table::partial_row_query(engine, st, table, &ft, styles, row, available)
+        },
+    );
     if let Some(ref continuation) = continuation {
         if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
             eprintln!(
@@ -505,6 +515,8 @@ pub(super) fn try_place_stored_tac_paragraph(
                             is_column_top,
                         )
                     },
+                    engine,
+                    styles,
                 );
             } else {
                 place_table_host_shape(

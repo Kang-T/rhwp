@@ -296,18 +296,20 @@ pub(in crate::renderer::typeset) struct StateView {
     ///
     /// overlay 표는 흐름 소비가 0 이라 앵커 쪽에서 다음 쪽 항목을 바로 push 할 수 없다
     /// (다음 쪽은 이후 문단이 흐름을 넘길 때 비로소 생긴다). 그래서 앵커 쪽에서
-    /// "몇 번째 행부터 잘렸는지"만 적어 두고, 단/쪽이 열릴 때 그 시작에 방출한다.
-    /// `(para_index, control_index, start_row, reserve_px)`.
+    /// 행과 셀 유닛의 내용 컷·잔여 점유를 적어 두고, 단/쪽이 열릴 때 방출한다.
+    /// 앵커 컷과 같은 소유 유닛을 `OverlayContinuation`으로 보존한다.
     ///
     /// [#5792] `reserve_px` 는 잔여 행이 새 쪽 흐름에서 예약해야 할 높이다 — 뒤따르는
     /// 흐름이 그 자리를 스스로 만드는 형상(#4514 필러 문단)에서는 0 이다.
-    pub(in crate::renderer::typeset) pending_overlay_continuations: Vec<(usize, usize, usize, f64)>,
+    pub(in crate::renderer::typeset) pending_overlay_continuations:
+        Vec<crate::renderer::pagination::OverlayContinuation>,
     /// [#4568] 현재 단에 이어 그릴 overlay 잔여 행 목록. `flush_column` 에서
     /// `ColumnContent::overlay_continuations` 로 옮긴다.
     pub(in crate::renderer::typeset) current_column_overlay_continuations:
         Vec<crate::renderer::pagination::OverlayContinuation>,
-    /// [#4568] 현재 단의 overlay 표 앵커 컷 — `(para, ctrl, end_row)`.
-    pub(in crate::renderer::typeset) current_column_overlay_cuts: Vec<(usize, usize, usize)>,
+    /// [#4568] 현재 단의 overlay 표 앵커 컷 — `(para, ctrl, cut)`.
+    pub(in crate::renderer::typeset) current_column_overlay_cuts:
+        Vec<(usize, usize, crate::renderer::pagination::OverlayCut)>,
     /// [Task #362] 현재 단에서 표 옆에 배치되는 wrap-around paragraphs.
     /// flush_column 에서 ColumnContent 로 전달.
     pub(in crate::renderer::typeset) current_column_wrap_around_paras:

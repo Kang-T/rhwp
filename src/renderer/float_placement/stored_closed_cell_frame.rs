@@ -21,6 +21,7 @@ pub(super) fn closed_before_host_flow(
             .map(|p| vec![None; p.controls.len()])
             .collect(),
         bottom: 0.0,
+        closed_before_host: true,
     };
     for (pi, paragraph) in paragraphs.iter().enumerate() {
         if paragraph.raw_break_type != 0

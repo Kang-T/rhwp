@@ -4684,6 +4684,8 @@ pub(crate) struct StoredBlockCellFlow {
     pub(crate) paragraph_origins: Vec<f64>,
     pub(crate) origins: Vec<Vec<Option<f64>>>,
     pub(crate) bottom: f64,
+    /// 온전한 저장 프레임은 CellUnit 합으로 물리 빈 밴드를 다시 추측하지 않는다.
+    pub(crate) closed_before_host: bool,
 }
 
 /// Stored text rows in successive single-column bands share a cell frame.
@@ -4912,6 +4914,7 @@ pub(crate) fn stored_block_cell_flow(
             .map(|p| vec![None; p.controls.len()])
             .collect(),
         bottom: 0.0,
+        closed_before_host: false,
     };
     let mut cursor = hwpunit_to_px(paragraphs[0].line_segs[0].vertical_pos, dpi);
     for (pi, para) in paragraphs.iter().enumerate() {

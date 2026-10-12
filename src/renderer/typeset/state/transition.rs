@@ -648,14 +648,8 @@ impl TypesetState {
         self.data.current_column_overlay_continuations.extend(
             std::mem::take(&mut self.data.pending_overlay_continuations)
                 .into_iter()
-                .map(|(para_index, control_index, start_row, remaining_px)| {
-                    overlay_top_reserve = overlay_top_reserve.max(remaining_px);
-                    crate::renderer::pagination::OverlayContinuation {
-                        para_index,
-                        control_index,
-                        start_row,
-                        reserve_px: remaining_px,
-                    }
+                .inspect(|continuation| {
+                    overlay_top_reserve = overlay_top_reserve.max(continuation.reserve_px);
                 }),
         );
         // 잔여 높이를 새 쪽 흐름에 무조건 예약하면 안 된다 — #4514 기제에서 필러

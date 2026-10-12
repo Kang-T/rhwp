@@ -356,16 +356,27 @@ impl TypesetState {
         continuation: Option<OverlayContinuation>,
     ) {
         if let Some(continuation) = continuation {
-            self.data.pending_overlay_continuations.push((
-                para_idx,
-                ctrl_idx,
-                continuation.first_unfit,
-                continuation.reserve_px,
-            ));
+            let fragment = continuation.row_fragment;
+            self.data.pending_overlay_continuations.push(
+                crate::renderer::pagination::OverlayContinuation {
+                    para_index: para_idx,
+                    control_index: ctrl_idx,
+                    start_row: continuation.first_unfit,
+                    start_cut: fragment
+                        .as_ref()
+                        .map_or_else(Vec::new, |f| f.end_cut.clone()),
+                    start_row_height: fragment.as_ref().map(|f| f.remaining_height),
+                    reserve_px: continuation.reserve_px,
+                },
+            );
             self.data.current_column_overlay_cuts.push((
                 para_idx,
                 ctrl_idx,
-                continuation.first_unfit,
+                crate::renderer::pagination::OverlayCut {
+                    end_row: continuation.first_unfit + usize::from(fragment.is_some()),
+                    end_row_height: fragment.as_ref().map(|f| f.opening_height),
+                    end_cut: fragment.map_or_else(Vec::new, |f| f.end_cut),
+                },
             ));
         }
         // [#4514] 흐름 소비 0 배치 — 이 앵커는 #1955 흡수 대상이 아니다.

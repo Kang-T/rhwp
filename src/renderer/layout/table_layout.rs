@@ -25361,6 +25361,26 @@ impl LayoutEngine {
                     } else {
                         0.0
                     };
+            // 온전한 닫힌 저장 프레임의 빈 꼬리는 내용 유닛과 별개의 물리 공간이다.
+            // 측정·중첩 배치가 이미 소비한 같은 결과를 전체 행 높이에도 쓴다.
+            // 부분 컷은 선택된 CellUnit의 소유 높이를 그대로 유지한다.
+            let content = if is_whole_row
+                && cell.paragraphs.iter().any(|para| {
+                    para.controls
+                        .iter()
+                        .any(|control| matches!(control, Control::Table(_)))
+                }) {
+                crate::renderer::float_placement::stored_block_cell_flow(
+                    &cell.paragraphs,
+                    styles,
+                    self.dpi,
+                    |child| self.calc_nested_table_height(child, styles),
+                )
+                .filter(|flow| flow.closed_before_host)
+                .map_or(content, |flow| flow.bottom)
+            } else {
+                content
+            };
             let (_, _, pad_top, pad_bottom) =
                 self.resolve_stored_nested_cell_padding(cell, table, styles);
             let has_visible_cut = units[su..eu]

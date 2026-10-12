@@ -593,10 +593,26 @@ pub struct ColumnContent {
     /// 조각을 본문으로 읽는다(실측: `overflow_cell_baseline` 래칫 62 → 63줄).
     pub overlay_continuations: Vec<OverlayContinuation>,
     /// [#4568] 이 단에서 잔여 행을 다음 쪽에 넘긴 overlay 표의 **앵커 쪽 컷**.
-    /// `(para_index, control_index, end_row)` — 앵커 그리기는 `0..end_row` 만 그린다.
+    /// `(para_index, control_index, cut)` — 앵커는 cut의 행·셀 유닛만 그린다.
     /// 넘긴 행을 앵커 쪽에서도 전부 그리면(bleed) 시각적으로는 클립돼 안 보이지만
     /// render tree 에 쪽 밖 줄이 남아 `overflow_cell_baseline` 래칫에 계상된다.
-    pub overlay_cuts: Vec<(usize, usize, usize)>,
+    pub overlay_cuts: Vec<(usize, usize, OverlayCut)>,
+}
+
+/// 장식 표의 앵커 쪽 내용 소유와 마지막 행의 물리 높이.
+#[derive(Debug, Clone)]
+pub struct OverlayCut {
+    pub end_row: usize,
+    pub end_cut: Vec<usize>,
+    pub end_row_height: Option<f64>,
+}
+
+/// 한 행의 앞/뒤 조각은 동일한 셀 유닛 컷과 점유 높이를 소비한다.
+#[derive(Debug, Clone)]
+pub struct OverlayRowFragment {
+    pub end_cut: Vec<usize>,
+    pub opening_height: f64,
+    pub remaining_height: f64,
 }
 
 /// [#4568] 쪽을 넘긴 overlay 표의 잔여 행 조각.
@@ -606,8 +622,12 @@ pub struct OverlayContinuation {
     pub para_index: usize,
     /// 문단 내 컨트롤 인덱스
     pub control_index: usize,
-    /// 이 단에서 그릴 첫 행 (inclusive). 앞 쪽이 이미 그린 행 수와 같다.
+    /// 이 단에서 그릴 첫 행 (inclusive). 부분 행이면 start_cut 이후만 소유한다.
     pub start_row: usize,
+    /// 앞 쪽이 소비한 셀 유닛. 비어 있으면 온전한 행에서 시작한다.
+    pub start_cut: Vec<usize>,
+    /// 부분 첫 행의 물리 높이. 전체 행의 선언 높이를 다시 계상하지 않는다.
+    pub start_row_height: Option<f64>,
     /// [#5792] 이 단 최상단에 잔여 행이 차지하는 높이(px). 0 이면 예약하지 않는다.
     ///
     /// 뒤따르는 흐름이 잔여 행의 자리를 스스로 만드는 형상(#4514 필러 문단)에서는
