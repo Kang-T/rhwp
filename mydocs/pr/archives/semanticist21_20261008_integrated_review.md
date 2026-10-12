@@ -4671,3 +4671,36 @@ KPS fresh77쪽은진행중이며K-water/가맹사업/#157fresh와최종Rust/Skia
 204개4,679,530,058bytes만정리했다. 각fd와실행중명령의경로참조를확인하고SHA/size ledger를
 먼저기록했다. 대표경계/최저쪽SVG와전체PNG/TSV/JSON·입력·Print·공용target은보존했다.
 개별17개의최종판정은머지보류이며,모든필수검증과해결뒤에만**메인터너 보정 후 승인**으로변경한다.
+
+
+## 진행 갱신186 — KPS/원PR 양 backend 확인과 실제 표 프레임 consumer (2026-10-13)
+
+KPS current7749d Native/fresh는각77/77쪽·Print77쪽,최저42쪽90.85010%,미달/누락0다.
+CGMP48쪽과합쳐현재두직접보정문서의양backend전쪽선행조건을확인했다. KPS75쪽은
+RGBA가같고22쪽331픽셀/42쪽1픽셀이달랐다. fresh22/42쪽review를직접열어세품질요구표의
+본문/병합제목·내용순서,42쪽글줄/줄바꿈/쪽끝을독립Print와대조했다. 각각99.96707/90.85010%다.
+동일좌표내글자raster차이를정확히기록하며전77쪽RGBA동일로보고하지않는다.
+
+원PR편집/정상대조24쌍·27쪽의현재fresh는exit0·1087.117초·sourceguard=true다.
+Native/fresh모두최저스타일이름없는원본2쪽92.07644%,미달/누락0이며전체27쪽RGBA는같다.
+등록입력/Print의커밋바이트·SHA와현재67415098…pkg/public을확인한새실행이다.
+
+현재coupledproducer `stored_block_cell_flow → row_cut_content_height → partial table
+physical bbox/paint`의제품consumer도검증했다. 실제StudioCanvas2D에서K-water24/25쪽을
+캡처해같은독립Print와비교했다.24쪽99.94940%,25쪽99.66933%,쪽수27/27,실제JS/WASM응답
+해시일치·pageerror0·exit0(32.182초),임시7791서버종료확인이다. 두쪽review를직접열어
+중첩표/완료된행의바닥과뒤내용,다음첨부의소속을확인했다.
+[현재backend review](../assets/semanticist21-20261008/current-backend-v449/README.md)에PNG를보존한다.
+
+capture스크립트의첫두시도는미설치localfont도font.load가성공해야한다는전제로
+NetworkError·exit1이었다. 실제제품회귀/완료로보고하지않고시도로그를보존했다.
+같은현재NativeFont선언을공급하고font상태를기록하며canonical webfont helper로
+로드된맑은고딕regular의synthetic bold를복구한뒤재캡처했다. 한양신명조local부재와
+실제webfont/fallback을구분한다. 임의glyph/좌표보정·실루엣계산변경은없다.
+
+최종Rust code/test기준HEAD c771d233ebaedb1a473a07c2758770c250ef0d21에서
+prepare/fmt·Native/WASM32lib/all-targetClippy·workspacebuild·base552f대비manifest/unit-tier가
+모두exit0이다. 공용target·build-jobs2의전체nextest는컴파일중이며이후NativeSkia3종/doc검사를
+순차연결했다. 가맹사업Native142쪽캡처와K-water/가맹사업/#157fresh는아직미완료다.
+이기록/asset만의commit은Rust생산/검사바이트를바꾸지않으며실행중hashguard를유지한다.
+개별17개머지보류를유지하고전체필수검증과해결뒤**메인터너 보정 후 승인**으로확정한다.
