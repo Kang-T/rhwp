@@ -33,6 +33,8 @@ pub struct ResolvedCharStyle {
     /// HFT 는 한/글이 자기 글리프로 그리고, 대체된 이름은
     /// 다른 글꼴의 표를 빌려 오므로 표에 적힌 폭이 그 글꼴의 폭이라는 보장이 없다.
     pub font_families_metric_trusted: Vec<bool>,
+    /// 원 face 전체를 승격하지 않고 명시 glyphFallbacks의 전진만 선택한다.
+    pub font_families_glyph_fallback_advance_explicit: Vec<bool>,
     /// [#7051] 언어 슬롯별로 선언 글꼴이 **HFT 한글 전용 face** 여서 치환됐는지.
     /// 그런 글꼴의 ASCII 는 한컴이 반각으로 전진시킨다(측정 전용).
     pub font_families_hft_hangul: Vec<bool>,
@@ -140,6 +142,7 @@ impl Default for ResolvedCharStyle {
             font_family: String::new(),
             font_families: Vec::new(),
             font_families_metric_trusted: Vec::new(),
+            font_families_glyph_fallback_advance_explicit: Vec::new(),
             font_families_hft_hangul: Vec::new(),
             font_families_hft_fullwidth_dot: Vec::new(),
             ascii_punct_latin_slot: false,
@@ -201,6 +204,20 @@ impl ResolvedCharStyle {
             0
         };
         self.font_families_metric_trusted
+            .get(slot)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    pub fn glyph_fallback_advance_explicit_for_lang(&self, lang_index: usize) -> bool {
+        let slot = if lang_index < self.font_families.len()
+            && !self.font_families[lang_index].is_empty()
+        {
+            lang_index
+        } else {
+            0
+        };
+        self.font_families_glyph_fallback_advance_explicit
             .get(slot)
             .copied()
             .unwrap_or(false)
@@ -665,6 +682,7 @@ fn resolve_single_char_style(
     // 7개 언어 카테고리별 폰트 이름, 자간, 장평 해소
     let mut font_families = Vec::with_capacity(LANG_COUNT);
     let mut font_families_metric_trusted = Vec::with_capacity(LANG_COUNT);
+    let mut font_families_glyph_fallback_advance_explicit = Vec::with_capacity(LANG_COUNT);
     let mut font_families_hft_hangul = Vec::with_capacity(LANG_COUNT);
     let mut font_families_hft_fullwidth_dot = Vec::with_capacity(LANG_COUNT);
     let mut font_families_metric_face: Vec<Option<String>> = Vec::with_capacity(LANG_COUNT);
@@ -695,6 +713,15 @@ fn resolve_single_char_style(
         }
         let substituted = original.substitution_boundary.is_some()
             && original.normalized_face != original.requested_face;
+        font_families_glyph_fallback_advance_explicit.push(
+            decision.embedded != Some(true)
+                && environment.is_some_and(|env| {
+                    decision
+                        .normalized_face
+                        .as_deref()
+                        .is_some_and(|face| env.glyph_fallbacks(face).is_some())
+                }),
+        );
         font_families_metric_trusted.push(if decision.environment_profile_id.is_some() {
             explicit_true_type
                 && decision.normalized_face.as_deref().is_some_and(|face| {
@@ -794,6 +821,7 @@ fn resolve_single_char_style(
         font_family,
         font_families,
         font_families_metric_trusted,
+        font_families_glyph_fallback_advance_explicit,
         font_families_hft_hangul,
         font_families_hft_fullwidth_dot,
         ascii_punct_latin_slot,

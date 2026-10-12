@@ -137,7 +137,10 @@ fn issue_6389_environment_is_session_local_and_preserves_embedded_fonts() {
     let hangul_advance = first(&default_trace)["layoutMetric"]["baseAdvanceHwpunit"]
         .as_f64()
         .unwrap();
-    assert!(dot_advance > 0.0 && dot_advance < hangul_advance / 2.0);
+    assert_eq!(
+        dot_advance, hangul_advance,
+        "원 글리프 공급만으로 한컴 전각 호환 전진을 좁히지 않음"
+    );
     let info: Value = serde_json::from_str(&program.get_document_info()).unwrap();
     assert!(info["fontsUsed"]
         .as_array()
@@ -147,6 +150,27 @@ fn issue_6389_environment_is_session_local_and_preserves_embedded_fonts() {
         program.font_environment().is_none(),
         "글리프 공급만으로 형식 환경을 승격하지 않음"
     );
+    // 독립 개인정보 Print에서 확인한 TrueType 환경만 자연 기호 폭을 쓴다.
+    program
+        .set_font_environment(Some(
+            FontEnvironment::from_json(
+                r#"{"id":"verified-true-type-glyph-provider","substitutions":{},"trueTypeFaces":["휴먼명조"],"glyphFallbacks":{"휴먼명조":["Haansoft Batang"]}}"#,
+            )
+            .unwrap(),
+        ))
+        .unwrap();
+    let verified_trace = trace(&program);
+    let verified_dot = verified_trace["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|record| record["source"]["character"] == "․")
+        .unwrap();
+    let verified_advance = verified_dot["layoutMetric"]["baseAdvanceHwpunit"]
+        .as_f64()
+        .unwrap();
+    assert!(verified_advance > 0.0 && verified_advance < hangul_advance / 2.0);
+    assert_eq!(program.export_hwp_native().unwrap(), original);
     program
         .set_font_environment(Some(
             FontEnvironment::from_json(
