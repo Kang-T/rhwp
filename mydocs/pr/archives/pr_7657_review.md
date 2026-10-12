@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-12
+last_verified: 2026-10-13
 ---
 
 # PR #7657 리뷰 — 수정: 스타일을 지우면 본문 밖 문단의 스타일 번호도 옮긴다
@@ -162,3 +162,19 @@ fmt·세 Clippy·workspace build·고정 base manifest/unit 정책과 관련 정
 사용자는 원래 HWPX97.79%를 확인하고 추가 보정 대신 커밋 후 현재 PR 검토 재개를 지시했다.
 이 범위의 개선은 전체 편집 저장본·나머지 메인터너 보정·전체 회귀 완료를 대신하지 않는다.
 필수 전체 검증을 마치기 전 머지 보류와 원격 PR 생성 보류를 유지한다.
+
+
+## 커밋 후 현재 통합 head의 계약 재검증 — 2026-10-13
+
+`review/semanticist21-20261008`의 커밋 `3cdcb2e20a47dc23dfdd6d1b399ad4d247430b44`에서
+이 PR의 위 계약 3개가 모두 실제 전체 nextest 실행에서 PASS했다.
+고정 base는 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`이며 fetch 후 SHA가 같아 rebase하지 않았다.
+원 PR 최신 head도 기존 접수 기록과 같았다. 원격 조회는 참고값이며 merge 직전 다시 확인한다.
+전체 nextest는10258 PASS/12 FAIL/45 skipped·exit100이고, 원 계약 전체78/78 PASS를
+통합 PR 전체 성공으로 확대하지 않는다. 실패별 보정과 필수 시각/backend 검증 뒤 최종 판정을 갱신한다.
+원문 로그와 함수별 연결은 ignored `pr-review-resumed-v447/full-nextest.log`,
+`original-pr-contract-results.json` 및 [누적 기록](semanticist21_20261008_integrated_review.md)에 보존한다.
+
+셀 서식/저장 앞 띠의10개 입력은 현재 Native/fresh 모두 최저99.76088%·미달/누락0이고,
+원래 HWP/HWPX 두 입력은100%다. 실제10개 RGBA 쌍도 같다.
+[새 대표 review/overlay와 전체 TSV 연결](../assets/semanticist21-20261008/cell-stored-lead-final-v447/README.md)을 직접 확인했다.

@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-12
+last_verified: 2026-10-13
 ---
 
 # PR #7616 리뷰 — 수정: 누름틀·책갈피 뒤 글자처럼 취급 표가 자기 줄에 놓이게 한다
@@ -79,3 +79,15 @@ fmt·Native/WASM32 Clippy와 workspace build는 v172 source에서 통과했다. 
 ## 통합 뒤 원 PR 후속 처리 계획
 
 사용자 승인 후 통합 PR과 정확한 head CI를 확인한다. 통합 merge SHA·이 PR의 해결 범위·보정 이유와 원 기여를 구분한 한국어 존댓말 문안을 준비하고, 실제 시각 증적 사용 시 merge SHA 고정 PNG를 첨부한다. 원 PR 종료/댓글은 승인 범위와 현재 상태를 재확인한 뒤 수행한다. 최초18개 밖의 후속 PR은 이번 통합 대상이 아니다.
+
+
+## 커밋 후 현재 통합 head의 계약 재검증 — 2026-10-13
+
+`review/semanticist21-20261008`의 커밋 `3cdcb2e20a47dc23dfdd6d1b399ad4d247430b44`에서
+이 PR의 위 계약 3개가 모두 실제 전체 nextest 실행에서 PASS했다.
+고정 base는 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`이며 fetch 후 SHA가 같아 rebase하지 않았다.
+원 PR 최신 head도 기존 접수 기록과 같았다. 원격 조회는 참고값이며 merge 직전 다시 확인한다.
+전체 nextest는10258 PASS/12 FAIL/45 skipped·exit100이고, 원 계약 전체78/78 PASS를
+통합 PR 전체 성공으로 확대하지 않는다. 실패별 보정과 필수 시각/backend 검증 뒤 최종 판정을 갱신한다.
+원문 로그와 함수별 연결은 ignored `pr-review-resumed-v447/full-nextest.log`,
+`original-pr-contract-results.json` 및 [누적 기록](semanticist21_20261008_integrated_review.md)에 보존한다.

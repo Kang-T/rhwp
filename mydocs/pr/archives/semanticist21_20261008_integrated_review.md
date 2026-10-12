@@ -4014,3 +4014,80 @@ production source는 시각 검증 뒤 바뀌지 않았고 test source hash를 �
 원래18개 체리픽 범위의 검토를 이어가며 후속6개는 체리픽하지 않는다.
 전체 회귀와 남은 시각 범위는 아직 완료가 아니므로 개별 PR의 최종 판정은 일괄 변경하지 않는다.
 최신 upstream/devel은 fetch 후 SHA가 바뀐 경우에만 rebase하며 원격 push/PR 생성은 별도 승인 대상이다.
+
+## 진행169 — 보정 커밋 후 초기 PR 검토 재개(v447)
+
+사용자의 커밋 후 검토 재개 지시에 따라 누적 셀/글꼴/OLE 보정·입력·PDF·대표 증거를
+`3cdcb2e20a47dc23dfdd6d1b399ad4d247430b44`로 커밋했다. 당시 작업 트리는 clean이었다.
+fetch 후 upstream/devel은 기존 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`와 같아
+rebase하지 않았다. 원래18개 최신 source head도 개별 기록과 같았으며 #7612는 MERGED다.
+후속6개는 체리픽하지 않았다. 원격 push/PR 생성/승인/merge는 수행하지 않았다.
+메인터너 누적 검토 경로의 intake/local_validation/multi_pr_update_branch/visual_fixture_evidence를 적용한다.
+
+### 커밋된 head의 실제 전체 회귀
+
+공용 `/home/tsjang/rhwp/target/pr-review`에서 release-test 전체 nextest를 실행했다.
+결과는 **10258 PASS/12 FAIL/45 skipped**, exit100/1687.018초다.
+가장 긴 거대 셀 검사도936.269초 뒤 PASS로 종료했으며 quiet/SLOW 출력 때문에 중단하지 않았다.
+현재 production source는 실행 계획의 모든 hash와 일치한다.
+초기 PR별 계약은 실제 로그에서 **78/78 PASS**를 확인하고 개별17개 review에 연결했다.
+이미 머지된 #7612의 기존 독립 검토 판정은 유지했다. 전체 통합 성공은 아직 미충족이다.
+
+명령·head/base·source hash·실패 본문은 ignored `pr-review-resumed-v447/full-nextest-plan.json`,
+`full-nextest-result.json`, `full-nextest.log`, `original-pr-contract-results.json`에 보존한다.
+
+### 셀 원본/편집 경계의 최신 Native/fresh 완료
+
+기존10개 저장 입력과 독립2020 Print를 실제 커밋 바이트와 대조했다.
+전체 각1/1쪽 Native/fresh는 최저99.76088%·미달/누락/쪽수 불일치0이며
+원래 HWP/HWPX 두 입력은100%다. 10개 실제 RGBA 쌍이 모두 동일하다.
+최신 compare/review/overlay의 셀 외곽·글자·뒤 내용 위치를 직접 확인했다.
+[대표 이미지와 전체 TSV·생산/입력 hash 연결](../assets/semanticist21-20261008/cell-stored-lead-final-v447/README.md)을 보존한다.
+기본 CLI 시각 검사는 commit timestamp guard로 거절되어 출처가 고정된 절대 경로로 재실행했다.
+전체 회귀와 겹친 Native 캡처의 navigation timeout 뒤, 전체 회귀 종료를 기다려 마지막2개만
+새로 캡처했다(exit0/75.631초). fresh10개는 새로 실행해 exit0/384.813초로 완료했다.
+같은 공용 target과 루트 pkg를 사용했고 production source와 package는 바뀌지 않았다.
+
+### 전체 실행에서 찾은 OLE 검사·신규 입력 래칫 보정
+
+- 기존 #1251/#1283 두 전체 문서 SVG 검사는 데이터 IR의 ASCII 공백 제목을 화면에도 요구했다.
+  원래 HWP/HWPX의 저장 TextBlock과 실제 새 출력은 `연금\u3000재정\u3000전망`이며 공식 사양의
+  소유 텍스트를 보존한다. 같은 원본 Native/fresh 전쪽97.05704/97.78626% 및 직접 판독 후
+  두 화면 검사만 전각 공백 원문으로 교정했다. parser/standalone의 정규화된 IR 검사는 유지했다.
+- 새 `samples/hwpx/143E433F503322BD33-ole.hwpx`의 IR sweep은 baseline 미등록0에 대해
+  `sections[].paragraphs[].raw_header_extra[]`4건으로 실패했다. 같은 원본을 clean한 고정
+  devel worktree의 실제 base library로 실행한 대조군과 현재 release-test library로 실행한
+  결과는 모두4건이고 값/경로도 같다(raw_header_extra[6..9]:210/148/9/186→0).
+  base lib build는 공용 target·exit0/182.428초이며 Native CLI는 변경되지 않았다.
+  base library SHA256은 `405e7ca23d4d09e0db95a95e1108a1d5ceaf4770106b2fdba9fc86de06beccee`다.
+  이 입력은 원래 Native/fresh99.83461%로 검증됐다. 신규 입력의 기존 왕복 차이4건만
+  기준행으로 등록하고 다른 문서·경로의 허용값과 기존267개 개선 행은 변경하지 않았다.
+  대조군 source/명령/library hash와 실제 payload는 `base-codec-build-*`,
+  `base-codec-probe-*`, `current-codec-probe-*`에 보존했다.
+
+이 두 검사와 신규 기준행의 보정 뒤 prepare·fmt/fmt check·Native/WASM32/all-target Clippy·
+workspace build·고정 base manifest는 모두 exit0이다. 관련 정식 nextest는 **18/18 PASS**,
+exit0/451.967초(빌드4분47초, 실제 실행161.044초)다. IR 전수1197입력 sweep도 이 실행에서 PASS했다.
+production source는 보정 전후 동일하다. 검사 이름·실행 명령·최종 결과는
+`ole-ir-correction-validation-plan.json`, `ole-ir-*-result.json`, `ole-ir-ole-ir-focused-nextest.log`에 연결한다.
+
+### 남은 실패와 최종 제출 조건
+
+위 전체12 FAIL 중 OLE 제목2개와 신규 입력 IR1개를 보정·재검증했다.
+나머지9개는 아래와 같으며 전체 nextest를 다시 통과했다고 보고하지 않는다.
+
+| 실패 | 현재 확인/다음 검토 |
+| --- | --- |
+| CGMP #6035 complete row tail | 현재 직접 보정 범위. 독립 Print와 완결 행의 컷/내용 보존을 대조 |
+| #6639 rowbreak fragment origins | 수동 작성 LineSeg 입력의 원점 보존과 실제 서식 변경 계약을 구분해 검토 |
+| oracle partition15 | 동일 k-water HWPX27→28쪽. #7773의 다른 HWP 원본으로 제외하지 않음 |
+| oracle partition13 | issue_157.hwp2→3쪽. 원본/독립 Print의 동일성·base/current 비교 |
+| #4514 ECR-004 ownership | 동일 원본의 #7808 이관은 확인. 고정 현재 base의 미달 근거와 검사 이관 조건 확인 |
+| #6575 TAC picture line top | 같은 원본의 기존 Native/fresh 미달과 일치하는 #7445 이관은 아직 확인되지 않음 |
+| KPS #1156 page37 cut | 직접 보정 범위. 최신 전쪽 Native/fresh 뒤 실제 행 소유 검사 검토 |
+| KPS #4698 continuation | 직접 보정 범위. 실제 셀 포함/내용 보존과 부적합 고정 영역 검토 |
+| #5833 stacked cell pictures | 같은 원본 독립 Print의 실제 흐름과 base/current 미달 근거 대조 |
+
+동일 원본 문자열을 #7445의 최신90개 하위 이슈에서 확인했다. 이미 이관된 다른 형식/원본을
+현재 실패의 제외 근거로 사용하지 않았다. 시험지 원본은 보존한다.
+남은 실제 실패·시각/backend 범위·최종 통합 gate를 해결한 뒤 개별 PR 판정과 제출 후보를 확정한다.
