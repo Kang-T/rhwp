@@ -82,3 +82,20 @@ TextRun의 가로 원점/폭 차이만 작게 남았고 세로 원점/높이는 
 파생 manifest 재준비 결과1456sources/6177test attributes이며 검사 함수가2개 줄었다.
 `c9323fd56` 전체 회귀는10243건 중10242PASS/1FAIL(교육과정 쪽수),45SKIP였고,
 철회 후 실행은 이 이전 결과와 구분해 이어서 기록한다.
+
+## 원 head 추가 보정 접수 — 2026-10-13
+
+최신 원 head는 `8a3e192d81fbdf925a825c09c50dd77809dae9be`다. 기존9PR/18고유 커밋에
+새 원 고유 커밋1개를 추가해9PR/19고유 커밋으로 검토한다. 고정 upstream base는
+`552f5228d2dbfd6046c838f14241704f1bcb8a05`, 적용 전 C15는
+`1c7fb035f9b4f382e855f76af84a3745619e68ce`이며 필수 lint 묶음은 전부exit0이다.
+새 보정은 이어받는 rowspan 시작 행의 요구 높이를 남은 내용과 물리 꼬리의 공통 결과로
+예약하여 앞 조각이 그린 띠를 다시 세지 않는다. 실제 호출은
+`RowScanQuery::whole_row_height → required_height/straddle_continuation_demand → consumed → fragment emit`이다.
+
+원 신규 검사는 수정 전 동결 C15에서 compile0/test101로 같은30쪽 내용 경계를 재현했다.
+시각 선행 조건 미충족의1342000 원 검사는 기존[#7743](https://github.com/edwardkim/rhwp/issues/7743)에
+연결하고 활성 suite에 재등록하지 않는다. 원문 두 개와 이전 원문은
+[보존 기록](../assets/issue7445/rowbreak_continuation_20261012/README.md)에 함께 남겼다.
+현재 보정 후 경계·회귀·Native/fresh WASM 검증은 아직 완료 전이며 수용 판정은 유지 보류한다.
+C15 동결 출력은 추가 보정 전 대조군이고 이후 source head의 통과 증거로 재사용하지 않는다.

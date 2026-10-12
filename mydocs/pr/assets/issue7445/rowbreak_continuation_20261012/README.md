@@ -43,3 +43,23 @@ TSV·중간 JSON·비공개 글꼴은 Git에 넣지 않는다.
 | `pdf/rowbreak-problem-pages-hwpx-2020.pdf` | `e3dc7bb21707f92e42e83808023bf155f62475fc4eb0e0498709d03986c5afe5` |
 | `samples/issue7336/stored_frame_page_larger_rowbreak.hwpx` | `042633046ab469b971aa155417ecd568c8825d586d37f87a76194145edb903dc` |
 | `pdf/issue7336/stored_frame_page_larger_rowbreak-2020.pdf` | `5e19bd4c4d0cc3e7b177834e939a8e75df57e4387d43d1a9a1bd8f74840b993e` |
+
+## #7701의 추가 원 커밋 검토 — 2026-10-13
+
+최신 원 head `8a3e192d81fbdf925a825c09c50dd77809dae9be`의 rowspan 시작 행 보정을 추가로 받았다.
+일반 행과 같은 `RowScanQuery::whole_row_height`를 이어받는 rowspan 시작 행도 소비하고,
+`required_height → consumed → fragment emit`으로 예약한다. 앞 조각이 이미 그린 물리 띠를
+행 전체 높이로 다시 세지 않는 조건이며 문서 ID를 분기 조건으로 사용하지 않는다.
+기존 C14의 crossing rowspan 빈 물리 꼬리 보존은 함께 검증한다.
+
+새 [원 검사](rowspan_continuation_start_row_carried_tail-8a3.rs.txt)는 실제
+수정 전 C15 라이브러리에서 compile exit0 / test exit101로 재현됐다. 30쪽에 독립 Print의
+`■ 경기도교육청 성교육 진흥 조례`가 없고 안전교육 조항에서 끝나는 원인으로 실패했다.
+이는 독립 진단 실행이며 활성 suite 등록이나 전쪽 피델리티 통과가 아니다.
+기존 #7743의 동일 원본·전체415쪽/Print 조건을 충족하기 전에는 신규 등록하지 않는다.
+1342000의 공유 입력/Print와 범위 밖 정상 검사는 보존한다.
+
+원 커밋의 기존 검사 변경본도 [별도 원문](rowbreak_continuation_reopens_outer_top-8a3.rs.txt)에
+보존하며 이전 보류 원문은 그대로 유지한다. 수정 후 경계·정상 대조군·필수 lint·시각 결과는
+`output/pr-review/planet6897-followup-20261011/`의 `pr7701-c15-carried-tail-before-*` 및
+후속 C16 검증 기록에 연결한다. 현재 전체 시각 통과나 #7743 해결로 판정하지 않는다.
