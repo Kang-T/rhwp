@@ -57,8 +57,8 @@ combined merge diff와 graph 근거는 ignored
 ## 고정 base와 전체 시각 미달 대조 — 2026-10-12
 
 정확한 글꼴 공급으로467 production 전쪽 TSV를 재산출했다. HWP는157/157쪽,
-Native/fresh 최저35.10490%·미달31쪽이다. HWPX Native는156/156쪽,
-최저1.49475%·미달110쪽이며 fresh의 최종 종료는 아직 확인 중이다.
+Native/fresh 최저35.10490%·미달31쪽이다. HWPX는 Native/fresh 모두156/156쪽,
+최저1.49475%·미달110쪽으로 최종 종료를 확인했다.
 HWPX90쪽 review에서 rhwp의 앞 표 끝 「계획」과 Print의 조문 대비표가 같은 쪽에 있어
 내용 소속이 다르다. 이 차이를 글꼴·DPI 차이로 분류하지 않는다.
 

@@ -123,3 +123,27 @@ combined merge diff와 graph 근거는 ignored
 이는 기존 devel 검사 이관이나 출력 결함 해결이 아니다. 이전10241PASS는 이 후보들을
 포함한 실행 결과이며 등록 조건까지 충족한 것으로 승격하지 않는다. 정상 대조·전쪽 시각
 수용은 계속 필요하고, 최종 파생 suite 준비·필수 lint·전체 정식 검사 수는 재확인한다.
+
+
+## 단순 대조군과 경계 뒤 줄간격 변경 확인 — 2026-10-12
+
+공개 편집 API로 작성한 수식 없는 한 미주 문서를 한컴2020에서 저장한 뒤, 같은 본문에
+`문서 `와 `가나 `를 각각 삽입하고 독립 Print를 확보했다. Native/fresh 전쪽1쪽은
+각각92.25034%와92.19368%지만, 정확한BFA의 소유 문단 줄 배치도 현재4ce production과
+동일했다. 따라서 이 입력은 원 결함의 수정 전FAIL 증거가 아니다. 직접 review 판독에서도
+미주 번호 위치 및 후속 번호 중복이 Print와 달라 정식fixture/회귀에 등록하지 않았다.
+원본20쪽이나 다른 원본의 수용 증거로 사용하지 않는다.
+
+현재4ce production에서 실제 원본 편집본14쪽을 debug 재출력했다. 문단758의 진행량은
+처음36.7px이며, 다음 미주23 경계 준비가 앞 문단의 마지막 줄간격을452→1984HU로
+바꾸고 나면 같은 단 재측정·실제 출력에서57.1px가 된다. 차1532HU=20.42667px는
+`prepare.rs`의 `apply_endnote_render_tail_spacing` 호출과 state command의 저장 줄 변경으로
+설명된다. 서로 다른 줄간격 상태를 같은 입력으로 간주한 비교가 아니며, 이를 helper의
+인덱스 차이만으로 설명하지 않는다. 이 간격 제거·누계 변경이 독립 Print와 맞는지는 아직
+입증되지 않았으므로 근거 없는 clamp/간격 삭제를 구현하지 않았다.
+
+ignored 증거: `plain-endnote-owner-before-after-lines.json`,
+`plain-endnote-owner-{native,wasm}-{native,wasm}-results.json`, 대응review1쪽,
+`pr7672-current-tail-spacing-debug.log`, `pr7672-control-and-tail-spacing-audit.json`.
+원본 편집8개·독립Print 총180쪽의 현재4ce Native/fresh 전쪽 검증은
+`pr7672-all-edits-current-4ce-{native,wasm}-progress.log`에 실행 중이며 최종 결과 전이다.
