@@ -12,7 +12,7 @@ last_verified: 2026-10-12
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행160): 선택 쪽 WASM 중복 저장 수정은cc3fada89로 커밋했고 관련Python100검사가PASS다. KPS Native/fresh77쪽의RGB가전쪽동일하고37/38/65/66쪽review·3배확대를판독했다. 66쪽상단괘선누락은실제이어받기분기에서정상선6개를None으로제거하는것으로확인했다. 생산보정과KPS기존검사변경은아직미수행이다. 교육과정fresh는v385에서실행중이며CGMPfresh/가맹전쪽은순차대기다. 전체회귀11건처리와최종회귀·lint가남아개별18PR보류를유지한다.
+- 최신 단계(진행161): 사용자 지시에 따라 원래 체리픽한18개PR의 문서·편집 저장본 검증과 개별 review 정리를 우선한다. 교육과정의 부적합 첫 조각 고정 높이 검사1개를 이미 이관된#7445/#7743으로 정리했고 원본/Print/정확한 내용 검사는 보존했다. 필수Rust lint/정책9단계와 유지한 내용 검사1개가 실제 통과했다. CGMP fresh48쪽은exit0으로 완료됐고 가맹사업 전쪽 비교는 이어서 진행 중이다. 초기18개 문서의 남은 시각·계약 증거와 최종 전체 gate가 완료되기 전에는 PR을 생성하거나 수용 판정으로 바꾸지 않는다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. PR 생성은 사용자 승인 후 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -3605,3 +3605,38 @@ Atomic JSON으로집계하고 각완료출력의SVG만정리하며 실패·쪽�
 최초v386의진단compare폴더누락을고쳐retry1에서exit0과정확한4쪽review/확대산출물을확인했다.
 이진단오류는제품회귀로세지않는다. 공식판정은지표와직접판독을별도로기록하고현재상단결함을보류한다.
 신규원격변경·PR/push/승인/통합은없다.
+
+
+### 진행161: 원래 체리픽 문서 우선과 교육과정의 부적합 고정 높이 검사 정리
+
+2026-10-12 사용자 지시로 초기18개PR에서 언급한 문서와 편집 동작의 검증을 먼저 마무리한다.
+PR별 검토 문서를 실제 원 PR 범위·현재 검증 증거·남은 항목에 맞춰 정리하고 승인용 PR을 준비한다.
+원래 범위 밖의 입력 진단을 추가로 확장하지 않으며, 현재 실행 중인 승인된 전쪽 비교의 결과는 보존한다.
+전체 회귀·lint의 필수 gate와 알려진 실제 회귀를 통과한 것으로 처리하지 않는다.
+
+교육과정의 s5/pi8 244×10 표 r183c8는 고정 base bfa28a77에서139/140쪽이
+77.52827/75.29239%이며418/Print415쪽이다. 현재 Native/fresh는74.39013/76.06998%이고
+422/Print415쪽이다. 같은 원본 SHA·독립 Print·96dpi/compat2022/글꼴 조건으로 비교했다.
+두 쪽 Native/fresh의 decoded RGB가 동일하며 base/current의 네 review를 직접 판독했다.
+행 내용과 쪽 소속이 base부터 미달인 기존 입력이며 현재의 추가 차이도 그대로 남긴다.
+전쪽 개선 완료·현재 회귀 면제·새 정상 baseline으로 판정하지 않는다.
+
+`issue_2291_rowspan_declared_residual_expands_last_spanned_row`는 표의 소유를 확인하지 않고
+첫 r183c8 조각에 전체 행 높이55–58px를 요구한다. 실제 현재 조각은41.9px와 글자 없는
+잔여14.5px로 나뉜다. 이미 열린#7445/#7743으로 이 부적합 함수와 전용 helper2개만 이관했다.
+[원문/base·원본/Print·네 review·정확한 판정과 복원 조건](../assets/issue7445/education-curriculum-map/README.md)을 보존한다.
+기존 재래핑 내용 검사·다른 정확한 공유 검사·원본·Print·baseline·허용치는 유지했다.
+
+v394의 prepare/fmt/fmt-check/Native Clippy/WASM-lib Clippy/workspace build/
+workspace-all-targets Clippy/고정base manifest/unit-tier 정책9단계는 모두exit0이다.
+첫 집중 실행은 prepare가 소스를suite026에서025로 재배치한 뒤 이전 target을 선택해
+0건/exit4였으므로 PASS가 아니다. 실제 생성 모듈 소속을 다시 찾아 retry1에서
+`issue_2291_stored_single_seg_paragraph_rewraps_full_text` 1건을 실행해1PASS/6.406초/exit0을 확인했다.
+생산1111개 소스와 수정한 검사 소스는 검증 중 불변이다. 관련 JSON과 로그는 ignored
+`education-exact-height-migration-v394-result.json`, `education-exact-height-migration-v394-retry1-result.json`에 남긴다.
+이 집중 결과를 최종 전체 회귀로 대신하지 않는다.
+
+v385의 교육과정 선택2쪽과 CGMP fresh48쪽은 실제 terminal 결과를 확보했고 다음 가맹사업
+Native/fresh142쪽 비교가 진행 중이다. 미달·쪽수 차이와 직접 판독은 별도로 기록한다.
+Visual Sweep의 범례/일치율 설명은 포함돼 있어 사용자가 해당 수정 요청을 취소했고 도구 변경은 없다.
+fetch 결과upstream/devel은bfa28a77로동일하므로 rebase하지 않았다. 새 원격 게시/push/PR/승인/통합은 없다.

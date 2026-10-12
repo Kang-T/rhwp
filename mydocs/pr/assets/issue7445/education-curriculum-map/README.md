@@ -2,7 +2,7 @@
 kind: evidence
 status: active
 canonical: mydocs/manual/pr_review/visual_fixture_evidence.md
-last_verified: 2026-10-10
+last_verified: 2026-10-12
 ---
 
 # 교육과정 연결 맵의 기존 쪽수 검사 재검토
@@ -49,3 +49,47 @@ last_verified: 2026-10-10
 ## 이관 후 재현 경로
 
 기록한 원래 명령의 active samples/PDF 경로는 이관 전 실행 경로다. 재현할 때는 같은 바이트의 `mydocs/pr/assets/issue7445/education-curriculum-map/1342000_edu_curriculum_map.hwp`와 `current-source-hancom2020-print.pdf`를 `--file-target education`의 원본/기준 인자로 전달한다. 원래 파일명·전체 내용·SHA는 유지했다. base와 현재 binary, 같은7개 font 경로·페이지247/248/259–262·compat2022·96dpi 조건은 유지하고 새 `--out` 경로를 쓴다. 기존 로그/PNG를 덮어쓰지 않는다.
+
+## #2291 첫 조각 고정 높이 검사의 추가 이관
+
+같은 원본의 미해결 쪽 소속은 [#7445의 하위 이슈 #7743](https://github.com/edwardkim/rhwp/issues/7743)에서 추적한다.
+고정 base `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`에 검사와 원본이 이미 존재하고,
+원본 바이트는 위 SHA와 동일하다. 현재 검토 head는 `6fee79e6afbad90d72c3ae7b94617c29922557f9`,
+생산 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`와 동일하다.
+기준은 위의 같은 원본 한컴2020 Print 415쪽이다.
+
+| 동일 조건 출력 | 139쪽 | 140쪽 | 전체 쪽수 |
+| --- | ---: | ---: | --- |
+| 고정 base Native | 77.52827% | 75.29239% | 418 / Print 415 |
+| 현재 Native | 74.39013% | 76.06998% | 422 / Print 415 |
+| 현재 fresh WASM | 74.39013% | 76.06998% | 422 / Print 415 |
+
+Native는 `--profile print --compat 2022 --embed-fonts=full`, fresh WASM은 같은 compat와
+문서 전체 Native 글꼴 별칭 정책을 적용했다. 96dpi·2px 관용 지표와 같은 7개 검증 글꼴 경로를 썼다.
+base WASM과 나머지 전쪽은 이번 검사 적합성 판단에서 실행하지 않았다.
+현재 두 쪽의 Native/fresh PNG는 각각 decoded RGB가 동일하며, 네 review를 직접 판독했다.
+base부터 Print와 행 내용·쪽 소속이 다르다. 현재의 미달과 쪽수 증가도 그대로 남기며 출력 해결이나
+전쪽 무회귀로 보고하지 않는다.
+
+- base: [139쪽](row183-base-native-review_139.png), [140쪽](row183-base-native-review_140.png)
+- 현재 Native 및 동일 RGB의 fresh WASM: [139쪽](row183-current-native-and-identical-fresh-review_139.png), [140쪽](row183-current-native-and-identical-fresh-review_140.png)
+- 검사 원문: [고정 base](issue_2291_rowspan_declared_residual.rs.base.rs.txt), [제거 전](issue_2291_rowspan_declared_residual.rs.before-migration.rs.txt)
+
+제거 범위는 `tests/issue_2291_rowspan_declared_residual.rs`의
+`issue_2291_rowspan_declared_residual_expands_last_spanned_row` 한 함수와 그 전용 높이 탐색 helper 두 개다.
+이 검사는 원본 표 소유를 확인하지 않고 첫 `(row183,col8)` 조각에 전체 행 높이 55–58px를 요구한다.
+실제 s5/pi8의 244×10 표를 추적하면 base의 한 조각은 56.3px이며, 현재는139쪽 41.9px와
+140쪽의 글자 없는 물리 잔여 14.5px로 나뉜다. 현재 값을 새 기대값으로 복사하거나 허용치를 넓히지 않는다.
+이미 base에서 정상 출력 기준을 충족하지 못한 잠정 배치 검사만 이관한다.
+
+기존 `issue_2291_stored_single_seg_paragraph_rewraps_full_text`와 다른 정확한 공유 검사는 유지한다.
+원본 HWP·Print PDF를 삭제하지 않았으며 baseline·총 쪽수·manifest 공차도 바꾸지 않았다.
+위 복원 조건을 충족한 뒤 원본 표의 소유·내용 보존·물리 잔여의 관계 검사로 복원한다.
+
+정확한 명령·글꼴 경로·해시·terminal 결과는 ignored 검토 출력의
+`education-source-row-owner-v374/result.json`, `education-row-fragments-v375/result.json`,
+`education-exact-row-visual-v376/`, `education-exact-row-visual-v385/`,
+`education-suitability-review-v393/result.json`에 보존했다.
+base Native 바이너리 SHA는 `8312404e26a74d317da14054b2bae22c460625a1928848302fe1d5d445184e47`,
+현재 Native는 `3d50e1311eb579afd41d0dcf3bafade916b8b763a633083c8f89d2b001340ae3`,
+fresh WASM은 `f16609ba3bac35ab0292a0c15c2bc36d8becb562834f98090fb1831cc2d517f9`다.
