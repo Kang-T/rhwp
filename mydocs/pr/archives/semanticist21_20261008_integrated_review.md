@@ -4704,3 +4704,35 @@ prepare/fmt·Native/WASM32lib/all-targetClippy·workspacebuild·base552f대비ma
 순차연결했다. 가맹사업Native142쪽캡처와K-water/가맹사업/#157fresh는아직미완료다.
 이기록/asset만의commit은Rust생산/검사바이트를바꾸지않으며실행중hashguard를유지한다.
 개별17개머지보류를유지하고전체필수검증과해결뒤**메인터너 보정 후 승인**으로확정한다.
+
+## 진행 갱신187 — 가맹사업 전쪽 미달 검출과 저장 앞 띠 추적 (2026-10-13)
+
+current7749의 가맹사업 Native 전142쪽 비교는 exit1·6038.239초로 종료했다.
+Print와142/142쪽이며 55쪽84.64501%,57쪽88.24553%,79쪽85.28897%가 미달이다.
+세 쪽 review·overlay를 같은 현재 PNG에서 생성하고 실제로 열었다.
+[미달 PNG와 생산 기록](../assets/semanticist21-20261008/franchise-failed-pages-v449/README.md)을 보존한다.
+직접 보정 대상이므로 이관하거나 이 결과로 승인하지 않는다. 가맹사업 fresh 전쪽은 시작하지 않았다.
+앞서 완료한 CGMP/KPS/K-water fresh는 그대로 보존하고 #157 전2쪽 fresh만 독립적으로 완료했다.
+
+K-water Native/fresh27쪽과 #157 current7749 Native/fresh2쪽은 각각 전쪽 RGBA가 같다.
+K-water 최저3쪽96.87092%,#157 최저1쪽99.74326%이며 모두 누락·미달0이다.
+원본/Print·source·패키지 hash와 실제 종료 결과는 v449의 whole-fresh-results와
+kwater-issue157-current-pixel-identity에 연결한다. #157 Native의 실제 생산 경로는
+r448/issue157-closed-row-native-whole이며 존재하지 않는 v449 Native 경로로 집계하지 않는다.
+
+가맹사업55쪽의 대응 문장 기준선은 오른쪽 약4px,왼쪽 약2.7px 위에 있다.
+원본 첫 LineSeg300/200HU와 실제 ParaShape 앞 간격600/400(2배 저장)이 각각 이 띠에 대응한다.
+`cell_paragraph_spacing::paragraph_before.stored_lead → 측정/CellUnit → 부분 표의
+layout_composed_paragraph`를 대조했고, 온전한 Center 셀에서 앞 띠를 억제하는 호출을 확인했다.
+79쪽 마지막 분할 행은 별도로 물리 조각 높이·다음 조각·정렬을 추적한다.
+GDB 실제 호출은 first cut(0,2),45.8933px,Top/windowed 경로이며 진단을 수정 후 증거로 쓰지 않는다.
+
+최종 Rust 전체 nextest는 컴파일을 마치고 실행 중이다. 현재 HML 파서 성능 검사 한 건이
+500ms 한도에서569.922ms로 실패했다. 구현의 row_sizes는 여전히 셀을 한 번 순회한다.
+전체 종료 후 같은 코드의 단독 실행과 nextest 자원 배정을 대조하며 상한을 완화하지 않는다.
+OLE 원본/분리 차트의 현재 Native/fresh는 점수를 확인했고 SO-SUEOP 첫쪽 fresh는 진행 중이다.
+모두 해결·필수 검증 후에만 개별17개의 보류를 **메인터너 보정 후 승인**으로 변경한다.
+
+upstream/devel을 다시 fetch했으며552f5228… 그대로여서 리베이스하지 않았다.
+종료된 가맹사업 비대표 SVG는 기존 driver의 fd/hash ledger 후 정리했고,
+원본·Print·PNG·TSV·JSON·대표 SVG·공용target은 보존했다. 이 commit은 문서/증적만 변경한다.
