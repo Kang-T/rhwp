@@ -52,3 +52,22 @@ commit과 출처 표는 유지한다. fork는 solver에 내부 행 간격 함수
 combined merge diff와 graph 근거는 ignored
 `pr-7692-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
 `nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.
+
+
+## 고정 base와 전체 시각 미달 대조 — 2026-10-12
+
+정확한 글꼴 공급으로467 production 전쪽 TSV를 재산출했다. HWP는157/157쪽,
+Native/fresh 최저35.10490%·미달31쪽이다. HWPX Native는156/156쪽,
+최저1.49475%·미달110쪽이며 fresh의 최종 종료는 아직 확인 중이다.
+HWPX90쪽 review에서 rhwp의 앞 표 끝 「계획」과 Print의 조문 대비표가 같은 쪽에 있어
+내용 소속이 다르다. 이 차이를 글꼴·DPI 차이로 분류하지 않는다.
+
+같은 입력·독립Print·글꼴로 고정upstream baseBFA를 실제 비교했다. HWP37·93쪽은
+최저35.08606%, HWPX10·90쪽은 각각7.23121%·1.47757%였다. 이 선택 쪽의 미달은
+이번 원고유 commit에서 새로 생긴 것이 아니다. base의 전쪽·fresh를 실행한 것으로
+보고하지 않는다. 기존 전체 피델리티 후속은 열린#7783에 있고#7445 본문 표에도 있다.
+현재 미달이나 신규 실물 회귀 추가 조건을 그 과거 이관으로 면제하지 않는다.
+
+원문·TSV·로그는 `current-regulatory-results-467-correct-face-final.json`,
+`current-regulatory-results-467-exact-base-bfa-selected.json`,
+`regulatory-hwpx-exact-base-bfa-results.json` 및 대응score 디렉터리에 있다.

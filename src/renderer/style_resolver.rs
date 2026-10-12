@@ -1009,6 +1009,10 @@ pub(crate) struct FontNameDecision {
 ///   23문서에서 이 face 의 `‘`·`’` 전진폭 중앙값이 0.988em 이고(n=2,042), 한/글 2020
 ///   합성 문단(영문 슬롯 휴먼명조 TTF)도 `‘’“”` 를 1.0em 으로 놓는다(#7702). HFT 로
 ///   선언된 휴먼명조는 `alt_type == 1` 을 만족하지 않으므로 여기서 걸러진다.
+/// - `Times New Roman` — `curly_quote_latin_slot` 독립 Print의 CID TrueType 프로그램과
+///   공급한 원 프로그램의 `‘’“”` 전진폭·분해 윤곽선이 모두 동일하다. 작은따옴표는
+///   682/2048em, 큰따옴표는 909/2048em으로 원래 좁은 글리프다. 이 TTF 선택을 신뢰하지
+///   않으면 측정한 원 전진폭은 유지하면서 Canvas/Skia만 다시 절반으로 축소한다.
 ///
 /// 아직 넣지 않은 것 — `HY중고딕`(정본 5문서 n=41 이 전각이지만 저장소에 글꼴 파일이
 /// 없다) · `HY견고딕`·`HY그래픽`(글꼴 파일은 있으나 정본이 사실상 한 문서뿐) ·
@@ -1024,6 +1028,7 @@ fn metric_widths_verified_face(face: &str) -> bool {
             | "HYwulM"
             | "휴먼명조"
             | "HumanMyeongJo"
+            | "Times New Roman"
     )
 }
 

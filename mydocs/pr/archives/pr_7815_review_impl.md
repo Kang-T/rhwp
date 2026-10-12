@@ -220,3 +220,34 @@ before actual 출력과 font program 해시는 ignored
 library/case 해시 `curly-paint-before-public-only-provenance.json`을 보존했다.
 보정은 신뢰된 원 프로그램 폭과 기존 전각 메트릭에 한정하며 미확인 호환 폭을 보존한다.
 수정 후 실행·시각 gate는 진행 중이고 후보는 아직 정식 source에 등록하지 않았다.
+
+
+## 실제 출력의 Times 신뢰 누락 재검토 — 2026-10-12
+
+`167c6a4fc`에서 완성한 새 web WASM 해시는 `ab0451e9e1f96514a5dc582075af20cc7f83a0e8f8be9d98b2d7bfacba6ea47d`이며
+루트 pkg와 Studio public이 같다. 같은 production의 작은 문서17종 전쪽 Native/fresh WASM은
+모두90% 이상이다. 따옴표 원본 전체1쪽은 Native/fresh99.65006%, Skia99.40060%,
+Canvas99.51564%다. Native CLI는 copy 당시HEAD가cddd이고 rustfmt 변경이 함께 있었으며
+그 실제 source는aa46 커밋과 같다. WASM의 실제 build head는167c6a4fc다.
+
+**이 수치를 확대 판독의 완료로 바꾸지 않는다.** 새 Canvas/Skia/Print의 원본 따옴표4줄을
+같은4배율로 읽어 Times가 아직 눌린 것을 확인했다. 실제 Canvas fillText trace는 휴먼명조
+scaleX=1, Times scaleX=0.5였다. 독립 Print의 Times CID TrueType 프로그램과 공급한 실제
+Times 프로그램의 네 곡선 따옴표는 전진폭·분해 윤곽선이 전부 동일하다(작은따옴표682/2048,
+큰따옴표909/2048). Times는 원래 좁은 글리프이므로 다시 절반으로 줄일 근거가 없다.
+
+원인은 실제 TTF 선언 → `style_resolver::metric_widths_verified_face` 누락 → 실제 TextRun의
+`font_metric_trusted=false` → 공용 paint predicate → Canvas/Skia0.5배 축소다.
+Times를 독립 프로그램·Print로 확인한 face로 인정하는 보정을 추가했다. 기존 TTF 선언·
+치환 여부 조건은 그대로 소비하며 HFT와 확인되지 않은 호환 선택의 신뢰를 높이지 않는다.
+helper를 직접 trusted=true로 만든 검사는 통과했지만, 원본을 실제 DocumentCore로 읽는
+추가 후보는 기존compiled library에서 Times의 실제 run 신뢰 assertion으로 FAIL했다
+(2PASS/1FAIL,exit101). 후보는 아직ignored output에 보존하고 새 source의 시각 게이트 뒤
+정식 `tests/cases/`에 등록한다. 원본의 쪽·TextRun 소유·각 face의 네 글자 보존까지 검사한다.
+
+증거는 `curly-paint-fixed-small-{native,wasm}-results.json`,
+`curly-paint-fixed-browser-skia-owned-lines-enlarged-review.png`,
+`curly-paint-fixed-browser-canvas-quote-trace/result.json`,
+`curly-times-print-vs-supplied-program.json`, `curly-times-actual-document-before.log`다.
+이 Times 보정 뒤의 재빌드·관련 시각 재검증·lint·정식 suite는 미검증이며 이전 산출물의
+통과를 새 source의 통과로 쓰지 않는다.

@@ -98,3 +98,18 @@ commit과 출처 표는 유지한다. 첫 미주 문단 소유 조회와 BFA의 
 combined merge diff와 graph 근거는 ignored
 `pr-7672-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
 `nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.
+
+
+## 저장 캐시 변경의 진단 한계 — 2026-10-12
+
+독립 한컴 재저장본의 새 수식 크기를 쓰고, 변경된 수식 소유 줄의 저장 캐시를 그 차이만큼
+조정한 진단clone을 실행했다(46줄,20쪽). 원본·독립 재저장 파일은 바꾸지 않았다.
+같은 fresh 원본2024Print에 대한 진단14쪽89.36291%,15쪽37.20063%이며,
+14쪽의 다음 문항 첫 내용과15쪽의 칼럼 시작 소속이 여전히 다르다. 정상 텍스트 줄로의
+누적 차이 전파를 추가한 진단도14쪽 점수를 바꾸지 않았다.
+수식 common 크기 차이는 근거 있는 원인 단서지만 이를 캐시 덮어쓰기만으로 해결했다고
+판정하지 않는다. 이 진단clone을 원본 일치·새golden·정식fixture 근거로 사용하지 않는다.
+
+증거는 `pr7672-resaved-equation-cache-diagnostic.rs`,
+`pr7672-resaved-equation-cache-raster/metrics_014.json`, `metrics_015.json`,
+대응review와 `pr7672-resaved-equation-cache-propagation-raster/`다.
