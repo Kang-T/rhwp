@@ -1,7 +1,10 @@
 """cmap 재사용이 변경·손상된 글꼴을 정상 글꼴로 오판하지 않는지 검사한다."""
 
 import io
+import base64
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from fontTools.fontBuilder import FontBuilder
@@ -9,6 +12,7 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 
 from scripts import visual_sweep_font_cmap as cmap
+from scripts import visual_sweep as sweep
 
 
 def font_bytes(characters: str, remove_cmap: bool = False) -> bytes:
@@ -62,6 +66,19 @@ class EmbeddedFontCmapCacheTests(unittest.TestCase):
             for characters in ["A", "AB", "ABC"]:
                 self.assertEqual(cmap.embedded_font_unicode_count(font_bytes(characters))[1], len(characters))
         self.assertEqual(len(cmap._UNICODE_COUNTS), 2)
+
+    def test_svg_payload_keeps_unicode_whitespace_and_strict_base64_validation(self):
+        payload = base64.b64encode(font_bytes("AB")).decode("ascii")
+        wrapped = "\n\t \u2003\u0085".join(payload[i:i + 40] for i in range(0, len(payload), 40))
+        with tempfile.TemporaryDirectory() as directory:
+            svg = Path(directory) / "font.svg"
+            def inspect(encoded):
+                svg.write_text(f'<svg><style>@font-face{{font-family:Fixture;src:url(data:font/ttf;base64,{encoded})}}</style></svg>')
+                return sweep.inspect_svg_embedded_fonts(svg)[0]
+            valid = inspect(wrapped)
+            self.assertEqual(valid['status'], 'passed')
+            self.assertEqual(valid['unicode_mapping_count'], 2)
+            self.assertEqual(inspect(wrapped + '@')['status'], 'failed')
 
 
 if __name__ == "__main__":

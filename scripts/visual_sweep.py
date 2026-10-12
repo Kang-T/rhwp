@@ -691,7 +691,8 @@ def inspect_svg_embedded_fonts(svg_path: Path) -> list[dict[str, object]]:
                 header, payload = data_url.split(",", 1)
                 if not header.lower().endswith(";base64"):
                     raise ValueError("base64 font data URI가 아님")
-                data = base64.b64decode(re.sub(r"\s+", "", payload), validate=True)
+                # str.split도 Unicode 공백을 제거하며 대형 base64의 정규식 순회를 줄인다.
+                data = base64.b64decode("".join(payload.split()), validate=True)
                 # 실패한 cmap도 기존 보고서처럼 실제 글꼴 해시를 남긴다.
                 record["sha256"] = hashlib.sha256(data).hexdigest()
                 digest, count = embedded_font_unicode_count(data)

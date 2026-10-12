@@ -4619,3 +4619,28 @@ exit0·13.809초다. 임시서버는종료확인했다. 이실제Canvas2D UI검�
 먼저완료한5쌍은전쪽미달0이고blank미주/각주/누름틀100%,Hancom HWP각주97.04843%,
 스타일이름없는두쪽원본최저92.07644%다. 나머지와fresh/최종전체회귀는완료전이다.
 개별17개최종판정은아직머지보류이며,모든필수검증과해결후에만**메인터너 보정 후 승인**으로갱신한다.
+
+
+## 진행 갱신184 — 현재 공개 API/Studio 통과와 글꼴 검사 실측 (2026-10-13)
+
+현재67415098…WASM으로공개API검사5묶음과현재HF컨텍스트capture1묶음을모두exit0으로
+확인했다. same source/package guard와scriptSHA/원래검사cloning근거는v449에있다.
+검사함수·입력·기대값은이전계약그대로이며예전package를재사용하지않았다.
+Studio production build와frontend binding검사도exit0이다. 앞서현재TypeScript0·
+unit1834PASS/2SKIP/0FAIL과actualpointer0을확인했다. 전체Rust/Skia/전쪽fresh게이트는여전히남는다.
+
+가맹사업첫쪽118,525,186바이트SVG의수정전후font검사보고서를직접동등성비교했다.
+첫cmap캐시만적용했을때old8.620/8.742초,cache8.587/8.782초로시간개선을확인하지못했다.
+이결과를성능개선으로보고하지않는다. cProfile에서정규식findall2.830초와공백제거sub2.569초가
+큰비중임을확인했다. 실제base64바이트의엄격검증은유지하면서Unicode공백제거를
+`str.split`으로처리했다. 일반/Unicode공백이섞인정상payload와잘못된base64의실패를
+추가확인했고새4검사+기존83검사87/87PASS·exit0(37.003초)다.
+
+동일SVG·4글꼴의기존보고서와새보고서는완전히같았다. 최종실측은
+old첫9.339/반복10.362초,new첫7.893/반복6.744초다. 이는이한SVG의진단시간이며
+전142쪽의완료시간·전체검증완료로확대하지않는다. 현재Native/cgmp-fresh로이미실행중인
+프로세스는시작당시validator를계속사용하며중단하지않았다. 이후시작되는검증에만
+새helper/payload처리가적용된다. Rust생산7749d·최적화WASM바이트·실루엣계산·90%gate는동일하다.
+
+각프로세스의실제scriptSHA와현재HEAD를구분한다. 최종Rust source 검사 변경은CGMP의
+현재fresh48쪽과독립Print의선행조건을확인한뒤진행하며,개별17개머지보류는아직유지한다.
