@@ -212,3 +212,103 @@ complete unicode 공급 경로가 포함되지 않았으므로 같은 실행 조
 기존 cache/미주 흐름 차이를 이번 API 변경의 새 회귀로 단정하지 않으며, 이 비교만으로
 이관·기대값 변경·수용 판정을 하지 않는다. 이 원본의 실제 출력 보정은 남아 있다.
 기존4ce 결과를 새 글꼴의 결과로 승계하지 않고 이 종료된 비교를 기준 진단에 연결한다.
+
+
+## 미주22의 실제 저장 줄과 수식 상자 직접 확인
+
+동결 C12 CLI `dump-endnote-lines`로 실제 편집본과 독립 한컴 재저장본의
+`s0:p218:ci0:note4`를 직접 대조했다. 양쪽 저장 줄은 동일한
+`vpos=6806, lh=1125, bl=878, gap=452`다. 원본 수식2개의 상자는 높이1125·기준선78%이고,
+재저장본은 높이900·기준선86%로 바뀌었다. script·BaseUnit900은 같은 사례다.
+재저장이 저장 LineSeg 자체를900으로 갱신했다는 해석은 근거가 없다.
+기존 metadata의 line_seg_diff 목록이 비었다는 관측을 실제 덤프에서 재확인했다.
+
+`dump-endnote-lines`의 기본 compose도 두 입력 모두 lh1125를 소비하므로,
+수식 common 상자만 바꾸는 것으로 저장 줄·format·실제 paint의 공통 결과가 확보됐다고
+판정하지 않는다. 다음 보정 전에 저장 줄 재사용과 재조판의 소비 경로를 구분하고
+최종 줄 전진량·기준선을 추적한다. 현재 원본/Print의22px 누적 차이는 남아 있으며
+픽셀 목표 clamp 또는 원본 metadata의 무조건 덮어쓰기를 적용하지 않았다.
+증거: `pr7672-c12-note22-p4-stored-line-and-equation.log`,
+`pr7672-resaved-note22-p4-stored-line-and-equation.log`.
+C12 제품/회귀 단계는 로컬45a7a292a에 고정했으며, 이번 원인 추적은 다음 단계 기록이다.
+
+
+## 미주 수식 높이의 실제 소비 경로 — 2026-10-13
+
+제품 코드는 `45a7a292ae5767069b4ee248daea87f4b631b94c`에 고정한 채 조사했다.
+현재20쪽 Native raster로14·15쪽 compare/overlay/review를 구성했고, 기존4ce PNG를
+현재 증거로 재사용하지 않았다. overlay helper가0부터 시작하는 page 인자를 받으므로
+첫 합성의 쪽 라벨을 바로잡고 PNG 해시도 다시 기록했다. 원 raster는 바꾸지 않았다.
+14쪽은 미주22 제목이 대응하지만 이후 수식/본문 간격이 누적되어 미주23 첫 본문이
+Print와 다른 쪽에 놓인다.15쪽은 양쪽 단의 시작/뒤 문항 위치가 다르다.
+이 차이는 글꼴 예외나 전체 쪽수 일치로 면제할 수 없다.
+증거: ignored `pr7672-note348-base-c12-direct-review/provenance.json` 및
+`current-c12/review/review_014.png`, `review_015.png`.
+
+| 단계 | 실제 소비 경로와 관측 |
+| --- | --- |
+| 수식 흐름 상자 | `equation::flow_metrics_hwp`는 일반 영문 수식의 저장common 폭·높이·백분율 기준선을 유지한다. 한글 대체 글꼴 경로만 AST 메트릭을 공유한다. |
+| 저장 줄 수용 | `composer::line_breaking::remeasured_equation_start_row`는 현재 폭 차이만 검사한다. 높이만 달라진 수식이 같은 부분 재조판 경로에 자동 진입한다고 볼 수 없다. |
+| 미주 측정 | `endnotes::paragraph::typeset_endnote_paragraphs`는 원본 미주 문단을 compose/format한다. `resolve_line_metrics`는 합성/글꼴 보정 조건을 제외하면 저장 줄 높이를 소비한다. |
+| paint 입력 | 같은 함수가 별도clone에 미주 시작vpos와 첫 문단 번호를 적용해 `append_endnote_paragraph`로 등록한다. 한쪽 복사본만 바꾸면 측정과paint의 결과 공유가 깨진다. |
+| 실제 수식 원점 | `paragraph_layout.rs`의 TAC-only와 run 혼재 분기는 모두 흐름 상자 높이와 AST 표시 기준선을 소비한다. TAC-only는행 y·줄 기준선에서, 혼재는 공백 여부와 셀 조건에 따라 최종 y를 정한다. common 높이 교체만으로 줄 전진/최종 원점 보정을 입증하지 않는다. |
+| 다음 문단 | `HeightCursor`의 수식 재조판 재앵커도 위 부분 재조판 판정을 소비한다. 저장 사다리가 후속 문단에서 옛 높이를 복원하는지 같이 확인해야 한다. |
+
+실제 한컴 원본/재저장본의 같은 script 미주 수식 1,119개 중54개의 높이가 달랐다.
+33개는1125→900,5개는1163→1050,16개는1305→1080HU이며 모두 BaseUnit900이다.
+53개에 prime/작은따옴표가 있고 나머지는 `rm triangle BPQ times cos theta`다.
+prime 문자만 조건으로 삼는 보정은 마지막 사례를 설명하지 못한다.
+정상 대조군의 x제곱은1050, 제곱근 포함 첨자는1142, 분수는2172HU를 원본/재저장본이
+같이 유지한다. 현재 AST가 각각900/900/2196HU를 반환하므로 전체 저장 상자의 AST 덮어쓰기는
+독립 기준으로 정당화되지 않는다. 높이 차이가 있는 수식에 별도 수치를 맞추는 보정을 추가하지 않았다.
+증거: `pr7672-original-resaved-same-script-height-changes.json`,
+`pr7672-resaved-vertical-structure-negative-controls.json`.
+
+현재 C12와 고정 BFA의 fresh web WASM도 같은 편집본·Print·전체20쪽·검증된 글꼴로
+비교를 시작했다. 두 package의 실제 WASM/JS 해시와 C12 production diff의 checkpoint 일치를
+확인했다. Native CLI는 note/font 정책 조회에 쓰고 렌더는 각 fresh WASM을 사용한다.
+진행/종료 결과는 `pr7672-note348-base-c12-wasm-progress.log`, `*-results.json`에 보존한다.
+완료 전에는 fresh WASM 전쪽 검증 완료로 기록하지 않는다.
+
+
+### 현재 checkpoint 실제 formatter 재확인
+
+`RHWP_ENDNOTE_LINE_DEBUG=1`과 동결 C12 Native로 `dump-pages --compat 2022 --json`을
+실제 편집본/독립 재저장본 각각 실행했고 두 건 모두exit0·20쪽이다.
+미주22의 첫 문항·뒤 본문을 포함한75진단줄을 각 입력별로 보존했다.
+para4는 실제 편집본의 수식 상자1125HU→재저장본900HU인데 두 formatter 모두 높이15px·
+advance21.0267px다. para30도 상자1163→1050HU이나 formatter 높이15.5067px·
+advance21.5333px를 같이 유지한다. 이는 기본 compose 덤프뿐 아니라 최종 조판 format 호출에서
+확인한 저장 줄 소비다. 독립 재저장본을 실제 편집본의 대체 기준으로 사용하지 않았다.
+증거: `pr7672-c12-actual-format-results.json`,
+`pr7672-c12-{edited,genuine-resaved}-actual-format-note22.log`.
+
+
+### 현재 Native/fresh WASM 전쪽 결과와 빌드 게이트
+
+현재 C12의 같은 편집본20쪽 fresh web WASM 비교가 종료됐다.
+Native와 모든 페이지 점수·쪽수·입력/Print SHA·글꼴 조건이 동일하며,
+최저29.07705%, 미달1·2·3·11·13·14·15·16·17·18·19·20쪽이다.
+`pr7672-note348-c12-current-native-wasm-paired-audit.json`으로 재대조했다.
+BFA fresh WASM 비교는 별도 실행 중이며 아직 완료 비교에 포함하지 않는다.
+Print / 고정BFA / 현재 C12의 같은14쪽 미주22 영역을96dpi 원본PNG에서2배 확대해
+`pr7672-note348-base-c12-direct-review/review.png`로 구성했다. crop은 시각 판독용이며
+회귀 검사의 좌표 선택/기대값에 사용하지 않는다. 원 raster/확대 PNG 해시를 별도로 보존했다.
+
+code checkpoint45a7에서 prepare·fmt·Native Clippy·WASM Clippy가 통과했다.
+최초workspace 빌드는 병렬 링크의 signal7 Bus error로exit101이었다. 같은 시점
+대표17쪽PNG 합성에도errno28(디스크 공간 부족)이 발생했다. 공유 target을 삭제하지 않고
+`CARGO_BUILD_JOBS=2`로 동일 workspace 빌드를 재실행하여 exit0을 확인했다.
+partial PNG를 같은 완료 raster로 다시 합성하고 현재/BFA14·15·17쪽 PNG 해시/완전성을 확인했다.
+통과한 Clippy 두 경로를 반복하지 않고 이어서 all-targets Clippy·base 정책·전체 Rust·Skia를
+동일 `/home/tsjang/rhwp/target/pr-review`에서 순차 실행하도록 했다.
+진행을 전체 검증 완료나 PR 승인으로 보고하지 않는다.
+로그: `shared-first-paragraph-band-validation-{progress.log,results.json}`,
+`shared-first-paragraph-band-validation-resume-jobs2-{progress.log,results.json}`,
+`shared-first-paragraph-band-validation-linker-retry-provenance.json`.
+
+
+검증 후속 상태: 같은45a7에서 **Native/WASM/all-targets Clippy3경로 및 workspace
+빌드·manifest/base 비교·unit-tier/base 비교까지 통과**했다. 전체nextest는
+UTC2026-10-12 15:19:45에 시작했으며 최종summary/exit code는 아직 없다.
+`shared-first-paragraph-band-validation-resume-jobs2-all-nextest.log`에 연결한다.

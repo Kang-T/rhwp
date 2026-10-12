@@ -780,3 +780,57 @@ C12 Native/fresh WASM 13문서·61쪽 비교는 모두 종료됐고 문서별·�
 로그: `savedbounds-synthetic-spacing-{fmt-check,manifest-check-after-fmt,unit-tiers-check}.log`.
 전체 Rust·3개 Clippy·Skia·Studio 최종 게이트는 다음 최종 source 단계에 남아 있다.
 이 시점의 보정과 검사를 로컬 일반 커밋으로 고정하고 남은 #7672 원인 보정을 이어간다.
+
+
+## C12 checkpoint 전체 검증 재실행 — 2026-10-13
+
+제품10개 경로와 새 관계형 회귀3파일의 checkpoint는 `45a7a292ae5767069b4ee248daea87f4b631b94c`다.
+이 commit의 제품 diff가 Native/fresh WASM 증거의9d965177…과 같다는 확인을
+`shared-first-paragraph-band-commit-binding.json`에 보존했다.
+새 case 추가 후 prepare·fmt·Native/WASM Clippy가 통과했고 workspace 빌드도 동시 작업2개로
+재실행해 통과했다. 첫 빌드의 linker Bus error 및 같은 시점 errno28 기록을 보존했다.
+현재 all-targets Clippy·정책 검사·전체 nextest·Skia를 같은 공용 target에서 순차 실행 중이다.
+현재 checkpoint의 전체 Rust 결과가 나오기 전 이전 C8의10239PASS/2FAIL을 새 결과로 승계하지 않는다.
+완료 단계별 exit code와 실제 명령/로그는 ignored
+`shared-first-paragraph-band-validation-{progress.log,results.json}` 및
+`shared-first-paragraph-band-validation-resume-jobs2-{progress.log,results.json}`에 남긴다.
+Node/Studio와 optimized fresh web·출력 backend의 최종 증거까지 갱신한 후 전체 수용을 판정한다.
+
+
+검증 후속 상태: 같은45a7에서 **Native/WASM/all-targets Clippy3경로 및 workspace
+빌드·manifest/base 비교·unit-tier/base 비교까지 통과**했다. 전체nextest는
+UTC2026-10-12 15:19:45에 시작했으며 최종summary/exit code는 아직 없다.
+`shared-first-paragraph-band-validation-resume-jobs2-all-nextest.log`에 연결한다.
+
+### C12 전체 회귀 종료 및 C13 구현 보정
+
+C12의 전체 nextest는 run `cd00e92d-3f84-4b50-a37a-9d05179056f7`에서
+**10,243건 실행, 10,241 PASS, 2 FAIL, 45 skipped / exit 100**으로 종료됐다.
+실행 시간이 길거나 출력이 비었다는 이유로 중단하지 않았으며 terminal summary를 확인했다.
+남은 실패는 `issue_7032_cell_empty_paragraph_flow::full_atom_window_preserves_uncut_alignment_and_spacing`와
+`issue_3820_rowbreak_rowspan_band_keeps_pdf_page_35_36_boundary`다.
+기존 #1749·#7028 실패는 이 checkpoint에서 통과했다. Skia 후속 단계는 전체 회귀 실패로
+runner가 중지해 아직 실행하지 않았다. Native/WASM/all-targets Clippy와 두 정책 비교는 통과했지만,
+이 결과를 새 C13 source의 완료 증거로 승계하지 않는다.
+
+C13에서는 전체 unit window `(0, 전체 유닛 수)`와 무컷 셀의 앞 간격 계약을 일치시키는
+`table_partial.rs` 보정을 시작했다. 첫 문단 소유만으로 부분 조각이라고 판단하지 않고,
+실제로 시작·끝 유닛이 잘린 경우에만 조각의 앞 간격 보존을 적용한다. 기존 기대값은 변경하지 않았다.
+전체 창 동등성과 #1749의 실제 부분 조각 검사를 같은 사전 nextest로 확인 중이다.
+모든 사전 Cargo 검증도 `/home/tsjang/rhwp/target/pr-review` 한 곳을 재사용한다.
+로그: `c13-complete-unit-window-focused.log`; 실행 입력·diff 해시:
+`c13-complete-unit-window-provenance.json`.
+
+#3820은 82쪽 원본 `samples/76076_regulatory_analysis.hwp`의 별도 관계형 검사다.
+다른 규제 문서의 기존 낮은 점수를 근거로 이관하지 않는다. 같은 원본과 독립 한컴 Print의
+BFA/C12 35·36쪽 tree/SVG를 `issue3820-base-c12-boundary/`에 산출해 빈 물리 밴드의
+생산·예약·이어받기·배치 경로를 확인하며, 현재 보정에서 발생한 회귀는 구현을 수정한다.
+
+C13 사전 nextest는 run `1e8f7d6b-1b53-4b10-9204-fd620708ce86`에서
+**9 PASS, 448 skipped / exit 0**으로 종료됐다. 전체 창 동등성 실패를 구현 보정으로 해결했고,
+#1749 부분 조각 앞 간격 2건과 #7032 기존 7건의 기대값을 유지했다.
+이는 해당 source 보정의 focused 결과이며 전체 회귀·시각·lint 완료 판정은 아니다.
+사용자 지시에 따라 최신 `upstream/devel`을 fetch했다. BFA 이후 새 base는
+`552f5228d2dbfd6046c838f14241704f1bcb8a05`(#7861)이며, 현재 보정을 일반 커밋으로
+고정한 뒤 이 base 위로 rebase한다. 새 base에는 dependency·GPU 제거·검증 정책 변경이 있다.
+기존 C12 증거는 원 source/base의 기록으로 보존하고 새 통합 head의 검증과 구분한다.

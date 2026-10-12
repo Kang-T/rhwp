@@ -2920,8 +2920,15 @@ impl LayoutEngine {
                     // 있어 spacing 추가 시 프레임 밖으로 밀린다(#issue_rowbreak_chart_overlap p17).
                     // 저장 프레임 경로의 기존 다행/다열 판정은 유지한다. 재조판 경로는
                     // 표 차원이 아니라 같은 컷의 첫 source unit이 앞 간격을 소유하는지 읽는다.
-                    let keep_spacing = cut_units.is_some_and(|(su, _)| {
-                        self.cell_cut_owns_reflow_paragraph_start(cell, table, styles, su, cp_idx)
+                    let keep_spacing = cut_units.is_some_and(|(su, eu)| {
+                        // A complete unit window is the same cell flow as the
+                        // uncut path. Only an actual fragment preserves spacing
+                        // that column-top trimming would otherwise discard.
+                        let is_fragment = su > 0 || eu < self.cell_units(cell, table, styles).len();
+                        (is_fragment
+                            && self.cell_cut_owns_reflow_paragraph_start(
+                                cell, table, styles, su, cp_idx,
+                            ))
                             || (su > 0
                                 && !has_preceding_text
                                 && start_line == 0
