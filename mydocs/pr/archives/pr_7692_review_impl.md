@@ -96,8 +96,10 @@ TrueType 프로그램을 추출·대조했다. Print의HCR Batang은1000em·낫�
 Unicode상Wide라는 분류로 이 글꼴의500advance를 전각으로 바꾸지 않았다.
 
 올바른 HCR원 프로그램을 바이트 그대로 공급하고 current Native/fresh 전쪽을 다시
-산출했다. 작은2쪽 대조군은 양쪽 최저94.56671%로90% 이상이지만 첫 표 원점·글리프의
-남은 직접 판독이 필요하여 정식등록을 계속 보류한다. 원본4쪽은Native 최저39.21772%,
+산출했다. 작은2쪽 대조군은 양쪽 최저94.56671%로90% 이상이다. 새review1쪽을 직접 판독해
+`『』` 표시 복원을 확인했지만, 첫 표와 그림 경계가 Print보다 약3.8px 위에 있어
+정식등록을 계속 보류한다. 원본2쪽review에서는 bullet 누락과 행 경계·줄바꿈 차이가
+남는다. 이 차이를 글꼴 공급 완료나90% 점수로 면제하지 않는다. 원본4쪽은Native 최저39.21772%,
 fresh 최저36.90483%, 각각1·2쪽이90% 미만이며 전체쪽수4/4다. 원본을 대신 새 입력만
 통과시킨 것으로 보고하지 않는다.
 
@@ -107,3 +109,8 @@ ignored 증거: `owned-normal-picture-before-after-cell.json`,
 `owned-picture-correct-hcr-{native,wasm}-{native,wasm}-results.json`.
 실행 중인 미주 검증의 기존 글꼴 파일은 변경하지 않았고 올바른HCR공급 경로를 따로
 고정했다. 작은 입력의 원본과 독립Print·원본4쪽의 기준은 각각 유지했다.
+
+
+직접 판독한 새PNG는 ignored output의
+`owned-picture-correct-hcr-native-native-scores/owned-normal-picture-table/owned-normal-picture-table/review/review_001.png`,
+`owned-picture-correct-hcr-native-native-scores/picture-original-4-page/picture-original-4-page/review/review_002.png`다.
