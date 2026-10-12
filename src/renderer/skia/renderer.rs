@@ -379,7 +379,7 @@ const FORM_CJK_FAMILIES: &[&str] = &[
 pub struct SkiaLayerRenderer {
     font_mgr: FontMgr,
     /// 사용자 지정 폰트 디렉토리에서 미리 로드한 폰트 캐시.
-    /// key = primary face name (Typeface::family_name), value = Typeface.
+    /// key = primary or SFNT family name, value = the same supplied Typeface.
     /// SVG 의 `--font-path` 와 같은 패턴으로 ttfs 디렉토리의 한컴 전용 폰트 (HY견명조 등) 도 사용 가능.
     custom_typefaces: HashMap<String, Typeface>,
     /// [#3300] 번들 최후-폴백 폰트(ttfs/opensource). custom 과 분리해 해석
@@ -459,7 +459,10 @@ impl SkiaLayerRenderer {
                         let skia_data = skia_safe::Data::new_copy(&data);
                         if let Some(typeface) = font_mgr.new_from_data(skia_data, None) {
                             let family = typeface.family_name();
-                            into.entry(family).or_insert(typeface);
+                            for family in super::font_lookup::supplied_family_names(&data, &family)
+                            {
+                                into.entry(family).or_insert_with(|| typeface.clone());
+                            }
                         }
                     }
                 }

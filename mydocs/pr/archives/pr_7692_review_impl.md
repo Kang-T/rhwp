@@ -892,3 +892,62 @@ trace·source·command·binary hash를 관측 근거로 사용하고 일반 SFNT
 확인했다. 현재 `samples/76076_regulatory_analysis.hwp`의 SHA3308ba85…와 다르므로
 이 PDF로 현재 입력의 gate를 갱신하지 않는다. 기존 독립 원본2024 Print와 실패 증거는 보존한다.
 기준 출처는 tracked `76076_exact_reference_analysis.json`의 converter-input binding으로 확인했다.
+
+## C15 — Native 공급 폰트의 SFNT 가족 이름 계약
+
+Skia가 보고한 primary family와 같은 face의 SFNT Family(1)·Typographic Family(16)·WWS Family(21)
+이름을 같은 custom/bundled Typeface에 등록하도록 보정했다. 로드한 face0의 실제 naming record만
+읽으며 full-face(4)·PostScript(6) 이름은 가족 alias로 등록하지 않는다. 기존 디렉터리 공급 순서와
+먼저 적재된 key의 우선순위를 유지한다. source는 `skia/font_lookup.rs`와 `skia/renderer.rs`다.
+SFNT 이름 생산 → custom/bundled inventory → 기존 문자별 후보 사다리 → 실제 text paint와
+renderer-owned native decision trace가 같은 supplied program을 소비하는 경로다.
+
+정식 source `tests/cases/native_supplied_font_family_names.rs`는 폰트 identity 계약이다.
+공개 Noto Sans KR에서 A 한 글자를 남기고 family를 새 이름으로 바꾼1716B의 합성 OFL fixture를
+사용한다. 같은 SFNT의 한국어 family·typographic·WWS 이름이 primary와 같은 supplied program을
+선택하고, full-face record는 family로 수용하지 않는지 검사한다. 문서는 명시적으로 합성 A이며
+저장 LineSeg·px 위치·Hancom 레이아웃 oracle을 쓰지 않는다. real #1749의 출력 증거와 구분한다.
+fixture 출처·원본/산출 SHA·이름과 OFL을 `tests/fixtures/native_font_family_names/`에 포함했다.
+
+같은 새 계약 source를 보정 전 C14 Native library에 결합해 **2 PASS / 3 FAIL, exit101**을
+확인했다. primary/비가족 대조군은 통과하고 한국어 family·typographic·WWS는 모두
+실제로 `Noto Sans KR`를 선택해 supplied program 계약을 위반했다. 컴파일은 exit0이다.
+`c15-native-family-contract-before-{build.log,results.json}`과 before 실행 로그에 source·fixture·
+바이너리 SHA와 공용 target 명령을 고정했다. 포맷의 assertion 줄바꿈 변경은 별도 source 해시로 남긴다.
+C15 after source의 Native 빌드·계약·원본 p5 실제 폰트/PNG 및 전체 필수 gate는 아직 검증 중이다.
+
+#3820의 동일 원본·독립2024 Print는 C14 `--compat 2024`에서도36쪽72.26366%로 동일했다.
+단순 호환 모드 변경으로 남은 배치 미달을 해소하지 못했다. 기존2022 실패 및 두 모드 증거를
+보존하고, 다른 원본의2020 Print로 현재 입력을 대체하지 않는다.
+
+C15 Native 빌드는 exit0, 바이너리
+`8771726de2807d1ed3d754b1010a6060ab0a558933aead3e10bf7dcdfa6051ea`다.
+같은 정식 identity case source를 C15 Native library에 결합해 **5 PASS / exit0**을 확인했다.
+이 after 실행은 공용 target의 독립 harness이며, CI의 Cargo 파생 suite 실행을 대체하지 않는다.
+`c15-native-family-verification-results.json`에 exact source·test·command·binary를 연결했다.
+원본 #1749 p5의 문단61/charShape56 별표45개는 전부 **굴림체 → GulimChe/custom**을
+선택한다. before의 Noto Sans KR/bundled와 actual renderer snapshot을 대조했다.
+
+같은 C15 CLI의 직접 Native Skia print PNG를 독립 한컴2020 PDF와96dpi로 대조했다.
+p4는98.81860%로 유지, p5는98.90970→99.23857%다. 두 review PNG를 직접 열어 p5 마지막
+별표 행의 폭이 Print와 맞아지고, 표 조각·아래 본문·줄바꿈이 유지됨을 확인했다.
+`c15-native-skia-savedbounds-review/provenance.json`에 input/Print/source·PNG·측정 결과를
+고정했다. 이 두 쪽의 판독을 전5쪽 Native/fresh WASM 및 전체 corpus 통과로 확대하지 않는다.
+fresh web build를 같은 source/공용 target에서 진행하며 최종 optimized 빌드와 lint·Skia·Studio·
+전체 Rust·전쪽 시각 게이트는 아직 남아 있다.
+
+C15 fresh diagnostic web build는 exit0으로 종료됐다. WASM SHA는
+`88e188ad7972df00d26d5a479bdaafac93f47f3f12b1fc2162515a215d4b9586`, JS SHA는
+`57805b611572e0d2bf9d3a871e801698450d9a8785e7bc524ebc422f7ac924a7`다.
+루트 pkg와 Studio public의 두 파일도 byte/SHA가 같다. no-opt 진단 빌드이며 최종 optimized
+검증으로 보고하지 않는다. C15 Native/fresh WASM은 같은14개 입력·독립 Print·fonts로
+전쪽 TSV를 산출 중이다. frozen binary/package와 source diff의 바인딩은 보존하며,
+완료된 문서의 SVG만 raw SHA 검증 뒤 무손실 압축한다.
+
+#3820의3308 원본과5151 Print PDF는 기존 tracked
+`mydocs/pr/assets/issue7445/76076-original-hwp-20261005/results.json`의 MCP job
+`1a5ed915-52cc-4a77-8b36-96fb1199043b`로 동일 입력 대응을 재확인했다.
+해당 원본의 전체 피델리티 문제는 #7445의 기존 #7784에 등록돼 있다. 다른 reference로
+미달을 숨기지 않으며, 현재 발생시킨 회귀의 복원과 기존 미달 범위를 구분한다.
+현 시점에서 C15 소스·폰트 identity 계약을 일반 commit으로 고정하고 남은 필수 lint와
+Cargo suite·Skia·Studio·전쪽 시각 검증을 이어간다.

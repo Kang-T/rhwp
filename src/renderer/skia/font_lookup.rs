@@ -31,6 +31,33 @@ pub(super) struct TypefaceCandidate {
     pub(super) source: &'static str,
 }
 
+/// A supplied face has one Skia primary name, but its SFNT naming table may
+/// declare localized or typographic family names for that same program.
+/// Match family records only: a full face or PostScript name is not a family.
+pub(super) fn supplied_family_names(data: &[u8], primary: &str) -> Vec<String> {
+    let mut families = vec![primary.to_string()];
+    // new_from_data(..., None) loads collection face zero as well.
+    if let Ok(face) = ttf_parser::Face::parse(data, 0) {
+        for name in face.names() {
+            if !matches!(
+                name.name_id,
+                ttf_parser::name_id::FAMILY
+                    | ttf_parser::name_id::TYPOGRAPHIC_FAMILY
+                    | ttf_parser::name_id::WWS_FAMILY
+            ) {
+                continue;
+            }
+            if let Some(family) = name.to_string() {
+                let family = family.trim();
+                if !family.is_empty() && !families.iter().any(|name| name == family) {
+                    families.push(family.to_string());
+                }
+            }
+        }
+    }
+    families
+}
+
 pub(super) fn text_family_candidates(requested: &str) -> Vec<String> {
     let mut families = Vec::new();
     for requested in requested
