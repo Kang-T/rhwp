@@ -4585,3 +4585,37 @@ blank endnote/blank footnote/Hancom HWP footnote의 실제 기존 바이트를 �
 같은 wrapper/cache의 wasm-opt 단계다. 가맹사업 Native142쪽은 전체SVG/render tree 내보내기
 이후 임베딩 글꼴 검증 중이다. 전체 회귀·fresh·NativeSkia·원격PR/CI/merge는 여전히 미완료다.
 개별17개는 머지보류를 유지하며 모든 필수 검증과 해결 뒤 **메인터너 보정 후 승인**으로 변경한다.
+
+
+## 진행 갱신183 — 현재 fresh WASM과 실제 Studio 활성화 확인 (2026-10-13)
+
+공용target·저장소 루트 wrapper의 현재 freshWASM build는exit0·1716.277초다.
+빌드 기록의 HEAD는c0fb6734e이고 이후b49d666b1은입력/문서만 추가했다. Rust생산은
+7749d이며source경로의해시는유지된다. 최적화WASM SHA256은
+`6741509894054ff51881f01d78603ba364a5f670c45ef93fa12171b30651c09b`,
+JS는`691e4fd480cf4e04f9e599ca7c7a4802ad87b2c141fba93bf94111f4144dcb3b`이고
+각각루트pkg/Studio public과일치한다. 현재전쪽fresh비교는CGMP48→KPS77→K-water27→
+가맹사업142→#157두쪽순서로시작했으며완료전이다.
+
+같은현재package로임시Studio7791서버와실제Chrome에서#7566누름틀의mouse activation을
+실행했다. guide2→1·SECONDGUIDE보존·전체셀경로·JS/WASM 실제응답해시·pageerror0을확인했고
+exit0·13.809초다. 임시서버는종료확인했다. 이실제Canvas2D UI검증을독립Print/fresh전쪽이나
+다른backend의완료로확대하지않는다. 공개WASM계약6묶음과Studio production/binding검사는진행중이다.
+
+가맹사업의전142쪽검증에서는같은전체글꼴바이트의Unicode cmap을쪽마다다시파싱한다.
+후속검증을위해`visual_sweep_font_cmap.py`에프로세스내성공결과캐시를분리했다.
+실제font바이트의SHA256을매번계산하며해시가다르면다시검사한다. 캐시는해시→매핑수만
+최대128개저장하며폰트바이트·실패결과·픽셀/점수/게이트를저장하거나완화하지않는다.
+손상/빈cmap은계속실패하며실패보고의fontSHA도유지한다.
+
+동일바이트파싱재사용·바이트변경/손상/빈cmap차단·캐시상한의3검사와기존Visual Sweep
+83검사를합쳐86/86PASS·exit0(최종재실행30.157초),py_compile0,diffcheck0이다.
+실제동일가맹사업SVG의수정전후보고서동등성과반복시간도별도측정중이며아직수치개선을주장하지않는다.
+이미실행중이던Native비교는이전validator를계속사용하며중단/재시작하지않았다.
+새fresh실행은새helper를사용하지만Rust구현/입력/Print/글꼴과실루엣계산식은같다.
+진행중인실행의scriptSHA와각source/package/입력hash는ignored v449의실제기록으로구분한다.
+
+독립Print와커밋된입력의해시를확인한원PR편집/정상대조24쌍의새Native비교도진행중이다.
+먼저완료한5쌍은전쪽미달0이고blank미주/각주/누름틀100%,Hancom HWP각주97.04843%,
+스타일이름없는두쪽원본최저92.07644%다. 나머지와fresh/최종전체회귀는완료전이다.
+개별17개최종판정은아직머지보류이며,모든필수검증과해결후에만**메인터너 보정 후 승인**으로갱신한다.

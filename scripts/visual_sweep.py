@@ -682,18 +682,21 @@ def inspect_svg_embedded_fonts(svg_path: Path) -> list[dict[str, object]]:
         for data_url in re.findall(r"url\(\s*[\"']?(data:[^\"')]+)", rule, re.IGNORECASE):
             record: dict[str, object] = {"family": name}
             try:
-                from fontTools.ttLib import TTFont
+                try:
+                    from scripts.visual_sweep_font_cmap import embedded_font_unicode_count
+                except ModuleNotFoundError:
+                    # 저장소 루트에서 CLI로 직접 실행할 때의 scripts 검색 경로.
+                    from visual_sweep_font_cmap import embedded_font_unicode_count
 
                 header, payload = data_url.split(",", 1)
                 if not header.lower().endswith(";base64"):
                     raise ValueError("base64 font data URI가 아님")
                 data = base64.b64decode(re.sub(r"\s+", "", payload), validate=True)
+                # 실패한 cmap도 기존 보고서처럼 실제 글꼴 해시를 남긴다.
                 record["sha256"] = hashlib.sha256(data).hexdigest()
-                with TTFont(io.BytesIO(data), fontNumber=0) as font:
-                    cmap = font.getBestCmap() if "cmap" in font else None
-                    if not cmap:
-                        raise ValueError("Unicode cmap이 없거나 비어 있음")
-                    record["unicode_mapping_count"] = len(cmap)
+                digest, count = embedded_font_unicode_count(data)
+                record["sha256"] = digest
+                record["unicode_mapping_count"] = count
                 record["status"] = "passed"
             except ImportError:
                 record.update(status="failed", reason="임베딩 폰트 검사를 위해 fonttools 설치 필요")
