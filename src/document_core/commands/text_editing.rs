@@ -23,7 +23,7 @@ use crate::renderer::style_resolver::ResolvedStyleSet;
 
 pub(crate) type CellReflowMetrics = (i32, i16, i16);
 
-fn cell_vpos_resets(previous: &Paragraph, current: &Paragraph) -> bool {
+pub(super) fn cell_vpos_resets(previous: &Paragraph, current: &Paragraph) -> bool {
     if let Some(reset) = current.cell_vpos_reset {
         return reset;
     }

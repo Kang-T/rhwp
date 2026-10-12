@@ -2554,7 +2554,7 @@ impl LayoutEngine {
                                             .encode(&svg_bytes);
                                         let href = format!("data:image/svg+xml;base64,{}", b64);
                                         let svg_fragment = format!(
-                                            "<image x=\"{:.2}\" y=\"{:.2}\" width=\"{:.2}\" height=\"{:.2}\" preserveAspectRatio=\"xMidYMid meet\" xlink:href=\"{}\" href=\"{}\"/>",
+                                            "<image x=\"{:.2}\" y=\"{:.2}\" width=\"{:.2}\" height=\"{:.2}\" preserveAspectRatio=\"none\" xlink:href=\"{}\" href=\"{}\"/>",
                                             render_x, render_y, render_w, render_h, href, href
                                         );
                                         push_ole_raw_svg_render_node(
@@ -2693,7 +2693,7 @@ impl LayoutEngine {
                                                 .encode(&svg_bytes);
                                             let href = format!("data:image/svg+xml;base64,{}", b64);
                                             let svg_fragment = format!(
-                                                "<image x=\"{:.2}\" y=\"{:.2}\" width=\"{:.2}\" height=\"{:.2}\" preserveAspectRatio=\"xMidYMid meet\" xlink:href=\"{}\" href=\"{}\"/>",
+                                                "<image x=\"{:.2}\" y=\"{:.2}\" width=\"{:.2}\" height=\"{:.2}\" preserveAspectRatio=\"none\" xlink:href=\"{}\" href=\"{}\"/>",
                                                 render_x, render_y, render_w, render_h, href, href
                                             );
                                             push_ole_raw_svg_render_node(

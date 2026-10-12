@@ -21,6 +21,13 @@ release-test library를 읽어 standalone rustc로 실행했으며 Cargo target�
 36389301_결재문서본문_직장훈련계획_덧말.hwpx이며 최초 셀 사례는 API의 빈 문서 생성이다.
 Print6개는 각각1/1/2/1/2/46쪽이며 현재 전쪽 Native/fresh 검증은 v398에서 진행 중이다.
 
+후속 확인: v398은 Native/fresh 모두 실제 종료했고 같은 미달을 확인했다.
+v406에서 저장 첫 줄 원점을 보정했지만, 원점 변경만으로 셀 높이와 뒤 문단 흐름이
+복구되지는 않았다. 아래 한컴 저장 대조군은 첫 줄 원점 외에 표 Common 높이도
+1282→3082HWPUNIT으로 바뀌었다. 초기 기록에서 빠진 이 차이가 100% 대조군의
+측정 결과를 가렸으므로, 이를 renderer가 앞 간격을 이미 올바르게 측정한다는 근거로
+사용하지 않는다. [후속 보정·반례·남은 측정 경로](../pr7657-batched-correction-v406/README.md)를 따른다.
+
 | 편집 저장본 | 입력 SHA256 | 같은 입력의 독립 Print | PDF SHA256 | job |
 | --- | --- | --- | --- | --- |
 | [original-143e-after-delete.hwp](original-143e-after-delete.hwp) | `d4ce355e04edf942628a82d1722fad387f74afa70f855d025d470b9d295c90a6` | [original-143e-after-delete-d4ce355e04ed-2020.pdf](../../../../../pdf/semanticist21-20261008/original-pr7657-style-delete-v397/original-143e-after-delete-d4ce355e04ed-2020.pdf) | `90a0b8fb03a4f2389c65cd5e03acb8c9b8ff9a4d3127200dd5dfb6c258c8c174` | `6ad90c0a-3908-4f40-8eea-ac8ebfa148a9` |
