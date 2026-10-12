@@ -57,7 +57,10 @@ fn decision(requested: &str) -> serde_json::Value {
 
 fn assert_supplied(requested: &str) {
     let native = decision(requested);
-    assert_eq!(native["resolved"], PRIMARY, "declared family owns its program");
+    assert_eq!(
+        native["resolved"], PRIMARY,
+        "declared family owns its program"
+    );
     assert_eq!(native["source"], "custom");
     assert_eq!(native["failures"], serde_json::json!([]));
 }
