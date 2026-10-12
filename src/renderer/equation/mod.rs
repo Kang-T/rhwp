@@ -16,8 +16,8 @@ pub mod layout;
 pub(crate) mod legacy_hwpeq;
 pub mod parser;
 pub mod svg_render;
-pub mod symbols;
 mod symbol_tokens;
+pub mod symbols;
 pub mod tokenizer;
 
 /// 한글 수식은 수학 글꼴의 누락 글리프 대신 본문 명조 계열을 사용한다.

@@ -4,12 +4,12 @@
 
 use super::ast::*;
 use super::dispatch::{classify_command, matrix_style, pile_align, EqCommandClass};
+use super::symbol_tokens::symbol_node;
 use super::symbols::{
     self, is_big_operator, is_function, is_structure_command, lookup_function, lookup_symbol,
     FontStyleKind, DECORATIONS, FONT_STYLES,
 };
 use super::tokenizer::{tokenize, Token, TokenType};
-use super::symbol_tokens::symbol_node;
 
 /// 수식 중첩 깊이 상한.
 ///
