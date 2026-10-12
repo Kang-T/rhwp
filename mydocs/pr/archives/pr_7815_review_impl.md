@@ -183,3 +183,40 @@ commit과 출처 표는 유지한다. fork의 합쳐진 슬롯 run 분할·저�
 combined merge diff와 graph 근거는 ignored
 `pr-7815-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
 `nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.
+
+
+## Canvas·Skia 따옴표 추가 보정 — 2026-10-12
+
+production `467bfd1d8`에서 동일 입력 `curly_quote_latin_slot.hwpx`의 교정된 실제 글꼴을
+공급해 Native/fresh WASM 전쪽 TSV를 재산출했다. 17개 소형 문서 양쪽 최저는
+99.56697%이고, 이 따옴표 문서 Native/fresh WASM은 99.65006%다. 실제 Canvas는
+Studio 등록 글꼴 목록에도 같은 프로그램을 등록해야 정책상 HY신명조로 치환되지 않는다.
+등록 후 전체 쪽은 99.09501%, Skia Print/명시적 font-path 출력은 98.98308%이나,
+4개 probe 문단 확대 판독에서 원 글리프가 다시 좁아지는 차이를 검출했다. 점수만으로
+수용하지 않았다.
+
+원인은 `text_measurement.rs`의 `metricTrueTypeGlyph` 생산 → 문자 전진폭 →
+`forces_halfwidth_punct_paint` → Canvas/Skia의 0.5배 paint 분기다. 판정이
+`embeddedMetric`이면서 1em 이상인 경우만 원 글리프로 인정하여, 검증된 휴먼명조
+프로그램과 원래 좁은 Times 글리프 모두 측정 결과와 달리 다시 축소됐다.
+판정이 두 원 프로그램 폭 경로를 그대로 소비하도록 보정한다. 저장 IR·문자 원점·
+기존 HFT 호환 overlay와 다른 구두점의 적용 조건은 바꾸지 않는다.
+
+before actual 출력과 font program 해시는 ignored
+`correct-face-curly-browser-canvas-registered/`, `correct-face-curly-skia-print/`,
+`correct-face-curly-registered-owned-lines-enlarged-review.png`에 보존했다.
+정식 관계형 검사 후보는 ignored `issue_7702_curly_quote_paint_advance.pending.rs`에
+보관하며, 수정 후 Native/fresh WASM 전쪽 TSV 및 실제 Canvas/Skia 확대 판독이
+충족되면 `tests/cases/`에 등록한다. before/after 함수 검출은 unchanged predicate의
+공개 범위만 넓힌 고정 e72 worktree와 보정 source를 대조할 계획이며 아직 미실행이다.
+
+
+### 실제 before 검출과 정상 대조군
+
+고정 e72 production에서 paint 판정의 공개 범위만 넓힌 library로 같은 후보 검사를
+컴파일했다. 실제 실행은 의도한 휴먼명조 TrueType 따옴표의 재축소 때문에 FAIL했고,
+기존 호환 글꼴의 좁은 paint 정상 대조군은 PASS했다(1 PASS·1 FAIL, exit101).
+컴파일 실패가 결함 재현으로 섞이지 않았다. `curly-paint-before-public-only.log`와
+library/case 해시 `curly-paint-before-public-only-provenance.json`을 보존했다.
+보정은 신뢰된 원 프로그램 폭과 기존 전각 메트릭에 한정하며 미확인 호환 폭을 보존한다.
+수정 후 실행·시각 gate는 진행 중이고 후보는 아직 정식 source에 등록하지 않았다.
