@@ -113,3 +113,13 @@ combined merge diff와 graph 근거는 ignored
 증거는 `pr7672-resaved-equation-cache-diagnostic.rs`,
 `pr7672-resaved-equation-cache-raster/metrics_014.json`, `metrics_015.json`,
 대응review와 `pr7672-resaved-equation-cache-propagation-raster/`다.
+
+
+## 새 실물 검사 후보 등록 보류 — 2026-10-12
+
+고정BFA에 없던 incoming 검사를 전쪽 시각 선행 조건에 맞춰 활성 등록에서 보류했다.
+보류 대상은 #7672의4건과 #7692의3건, 합계7건이다. 원문은 바이트와 해시를 유지해
+[보존 기록](../assets/issue7445/incoming-unqualified-regressions-20261012/README.md)에 있다.
+이는 기존 devel 검사 이관이나 출력 결함 해결이 아니다. 이전10241PASS는 이 후보들을
+포함한 실행 결과이며 등록 조건까지 충족한 것으로 승격하지 않는다. 정상 대조·전쪽 시각
+수용은 계속 필요하고, 최종 파생 suite 준비·필수 lint·전체 정식 검사 수는 재확인한다.
