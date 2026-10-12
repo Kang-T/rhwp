@@ -4369,3 +4369,35 @@ base/current 후보, 공용 Cargo target·원본·PDF·PNG·TSV는 보존했다.
 ledger는 ignored `old-completed-binary-cleanup-v100-v429.json`이다.
 모든17개 미병합 원 PR의 최종 판정은 계속 보류이며 사용자 지시대로 전체 필수 검증과 해결이 완료된
 뒤에만 **메인터너 보정 후 승인**으로 바꾸고 통합 PR·CI·머지·후속 처리를 진행한다.
+
+
+## 진행 갱신177 — 같은 글꼴 payload 공용 cache와 중단된 전쪽 비교 복구 (2026-10-13)
+
+`rasterize-svg-webfonts.mjs`의 캡처용 HTML에서만 내장 font-face의 data URL을 같은 font program
+바이트·SHA256의 공용 파일 URL로 바꾼다. 원본 SVG·face 이름·별칭·format·실제 좌표는 바꾸지 않는다.
+cache는 저장소의 고정 `output/pr-review/font-raster-cache`다. hash 불일치는 실패시키고 완성된
+payload만 원자적으로 게시해 병렬 캡처도 같은 바이트를 읽게 했다. 장시간 timeout을 수용 조건
+완화로 바꾸지 않으며 `document.fonts.ready`와 실제 Chrome screenshot을 유지한다.
+
+기존 Node 검사7/7PASS·exit0이고 실제 #157 2쪽과 KPS65쪽의 새 canonical cache 캡처는
+기존 data URL 캡처와 RGBA가 완전히 같다. 이전에 timeout 난258MB K-water20쪽도 기본30초
+한도에서 정상 캡처됐고, 같은 바이트 proxy의 이미지와 RGBA가 같다.
+`font-cache-validation-result.json`과 control identity·Node log·font payload hash에 기록했다.
+
+중단됐던 새 base552f의 K-water Native 전27쪽은 빠진20~27쪽을 같은 글꼴 바이트로 보완해
+27/27쪽·PDF27쪽, 최저24쪽94.69429%·미달/누락0으로 완료했다.
+**이 K-water HWPX는 base에서 이미90% 이상인 정상 회귀 대상**이므로 기존27쪽 기대값을
+유지하고 이번28쪽 증가를 구현에서 보정한다. 다른 HWP2024의 #7773을 이 원본의 이관 근거로 쓰지 않는다.
+보정d7a13의 Native 전27쪽 비교는 새로 진행 중이다. 선택24/25쪽과 전쪽 완료를 구분한다.
+
+이전 immutable production58b63/pkg의 CGMP fresh도 남은47/48쪽을 복구했다.
+Native/fresh 각각48/48쪽·PDF48쪽, 최저47쪽93.64014%·미달/누락0이고 전48쪽 RGBA가 같다.
+이는 중간 source 변경으로 guard가false였던 이전 캡처의 불변 package/source에 대한 결과다.
+현재 d7a13의 fresh 완료로 승격하지 않으며 최종 code head의 필수 fresh gate는 다시 확인한다.
+현재 d7a13 library에 다시 링크한 KPS 두 정식 소스4개와 #157 1개는5PASS다.
+전체 nextest·lint 또는 개별 PR 승인으로 확대하지 않는다.
+
+복구 실행·page별 명령·실제 exit·전체 TSV와 입력 hash는 ignored
+`kwater-new-base-whole-cached-completion-*`, `scoped-frame-cgmp-fresh-cached-completion-*`,
+`scoped-frame-cgmp-native-fresh-identity.json`, `kwater-current-native-whole-*`,
+`kps-*-closed-cell-*`에 보존한다. 아직 모든 검증이 끝나지 않아 원격 PR/push/merge는 수행하지 않았다.

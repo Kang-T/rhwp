@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, delimiter, dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -40,6 +40,58 @@ function fontFaceRanges(source) {
     offset = close + 1;
   }
   return ranges;
+}
+
+// 반복된 전체 글꼴을 HTML에서 다시 해석하지 않고 같은 바이트의 파일을 참조한다.
+// 원본 SVG와 글꼴 선택·별칭·형상은 보존하며 공용 검토 cache를 재사용한다.
+function externalizeEmbeddedFontSources(source) {
+  const cacheDir = resolve(ROOT, 'output/pr-review/font-raster-cache');
+  const payloads = new Map();
+  const chunks = [];
+  let cursor = 0;
+  for (const [start, end] of fontFaceRanges(source)) {
+    chunks.push(source.slice(cursor, start));
+    let face = source.slice(start, end);
+    const dataStart = face.indexOf('data:');
+    const header = dataStart < 0 ? null : face.slice(dataStart, dataStart + 256)
+      .match(/^data:(?:font\/[^;,\s]+|application\/[^;,\s]+);(?:charset=[^;,]+;)?base64,/u);
+    if (header) {
+      const payloadStart = dataStart + header[0].length;
+      const closing = face.indexOf(')', payloadStart);
+      if (closing < 0) throw new Error('내장 글꼴 URL의 끝을 찾지 못했습니다.');
+      const payloadEnd = ['"', "'"].includes(face[closing - 1]) ? closing - 1 : closing;
+      const encoded = face.slice(payloadStart, payloadEnd);
+      const bytes = Buffer.from(encoded, 'base64');
+      if (bytes.toString('base64') !== encoded) {
+        throw new Error('내장 글꼴의 base64 바이트가 올바르지 않습니다.');
+      }
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      const path = resolve(cacheDir, `${sha256}.font`);
+      if (!payloads.has(sha256)) {
+        mkdirSync(cacheDir, { recursive: true });
+        if (existsSync(path)) {
+          if (createHash('sha256').update(readFileSync(path)).digest('hex') !== sha256) {
+            throw new Error(`공용 글꼴 cache hash 불일치: ${path}`);
+          }
+        } else {
+          // 병렬 캡처도 완성된 동일 payload만 읽도록 원자적으로 게시한다.
+          const temporary = `${path}.${process.pid}.tmp`;
+          try {
+            writeFileSync(temporary, bytes, { flag: 'wx' });
+            renameSync(temporary, path);
+          } finally {
+            rmSync(temporary, { force: true });
+          }
+        }
+        payloads.set(sha256, { sha256, bytes: bytes.length, path });
+      }
+      face = face.slice(0, dataStart) + pathToFileURL(path).href + face.slice(payloadEnd);
+    }
+    chunks.push(face);
+    cursor = end;
+  }
+  chunks.push(source.slice(cursor));
+  return { svg: chunks.join(''), payloads: [...payloads.values()] };
 }
 
 function declaredFontFaceFamilies(source) {
@@ -313,7 +365,8 @@ async function main() {
   const projectionSource = readFileSync(resolve(ROOT, PROJECTION_PATH), 'utf8');
   const rules = selectWebfontRules(svgSource, parseWebfontRules(projectionSource));
   const webfontCss = buildWebfontCss(ROOT, rules);
-  const preparedSvg = prepareSvgForWebfontRaster(svgSource, webfontCss);
+  const prepared = externalizeEmbeddedFontSources(prepareSvgForWebfontRaster(svgSource, webfontCss));
+  const preparedSvg = prepared.svg;
   const viewport = svgViewport(preparedSvg);
   const wrapperPath = resolve(dirname(inputPath), `.${basename(inputPath)}.webfont-${process.pid}.html`);
   const profileDir = resolve(dirname(outputPath), `.webfont-chrome-profile-${process.pid}`);
@@ -344,6 +397,7 @@ async function main() {
     preservedFontFaceFamilies: [...declaredFontFaceFamilies(svgSource)],
     recoveredFontFaces,
     terminalFallbackFamily: TERMINAL_FALLBACK_FAMILY,
+    externalizedFontPayloads: prepared.payloads,
   }));
 }
 
