@@ -4644,3 +4644,30 @@ old첫9.339/반복10.362초,new첫7.893/반복6.744초다. 이는이한SVG의진
 
 각프로세스의실제scriptSHA와현재HEAD를구분한다. 최종Rust source 검사 변경은CGMP의
 현재fresh48쪽과독립Print의선행조건을확인한뒤진행하며,개별17개머지보류는아직유지한다.
+
+
+## 진행 갱신185 — CGMP 양 backend 전쪽 확인 후 기존 의미 검사 교정 (2026-10-13)
+
+현재Rust7749d의CGMP Native/fresh WASM은각48/48쪽·Print48쪽,최저47쪽93.64014%,
+미달/누락0이다. fresh실행exit0·693.020초·sourceguard=true이며48쪽전체decoded RGBA가
+같다. Native34/35/36/47쪽과현재fresh34/35쪽review를직접열어소유·분할·내용보존을
+대조했다. fresh34/35쪽의원자재입고마지막행/다음행시작은독립Print와같으며
+글꼴굵기·raster의기존차이는별도로남긴다. [현재 양 backend review](../assets/semanticist21-20261008/cgmp-complete-row-v449/README.md)에대표PNG를보존한다.
+
+이선행조건을확인한뒤`issue_6035_complete_row_does_not_emit_a_line_advance_only_tail`의
+완료행에도부분endCut을요구하던전제만교정했다. 전체원본내용의앞쪽소유셀보존/포함,
+다음조각이바로다음원본행부터시작,완료행의모든셀을다음쪽에중복표시하지않는관계를
+검사한다. `split_pair`와다른4개기존검사는유지한다. 원본·Print·허용치·기준값은바꾸지않는다.
+기존5개4PASS/1FAIL에서최종포맷된정식소스5/5PASS·exit0(4.66초)다.
+formatter와겹친최초직접compile기록은pre-format진단으로따로보존했으며,formatter종료뒤
+다시compile/run하여source SHA 전후동일·최종파일일치를확인했다. 전체nextest결과로승격하지않는다.
+
+초기체리픽편집/정상대조24쌍·전27쪽의새Native비교는exit0(951.827초),
+최저현재스타일이름없는원본2쪽92.07644%,미달/누락0·sourceguard=true다. 현재fresh재비교는남는다.
+가맹사업Native142쪽의임베딩글꼴512개검증은passed이며현재142쪽캡처중이다.
+KPS fresh77쪽은진행중이며K-water/가맹사업/#157fresh와최종Rust/Skia는미완료다.
+
+디스크여유확보를위해종료된이전r448 scoped-frame CGMP/KPS의비대표raw/normalized SVG
+204개4,679,530,058bytes만정리했다. 각fd와실행중명령의경로참조를확인하고SHA/size ledger를
+먼저기록했다. 대표경계/최저쪽SVG와전체PNG/TSV/JSON·입력·Print·공용target은보존했다.
+개별17개의최종판정은머지보류이며,모든필수검증과해결뒤에만**메인터너 보정 후 승인**으로변경한다.

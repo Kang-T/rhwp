@@ -3,8 +3,8 @@
 //! 독립 한컴2020 Print의 물 공급 설비 제목은35쪽, 세 하위 항목은36쪽이다.
 //! 제목과 항목을 같은 쪽으로 강제하던 기존 검사는 이 정상 경계를 빈 쪽으로 오판했다.
 //! 원본의 저장 줄·문단 소속과 실제 셀의 포함·순서·보존을 검사한다.
-//! Native/fresh WASM 전48쪽 선행 검증: 최저47쪽94.00342%, 미달·누락0.
-//! 증적은 통합 review의 진행95와97에 연결한다.
+//! 현재7749d의 Native/fresh WASM 전48쪽: 최저47쪽93.64014%, 미달·누락0.
+//! 현재 전쪽 RGBA도 같으며 증적은 통합 review의 진행185에 연결한다.
 #![cfg(not(target_arch = "wasm32"))]
 
 use std::fs;
@@ -252,28 +252,68 @@ fn issue_6035_complete_row_does_not_emit_a_line_advance_only_tail() {
     let fragments = fragments(&core, pi, ci);
     // 독립 Print34/35쪽: 원자재 입고 행은 내용을 끝낸 뒤 빈 이어받기 셀을 만들지 않는다.
     let row = source_row(table, "나. 원자재 입고시");
-    let (before, after) = split_pair(&fragments, row);
-    let mut cells: Vec<_> = table.cells.iter().filter(|cell| cell.row == row).collect();
-    cells.sort_by_key(|cell| cell.col);
-    let complete_cut: Vec<_> = cells
+    let index = fragments
         .iter()
-        .map(|cell| {
-            cell.paragraphs
-                .iter()
-                .map(|p| p.line_segs.len())
-                .sum::<usize>()
-        })
-        .collect();
-    assert_eq!(
-        before.end_cut, complete_cut,
-        "내용은 앞 조각에서 완전히 소비된다"
-    );
+        .position(|fragment| fragment.end == usize::from(row) + 1)
+        .expect("완료 행을 포함하는 앞 조각");
+    let before = &fragments[index];
+    let after = &fragments[index + 1];
+    assert_eq!(after.page, before.page + 1, "불필요한 빈 쪽이 없다");
     assert_eq!(
         after.start,
         usize::from(row) + 1,
-        "다음 줄 전진만으로 빈 행을 다시 만들지 않는다"
+        "완료 행의 빈 꼬리를 다음 쪽에 다시 만들지 않는다"
     );
     assert!(after.start_cut.is_empty());
+
+    let opening = core
+        .build_page_render_tree(before.page)
+        .expect("완료 행의 앞쪽");
+    let continuation = core
+        .build_page_render_tree(after.page)
+        .expect("다음 행의 이어받기 쪽");
+    let original = table
+        .cells
+        .iter()
+        .find(|cell| cell.row == row && cell.col == 0)
+        .expect("완료 행의 원본 내용 셀");
+    let expected: String = original
+        .paragraphs
+        .iter()
+        .map(|paragraph| compact(&paragraph.text))
+        .collect();
+    let completed = row_cell(&opening.root, pi, ci, row);
+    assert_eq!(
+        cell_text(completed),
+        expected,
+        "원본 내용의 누락·중복이 없다"
+    );
+    assert_text_inside(completed);
+
+    let mut next_nodes = Vec::new();
+    walk(&continuation.root, &mut next_nodes);
+    for node in next_nodes {
+        if matches!(&node.node_type, RenderNodeType::Table(owner)
+            if owner.para_index == Some(pi) && owner.control_index == Some(ci))
+        {
+            assert!(
+                !node.children.iter().any(|child| {
+                    matches!(&child.node_type, RenderNodeType::TableCell(cell) if cell.row == row)
+                }),
+                "완료 행의 어느 셀도 다음 쪽에 중복 표시하지 않는다"
+            );
+        }
+    }
+    let next_original = table
+        .cells
+        .iter()
+        .find(|cell| cell.row == row + 1 && cell.col == 0)
+        .expect("독립 Print에서 다음 쪽에 시작하는 원본 행");
+    assert!(
+        cell_text(row_cell(&continuation.root, pi, ci, row + 1))
+            .starts_with(&compact(&next_original.paragraphs[0].text)),
+        "다음 쪽은 다음 원본 행의 내용부터 이어진다"
+    );
 }
 
 #[test]
