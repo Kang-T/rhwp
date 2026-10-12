@@ -22,7 +22,7 @@ impl DocumentCore {
                 .get(id as usize)
                 .map_or(0, |shape| shape.spacing_before)
         };
-        // 문단 모양의 간격은 2배 HWPUNIT이다. 첫 저장 조각의 lead는
+        // 문단 모양의 간격은 2배 HWPUNIT이다. 셀 첫 문단의 lead는
         // cell_first_para_stored_lead와 같은 스케일이며 문단 간 흐름 간격과 구분한다.
         let old_spacing = crate::renderer::hwpunit_to_px(before(old_shape_id), self.dpi) / 2.0;
         let new_spacing = crate::renderer::hwpunit_to_px(before(new_shape_id), self.dpi) / 2.0;
@@ -40,7 +40,6 @@ impl DocumentCore {
             .get_cell_paragraph_ref(section, parent, control, cell, index + 1)
             .map(|next| cell_vpos_resets(paragraph, next));
         let stored = !crate::renderer::para_has_no_stored_line_segs(paragraph);
-        let frame_start = index == 0 || resets == Some(true);
         let old_lead =
             crate::renderer::cell_first_para_stored_lead(paragraph, old_spacing, self.dpi);
         let delta = crate::renderer::px_to_hwpunit(new_spacing - old_lead, self.dpi);
@@ -48,7 +47,9 @@ impl DocumentCore {
         if let Some(reset) = resets {
             paragraph.cell_vpos_reset = Some(reset);
         }
-        if stored && frame_start {
+        // 이어받기 조각의 원점은 앞 간격을 새로 품는 셀 첫 문단이 아니다.
+        // 그 원점은 보존하고 이후 문단의 간격은 vpos 사다리에서 소비한다.
+        if stored && index == 0 {
             for segment in &mut paragraph.line_segs {
                 segment.vertical_pos += delta;
             }

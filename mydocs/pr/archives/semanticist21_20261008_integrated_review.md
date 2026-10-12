@@ -4091,3 +4091,50 @@ production source는 보정 전후 동일하다. 검사 이름·실행 명령·�
 동일 원본 문자열을 #7445의 최신90개 하위 이슈에서 확인했다. 이미 이관된 다른 형식/원본을
 현재 실패의 제외 근거로 사용하지 않았다. 시험지 원본은 보존한다.
 남은 실제 실패·시각/backend 범위·최종 통합 gate를 해결한 뒤 개별 PR 판정과 제출 후보를 확정한다.
+
+
+## 진행 갱신170 — 저장 원점의 두 소비 경로 보정 및 devel 동기화 준비 (2026-10-13)
+
+검토 HEAD `dc5b73f60448404e8db18e8ebeb0912cf6b90599`에서 기존 실패9개를 이어 검토했다.
+사용자가 다시 devel 동기화·리베이스를 지시했으며 fetch exit0으로 새 base
+`552f5228d2dbfd6046c838f14241704f1bcb8a05`(#7861)를 확인했다.
+기존 base `bfa28a77a2714482f647ee6a7b9aa7f7876d8404` 대비 HEAD가 실제로 바뀌었으므로
+현재 검증 종료·보정 커밋 뒤 새 base로 리베이스한다. 이전 검증을 새 base의 통과로 재사용하지 않는다.
+
+### 구현의 공통 원점 계약
+
+- `cell_format_origin::restamp_cell_format_origin`은 논리 셀 첫 문단의 저장 앞 띠만 변경한다.
+  `cell_paragraph_spacing::paragraph_before`의 `para_index == 0` 소유 계약과 맞춘다.
+  이후 이어받기 조각의 reset 원점은 고정하고 문단 흐름 간격은 기존 vpos 사다리에서 소비한다.
+  기존 #6639의 batch/non-batch·undo·원점 보존 검사 기대값을 완화하지 않았다.
+- 표 block entry의 빈 저장 호스트는 검증된 연속 저장 단의 `source_host_origin`이 있을 때
+  문단 앞 간격을 뺀 프레임 원점을 사용한다. `from_empty_stored_ladder_host`가 생산하는
+  동일 `ParagraphFloatPlacement`의 `occupied_bottom`을 whole-fit에 사용하고
+  `record_paragraph_float_placement`로 실제 paint에 전달한다.
+  편집·합성 줄·불연속·다단·부분 표의 원점 거절 조건과 중첩 셀 호출은 유지했다.
+
+### 동일 원본의 base/current 및 후보 비교
+
+새 source를 만들기 전 실제 clean bfa worktree의 CLI를 공용 target에서 빌드했다
+(exit0/91.023초, SHA256 `8312404e26a74d317da14054b2bae22c460625a1928848302fe1d5d445184e47`).
+현재 Native CLI도 별도로 hash 고정하여 같은 원본·Print·글꼴·compat2022·DPI96으로 비교했다.
+
+| 원본/범위 | bfa Native (%) | 보정 전 dc5 Native (%) | 판정 |
+| --- | ---: | ---: | --- |
+| issue_157.hwp 전쪽 | 1쪽99.74326 / 2쪽74.52729 | 3쪽, Print2쪽과 불일치 | 기존 미달과 현재 쪽수 회귀 모두 남음 |
+| issue4514/sample1-repro.hwp 10쪽 | 50.32920 | 14.47312 | #7808의 동일 원본·미해결 소유 문제. 새 악화를 기존 차이로 면제하지 않음 |
+| issue6575/tac_picture_line_top.hwpx 1쪽 | 25.29586 | 26.99995 | 같은 축소 입력의 이관 근거 부족. 검사 기대값 변경 보류 |
+| issue5833/cell_multi_para_float_pics.hwp 1쪽 | 6.62281 | 6.61305 | 같은 축소 입력의 원점·Print 계약 미달. 검사 기대값 변경 보류 |
+
+두 보정의 Native CLI build는 exit0/200.966초다. #157 후보는 원본을 바꾸지 않고2쪽으로 복원했으며
+전쪽 TSV는1쪽99.74326/2쪽78.74413%다. review2쪽을 직접 확인했다.
+하단 표는 현재 y820.9px/Print820.063px로 대응하지만 상단 표는 현재232.8px/Print224.395px로
+차이가 남는다. **부분 개선이며 90% 통과·완료로 판정하지 않는다.** fresh WASM은 아직 실행 전이다.
+정식 #6639 및 CGMP complete-row 검증은 현재 실행 중이며 다음 기록에서 최종 exit/함수별 결과를 연결한다.
+
+명령·원본/PDF/CLI/source SHA·TSV·PNG·상세 관측은 ignored
+`regression-root-cause-batch-v448/{implementation-plan,paired-native-plan,candidate-issue157-plan}.json`,
+각 `*-result.json`·log와 review PNG에 보존한다. 원본·PDF·기존 정확한 assertion은 삭제하지 않았다.
+사용자가 요청한 output 정리로 종료된 v1~v99 진단 바이너리97개(5,325,788,648bytes)만 제거했다.
+`/proc/*/exe` 사용 여부·파일별 SHA·크기는 같은 폴더의 `old-completed-binary-cleanup.json`에 남겼으며
+공유 `target/pr-review`와 현재/base/candidate CLI 및 검증 증거는 보존했다.

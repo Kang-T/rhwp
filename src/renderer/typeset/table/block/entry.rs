@@ -1894,7 +1894,11 @@ impl TypesetEngine {
                         para,
                         paragraphs_all.get(para_idx + 1)?,
                         table,
-                        placement_para_start_height,
+                        // 검증된 저장 단의 줄 원점은 앞 간격 뒤에 있다.
+                        // 표 프레임은 그 간격 전 원점을 fit·점유·paint가 공유한다.
+                        source_host_origin.map_or(placement_para_start_height, |origin| {
+                            origin - fmt.spacing_before
+                        }),
                         // 저장 vpos는 문단 앞 간격 뒤의 줄 원점이다. 표 바깥
                         // 여백을 빼면 같은 프레임을 다른 원점으로 인증하게 된다.
                         fmt.spacing_before,
