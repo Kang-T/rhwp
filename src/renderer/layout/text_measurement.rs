@@ -2047,10 +2047,11 @@ pub fn forces_halfwidth_punct_paint(style: &TextStyle, c: char) -> bool {
         style.font_metric_trusted,
         style.hft_hangul_face,
     );
-    let authentic_fullwidth_quote = matches!(c, '\u{2018}' | '\u{2019}' | '\u{201C}' | '\u{201D}')
-        && decision.width_source == "embeddedMetric"
-        && decision.em_fraction.is_some_and(|em| em >= 1.0);
-    !authentic_fullwidth_quote
+    // 그 글리프의 전진폭을 그대로 썼다면 폭이 전각인지와 관계없이 다시 누르지 않는다.
+    // 휴먼명조의 검증된 프로그램 폭과 Times의 좁은 원 글리프도 같은 계약이다.
+    let authentic_quote = matches!(c, '\u{2018}' | '\u{2019}' | '\u{201C}' | '\u{201D}')
+        && matches!(decision.width_source, "embeddedMetric" | "metricTrueTypeGlyph");
+    !authentic_quote
 }
 
 /// 3 개 이상 연속하는 dash leader 시퀀스의 일부 여부 (Task #352).
