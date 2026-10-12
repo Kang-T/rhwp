@@ -1770,9 +1770,9 @@ pub(crate) fn stored_empty_control_table_frame(
     } else {
         i64::from(anchor_vpos)
     };
-    // 원본 사다리가 전체 바깥 상자를 닫는 기존 계약은 여백의 예약 높이와
-    // 가시 괘선의 inset을 구분한다. 좌우 여백 없는 표의 vpos에 위여백을
-    // 다시 더하면 제목 표만 아래로 내려가 다음 표의 간격을 잠식한다.
+    // 원본 사다리가 전체 바깥 상자를 닫으면 예약과 paint가 같은 상자를
+    // 소비한다. 위여백은 테두리 원점 안쪽으로 한 번 적용하며 좌우여백은
+    // 세로 원점을 바꾸지 않는다. 후속 줄의 occupied bottom은 유지한다.
     let paint_inset = if table.caption.is_none()
         && anchor_origin == i64::from(anchor_vpos)
         && positioned_offset == 0

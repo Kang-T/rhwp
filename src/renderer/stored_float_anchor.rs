@@ -64,19 +64,10 @@ pub(crate) fn stored_topbottom_object_span(
     table: &Table,
 ) -> (i64, i64) {
     if let Some(outer_box_height) = stored_topbottom_flow_advance_hu(para, next_para, table) {
-        // 사방 균등일 때만 `vpos` 를 상자 위끝으로 읽는다. 저장소의 좁은 술어 셋
-        // (`#6378` · `#3820 Stage 120` · `native_empty_host_physical_outer_box_paint_inset`)
-        // 이 모두 같은 조건을 쓰고, 정본도 같은 말을 한다 —
-        // `76076_regulatory_analysis.hwp` pi=323·324 는 (**0**/**0**/566/566) 이고
-        // 한/글이 여백을 싣지 않는다(정본 괘선 400.52 로 확인).
-        let uniform = table.outer_margin_top == table.outer_margin_bottom
-            && table.outer_margin_top == table.outer_margin_left
-            && table.outer_margin_top == table.outer_margin_right;
-        let top = if uniform {
-            i64::from(table.outer_margin_top)
-        } else {
-            0
-        };
+        // 후속 저장 줄이 전체 높이+상하 여백을 정확히 닫으므로 vpos는
+        // 세로 바깥 상자의 윗변이다. 좌우여백은 수평 상자의 속성이며
+        // 세로 위여백의 paint 소비 여부를 바꾸지 않는다.
+        let top = i64::from(table.outer_margin_top);
         let offset = if offset_float_follows_inline_line(para, table) {
             i64::from(table.common.vertical_offset)
         } else {
