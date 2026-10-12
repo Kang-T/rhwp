@@ -81,3 +81,29 @@ HWPX90쪽 review에서 rhwp의 앞 표 끝 「계획」과 Print의 조문 대�
 이는 기존 devel 검사 이관이나 출력 결함 해결이 아니다. 이전10241PASS는 이 후보들을
 포함한 실행 결과이며 등록 조건까지 충족한 것으로 승격하지 않는다. 정상 대조·전쪽 시각
 수용은 계속 필요하고, 최종 파생 suite 준비·필수 lint·전체 정식 검사 수는 재확인한다.
+
+
+## 그림 칸의 before/after와 Print 글꼴 프로그램 재확인 — 2026-10-12
+
+원본14행 표를 복제한 작은2쪽 대조군에서, 정확한BFA의 칸(1,1)은152.8px이고
+현재4ce는147.5px였다. 현재값은 입력의 칸 여백·그림 offset·그림 높이 합과 일치한다.
+이 대조군은 원본4쪽의 개선이나 정상 회귀 등록으로 승격하지 않았다.
+
+사용 글자를 보완한 HBATANG 서브셋에도 `『』` 표시 차이가 남아 독립 Print의 실제
+TrueType 프로그램을 추출·대조했다. Print의HCR Batang은1000em·낫표500advance이고
+`/usr/local/share/fonts/hwp-convert-mcp-hanbatang/HANBatang.ttf`의 동일 글리프 윤곽선·
+전진폭과 일치한다. HBATANG.TTF(한컴바탕)는1024em·낫표1024advance로 **다른 face**다.
+Unicode상Wide라는 분류로 이 글꼴의500advance를 전각으로 바꾸지 않았다.
+
+올바른 HCR원 프로그램을 바이트 그대로 공급하고 current Native/fresh 전쪽을 다시
+산출했다. 작은2쪽 대조군은 양쪽 최저94.56671%로90% 이상이지만 첫 표 원점·글리프의
+남은 직접 판독이 필요하여 정식등록을 계속 보류한다. 원본4쪽은Native 최저39.21772%,
+fresh 최저36.90483%, 각각1·2쪽이90% 미만이며 전체쪽수4/4다. 원본을 대신 새 입력만
+통과시킨 것으로 보고하지 않는다.
+
+ignored 증거: `owned-normal-picture-before-after-cell.json`,
+`picture-corner-quote-independent-program-evidence.json`,
+`validated-print-hcr-batang-program/provenance.json`,
+`owned-picture-correct-hcr-{native,wasm}-{native,wasm}-results.json`.
+실행 중인 미주 검증의 기존 글꼴 파일은 변경하지 않았고 올바른HCR공급 경로를 따로
+고정했다. 작은 입력의 원본과 독립Print·원본4쪽의 기준은 각각 유지했다.

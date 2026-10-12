@@ -282,3 +282,23 @@ code source가같은이후head의차이는 신규검사·보존·문서이고 �
 `curly-all-actual-document-original-before.log`, `curly-times-actual-document-before.log`,
 `curly-times-formal-nextest.log`, `curly-times-formal-lint-results.json`,
 `curly-times-formal-reprepared-policy-results.json`이다.
+
+
+## 最新 production 보정 후 Skia·Node·Studio 검증 — 2026-10-12
+
+production source는 `4cebc8d095b64ce2786bc5071d31ad5a76a09bb1`이며 이후 commit은
+검사·검토 기록이다. 현재source의 `cargo test --locked --profile release-test
+--target-dir /home/tsjang/rhwp/target/pr-review --features native-skia --lib -- --test-threads=12`는
+3864+15+165+2=**4046PASS /0FAIL /12IGNORED**, exit0으로 종료했다.
+`issue_2225_missing_picture_placeholder`와 `render_p37_direct_pdf_export`의
+공식 추가 Skia 범위는 현재source로 각각 **2PASS /0FAIL**, **4PASS /0FAIL**,
+exit0으로 종료했다. library4046건과 추가6건을 구분한다.
+
+root wrapper의 `--target nodejs --out-dir pkg-node --no-opt`가 현재source의 release
+WASM 입력에서 Node 바인딩을 생성했다(exit0). 이 Node package까지 반영한 Studio
+`npm test`는 **1836PASS /0FAIL /0SKIP**, exit0으로 종료했다. 최적화한 web package의
+브라우저·시각 증거와 Node no-opt package의 검증을 구분한다.
+
+ignored 로그: `current-4ce-native-skia-lib.log`, `current-4ce-fresh-node-wasm-build.log`,
+`current-4ce-studio-unit-with-node-wasm.log`, `current-4ce-native-skia-focused-results.json`.
+이 결과를 최종 통합 전체 Rust 검사 또는 남은 원본의 시각 통과로 보고하지 않는다.

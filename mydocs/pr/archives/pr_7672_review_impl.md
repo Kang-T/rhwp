@@ -145,5 +145,30 @@ combined merge diff와 graph 근거는 ignored
 ignored 증거: `plain-endnote-owner-before-after-lines.json`,
 `plain-endnote-owner-{native,wasm}-{native,wasm}-results.json`, 대응review1쪽,
 `pr7672-current-tail-spacing-debug.log`, `pr7672-control-and-tail-spacing-audit.json`.
-원본 편집8개·독립Print 총180쪽의 현재4ce Native/fresh 전쪽 검증은
-`pr7672-all-edits-current-4ce-{native,wasm}-progress.log`에 실행 중이며 최종 결과 전이다.
+원본 편집8개·독립Print 총180쪽의 현재4ce Native/fresh 전쪽 검증 결과는
+아래 전쪽 검증 절에 기록했다. 최초browser 시작 오류1건도 재실행·측정을 완료했다.
+
+
+## 실제 편집본 전쪽 검증 범위 확장 — 2026-10-12
+
+각각 `문서 ` / `가나 `를 삽입한 실제 편집본8개·독립 Print 총180쪽을 현재4ce
+Native와 fresh web WASM에서 전쪽 산출했다. 입력·PDF16개 SHA를 고정 corpus와 대조했다.
+
+| 편집 대상 | 문서당 쪽수 | Native 최저 / 미달 쪽수 | fresh WASM 최저 / 미달 쪽수 |
+| --- | ---: | --- | --- |
+| 2023 note348 두 편집본 | 20 | 각각29.12455% /12 | 각각29.12455% /12; 가나 최초browser launch 오류 후 해당 건 재실행·측정 완료 |
+| 미주사이20 note134 두 편집본 | 24 | 각각35.57167% /16 | 각각35.57167% /16 |
+| 미주사이20 note254 두 편집본 | 24 | 각각35.57167% /16 | 각각35.57167% /16 |
+| 구분선위0·사이20·아래2 note229 두 편집본 | 22 | 각각40.44552% /13 | 각각40.44552% /13 |
+
+측정된 범위는 Print와 전체 쪽수가 같지만 전쪽90% gate를 통과하지 않았다.
+프로세스 runner가 결과를 수집하고 정상 종료한 것과 각 visual gate의 exit1을 구분한다.
+브라우저 시작 오류를 시각 미달 또는0%로 세지 않는다. 원본이 미달인 동안 후보4건의
+등록 보류를 유지하며 기대값을 낮추지 않는다.
+
+ignored 결과: `pr7672-all-edits-current-4ce-native-results.json`,
+`pr7672-all-edits-current-4ce-wasm-final-results.json`와 대응 TSV. 최초browser 오류 원문은
+`pr7672-all-edits-current-4ce-wasm-results.json` 및 raw log에 별도로 유지한다.
+각 결과의 raw log를 code source 이름에 맞는 `*-current-4ce-{native,wasm}-sweep.log`로
+보존했다. 예전467 접미사를 가진 재실행 log도 현재 header는4ce이므로 과거467 증거로
+다시 인용하지 않는다. 이전467의 score·manifest·source provenance는 별도로 보존한다.
