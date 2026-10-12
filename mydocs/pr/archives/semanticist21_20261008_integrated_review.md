@@ -4736,3 +4736,40 @@ OLE 원본/분리 차트의 현재 Native/fresh는 점수를 확인했고 SO-SUE
 upstream/devel을 다시 fetch했으며552f5228… 그대로여서 리베이스하지 않았다.
 종료된 가맹사업 비대표 SVG는 기존 driver의 fd/hash ledger 후 정리했고,
 원본·Print·PNG·TSV·JSON·대표 SVG·공용target은 보존했다. 이 commit은 문서/증적만 변경한다.
+
+
+## 진행 갱신188 — 저장 앞 띠·반복 프레임의 일괄 보정 후보 (2026-10-13)
+
+이전 c771d 검증은 최종 종료했다. 전체 nextest는10267건 실행,10266PASS/1FAIL/45SKIP이며
+실패는 HML row_sizes 성능 guard의569.922ms(500ms 상한) 한 건이다. 초기 원PR 계약78건은
+현재 source hash와 전체 로그에서78PASS/0FAIL/미관측0으로 대조했다. 이후 NativeSkia3종과
+문서 검사는 driver가 실패 뒤 멈춰 미실행이다. 이 결과로 개별17개를 승인하지 않는다.
+
+동일 구현·검사·상한의 HML 단독 실행은1PASS/0SKIP,테스트88ms·exit0이었다.
+파서의 셀 단일 순회와500ms 상한은 유지하고 nextest default/ci-duration-observation에서
+해당 검사가 모든 슬롯을 점유하도록 배정했다. 새 전체 실행의 통과는 아직 미확인이다.
+
+가맹사업55/57/79쪽의 원본·독립 Print·실제 GDB 호출을 정밀 대조한 뒤 아래를 함께 수정했다.
+문서 ID·고정 픽셀 이동·허용치 완화는 추가하지 않는다.
+
+| 규칙 / 생산 결과 | 실제 측정·예약 소비 | 실제 배치·종료 소비 / 반례 |
+| --- | --- | --- |
+| `cell_paragraph_spacing::paragraph_before`의 첫 저장 앞 띠 | 부분 표의 선택 줄 높이에도 동일한 `occupied_before` 사용 | 원본 일반 첫 문단은 column-top에서 같은 띠를 소비. 저장 스냅/선형 셀·개체 문단·첫 줄 미소유는 기존 원점 경로 유지 |
+| 기존 형식별 `rowbreak_fragment_frame_bottom` | `FragmentBudget.source_frame_bottom`에 반복 프레임 하단을 한 번 확정. 첫 중간 조각의 기존 fit 예산은 별도로 유지 | 첫 수용 프레임의 종료 인증·후속 예산·`stored_body_closing_fragment_extent`가 같은 하단을 사용. 기존2HU rounding만 유지 |
+| 원본 재시작 컷이 소유하는 물리 빈 띠 | 선택 유닛·컷을 늘리지 않고 수용한 행 상자의 높이로 예약 | plain/단일행 소유자·실제 저장 재시작·내용보다 큰 실제 end-row override가 입증되면 같은 선택 줄을 원본 정렬로 배치. 임의 예산 컷·병합/개체는 제외 |
+
+79쪽의 이전 첫 조각은 본문 전체 하단으로 종료를 인증했지만 이어받기에서는 기존100HU inset의
+하단을 사용해 종료 사실이 전달되지 않았다. 반복 프레임 하단을 공유하며 inset이나 허용치를
+새로 만들지 않는다. 남은80쪽의 논리 유닛·줄바꿈은 이미 Print와 일치하므로 그 컷을 바꾸지 않는다.
+수정 전55/57/79쪽의 실제 Native 미달과 GDB cut(0,2)/45.8933px/Top-windowed 기록을 보존한다.
+
+새 Native CLI는 공용 `target/pr-review`에서 build-jobs2로 빌드 중이다. 먼저55/56/57/78/79/80쪽의
+경계를 새 출력으로 확인하고 직접 판독한 뒤 fresh·전142쪽 및 직접 보정 대조 문서를 검증한다.
+시각 선행 조건을 통과하기 전에는 새 정식 회귀나 기존 배치 기대값을 추가·변경하지 않는다.
+계획·working source hash·명령은 ignored `franchise-source-frame-batch-v450/native-boundary-plan.json`에
+보존한다. 현재 후보는 검증 중이며 개별17개의 최종 판정은 **머지 보류**다.
+
+이전7749d의 OLE 원본/분리 및 SO-SUEOP 첫쪽/대조군10쌍은 Native/fresh 모두 통과했고
+각 쌍의 decoded RGBA가 같다. 이 결과를 새 표 보정 후보의 재검증으로 바꾸어 보고하지 않는다.
+종료된 이전 K-water 비대표SVG46개3,632,085,473bytes만 fd/hash ledger 뒤 삭제했다.
+입력·Print·PNG·TSV·JSON·대표/미달SVG·공용target은 보존한다.

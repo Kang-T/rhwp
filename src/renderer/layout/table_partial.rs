@@ -1504,6 +1504,29 @@ impl LayoutEngine {
                     end_cut,
                     styles,
                 );
+            // 저장 재시작 컷의 내용 밖 빈 띠도 수용한 마지막 행 상자에 속한다.
+            // 그 물리 상자를 읽을 때에는 같은 선택 줄을 원본 정렬로 배치한다.
+            // 임의 예산 컷·병합/개체 셀에는 이 소유를 추정하지 않는다.
+            let closing_source_frame_owns_alignment = cell.row_span == 1
+                && cell_row + 1 == end_row
+                && !is_block_split
+                && !start_cut_is_block
+                && end_row_height_override.is_some_and(|height| {
+                    let start = if cell_row == start_row {
+                        start_cut
+                    } else {
+                        &[]
+                    };
+                    self.row_has_original_plain_text_owners(table, cell_row, end_cut)
+                        && (self.row_cut_ends_at_original_plain_text_reset(
+                            table, cell_row, start, end_cut, styles,
+                        ) || self.row_cut_ends_at_saved_zero_origin_frame(
+                            table, cell_row, start, end_cut, styles,
+                        ))
+                        && height
+                            > self.row_cut_content_height(table, cell_row, start, end_cut, styles)
+                                + f64::EPSILON * height.abs().max(1.0) * 4.0
+                });
             let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment || is_rowbreak_straddle
                 && cell.row_span > 1
                 && cell.vertical_align != crate::model::table::VerticalAlign::Top
@@ -1565,7 +1588,7 @@ impl LayoutEngine {
                         start > 0 && end >= self.cell_units(cell, table, styles).len()
                     });
             let frame_owns_alignment = !descendant_owns_closing_band
-                && (ordinary_source_frame_owns_alignment || complete_plain_suffix_frame
+                && (ordinary_source_frame_owns_alignment || closing_source_frame_owns_alignment || complete_plain_suffix_frame
                     || heading_frame_owns_alignment
                 || self
                     .stored_nested_text_frame_for_cut(
@@ -1859,10 +1882,16 @@ impl LayoutEngine {
                         }
                         continue;
                     }
-                    // spacing_before: 셀 첫 문단(pi==0) 제외
-                    if start == 0 && end > 0 && pi > 0 {
+                    // 첫 저장 문단의 물리 앞 띠도 같은 선택 줄의 점유에 포함한다.
+                    if start == 0 && end > 0 {
                         let spacing_before = para_style.map(|s| s.spacing_before).unwrap_or(0.0);
-                        total += spacing_before;
+                        total += crate::renderer::cell_paragraph_spacing::paragraph_before(
+                            para,
+                            pi,
+                            spacing_before,
+                            self.dpi,
+                        )
+                        .occupied_before();
                     }
                     let line_count = comp.lines.len();
                     for li in start..end {
@@ -2887,6 +2916,24 @@ impl LayoutEngine {
                         self.reapply_snap_anchored_spacing_before.set(true);
                     }
                     let wrap_anchor = stored_square_picture_wrap_anchor_for_para(cell, cp_idx);
+                    // 측정과 같은 첫 저장 띠를 column-top 경로에서 한 번 소비한다.
+                    // 별도 저장 원점이 이미 띠를 품는 스냅·선형 셀은 기존 경로를 쓴다.
+                    let allow_first_stored_lead = cp_idx == 0
+                        && start_line == 0
+                        && para.controls.is_empty()
+                        && single_column_flow.is_none()
+                        && !preserve_linear_single_cell_vpos
+                        && crate::renderer::cell_paragraph_spacing::paragraph_before(
+                            para,
+                            cp_idx,
+                            styles
+                                .para_styles
+                                .get(para.para_shape_id as usize)
+                                .map_or(0.0, |style| style.spacing_before),
+                            self.dpi,
+                        )
+                        .stored_lead
+                            > 0.0;
                     let picture_closing_line = self
                         .stored_partitioned_picture_closing_line(cell, table, styles, cut_units);
                     para_y = self.layout_composed_paragraph_in_frame(
@@ -2902,7 +2949,7 @@ impl LayoutEngine {
                         section_index,
                         cp_idx,
                         Some(cell_context.clone()),
-                        !matches!(effective_align, VerticalAlign::Top),
+                        !matches!(effective_align, VerticalAlign::Top) && !allow_first_stored_lead,
                         is_last_para,
                         0.0,
                         None,

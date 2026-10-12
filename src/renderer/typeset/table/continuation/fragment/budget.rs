@@ -503,7 +503,7 @@ impl TypesetEngine {
         // Original text-frame rows own blank space as well as units. Reserve
         // the same physical column bottom used by partial paint before choosing
         // their row boxes, so paint need not discard a source-owned tail later.
-        let physical_frame_bottom = if prepared
+        let (source_frame_bottom, physical_frame_bottom) = if prepared
             .layout_engine
             .stored_table_has_physical_text_frames(table, input.source.styles)
         {
@@ -525,28 +525,33 @@ impl TypesetEngine {
             // including when several rows share that page. Otherwise emit
             // records a larger box and wrongly subtracts it from the terminal
             // row's independently declared remaining height.
-            let native_continuation_source_frame = is_continuation
-                && st.profile.hwp5_stored_pagination_layout()
-                && table.row_count > 1;
-            let bottom = if body_filling_source_frame
-                || single_cell_page_fragment
-                || native_continuation_source_frame
-            {
-                crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
-                    table,
-                    st.inline_flow_column().height,
-                    self.dpi,
-                    body_filling_source_frame,
-                )
-            } else if is_continuation && st.profile.hwpx_stored_layout() {
-                st.inline_flow_column().height
-                    - hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
-            } else {
-                st.inline_flow_column().height
-            };
-            Some(bottom)
+            let native_source_frame =
+                st.profile.hwp5_stored_pagination_layout() && table.row_count > 1;
+            let source_bottom =
+                if body_filling_source_frame || single_cell_page_fragment || native_source_frame {
+                    crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
+                        table,
+                        st.inline_flow_column().height,
+                        self.dpi,
+                        body_filling_source_frame,
+                    )
+                } else if st.profile.hwpx_stored_layout() {
+                    st.inline_flow_column().height
+                        - hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
+                } else {
+                    st.inline_flow_column().height
+                };
+            // 쪽 중간의 첫 조각은 기존 fit 예산을 유지한다. 반복 프레임 하단은
+            // 그 첫 수용 상자의 종료 인증에도 쓰되, 내용 컷의 예산으로 바꾸지 않는다.
+            let fit_bottom =
+                if is_continuation || body_filling_source_frame || single_cell_page_fragment {
+                    source_bottom
+                } else {
+                    st.inline_flow_column().height
+                };
+            (Some(source_bottom), Some(fit_bottom))
         } else {
-            None
+            (None, None)
         };
         let captioned_current_placement = self.query_captioned_column_rowbreak_placement(
             st,
@@ -1603,9 +1608,9 @@ impl TypesetEngine {
                 st.current_height + host_before_overhead + vert_offset_overhead,
                 |placement| placement.table_top,
             ) + caption_extra;
-            let bottom = st.layout.body_area.height
-                - hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi);
-            avail_for_rows.min((bottom - top - header_overhead).max(0.0))
+            source_frame_bottom.map_or(avail_for_rows, |bottom| {
+                avail_for_rows.min((bottom - top - header_overhead).max(0.0))
+            })
         } else {
             avail_for_rows
         };
@@ -1639,6 +1644,7 @@ impl TypesetEngine {
             fragment_outer_bottom_overhead,
             vert_offset_overhead,
             page_avail,
+            source_frame_bottom,
             fragment_placement: fragment_placement
                 .or_else(|| self.stored_header_fragment_placement(st, input, host_before_overhead))
                 .or_else(|| {

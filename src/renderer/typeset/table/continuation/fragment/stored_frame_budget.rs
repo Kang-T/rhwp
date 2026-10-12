@@ -1,6 +1,6 @@
 //! A genuine first fragment owns its declared physical space, not the next row.
 
-use crate::renderer::typeset::{hwpunit_to_px, BlockTableRowScan, TypesetEngine, TypesetState};
+use crate::renderer::typeset::{BlockTableRowScan, TypesetEngine, TypesetState};
 
 use super::{FragmentBudget, FragmentInput};
 
@@ -62,8 +62,7 @@ impl TypesetEngine {
             st.current_height + budget.host_before_overhead + budget.vert_offset_overhead,
             |placement| placement.table_top,
         );
-        let bottom = st.layout.body_area.height
-            - hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi);
+        let bottom = budget.source_frame_bottom?;
         let height = bottom - top;
         let roundoff = f64::EPSILON * (height.abs() + budget.avail_for_rows.abs()).max(1.0) * 4.0;
         if height <= 0.0 || height > budget.avail_for_rows + budget.header_overhead + roundoff {

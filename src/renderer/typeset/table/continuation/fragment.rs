@@ -105,6 +105,8 @@ struct FragmentBudget {
     physical_content_limit: f64,
     vert_offset_overhead: f64,
     page_avail: f64,
+    /// 원본 물리 프레임이 반복해서 닫히는 하단. 종료 인증·예약·방출이 함께 쓴다.
+    source_frame_bottom: Option<f64>,
     fragment_placement: Option<crate::renderer::float_placement::ParagraphFloatPlacement>,
     scan_row_count: usize,
     saved_first_fragment_source_frame: Option<(f64, f64)>,

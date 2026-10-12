@@ -1297,12 +1297,12 @@ impl TypesetEngine {
             && table.caption.is_none()
             && st.current_zone_y_offset == 0.0
             && fragment_placement.is_some_and(|placement| {
-                let bottom = placement.table_top
-                    + partial_height
-                    + hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi);
-                (bottom - st.layout.body_area.height).abs()
-                    <= hwpunit_to_px(2, self.dpi)
-                        + f64::EPSILON * st.layout.body_area.height.abs().max(1.0) * 4.0
+                budget.source_frame_bottom.is_some_and(|source_bottom| {
+                    let bottom = placement.table_top + partial_height;
+                    (bottom - source_bottom).abs()
+                        <= hwpunit_to_px(2, self.dpi)
+                            + f64::EPSILON * source_bottom.abs().max(1.0) * 4.0
+                })
             });
         commit_fragment(st, caption_extra + partial_height, false);
         if !is_continuation && stored_complete_extent.is_some() {
