@@ -4,6 +4,8 @@
 //! LayoutEngine과 동일한 계산 로직을 사용하여 정확한 높이를 산출한다.
 
 mod rowspan_block;
+mod table_wrapper;
+pub(crate) use table_wrapper::{unrestricted_wrapper_frame, TableWrapperVerticalFrame};
 
 use super::composer::{compose_paragraph, ComposedParagraph, SingleLineOverflowCache};
 use super::float_placement::signed_hwpunit;
@@ -38,45 +40,6 @@ pub(crate) fn single_table_wrapper_has_vertical_alignment_space(
     i64::from(signed_hwpunit(cell.height)) > content_height
 }
 
-/// The wrapper owns its padding, the child's outer margins and its physical
-/// minimum independently of the child's row/content ledger.
-pub(crate) struct TableWrapperVerticalFrame {
-    pub(crate) child_top: f64,
-    child_bottom: f64,
-    minimum: f64,
-}
-
-impl TableWrapperVerticalFrame {
-    pub(crate) fn new(table: &Table, nested: &Table, dpi: f64, native_hwp5: bool) -> Self {
-        let cell = &table.cells[0];
-        let padding = cell.effective_padding(&table.padding);
-        let mut top = hwpunit_to_px(i32::from(padding.top), dpi);
-        let mut bottom = hwpunit_to_px(i32::from(padding.bottom), dpi);
-        let guard_height = cell.vertical_padding_guard_height_hu(table);
-        if guard_height < 0x80000000 {
-            let height = hwpunit_to_px(guard_height as i32, dpi);
-            if crate::model::table::Cell::vertical_padding_is_abnormal(height, top + bottom) {
-                let scale = height * 0.5 / (top + bottom);
-                top *= scale;
-                bottom *= scale;
-            }
-        }
-        Self {
-            child_top: top + hwpunit_to_px(i32::from(nested.outer_margin_top), dpi),
-            child_bottom: bottom + hwpunit_to_px(i32::from(nested.outer_margin_bottom), dpi),
-            minimum: if native_hwp5 {
-                hwpunit_to_px(signed_hwpunit(table.common.height).max(0), dpi)
-            } else {
-                0.0
-            },
-        }
-    }
-
-    pub(crate) fn height(&self, child_height: f64) -> f64 {
-        (self.child_top + child_height + self.child_bottom).max(self.minimum)
-    }
-}
-
 pub(crate) fn transparent_table_wrapper_child(table: &Table) -> Option<&Table> {
     let [cell] = table.cells.as_slice() else {
         return None;
@@ -97,7 +60,9 @@ pub(crate) fn transparent_table_wrapper_child(table: &Table) -> Option<&Table> {
         Control::Table(t) => Some(t.as_ref()),
         _ => None,
     })?;
-    if single_table_wrapper_has_vertical_alignment_space(table, nested) {
+    if unrestricted_wrapper_frame(table, nested, DEFAULT_DPI).is_none()
+        && single_table_wrapper_has_vertical_alignment_space(table, nested)
+    {
         return None;
     }
     Some(nested)
@@ -2928,13 +2893,17 @@ impl HeightMeasurer {
                             None
                         }
                     }) {
-                        if !single_table_wrapper_has_vertical_alignment_space(table, nested) {
+                        if unrestricted_wrapper_frame(table, nested, self.dpi).is_some()
+                            || !single_table_wrapper_has_vertical_alignment_space(table, nested)
+                        {
                             return self.measure_table_impl(
                                 nested,
                                 para_index,
                                 control_index,
                                 styles,
-                                depth + 1,
+                                // 펼친 표는 실제 배치에서도 부모와 같은 깊이를 사용한다.
+                                // 셀 중첩 깊이를 늘리면 저장 줄의 안여백을 측정에서만 제외한다.
+                                depth,
                                 width_scale,
                             );
                         }

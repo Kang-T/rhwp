@@ -23,6 +23,7 @@ mod stored_span_row_owner;
 mod stored_terminal_row_frame;
 mod stored_zero_origin;
 mod unit_diagnostics;
+mod wrapper_cell_viewport;
 
 use super::super::composer::{compose_paragraph, ComposedLine, ComposedParagraph};
 use super::super::height_measurer::{
@@ -3481,7 +3482,11 @@ impl LayoutEngine {
                             }
                         })
                         .filter(|nested| {
-                            !single_table_wrapper_has_vertical_alignment_space(table, nested)
+                            crate::renderer::height_measurer::unrestricted_wrapper_frame(
+                                table, nested, self.dpi,
+                            )
+                            .is_some()
+                                || !single_table_wrapper_has_vertical_alignment_space(table, nested)
                         })
                     {
                         // [Task #1658 v3] 외곽 1×1 래퍼가 페이지/용지 앵커 자리차지
@@ -3649,6 +3654,20 @@ impl LayoutEngine {
                                 self.profile.get().hwp5_stored_pagination_layout(),
                             );
                         let inner_y_start = y_start + wrapper_frame.child_top;
+                        // 흐름 제한이 없는 자식은 셀 여백이 아닌 부모의 확정 원점을 참조한다.
+                        // 가로·세로 오프셋을 한 번 적용한 결과를 재귀 배치에도 전달한다.
+                        let independent_child_origin = wrapper_frame.unrestricted().then(|| {
+                            (
+                                Some(
+                                    outer_x_for_box
+                                        + hwpunit_to_px(
+                                            signed_hwpunit(nested.common.horizontal_offset),
+                                            self.dpi,
+                                        ),
+                                ),
+                                inner_y_start,
+                            )
+                        });
                         // 글자처럼 상자는 x 를 줄 배치가 준 inline_x_override 로 받으므로 그 값도 옮긴다.
                         let inner_inline_x = inline_x_override.map(|x| x + pad_l + om_l);
                         let nested_cell_ctx = unwrapped_table_cell_ctx(
@@ -3658,6 +3677,7 @@ impl LayoutEngine {
                             nested,
                         );
 
+                        let first_child = col_node.children.len();
                         let y_end = self.layout_table_with_wrapper_margin(
                             tree,
                             col_node,
@@ -3682,7 +3702,7 @@ impl LayoutEngine {
                             allow_para_top_bleed,
                             clamp_header_negative_para_offset,
                             0.0,
-                            None,
+                            independent_child_origin,
                             TableCharBorder::default(),
                             true,
                             nested_cell_ctx,
@@ -3692,9 +3712,29 @@ impl LayoutEngine {
                         // 높이를 지우지 않는다. 관측 가능한 상자는 여전히 외곽1×1표다.
                         // 뒤 흐름과 아래 테두리는 자식·여백과 저장 외곽 높이 중 큰 값을
                         // 함께 소비한다(#6621).
-                        let y_end = y_start + wrapper_frame.height(y_end - inner_y_start);
+                        let child_height = y_end - inner_y_start;
+                        let y_end = y_start + wrapper_frame.height(child_height);
+                        // 펼침은 셀의 물리 경계를 지우지 않는다. 흐름에 참여하는 자식은
+                        // 부모 셀의 영역을 소비하고, 제한 없는 자식은 기존 원점을 유지한다.
+                        // 쪽 조각은 별도의 컷이 클리핑 영역을 소유한다.
+                        if nested_split.is_none()
+                            && (nested.common.treat_as_char || nested.common.flow_with_text)
+                        {
+                            wrapper_cell_viewport::retain(
+                                tree,
+                                col_node,
+                                cell,
+                                first_child,
+                                BoundingBox::new(
+                                    outer_x_for_box,
+                                    outer_y,
+                                    outer_w_for_box,
+                                    wrapper_frame.border_height(child_height),
+                                ),
+                            );
+                        }
                         if let Some(bs_borders) = outer_border_meta {
-                            let outer_h_actual = (y_end - outer_y).max(0.0);
+                            let outer_h_actual = wrapper_frame.border_height(child_height);
                             if outer_h_actual > 0.0 {
                                 use super::border_rendering::create_border_line_nodes;
                                 // 좌

@@ -1404,7 +1404,11 @@ impl LayoutEngine {
         &self,
         footnotes: &[FootnoteRef],
         paragraphs: &[Paragraph],
+        area_width: f64,
     ) -> bool {
+        // 저장 줄이 있어도 현재 각주 영역보다 넓은 캐시는 같은 조판을 증언하지 않는다.
+        // 생성 각주가 제본 여백을 빼기 전 폭을 저장한 경우 실제 영역을 재조판한다.
+        let width_hu = i64::from(crate::renderer::px_to_hwpunit(area_width, self.dpi));
         !footnotes.is_empty()
             && footnotes.iter().all(|note| {
                 let paras = get_footnote_paragraphs(note, paragraphs);
@@ -1414,6 +1418,9 @@ impl LayoutEngine {
                             && !para.stored_text_partition_is_dirty()
                             && para.line_segs.iter().all(|line| {
                                 line.line_height > 0
+                                && line.segment_width > 0
+                                && i64::from(line.column_start) + i64::from(line.segment_width)
+                                    <= width_hu
                                 && line.tag
                                     & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
                                     == 0

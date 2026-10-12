@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-11
+last_verified: 2026-10-12
 ---
 
 # semanticist21 비 draft PR 통합 검토
@@ -12,9 +12,10 @@ last_verified: 2026-10-11
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
+- 최신 단계(진행151): 중첩 표 원본/대조7건 Native100%, missing-named-style 편집본3→2쪽·95.47353%/92.07644%, 원본19종 구조 증가0, 정책연구 원본/왕복215/215쪽. 최신 v324의9단계 lint/정책/집중 회귀57개는 모두 통과했다. v323 fresh 빌드·v327 공개 API·v326 전체14쌍17쪽은 통과했다. 최신 v337의필수lint/정책·집중회귀61개와실행대상누락0을확인했다. 단계별기록은진행154를따른다. 차트 내부와직접 보정3문서의최종 전쪽·전체회귀·backend 검증은 미완료며 개별PR의보류 판정을 유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. PR 생성은 사용자 승인 후 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
-- 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 진행137에서 실제 upstream 전진(790a6f8f3→bfa28a77a)을 확인해 리베이스했고, Native 빌드·5원본 쪽수·가맹사업42쪽 재출력을 확인한 code 체크포인트는 `10282f63db5f671eca8554613342e20211a025ac`이다. 현재 전쪽/전체 회귀 검증은 이 source에 고정하며 과거 단계 결과와 구분한다.
+- 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`, 최근 커밋: `4ceebf852543522e927db7b67230f8bc22f24662`. 진행148–151의미커밋 보정은 v315의Native 바이너리와source SHA-256 목록으로 고정한다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
 - 직전 일반 커밋 체크포인트는 `a09fc8b968dd7bb67e74fa6ffb185c586bd19d56`이다. 설계 전7쪽 Native/fresh WASM 검증과 관계 회귀를 고정했으며 후속 #5877 보정은 진행100의 v118 이후 기록에 연결한다. 이전 체크포인트는 `004bab229877d6b8f05dff9d98410161de135e09`와 `da70ea0258ab094ed67750a813ea465840f427f4`이며 각 설계 첫 조각/CGMP 단계의 검증 근거를 따른다. 이전 체크포인트 `f56ceec135f28aa6a8eb424bd74551aba0c7831f`는 역사 단계다. 진행89의 표 뒤 쪽 경계·인접 원본 앵커 보정과 실제 검증을 커밋했으며 후속 보정은 진행90에 기록한다. 이전 체크포인트는 `c43b98e9b0bcdb8ddee6a9f049baf703f0babc21`이다. 진행88의 직접 HWPX 원점 경계 전달을 커밋하고 `upstream/devel` 동기화·리베이스를 확인했다. 후속 보정은 진행89에 기록한다. 이전 체크포인트는 `fd4e242c9e4fafb2441f8d743d01746e26d15078`이다. 진행81~87의 저장 표 보정·시험지 원본 보존과 회귀 연결 제거·주석 번역을 커밋했고, `upstream/devel` fetch와 로컬 `devel` 동기화·리베이스를 확인했다. 후속 CGMP 보정과 실제 검증 범위는 진행88에 기록한다. 이전 일반 커밋 `81ff2fe4a362b8585fe24f824282e6db7332c0bb`(보정77~79의 교육과정 이관/clip 진단/중첩 source frame 보정과 현재 시각 증거)이다. 이전 `12d96686cdd24017b44becead2c4dfeb46867bf3`는 #7700 이관 체크포인트다. 현재 단계의 동기화·rebase와 다음 편집 검증은 진행80에 연결한다. 이전 production 코드 체크포인트 `9b53bd699126205b7a93fff326167f575252f1ea`는 저장 표의 수용 행 원장과 기존 회귀 검토 증거 보정이다. 진행70의 v86 retry2 두 Rust 파일을 이 커밋으로 고정했다. 실제 Native/fresh WASM 빌드는 부모 `3874bc4be037e84998d548e7755bc689af9d871b` 위 당시 미커밋 변경에서 수행했고 커밋된 production source와 동일하다. 이후 변경은 #7700 검사·자산 경로의 이관이며 진행74에서 검증한다. `cbaf53f3fa8fc8511ac82e5bd7481cfa56f8d922`와 진행61–62는 v78/retry1의 역사 체크포인트다. `e8ae5204d1b8e61851142f22b229de38f1867816`은 진행59의 rebase 체크포인트다. 이전 `3505cb8cd8d09f3c125fdb08c9ccec6efece78ff`는 진행55–56의 v73 검증·커밋·동기화 체크포인트다. 이전 `f3c8cd7d370668e36322db71c1c2c820260124ae`는 진행54의 v72 커밋·리베이스 체크포인트다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
@@ -2994,3 +2995,332 @@ source 불변은 ignored output의 `column-ole-native-v276-result.json`, `column
 `column-ole-{original-geometry-v278,boundaries-v279}/`, `column-ole-native-eight-pairs-v285.json`,
 `column-ole-validation-v281-result.json`에 보존했다. 새 정식 검사/fixture/golden/기대값 변경은
 시각 보정과 최종 선행 조건을 완료할 때까지 보류한다. 개별 PR의 보류 판정도 유지한다.
+
+
+### 진행148: 중첩 표의 흐름 제한과 부모 상자 소유 — 구현·검증 중
+
+진행147은4ceebf852543522e927db7b67230f8bc22f24662로 커밋했다. fetch 뒤에도
+upstream/devel은bfa28a77a2714482f647ee6a7b9aa7f7876d8404로 같아 rebase하지 않았다(v288).
+
+원본 ClickHere wrapper17a174162fd3fcd1c51bd04a25a577396c44bd51ad1c8ab001f9184b16dc4de3을
+한컴2020에서HWP로 저장하고 다시HWPX로 저장했다(v287). 표 크기·여백·앵커 속성은
+원본과 같으며, 저장 과정의 본문 LineSeg 위치 갱신과 안내 문자열 실체화만 따로 기록했다.
+재생성본을 원본의 일치 증거로 대체하지 않는다. 같은HWP의 Print도 원본HWPX Print와
+세 표의 외곽선 및 앞/뒤 텍스트 좌표가 같다.
+
+원본의 복사본에서 자식 오프셋·부모 안여백·flowWithText·TAC·부모 높이를 각각 한 종류씩
+바꾸고 실제 한컴2020 Print6건을 산출했다(v289/v290). 저장본과 모든 Print의 해시·job·
+pdf_print_method0/hancom2020_pdf_driver_one_up을 기록했다. 최초 실행은venv에lxml이
+없어 시작 전에 실패했고 실제 설치된system Python으로 고쳤다. 제품 실패로 세지 않는다.
+부모 안여백이 커져도 flowWithText=false/nonTAC/Para Left·Top 자식은 부모 외곽 원점을
+유지했다. 부모 높이를 크게 하고 CENTER 정렬을 유지해도 자식은 위 원점을 유지했다.
+자식 오프셋만 바꾸면 자식만 그 오프셋으로 이동하고, 부모 테두리는 원래 높이를 보존하며
+뒤 본문은 자식의 넘친 끝을 반영했다. flowWithText=true 또는TAC로 바꾸면 부모 여백과
+자식 바깥여백 안쪽에 놓이고 부모 높이도 늘었다.
+
+기존1×1 펼침은 모든 자식을 부모 안여백+자식 바깥여백 안쪽으로 놓고 부모 테두리도
+그 합계로 늘렸다. 새table_wrapper 공통 프레임은 정상 저장 빈 앵커 줄과 셀 선언 높이로
+부모 상자를 계산하며, 제한 없는 자식의 원점·오프셋·점유 끝을 독립적으로 반환한다.
+measure_table_impl의 펼침 선택→typeset::table::format/fit_measured_for_host의 예약→
+layout_table_with_wrapper_margin의 확정 원점/부모 테두리/뒤 흐름이 같은 판정을 소비한다.
+TAC·흐름 제한·다른 앵커·쪽 분할·저장 줄이 없는 편집 입력은 기존 경로다. 문서ID·상수
+화면 좌표·테두리 숨김·clamp·baseline 변경은 없다. 이 경계 밖은 미검증이며 범위를 확대해
+수용하지 않는다. 현재 Native 빌드와 원본/독립 대조군 실행을 준비했고 결과는 종료 후 기록한다.
+새 회귀/fixture/golden/기대값 갱신은 전체 Native/fresh90%와 직접 판독 전까지 보류한다.
+증적은ignored output의wrapper-normal-save-v287/와wrapper-anchor-counters-v289/ 및
+result.json, Print는pdf/semanticist21-20261008/wrapper-anchor-counters-v289/에 보존했다.
+
+진행148의v292 fmt28.614초·Native build130.446초는exit0/source불변으로 종료했다.
+동결Native와 원본19종의v294 감사도 전체 종료했고 base 대비 쪽수·본문 초과·지면 밖·
+텍스트 겹침의 증가0을 확인했다. v293의 원본+독립 대조6쌍도7건 전부 실행했다.
+원본HWPX30.10657%, 자식offset18.83610%, 부모padding23.34119%, child-flow48.91420%,
+child-inline40.15141%, parent-height21.80119%로 아직 미달이다. 원본의 기존35.95134%를
+이번30.10657%로 정정하며, 관계 일부 개선을 전체 fidelity 개선으로 주장하지 않는다.
+한컴 정상HWP 저장본은Native100%지만 원본HWPX의 대체 증거가 아니다. 정상HWP의
+수정 전 동결Native는v296에서exit1이고, 같은 저장본의수정 후100%와 구분해 기록한다.
+
+최신wrapper-anchor-direct-v295/review/review_001.png를 직접 표시·판독했다. 부모/자식
+가로 원점과17.1px 테두리는 겹쳐 독립 Print 관계로 복구됐으나2번째/3번째 표의 세로
+원점과 뒤 본문이 약3.2/6.3px 위에 남는다. 원본 전체90%·fresh·최종 회귀·수용은 미완료다.
+최초review 합성은 출력 하위 폴더 준비 누락으로 실패했고 폴더를 준비해 고쳤다.
+도구 라벨의0-based 쪽 인덱스도 정정했다. 두 도구 오류를 제품 결함으로 세지 않는다.
+기존 GDB 소스 줄 breakpoint는 실행을 잡지 못했고 정확한 함수 breakpoint로 현재 호출
+y_start157.37333/221.37333/227.02667/299.98667/305.64를 확인했다. 최적화로 소실된
+resolved_table_origin 값은 미관측으로 남기며 함수 호출 자체를 원점 공유 완료로 바꾸지 않는다.
+v296 대조는 종료했다. 정상HWP의 수정 전Native38.99645%→수정 후100%,
+정상HWPX의 수정 후Native도100%다. 두 정상 저장본의 통과를 원본HWPX30.10657%
+통과로 바꾸지 않는다. 남은 차이를 원본과 정상 저장본의 앵커 재사용 경로에서 계속 분석한다.
+
+원본의 복사본에서 루트 문단 LineSeg만 생략한 진단은Native에서2번째 표224.7px,
+3번째 표292.0px로 돌아왔고3번째 앞 글줄266.9px도 독립 Print266.92588px와 대응했다.
+자식 셀의 저장 줄·원본 내용·표 속성은 그대로다. 이는 저장 루트 앵커가 뒤 흐름에
+다시 적용되는 경로를 원인 후보로 좁힌 실행 증거이며, 캐시를 지운 복사본의 관측을
+원본 수정/시각 통과로 보고하지 않는다. 다음 단계는 원본의 객체 점유 끝과 다음 저장
+줄의 수용 조건·편집 저장 캐시의 생성 출처를 같은 실제 경로에서 대조한다.
+파일은wrapper-anchor-counters-v289/root-cache-omitted-diagnostic.{hwpx,json},
+root-cache-omitted-native-nodes.json에 보존했다. 새frame 보정은 원본HWPX가 미달이라
+아직 커밋하지 않았으며 원격 push/PR 생성/보류 해제도 하지 않았다.
+
+
+### 진행149: 객체 점유를 담지 못하는 일정한 저장 사다리의 공통 수용 조건
+
+v297의 실제 raw-top 호출은 표1/4/7에서anchor153.60/217.60/281.60px, 위 바깥여백
+3.77333px를 소비했다. 저장 top 특례는None이다. RHWP_VPOS_DEBUG는 공통HeightCursor가
+표 뒤의 순차끝45.97/109.97/173.97px를 저장 끝42.67/106.67/170.67px로 되돌림을
+입증했다. 다음 문단도 저장 좌표의3.30667px를 재소비했다. paint만의 위치 문제가 아니며
+조판의stored_paragraph_flow_ends도 같은 낡은 끝을 전파했다.
+
+원본은 모든 루트 줄의높이/간격이 동일하고 걸음도 정확히 같은 사다리다. 글꼴은 그
+걸음과 같지만 자리차지 표의 선언 높이+양쪽 바깥여백은 다음 저장 줄까지의 걸음보다
+크다. 한컴 정상 저장본은 그 차이를 후속 vpos에 누적했고 원본과 같은 Print를 냈다.
+기존uniform filler 판정이 글꼴의 모순만 세어 객체의 점유 모순은 놓쳤다.
+
+공통stored_line_ladder 모듈로 기존 판정을 옮기고 동일 걸음의 다음 줄이 있는 빈
+문단의Para Top/T&B/비TAC/비분할/무offset/무caption 표의 점유 띠도 독립 대조한다.
+기존 최소 문단 수·동일 튜플/걸음 조건·모순 비율·공차는 변경하지 않는다. 다른 앵커는
+이 점유 계약으로 판정하지 않는다. formatter는 구역의 판정을 결과에 포함하고
+stored_successor_flow는 무효 사다리를 문단 끝 좌표로 다시 적용하지 않는다. 기존
+HeightCursor와paragraph layout이 같은 구역 판정을 소비한다. 원본 입력/LS는 수정하지
+않으며 새 좌표 clamp·숨김·baseline 변경은 없다. Native 원본/대조군과19종 geometry를
+먼저 실행해 판단하고 아직 새 회귀나 수용 판정을 추가하지 않는다.
+
+
+### 진행150: 펼친 자식 표의 측정·배치 깊이 정합
+
+v301 Native 빌드는 fmt와 함께 통과했다. v302 원본/독립 대조7건은 종료했으며
+원본100%, offset100%, padding100%, flow98.77153%, inline70.10563%,
+parent-height100%, 정상HWP100%다. v303 원본19종 감사도 exit0이며 기준 대비
+쪽수·본문 초과·지면 밖·텍스트 겹침 증가0이다. 원본100%를 전체 통과로 확장하지 않는다.
+v304의 최신 원본·inline review_001.png를 직접 표시·판독했다. 원본의 세 표와 뒤
+글줄은 Print와 대응하지만 inline 대조의 세 번째 표와 앞 글줄은 약3.8px 위에 남았다.
+
+v305 실제 호출 진단에서 inline 자식의 측정 행13.3px·예약 프레임24.6px와 배치 행17.1px가
+달랐고 flow 자식은17.1px·28.4px로 맞았다. HeightMeasurer의 투명1×1 펼침은
+자식을 depth+1로 측정했지만 layout_table_with_wrapper_margin의 같은 펼침은 depth를
+보존했다. 측정의 relaxed_pad_mirror가 가짜 중첩 때문에 안여백을 제외한 원인이다.
+펼침 측정도 실제 배치와 같은 깊이를 전달한다. 실제 셀 안의 일반 중첩은 기존 깊이를
+유지한다. 새 좌표 보정·여백 상수·기대값 변경은 없다. 새 Native7쌍/원본19종으로
+반례와 영향을 확인하며 최종 lint·fresh WASM·회귀·수용은 아직 미완료다.
+
+같은 v301 Native 라이브러리를 사용하는 ignored Rust 진단에서 실제 공개 편집 API로
+원본과 동일한 표/누름틀을 생성했다. 내보낸 HWPX는 원본과 바이트가 동일하고
+SHA17a174162fd3fcd1c51bd04a25a577396c44bd51ad1c8ab001f9184b16dc4de3이다.
+편집 상태의 Print SVG/논리 글자 경로도 보존했으나 직접 시각 비교는 별도로 수행한다.
+정식 회귀 추가·fixture/golden 변경과 원격 조치는 아직 하지 않았다. 증적은ignored
+wrapper-inline-flow-diagnostic-v305/와wrapper-ladder-direct-v304/에 보존한다.
+
+
+v306 fmt·Native build은exit0/source불변으로 종료했다. v307 원본/독립 대조7쌍은
+전부exit0이며 원본·offset·padding·parent-height·정상HWP100%, flow/inline98.77153%다.
+같은 inline 원본/Print에서70.10563%→98.77153%로 개선됐다. v308 원본19종도
+exit0/source불변, 기준 대비 쪽수·본문 초과·지면 밖·겹침 증가0이다. v312에서
+새 원본/inline compare·overlay·review를 만들고 빌드/source/PNG 해시를 연결했다.
+수정 전v301의 실제 공개 편집 API Print도 독립 원본Print와100%이고 동일HWPX를
+내보냈다(v305); 수정 후API 경로는 집중 회귀와fresh 실제 실행에서 별도로 확인한다.
+v310의 필수lint/정책/집중 회귀와 그 성공을 조건으로 한v311 fresh WASM을 실행했다.
+아직 종료하지 않은 검증을 통과로 기록하지 않으며 새 회귀·수용·PR 생성도 보류한다.
+
+별도v309 진단에서 missing-named-style 편집본은 원본62문단의34번 본문이
+current741.4px+fit12.6px인데가용749.6px여서 먼저 이월됐다. 실제 각주영역34.1px를
+차감하고도Native 저장 각주 경로의 추가 안전 여백40px가 남았다(DIAG_AVAIL).
+다음 저장reset 앞 빈35–37문단은 새 쪽에 놓이고38번reset으로 세 번째 쪽이 생긴다.
+독립Print는34번location.replace 사용예를 첫 쪽에, navigator를두 번째 쪽에 둔다.
+추정 여백과 저장/편집 각주 경계의 소유를 더 대조하며 이 진단만으로 안전 여백을
+제거하거나 쪽수 기대값을 변경하지 않는다. 처음시도한systemPython에는PyMuPDF가
+없어 진단이 시작 전 실패했고 설치된venv Python으로 실행했다.
+
+
+v312의 같은 좌표3배 확대 판독은flow/inline 자식의 오른쪽 끝이 부모 외곽을
+넘는 차이를 검출했다. 전체98.77153%가 이 차이를 면제하지 않는다. v314 독립PDF
+콘텐츠 스트림에서flow/inline은 자식 괘선을 부모 셀 영역의W*로 자르고, 제한 없는
+offset/padding은 용지 영역W*로 그리는 것을 확인했다. 부모의 물리 셀 소유가
+펼침 과정에서clip으로 전달되지 않은 별도 결함이다. 높이 보정의 개선은 유지하되
+시각 완료·새 회귀·수용 판정은 보류한다. v311은 검증 대기Python만 실행하던 상태에서
+중지했고WASM/Cargo 빌드는 시작하지 않았다. v310 실행 결과는 현재 깊이 보정
+소스에만 귀속한다. 종료 결과를 보존한 뒤 펼친 셀의 물리clip을 공통render tree로
+보존해 모든backend가 같은 영역을 소비하도록 보정하고fresh를 새로 실행한다.
+
+v313 missing-named-style의 실제 한컴2020 정상HWP 저장과HWPX 재저장은 모두
+성공했다. 두 저장본의 v306 Native 쪽수는2쪽이다. 원본3쪽의 대체 통과로 보고하지
+않으며 원본/정상 저장본의 각주·본문 저장 줄 차이는 saved-metadata-comparison.json에
+연결했다. 최초 메타데이터 JSON 기록에서lxml 속성 객체를dict로 바꾸지 않아 실패했고
+정정해 기록했다. 제품 회귀로 세지 않는다. 원본은 변경하지 않았다.
+
+
+### 진행151: 부모 셀 표시 영역과 각주 캐시 폭의 실제 소비 경계
+
+v310의9단계는 모두exit0/source불변으로 종료했고 기존46개는 전부PASS다.
+prepare/fmt·세Clippy·workspace build·고정base manifest/unit 정책을 포함한다.
+컴파일 포함 집중368.611초, 실제1.371초이며 전체 회귀나 fresh 완료가 아니다.
+
+v314의독립PDF W*와 확대 판독을 근거로, 온전한 투명1×1부모의 흐름 참여 자식이
+배치된 노드들만 부모의 확정 셀 영역으로 감싼다. 기존TableCell.clip은공통paint builder가
+ClipKind::TableCell로 바꿔SVG/Canvas/Skia가 같은 물리 영역을 소비한다. 부모 테두리·
+점유 끝·자식 원점·이미 명시한 논리 셀 주소를 변경하지 않는다. 제한 없는 자식은
+영역 밖 표시를 유지하고 쪽 조각은 기존 컷 경계를 사용한다. 좌표 보정이나 축소로
+출력을 맞추지 않으며 actual parent cell owner가 사라진 원인을 보정한다.
+
+각주의추가40px를 광역 제거하지 않는다. 진행115의정책연구215쪽 왕복 보호는 정확한
+기존 계약이므로 유지한다. 원본의새 각주는segment_width39684HU로 제본여백을
+빼기 전 폭을 저장했다. 실제각주영역과 한컴 정상저장본은37420HU다. 정책연구558개
+저장각주줄은45352HU로가용45354HU 안이다. 실제각주영역폭을저장줄 수용조건에
+전달해 양의 캐시 폭·끝이 그 영역 안인지 확인한다. 모순 폭의 줄은기존 실제
+FootnoteArea 예약과저장빈줄 소유 경로를소비한다. 유효한 원본의저장컷을 유지한다.
+본문 p34/넘친 빈 p36–37/뒤 navigator와 각주 소유를 새 출력에서 직접 대조한다.
+새 회귀·fixture/golden/기대값은 아직 추가·변경하지 않았다. v315 Native로 두 보정을
+한꺼번에 빌드하고 wrapper7쌍·편집8쌍·원본19종·정책연구 원본/왕복을 확인한다.
+
+
+v315 fmt43.421초·Native build147.243초는exit0/source불변으로 종료했다.
+v316–318의 의존 대기가 종료된 이전v306서비스를 참조해 실행 전 실패했다.
+실제MainPID0을 확인하고 원 기록을 보존한 뒤v320–322로 정정했다. 제품 실패로
+세지 않으며 Native도 다시 빌드하지 않았다. v321 원본19종은 전부exit0이고 기준
+대비 쪽수·본문 초과·지면 밖·겹침 증가0이다. v320의7쌍은 모두100%이며 오른쪽
+클리핑 차이도v325의새review와 확대 판독에 연결했다. v322의missing-named-style
+원본은3→2쪽,95.47353%/92.07644%다. p34사용예는1쪽, navigator는2쪽으로
+복구했다. 원본은 변경하지 않았다. v319정책연구 원본/왕복은215/215쪽이고,
+독립Print9쪽99.54423%,10쪽99.97364%로 두 컨테이너의TSV가 같다.
+
+v325에서wrapper/inline, missing-style전2쪽, policy9/10의새review를 만들고
+실제로 표시했다. 최초Python은 스크립트 디렉터리에서repo를import하지 못해
+실행 전 실패했고 검색 경로를 정정했다. policy10은 이미지 색 차이가 남으며
+직접review의전체silhouette68.75%와 구조를 쓰는TSV99.97364%를 구분한다.
+215쪽의소유·쪽수무회귀를 해당문서전체의시각통과로 바꾸지 않는다. 기존policy의
+정확한 의미검사를 보존하며 이번clip/각주예약 보정을 전체PR수용으로 바꾸지
+않는다. v324에서 전체lint/기존wrapper46검사와policy/spec왕복을 실행 중이다.
+성공 후같은 소스의fresh WASM을v323에서 빌드하도록 연결했다. 새 회귀·fixture/
+golden과개별PR판정은 시각·최종조건 완료전까지 보류한다.
+
+
+### 진행152: 최신 집중 회귀 종료와 차트 저장 정보의 독립 출력 대조
+
+v324는 실제 systemd MainPID0/inactive/ExecMainStatus0으로 종료했다. prepare·fmt
+check·Native/WASM lib/workspace all-targets 세 Clippy·workspace build·고정 base
+manifest/unit 정책·집중 nextest의9단계 모두 exit0이며 소스 해시도 현재 파일과 같다.
+집중 summary는57개 실행/57 PASS/1875 선택 제외, 실제 실행7.269초다. 이전 계획의
+46개라는 수로 결과를 보고하지 않는다. 정책연구215쪽 왕복과 명세서 원본의 기존
+의미 검사를 포함한다. 전체 nextest의 실패0 또는 최종 시각 수용을 의미하지 않는다.
+성공을 확인한 v323이 실제 fresh WASM 컴파일을 시작했고 v326/v327은 그 결과를 기다린다.
+
+v328은 같은 edited HWP-endnote 원본의 길이 접두부/CFB Contents를 읽고 기존 bounded
+진단 probe의 메타데이터와 독립 한컴 Print의 실제 벡터·글꼴·범례를 연결했다. 입력/Print/
+Contents/probe 해시와 명령은 `chart-column-primary-analysis-v328/result.json`에 보존한다.
+수동 값 축은0–2000/4분할, 계열색은#73b1d1/#cd6565/#ebc452이며 실제 Print와 같다.
+Print의 차트 글꼴은GulimChe9.96pt로 저장10pt와 대응한다. 제목 캐시 높이341을 글꼴
+크기로 대신 쓰지 않는다. 실제 범례는 첫 줄 적립금·지출/둘째 줄 수입이며, Native
+라이브러리가 읽는 최대 캐시 label900/marker341/고정 gutter50 및 section margin으로
+두 열·두 줄이 예상된다. 좌표 단위와 다른 chart path는 추가 입증 전 추론으로 남긴다.
+현재 원점의 Print/Native 차이는3.710661px이며 원인과 무관한 상수 보정을 추가하지 않는다.
+기존 type1은 production presentation reader가 수용하지 않아 generic renderer로 빠지는
+실제 경로를 확인했다. 배경·제목·축·범례의 저장/재배치 계약을 함께 분석해 배치 보정을
+준비하며 이 진단을 production parser 검증이나 최종 완료로 바꾸지 않는다.
+
+첫 진단은venv의olefile 누락/CFB 길이 접두부/Debug 출력의후행 쉼표 처리로 실패했고,
+설치된 시스템 모듈 사용·입력 프레이밍 검증·진단 parser를 정정한 뒤 종료했다. 제품 실패
+또는 원본 변경은 아니다. 생산 코드는 v323/v326/v327의 소스 불변을 위해 유지한다.
+새 formal 회귀·fixture·golden·기대값·개별 PR 보류 판정은 변경하지 않았다.
+
+
+v329의최신Native와독립Print에서 같은 원 좌표를3배 확대한 review를 실제 표시했다.
+inline 오른쪽 선은 부모 경계에서 끝나며, missing-style의location.replace는1쪽,
+navigator는2쪽에 보존된다. 선의농도와약1px괘선 차이·본문의글꼴/간격차이는 남아
+있다.3배 이미지의2px관용값은원96dpi전쪽2px값과같은 gate가 아니므로 확대의점수를
+전쪽 통과의근거로바꾸지 않는다. 원PNG해시·영역·배율은
+`wrapper-cell-note-zoom-v329/result.json`에 고정했다.
+
+v330의bounded class trace와설치된HncChartBase.so의실제Section/Location reader·
+layout switch를 대조했다. 차트 좌표는Cartesian이므로 높은y의제목과낮은y의범례를
+PDF의위→아래좌표와같게해석하면상하소속을뒤집는다. 실제native type1은높은y에서
+margin/height를빼고가로중앙, type6은낮은y에서margin을더하고가로중앙을택한다.
+공개COM location번호와동일하다고추정하지 않는다. 기존독립진단v35는Title 저장
+상자높이/외부·내부margin만바꿔도Print 좌표가같음을입증했으므로, 새renderer에
+저장title box나margin을그대로재사용하는가정도채택하지 않는다. 유효legend 캐시와
+title의word-wrap변경후재측정을구분하는계약을계속추적한다. 코드보정은아직없다.
+
+v332는마지막전체29FAIL의검사이름을최신57PASS로그와대조했다. 같은이름7개가
+최신집중검사에서PASS이며나머지22개는이번선택에서실행하지않았다. 22개를현재
+실패수로보고하거나7개의같은이름만으로기대값동일/전체회귀해소를주장하지않는다.
+macro로생성한baseline partition은source의fn검색부재로제거됐다고판정하지않는다.
+현재원본/독립Print의의미와실제최종전체실행을기준으로후속작업한다.
+`historical-failure-current-audit-v332.json`에원래suite/name·현재source해시·실행포함을
+연결했다. fresh v323은release컴파일10분40초를종료하고wasm-opt가실행중이며
+v326/v327의검증완료로보고하지않는다. PR 생성/push/merge도계속보류한다.
+
+
+### 진행153: fresh WASM 완료와 기존 회귀 검사의 실제 범위 정정
+
+v323은exit0/source불변으로1607.265초에종료했다. repo root의locked web wrapper로
+release컴파일10분40초와wasm-opt를실행했으며 `--no-opt`는사용하지않았다.
+동결package는 `wasm-pkg-wrapper-cell-note-v323/`이고 JS SHA-256은
+691e4fd480cf4e04f9e599ca7c7a4802ad87b2c141fba93bf94111f4144dcb3b, WASM은
+f16609ba3bac35ab0292a0c15c2bc36d8becb562834f98090fb1831cc2d517f9다.
+pkg/public 두파일해시는일치한다. Studio 브라우저조작을이해시확인으로대신하지않는다.
+v327의실제공개API는4.640초/exit0/source불변이다. 불투명/투명/분할wrapper의
+논리셀주소와누름틀활성화·해제를대조했고 다시생성한입력도보존원본과바이트동일한
+17a174162fd3fcd1c51bd04a25a577396c44bd51ad1c8ab001f9184b16dc4de3다.
+완료된API를독립Print/Studio/final visual통과로확대하지않는다. v326의브라우저
+fresh14쌍전쪽비교는실행중이며처음blank note2쌍은각100%로종료했다.
+
+v333에서#7739의현재OPEN본문을API로다시읽어#7445대표이슈·원본/Print SHA·
+기존전체원문이관을확인했다. 원본398d03a5d5e4d6e857086be532d6d9ed0cec9c8ad06f95c17bbb7f83056ae860와
+Print f8e5c0408e221080ede9a9a67b153d02d792d22961c738e46749641f32a32e79를유지한다.
+고정base bfa28의전쪽미달근거는v258/v268/v269와같고10미달쪽이기존current와PNG동일하다.
+현재v315의19종geometry감사에서도이원본103쪽의기준대비오류증가는없다.
+`issue_6761_side_by_side_objects_do_not_stack::horizontally_overlapping_objects_still_stack`은
+특정패널의소유를주장하면서전체103쪽을page_bottom1122.5px/공차1px로검사했다.
+직접보정3문서에포함되지않고이미이관된미달전체범위이므로이검사1개와전용
+max_off_canvas helper만제거한다. 같은모듈의나란한그림/동일물리원점Right정렬2검사와
+다른영향쪽·정상대조군·입력·Print·baseline공차는보존했다. 검증후승인으로기록하지않고
+`chemical-whole-scope-transfer-v333/result.json`에근거와정확한변경을고정했다.
+
+v334는실제v323 Cargo작업의종료를기다린뒤공유target에서prepare·fmt·세Clippy·
+workspace build·고정base정책과기존57+보존2검사를순차재검증한다. 소스1111개와
+tests의별도해시를고정하며완료전PASS로기록하지않는다.
+
+v335는#6972의같은높이줄대조군의기존기대값을정밀검토했다. HWP5 확장그림슬롯은
+0–7유닛,보이는글자첫offset과두번째줄시작은8이다. 한컴사양표6/62와이입력의
+원시축은그림의첫줄소유를입증한다. 기존None기대는글자의둘째줄소속을그림에대입한
+오류다. 현재공통raw-slot조회가반환한Some((0,0))을구현회귀로세지않으며, 기존순수
+소유helper검사의수정안을준비했다. Render/실물입력/fixture/golden을소비하는검사가
+아니며시각개선의증거도아니다. v334의test해시보호를위해아직실제tests에는적용하지
+않았다. 독립사양해시·생성조건·실제소비경로·기대·수정안은
+`raw-slot-regression-review-v335/`에연결했다. 전체29실패해소·직접보정3문서최종전쪽·
+backend·개별PR수용·원격PR생성의완료로바꾸지않는다.
+
+
+### 진행154: Native/fresh 전체17쪽과 보존·정정한 회귀61개 완료
+
+v326은실제MainPID0/inactive/ExecMainStatus0으로14쌍전부exit0/source불변종료했다.
+모든17쪽의최저91.23437%,90%미달/누락0이며현재Native와fresh의decoded RGB가
+전부같다(v338). original wrapper와독립대조6개는양쪽각100%다. Missing-named-style
+편집원본의같은2쪽은양쪽95.47353/92.07644%다. 실제fresh의대표review4개를v339로
+새로만들어원PNG해시와연결했고inline은실제표시·직접판독했다. 원본입력은보존한다.
+이점수로남은차트의축/범례/색/배경·3문서최종전체·Skia/Studio·전체회귀를완료로
+바꾸지않는다.
+
+v334의9단계는exit0이며실제집중summary는47PASS/2089선택제외/8.075초다.
+prepare로모듈의suite번호가달라져고정suite선택에서이전57중12개가빠졌다.
+완료된47개를59개나전체회귀PASS로보고하지않으며누락을v337에서정정했다.
+v337은prepare후실제module소속을찾아suite를선택하고이전57+보존2+raw-slot2의
+기대61개이름과실제PASS이름을비교한다. 현재9단계는모두exit0/source/test불변,
+집중61개전부PASS/2303선택제외/5.227초며기대대상누락0이다. 실제MainPID0/inactive/
+ExecMainStatus0도확인했다. #6972의원시슬롯기대값정정도실제tests에적용했으며
+시각fixture나생산behavior는바꾸지않았다. 전체nextest의마지막29FAIL을61PASS로
+대체하지않으며초기18개PR의보류를유지한다.
+
+v336은현재v315소스의화학제품원본79쪽을고정base와같은입력/Print/font로재출력했다.
+둘다17.91785%이고decoded RGB도완전히같다. PNG컨테이너해시는Chrome버전/인코딩
+차이로다르므로바이트SHA동일이라고보고하지않는다. 현재103/기준103쪽으로누락/
+쪽수차이는없고,exit1은의도한미달의re_review_required gate다. v333제거의기존미달
+근거를최신소스에서도확인했으며새구현회귀를숨기는제거가아니다. 원본·Print와두
+영향영역검사는보존했다. `chemical-whole-scope-transfer-v333/current-negative-check.json`에
+근거를연결한다.
+
+필요한독립대조6입력을SHA파일명으로
+`mydocs/pr/assets/semanticist21-20261008/wrapper-anchor-counters-v289/`에바이트그대로
+보존하고기존untracked6Print PDF와연결했다. 생성방식/한컴버전/Print계약/입력·PDF·
+Native·WASM SHA/원본과대조군구분은같은README에기록한다. qualified fresh review4개는
+`../assets/semanticist21-20261008/wrapper-cell-note-fresh-v339/`에보존한다. TSV/실행로그/
+중간JSON/SVG는ignored output에남기며Git에추가하지않는다. 새조판정식회귀는
+현재qualified 원본/대조군의관계형검사와수정전후검출을갖추기위해다음단계에서작성한다.
+PR제출·원격push·merge·새6PR체리픽은아직하지않았다.

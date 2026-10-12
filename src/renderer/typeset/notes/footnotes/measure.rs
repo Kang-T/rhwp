@@ -60,7 +60,11 @@ impl crate::renderer::typeset::TypesetEngine {
         // 줄 정보가 없거나 합성·편집된 각주는 아래 실제 조판 높이를 예약한다.
         if st.profile.hwp5_stored_pagination_layout()
             && !st.profile.session_edited()
-            && layout.footnote_area_has_stored_lines(&page.footnotes, paragraphs)
+            && layout.footnote_area_has_stored_lines(
+                &page.footnotes,
+                paragraphs,
+                st.layout.body_area.width,
+            )
         {
             return;
         }

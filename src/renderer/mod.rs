@@ -71,6 +71,7 @@ pub mod skia;
 pub(crate) mod static_svg;
 pub(crate) mod stored_control_frame;
 pub(crate) mod stored_float_anchor;
+mod stored_line_ladder;
 pub(crate) mod stored_page_origin;
 pub mod style_resolver;
 pub mod supplemental_metrics;
@@ -1479,77 +1480,7 @@ pub(crate) fn paragraph_source_line_metrics_need_reflow(
 ///
 /// 판정이 참이면 호출자는 (1) 줄 metrics 를 저장값이 아니라 글꼴·문단 스타일에서
 /// 다시 뽑고, (2) `vertical_pos` 앵커 스냅을 끈다. 원본 IR 은 건드리지 않는다.
-pub(crate) fn stored_line_ladder_is_uniform_filler(
-    paragraphs: &[crate::model::paragraph::Paragraph],
-    styles: &style_resolver::ResolvedStyleSet,
-) -> bool {
-    /// 사다리 하나로 단정하기 위한 최소 문단 수.
-    const MIN_PARAGRAPHS: usize = 8;
-    /// 저장 advance 와 글꼴 advance 가 어긋나야 하는 최소 비율의 역수 (1/4).
-    const CONTRADICTION_RATIO_DIVISOR: usize = 4;
-
-    if paragraphs.len() < MIN_PARAGRAPHS {
-        return false;
-    }
-
-    let mut tuple: Option<(i32, i32, i32, i32)> = None;
-    let mut prev_vpos: Option<i32> = None;
-    let mut contradicting = 0usize;
-
-    for para in paragraphs {
-        let [seg] = para.line_segs.as_slice() else {
-            return false;
-        };
-        if seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
-            || seg.line_height <= 0
-            || seg.text_height <= 0
-        {
-            return false;
-        }
-        let current = (
-            seg.line_height,
-            seg.text_height,
-            seg.baseline_distance,
-            seg.line_spacing,
-        );
-        match tuple {
-            None => tuple = Some(current),
-            Some(first) if first != current => return false,
-            _ => {}
-        }
-        // 사다리 걸음은 그 튜플의 advance 와 같아야 한다 — 실측 조판이면 문단마다
-        // 다른 값이 나온다.
-        let step = seg.line_height.saturating_add(seg.line_spacing);
-        if let Some(previous) = prev_vpos {
-            if seg.vertical_pos.saturating_sub(previous) != step {
-                return false;
-            }
-        }
-        prev_vpos = Some(seg.vertical_pos);
-
-        let max_fs = para
-            .char_shapes
-            .iter()
-            .filter_map(|shape| styles.char_styles.get(shape.char_shape_id as usize))
-            .map(|style| style.font_size)
-            .fold(0.0f64, f64::max);
-        if max_fs <= 0.0 {
-            continue;
-        }
-        let (ls_type, ls_val) = styles
-            .para_styles
-            .get(para.para_shape_id as usize)
-            .map(|style| (style.line_spacing_type, style.line_spacing))
-            .unwrap_or((LineSpacingType::Percent, 160.0));
-        let (font_lh, font_ls) = corrected_line_metrics(0.0, 0.0, max_fs, ls_type, ls_val);
-        let stored_advance = hwpunit_to_px(step, DEFAULT_DPI);
-        if (font_lh + font_ls - stored_advance).abs() > 0.5 {
-            contradicting += 1;
-        }
-    }
-
-    contradicting * CONTRADICTION_RATIO_DIVISOR >= paragraphs.len()
-}
+pub(crate) use stored_line_ladder::stored_line_ladder_is_uniform_filler;
 
 /// 저장된 순수 텍스트 줄은 `vertsize`에 내부 여백이 포함되어도 한컴의 줄 진행이
 /// `textheight + spacing`에 맞춰지는 사례가 있다. IR 값은 보존하고 렌더/조판용

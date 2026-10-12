@@ -313,6 +313,7 @@ fn stored_successor_flow(
     dpi: f64,
 ) -> Option<(f64, f64)> {
     if st.col_count != 1
+        || fmt.stored_ladder_is_filler
         || fmt.computed_host_lines.is_some()
         || fmt.line_count() != para.line_segs.len()
     {
