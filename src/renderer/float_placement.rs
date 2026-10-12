@@ -9,7 +9,9 @@ pub(crate) use stored_cell_flow_picture::{
 };
 mod stored_empty_host_frame;
 mod stored_nested_before_host;
-pub(crate) use stored_nested_before_host::stored_nested_before_host_placement;
+pub(crate) use stored_nested_before_host::{
+    stored_nested_before_host_placement, stored_table_before_host_frame,
+};
 mod stored_cut_outer_frame;
 mod stored_header_frame;
 pub(crate) use stored_cut_outer_frame::stored_hwpx_cut_owns_outer_frame;
@@ -4865,7 +4867,7 @@ pub(crate) fn stored_block_cell_flow(
                         i32::from(table.outer_margin_top) + i32::from(table.outer_margin_bottom),
                         dpi,
                     );
-                stored_nested_before_host::stored_nested_before_host_frame(
+                stored_nested_before_host::stored_table_before_host_frame(
                     paragraphs, pi, table, ci, 0.0, body, styles, dpi,
                 )
                 .is_some()

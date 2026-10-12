@@ -1628,7 +1628,7 @@ impl TypesetEngine {
         };
         // 같은 저장 단의 첫 줄 원점은 글줄과 표가 함께 소비한다.
         // 단을 여는 완전한 TAC 표도 저장 프레임이며, 재조판/분할 원점과 섞지 않는다.
-        let source_host_origin = (st.col_count == 1
+        let source_host_frame = (st.col_count == 1
             && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
             && (!st.vpos_ladder_dirty
                 || st.current_items.first().is_some_and(|item| {
@@ -1745,7 +1745,8 @@ impl TypesetEngine {
                 }
                 host_top = crate::renderer::composer::paragraph_flow_end(host)?;
             }
-            Some(
+            Some((
+                first,
                 st.vpos_col_anchor
                     + hwpunit_to_px(
                         para.line_segs
@@ -1754,9 +1755,10 @@ impl TypesetEngine {
                             .checked_sub(frame_origin)?,
                         self.dpi,
                     ),
-            )
+            ))
         })
         .flatten();
+        let source_host_origin = source_host_frame.map(|(_, origin)| origin);
         // 글줄은 구성 결과와 저장 줄이 같을 때만 이 원점을 소비한다.
         // 글줄이 없는 개체 앵커는 아래에서 같은 저장 프레임 원점을 직접 쓴다.
         let source_text_origin = source_host_origin.filter(|_| {
@@ -1881,6 +1883,32 @@ impl TypesetEngine {
                 }
             });
         let unconstrained_host_placement = unconstrained_host_placement
+            .or_else(|| {
+                // 공백 호스트 줄도 표 뒤에서 자기 줄 상자를 점유할 수 있다.
+                // 앞·현재·뒤 저장 줄이 닫는 같은 프레임을 중첩 셀과 공유한다.
+                let (frame_start, origin) = source_host_frame?;
+                let mut placement =
+                    crate::renderer::float_placement::stored_table_before_host_frame(
+                        paragraphs_all.get(frame_start..)?,
+                        para_idx.checked_sub(frame_start)?,
+                        table,
+                        ctrl_idx,
+                        origin - fmt.spacing_before,
+                        ft.effective_height,
+                        styles,
+                        self.dpi,
+                    )?;
+                // 이 전체 프레임은 뒤 호스트 줄까지 현재 단에 들어갈 때만 쓴다.
+                // 부분 조각의 컷·줄 소유를 전체 선언 상자로 대신하지 않는다.
+                let host_end = placement.occupied_bottom
+                    + fmt.line_advances_sum(0..fmt.line_count())
+                    + fmt.spacing_after;
+                if host_end > available {
+                    return None;
+                }
+                placement.stored_host_origin = Some(placement.occupied_bottom);
+                Some(placement)
+            })
             .or_else(|| {
                 // 저장 사다리가 빈 host 의 앞·뒤 간격과 줄 상자를 싣지 않았다고 증언하면
                 // 그 상자로 수용·전진하고, 렌더도 같은 원점을 소비한다.

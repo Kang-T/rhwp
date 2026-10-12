@@ -4172,3 +4172,43 @@ ignored `regression-root-cause-batch-v448/rebase-result.json`, `rebase-conflict-
 `rebase-python-conflict-validation-result.json`, `rebase-validation-plan.json` 및 단계별 log/result에
 SHA·명령·관측을 연결한다. 최종 전체 검증 뒤 개별 PR 판정을 확정하며 원격 PR/push/review/merge는
 사용자의 구체적인 승인 후 진행한다. 이번 동기화는 원격 읽기와 로컬 커밋/리베이스만 수행했다.
+
+## 진행 갱신172 — 동일 devel 확인과 저장 표 뒤 호스트 보정 (2026-10-13)
+
+사용자의 동기화·리베이스 지시로 `git fetch upstream devel`을 다시 실행했다.
+base는 `552f5228d2dbfd6046c838f14241704f1bcb8a05`로 변하지 않았고 이미 HEAD의 조상이다.
+같은 base에 추가 리베이스하지 않고 현재 메인터너 보정을 계속했다.
+
+리베이스한 production의 Native 전쪽 비교는 KPS77/77쪽 최저42쪽90.85010%,
+CGMP48/48쪽 최저47쪽93.64014%로 미달·누락0이며 독립 Print와 전체 쪽수도 같다.
+이는 아래 추가 보정 전 source의 결과다. 추가 보정의 KPS/CGMP 전쪽 Native와
+공용 target의 fresh WASM build는 현재 진행 중이며 이전 캡처로 대신하지 않는다.
+
+`issue_157.hwp`의 상단 표는 공백 호스트 줄 **앞**에 놓인 저장 프레임이다.
+앞 문단의 마지막 줄 끝11760HU에 표의 offset302HU·위 여백283HU·본체12507HU·아래 여백283HU를
+더하면 호스트25135HU이고, 호스트 자신의 줄1200HU·간격720HU를 더하면 뒤 줄27055HU다.
+이 독립 저장 메트릭과 한컴 Print에서 표→공백 호스트→위임 제목 순서를 확인했다.
+절대 화면 좌표나 문서별 예외로 배치를 고정하지 않았다.
+
+생산·소비 경로는 `entry.rs`의 검증된 현재 단 시작/호스트 원점→
+`stored_table_before_host_frame`의 같은 단 slice와 앞·현재·뒤 저장 줄/개체 바깥 상자→
+뒤 호스트까지 포함한 whole-fit→`record_paragraph_float_placement`→
+`place_table_with_text`의 post-text 1회 전진→같은 frame의 table paint다.
+앞쪽 구역 시작 문단까지 검사하던 잘못된 frame 범위를 제거했고,
+중첩 셀은 기존 셀 소유 범위와 dirty 검사를 유지한다.
+음수 offset·caption·편집·불연속 저장 줄·부분 조각은 이 전체 frame을 쓰지 않는다.
+
+Native build는 exit0/78.798초, 같은 원본·독립2020 Print의 전2쪽 TSV는
+1쪽99.74326%·2쪽99.82668%이며 미달·누락0이다(45.604초).
+2쪽 review를 직접 열어 두 표의 외곽, 앞뒤 본문·위임 제목·날짜·마지막 안내문의 위치를 대조했다.
+수정 전 공백 호스트 줄은 표 본체와 겹쳤고 수정 후에는 표 뒤에 포함 없이 놓인다.
+공개 최종 RenderTree의 같은 소유 관계에서도 수정 전FAIL/수정 후PASS를 관측했다.
+이는 정식 회귀 suite의 PASS가 아니다. 정식 회귀 초안은 ignored 경로에 두었으며,
+fresh WASM의 전2쪽90% 이상·직접 판독 후 `tests/cases/`에 추가하고 실행할 예정이다.
+
+ignored `regression-root-cause-batch-v448/user-sync-check-20261013.json`,
+`scoped-frame-plan.json`, `scoped-frame-consumption-review.json`,
+`scoped-frame-before-after-relations.json`, 각 build/result와
+`scoped-frame-native-issue157/issue157/{silhouette.tsv,review/review_002.png}`에
+입력·source hash·명령·출력 근거를 연결한다.
+전체 회귀·lint·최종 Native/fresh 검증과 원격 PR 승인은 아직 완료하지 않았다.

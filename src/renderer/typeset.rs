@@ -4713,6 +4713,16 @@ impl TypesetEngine {
             && signed_vertical_offset > 0
             && !para.text.is_empty()
             && !whitespace_host_line_covers_table
+            // 앞·뒤 저장 줄로 확정한 표 뒤 호스트는 pre-text가 아니다.
+            // 같은 저장 원점에서 post-text로 한 번만 배치·전진한다.
+            && !st
+                .paragraph_float_placements
+                .get(&(para_idx, ctrl_idx))
+                .is_some_and(|placement| {
+                    placement.stored_host_origin.is_some_and(|origin| {
+                        placement.table_top < origin && placement.occupied_bottom <= origin
+                    })
+                })
             // 확정 프레임이 있고 저장 앵커가 앞쪽에서 소진된 경우에만
             // 그 공백 줄을 이월된 표 앞에 다시 방출하지 않는다.
             // 현재 쪽의 일반 공백 줄은 기존 점유 높이를 유지한다.

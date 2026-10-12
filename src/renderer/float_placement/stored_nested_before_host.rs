@@ -1,4 +1,4 @@
-//! 원본 셀의 빈 호스트 줄 앞에 저장된 중첩 표 상자를 복원한다.
+//! 원본의 빈 호스트 줄 앞에 저장된 표 상자를 측정·배치에서 공유한다.
 
 use super::{hwpunit_to_px, is_para_topbottom_float, ParagraphFloatFlow, ParagraphFloatPlacement};
 use crate::model::control::Control;
@@ -38,7 +38,7 @@ pub(crate) fn stored_nested_before_host_placement(
     if cell.dirty_flag {
         return None;
     }
-    stored_nested_before_host_frame(
+    stored_table_before_host_frame(
         &cell.paragraphs,
         para_index,
         table,
@@ -52,7 +52,7 @@ pub(crate) fn stored_nested_before_host_placement(
 
 /// 측정도 같은 저장 앞·뒤 줄과 표 바깥 상자로 호스트의 줄 소속을 확인한다.
 /// 셀 편집 여부는 셀을 소유한 호출자가, 저장 줄의 유효성은 이 함수가 확인한다.
-pub(super) fn stored_nested_before_host_frame(
+pub(crate) fn stored_table_before_host_frame(
     paragraphs: &[Paragraph],
     para_index: usize,
     table: &Table,
@@ -76,7 +76,7 @@ pub(super) fn stored_nested_before_host_frame(
         || table.caption.is_some()
         || !is_para_topbottom_float(&table.common)
         || !table.common.flow_with_text
-        || table.common.vertical_offset as i32 != 0
+        || (table.common.vertical_offset as i32) < 0
         || !para.text.trim().is_empty()
         || control_index != 0
         || !matches!(para.controls.as_slice(), [Control::Table(_)])
@@ -108,7 +108,8 @@ pub(super) fn stored_nested_before_host_frame(
     let epsilon = hwpunit_to_px(2, dpi);
     let lead = hwpunit_to_px(i32::from(table.outer_margin_top), dpi);
     let tail = hwpunit_to_px(i32::from(table.outer_margin_bottom), dpi);
-    let outer = lead + table_height + tail;
+    let offset = hwpunit_to_px(table.common.vertical_offset as i32, dpi);
+    let outer = offset + lead + table_height + tail;
     let previous_end = hwpunit_to_px(
         previous_line
             .vertical_pos
@@ -136,7 +137,7 @@ pub(super) fn stored_nested_before_host_frame(
         stored_host_origin: None,
         stored_successor_line_origin: None,
         table_left: None,
-        table_top: anchor_y + lead,
+        table_top: anchor_y + offset + lead,
         occupied_bottom: host_origin,
     })
 }
