@@ -2074,6 +2074,10 @@ impl LayoutEngine {
                 // 인증한 프레임은 원본 잉크 경계에서 끝난다. 첫 빈 띠와 문단 사이 빈 띠도
                 // 내용에 속하며, 보이는 줄 전진량만 합산할 때 빠져도 소유를 보존한다.
                 height
+            } else if closing_source_frame_owns_alignment {
+                // 수용한 종료 프레임은 선택한 가시 줄을 정렬한다. 다음 쪽으로
+                // 전진하는 마지막 줄간격·문단 뒤 간격을 정렬 높이로 다시 얹지 않는다.
+                total_content_height
             } else if ordinary_source_frame_owns_alignment {
                 cut_units
                     .and_then(|(start, end)| {
