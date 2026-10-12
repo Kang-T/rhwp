@@ -4823,3 +4823,25 @@ GDB실측은`end_row_owns_stored_frame=true`,windowed=false,원본Center,
 7,376,214,296bytes를hash ledger뒤삭제했다. 최신7749/552기준·#157수정전후실행파일과
 입력·Print·PNG·TSV·로그·공용target은보존했다. 디스크여유는약25GiB다.
 개별17개는필수검증과해결후에만 **메인터너 보정 후 승인**으로바꾸며현재 **머지 보류**다.
+
+
+## 진행 갱신191 — 가맹사업 Native 경계 정합과 최종 전쪽 검증 준비 (2026-10-13)
+
+7f04c48cd의공용dev Native빌드는exit0·51.39초다. 새경계6쪽은exit0·296.619초,
+55/56/57/78/79/80쪽각99.99889/99.99893/99.99882/99.99907/99.99881/99.99655%,
+미달·누락0·sourceguard=true다. 새79쪽review를실제로열어독립Print와마지막두줄/셀바닥을
+대조했고알려진정렬차이가해소됐다. 같은새source로다시캡처한나머지5쪽의전체RGBA와
+render tree는직전판독한출력과같다. 이전캡처를새source의실행결과로재사용하지않았다.
+[새Native review와해시](../assets/semanticist21-20261008/franchise-selected-visible-frame-v450/README.md)를
+보존한다. 고정px이동·원본/Print변경·논리컷변경없이선택줄높이의소비순서만바로잡았다.
+
+최신7f04c의포맷·Native/WASM32lib Clippy는각exit0이며workspacebuild/전체targetClippy/
+base552대비manifest와unit-tier를순차실행중이다. 현재snapshot의여유공간과실행중Cargo를
+확인하고latest Native 전142쪽및직접문서/대조,root wrapper의fresh WASM과전쪽비교를이어간다.
+실행계획/생산소스·입력해시는ignored final-code-validation-v451에있다.
+
+원PR78계약의이전c771d全PASS와현재6쪽통과를최신전체회귀/전쪽fresh완료로확대하지않는다.
+새정식관계형회귀는같은원본의Native/fresh전쪽선행조건뒤에추가한다. 그뒤최종전체Rust,
+NativeSkia3종/문서검사·Studio실제consumer와필수gate를완료한다.
+모든필수검증/해결후개별17개를 **메인터너 보정 후 승인**으로바꾸고자동승인된PR/CI/merge/
+후속처리를진행한다. 현재개별최종판정은여전히 **머지 보류**다.
