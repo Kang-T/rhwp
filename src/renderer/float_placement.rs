@@ -7,6 +7,7 @@ mod stored_cell_flow_picture;
 pub(crate) use stored_cell_flow_picture::{
     stored_cell_flow_picture_extent_hu, stored_cell_flow_picture_frame,
 };
+mod stored_closed_cell_frame;
 mod stored_empty_host_frame;
 mod stored_nested_before_host;
 pub(crate) use stored_nested_before_host::{
@@ -4898,7 +4899,11 @@ pub(crate) fn stored_block_cell_flow(
         heights.push(h);
     }
     if !unabsorbed_block {
-        return None;
+        // 호스트 앞에서 닫힌 표는 저장 위치를 재사용할 수 있다. 이 결과를
+        // 반환하지 않으면 fallback이 호스트 아래에 같은 표 높이를 다시 더한다.
+        return stored_closed_cell_frame::closed_before_host_flow(
+            paragraphs, styles, &heights, dpi,
+        );
     }
     let mut result = StoredBlockCellFlow {
         paragraph_origins: Vec::with_capacity(paragraphs.len()),

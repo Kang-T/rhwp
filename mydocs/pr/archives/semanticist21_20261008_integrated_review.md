@@ -4338,3 +4338,34 @@ K-water 진단에서는 새 base의 stored block plan이577.34667px를 반환하
 닫힌 저장 표 프레임·호스트·뒤 문단을 측정과 실제 배치가 함께 소비하도록 보정하며, 쪽수 기대값을
 완화하거나 큰 높이를 clamp하지 않는다. base whole raster의 Chrome30초 timeout은 기존120초
 환경 설정으로 같은 SVG의 나머지 쪽을 이어 캡처 중이다. 완료 전 TSV 통과로 보고하지 않는다.
+
+
+## 진행 갱신176 — 닫힌 저장 셀 프레임 보정과 대형 SVG 로딩 분석 (2026-10-13)
+
+`stored_closed_cell_frame.rs`에서 모든 표가 호스트 앞의 원본 프레임으로 닫히는 셀의 저장
+문단 원점·표 앵커·점유 끝을 공통 결과로 반환했다. `stored_block_cell_flow`의 원래 조합 검증과
+앞뒤 LineSeg/여백/실제 표 높이 witness를 유지하고, 전체 셀 사다리의 역행·명시적 새 쪽/단을 배제한다.
+이 결과는 HeightMeasurer의 셀 끝과 `sequential_nested_cell_layout`의 같은 문단/표 원점으로 소비된다.
+잘못된 큰 높이를 clamp하거나 내용을 숨겨 쪽수를 맞추지 않는다.
+
+Native build exit0(compiler 보고3분19초), K-water 원본의 전체 쪽수28→27, #157은2쪽을 유지했고
+현재 library로 다시 링크한 기존 #157 정식 검사1PASS다. K-water 영향24/25쪽 Native는
+98.20912/99.64755%이며 전체 쪽수27/27이다. [실제 review·남은 차이](../assets/semanticist21-20261008/closed-cell-frame-v448/README.md)를
+직접 열어 중첩 표와 끝 표시·다음 쪽 소유가 복원됐음을 확인했다.24쪽 표 하단 높이 차이가 남으므로
+전쪽/fresh·최종 회귀·lint 완료와 승인으로 보고하지 않는다.
+
+CGMP 이전 production58b63의 fresh capture는46쪽 뒤 Chrome30초 navigation timeout으로 exit1이었다.
+진행 중 로컬 source가 바뀌어 source guard도false다. 전체 시각 통과로 판정하거나 기존 검사를
+바꾸지 않았다. K-water base의 같은 오류는120초 설정으로19쪽까지 복구됐으나20쪽에서 다시 timeout이다.
+실물 렌더링 실패와 로딩 비용을 구별했다:20쪽 SVG는270,438,235bytes(약258MB)이고,
+글꼴 데이터 URL만 원본과 같은 바이트·SHA의 공용 파일로 참조한 진단 proxy는367,031bytes,
+기존 Chrome rasterizer에서5.45초·exit0으로 캡처됐다. 별도의 원본 #157 2쪽 대조군도4.18초·exit0이며
+기존 원본 SVG 캡처와 RGBA가 완전히 같다. 형상/글꼴 공급 정책을 변경하지 않고 검증 비용을 줄이는
+방식을 추가 대조 중이며 원본 SVG·PDF·글꼴 hash와 proxy 기록을 보존했다.
+
+사용자가 승인한 불필요 output 정리 범위에서 종료된 `binaries/`의 v430 이전 ELF snapshot69개,
+24.54GiB를 추가 제거했다. 실제 프로세스 exe/fd와 사용 경로를 먼저 대조했고 현재 v430+,
+base/current 후보, 공용 Cargo target·원본·PDF·PNG·TSV는 보존했다.
+ledger는 ignored `old-completed-binary-cleanup-v100-v429.json`이다.
+모든17개 미병합 원 PR의 최종 판정은 계속 보류이며 사용자 지시대로 전체 필수 검증과 해결이 완료된
+뒤에만 **메인터너 보정 후 승인**으로 바꾸고 통합 PR·CI·머지·후속 처리를 진행한다.
