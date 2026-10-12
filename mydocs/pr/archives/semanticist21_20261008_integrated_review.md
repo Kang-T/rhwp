@@ -12,7 +12,7 @@ last_verified: 2026-10-12
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행159): v345 전체 회귀는10,254PASS/12FAIL이며 이 중 이관 API 잔여1행은 관련6검사 재실행PASS다. KPS Native/fresh WASM 각각77쪽은최저90.91935%·미달/누락0, CGMP Native48쪽은최저94.05301%·미달/누락0으로 완료 산출물을 재확인했다. 디스크 부족으로 중단된 CGMP fresh/가맹 전쪽은 재개 대기다. Visual Sweep의 선택 쪽 중복SVG 저장을 수정했고 관련Python100검사가PASS다. 실제 회귀·출력 보정·최종 전체검증은 미완료이며 개별18PR 보류를 유지한다.
+- 최신 단계(진행160): 선택 쪽 WASM 중복 저장 수정은cc3fada89로 커밋했고 관련Python100검사가PASS다. KPS Native/fresh77쪽의RGB가전쪽동일하고37/38/65/66쪽review·3배확대를판독했다. 66쪽상단괘선누락은실제이어받기분기에서정상선6개를None으로제거하는것으로확인했다. 생산보정과KPS기존검사변경은아직미수행이다. 교육과정fresh는v385에서실행중이며CGMPfresh/가맹전쪽은순차대기다. 전체회귀11건처리와최종회귀·lint가남아개별18PR보류를유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. PR 생성은 사용자 승인 후 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -3573,3 +3573,35 @@ Native 바이너리 해시를 확인했다. 각 완료 `silhouette_manifest.json
 `target/pr-review`를 보존했고 현재31GB 공간을 확보했다. 삭제 경로·크기·해시는
 `completed-education-native-svg-cleanup-v383.json`, `obsolete-frozen-binary-cleanup-v383.json`,
 `terminal-incomplete-svg-cleanup-v383.json`에 남겼다. 원격 GitHub 변경은 없다.
+
+
+### 진행160: KPS 전쪽 RGB 대응·경계 확대 판독과 실제 상단 괘선 제거 추적
+
+v386 retry1은 전쪽77개의 Native/fresh PNG를 decoded RGB로 비교해 모두 동일함을 확인했다.
+37/38/65/66쪽 review·overlay와 셀 소유 bbox에 대응하는 판독용3배확대를 생성하고 직접 읽었다.
+37쪽은 성능 요구사항으로 끝나고38쪽은 데이터 요구사항부터 시작한다. 65쪽 라벨은 앞부분을,
+66쪽은 `시장침해/가능성`을 소유한다. 기존 dump의 행16 기대 및 y≤200 선택은 실제 한컴의
+소유 경계와 맞지 않는다. 다만66쪽의 바깥/라벨 프레임 상단이 한컴 Print와 다르게 빠진다.
+전쪽90% 이상이라는 이유로 이 배치·괘선 차이를 완료로 면제하지 않는다.
+[review·overlay·3배확대와source/입력/PDF/PNG해시](../assets/semanticist21-20261008/kps-qualified-boundaries-v386/README.md)를 보존한다.
+
+v387은 현재Native의실제66쪽`export-svg --profile print --compat2022 -p65`를 읽기 전용GDB로 실행했다.
+원본의 바깥674/0 표r2c0와table-level Fill4는4방향Solid/검정/width1이다.
+`layout_partial_table_resolved`에서 collect_cell_borders로 수집한 상단6칸은Solid/검정이다.
+6293/6304줄에서is_continuation=true,start_cut=[20],header_rows=[],Square를 확인했고,
+6332줄에서는상단6칸이모두None이다. 같은조건의새물리조각을일괄열어두는분기가정상프레임을지운다.
+이 source-level producer→h_edges→이어받기분기→render_edge_borders→최종SVG 연결은 실제 호출 증거다.
+열린상단이정답인#6756/#6549와프레임소유를구분할 독립 근거·반례를묶어보정하며 조건을더붙여
+한문서에만맞추지않는다. 생산코드와기존KPS검사는아직수정하지않았다.
+
+선택쪽도구수정커밋후fetch는exit0이고upstream/devel은bfa28a77로동일해rebase하지않았다.
+`post-selected-wasm-commit-fetch-v384.json`에기록했다. v385는교육과정현재fresh139/140→CGMPfresh48→
+가맹Native142/fresh142순서로실제서비스에서재개했다. 완료한기존세전쪽출력은다시실행하지않는다.
+Atomic JSON으로집계하고 각완료출력의SVG만정리하며 실패·쪽수차이·90%미달을그대로기록한다.
+교육과정선택2쪽도Native문서전체글꼴정책이필요하므로임시정책생성단계의디스크량을감시한다.
+과거생성된큰SVG를정확한경로와processcmdline/open-fd미사용확인후추가정리하는v388을실행했다.
+현재v385산출물·원본·PDF·PNG·TSV·트리·frozen바이너리·공유target은정리대상에넣지않았다.
+
+최초v386의진단compare폴더누락을고쳐retry1에서exit0과정확한4쪽review/확대산출물을확인했다.
+이진단오류는제품회귀로세지않는다. 공식판정은지표와직접판독을별도로기록하고현재상단결함을보류한다.
+신규원격변경·PR/push/승인/통합은없다.
