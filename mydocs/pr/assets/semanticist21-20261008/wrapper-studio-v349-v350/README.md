@@ -8,7 +8,9 @@
 - 초기 JS 원본 SHA-256: `691e4fd480cf4e04f9e599ca7c7a4802ad87b2c141fba93bf94111f4144dcb3b`.
 - 초기 WASM 응답 SHA-256: `f16609ba3bac35ab0292a0c15c2bc36d8becb562834f98090fb1831cc2d517f9`.
 
-v349는 Canvas2D, v350은 요청 및 실제 선택 backend가 CanvasKit인 상태에서 실행했다.
+v349는 Canvas2D 요청으로 실행했고, v356에서 요청·실제 선택 backend가 Canvas2D이며
+fallbackReason이 null인 상태로 같은 동작을 다시 확인했다(9.595초·exit0).
+v350은 요청 및 실제 선택 backend가 CanvasKit인 상태에서 실행했다.
 CanvasKit의 fallbackReason은 null이다. 양쪽 모두 논리 누름틀 2개와 깊이 2의 셀 경로를
 확인한 뒤 실제 마우스로 앞 누름틀을 눌렀다. 이후 뒤 누름틀만 남았고 페이지 오류는 없었다.
 print profile에서는 안내 문자열이 숨겨지므로 스크린샷의 문자열 유무로 클릭 결과를 판단하지 않는다.
