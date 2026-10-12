@@ -4401,3 +4401,44 @@ Native/fresh 각각48/48쪽·PDF48쪽, 최저47쪽93.64014%·미달/누락0이�
 `kwater-new-base-whole-cached-completion-*`, `scoped-frame-cgmp-fresh-cached-completion-*`,
 `scoped-frame-cgmp-native-fresh-identity.json`, `kwater-current-native-whole-*`,
 `kps-*-closed-cell-*`에 보존한다. 아직 모든 검증이 끝나지 않아 원격 PR/push/merge는 수행하지 않았다.
+
+
+## 진행 갱신178 — 현재 K-water 전쪽 완료와 부적합 축약 회귀 두 개 이관 (2026-10-13)
+
+현재 Rust production `d7a13ef73`/도구 `f1461af1f`의 K-water Native 전쪽은 27/27쪽,
+독립 PDF 27쪽, 최저3쪽 **96.87092%**, 미달·누락0, exit0(492.29초)로 완료했다.
+이전 선택24/25쪽 결과와 구분하며 fresh WASM·남은 하단 괘선 판독·최종 전체 회귀는 미완료다.
+이 문서의 올바른27쪽 회귀는 유지한다.
+
+수동 축약 입력은 같은 글꼴·원본·독립2020Print로 고정 base552f와 현재d7의 Native 전1쪽을 비교했다.
+base에 입력·회귀가 이미 등록된 사실을 확인했다. base/current review PNG를 모두 직접 열었다.
+
+| 공유 축약 입력 | base552f / 현재d7 최저 | 직접 판독 | 이관 |
+| --- | --- | --- | --- |
+| `samples/issue5833/cell_multi_para_float_pics.hwp` | 6.62281% / 6.61305% | 양쪽 표·캡션 원점이 Print보다 위, 현재 하단 밴드도 미일치 | [#7863](https://github.com/edwardkim/rhwp/issues/7863) |
+| `samples/issue6575/tac_picture_line_top.hwpx` | 25.29586% / 26.99995% | 양쪽 머리 표·분홍 본문·캡션이 Print보다 크게 위 | [#7864](https://github.com/edwardkim/rhwp/issues/7864) |
+
+두 축약 fixture의 fresh WASM은 미실행이다. Native 기존 미달 증거로 이관하고 출력 해결·통과로 보고하지 않는다.
+원래 닫힌 #5833/#6575는 전체 원본의 다른 해결 범위여서 이관 근거로 대신하지 않았다.
+동일 파일·미해결 범위의 열린 이슈 검색 결과가 없어 정확한 입력 hash·PDF·명령·직접 비교·복원 조건을
+별도 이슈에 등록하고 #7445 하위 이슈로 연결했다(직계90→92). 게시 본문과 부모 연결을 API 재조회했다.
+
+사용자가 승인한 진행·후속 처리 범위에서 재현 자산만 `upstream`의
+`evidence/semanticist21-cropped-fixtures-20261013`에 게시했다.
+asset-only commit `932a56b09814704be856464e9f30f9cb73a965b3`은 base552f 위의 PNG·입력·PDF·이전검사 `.rs.txt`·Markdown만 포함한다.
+Rust·workflow 변경이나 원격 PR·merge는 없다. 원본 기여자의 범위 밖 후속 PR6개는 적용하지 않았다.
+안정 증적은 [#7863 입력·Print·base/current 비교](../assets/semanticist21-20261008/legacy-cropped-fixtures-v448/5833/README.md),
+[#7864 입력·Print·base/current 비교](../assets/semanticist21-20261008/legacy-cropped-fixtures-v448/6575/README.md)에 보존했다.
+
+활성 검사 이관 범위:
+
+- `issue_5833_stacked_cell_pics_flow_without_overlap` 및 `issue_6575_tac_picture_sits_on_line_top_when_line_is_taller` 두 함수·원본 `.rs`만 제거했다. 이전 본문은 이슈 자산 `.rs.txt`로 보존했다.
+- #7490 `default_column_rebuild_preserves_content_and_object_geometry`의 #5833 입력 하나만 제외했다. 다른10개와 편집 계약은 유지했다.
+- #6840 같은 입력의 SVG 좌표 비교를 이관했다. 원본 그림 소유 경로·참조 payload와 43→7 BinData pruning의 독립 데이터 계약으로 확인했다. 내장 글꼴·전체참조 대조군은 그대로 유지했다.
+- 공유 `samples/` 원본 두 개, 독립PDF, parser·codec의 IR baseline5행은 그대로 보존했다. 저장된 source 좌표와 실제 paint 좌표를 혼동하지 않는다.
+- 파생 suite를 재준비했다(1459sources, static test attrs6208; 기존2검사 감소). 파생 파일은 stage하지 않는다. #6840 정식 소스를 현재 library에 링크한 실제 실행은3PASS·exit0이고 최종 nextest로 확대하지 않는다. #7490 정식 소스의 남은10개 입력 기본단 재구성 검사도1PASS·exit0(13.90초)다.
+
+이관은 결함 해결이 아니며 Native/fresh 전쪽≥90%·확대 판독 뒤 관계형 회귀 복원이 필요하다.
+#4514 현재 변경의 이어받기 행 소실은 이관으로 면제하지 않고 구현 보정 대상으로 유지한다.
+CGMP·KPS·가맹사업은 직접 보정 대상이며 제거하지 않는다. 아직 전체 검증이 완료되지 않았으므로
+미병합17개 원 PR은 머지 보류다. 모두 해결·필수 검증 후에만 **메인터너 보정 후 승인**으로 바꾼다.

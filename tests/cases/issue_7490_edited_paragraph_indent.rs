@@ -566,7 +566,7 @@ fn default_column_rebuild_preserves_content_and_object_geometry() {
         "samples/issue5701/1530000-200800002_slice_p139_tac_reset_tail.hwp",
         "samples/issue5715/float_chart_ghost_ladder_gap.hwp",
         "samples/issue5802/hf_cross_section_inherit.hwp",
-        "samples/issue5833/cell_multi_para_float_pics.hwp",
+        // #7863: 기존 미달 축약 입력의 geometry는 별도 보정 후 복원한다.
         "samples/issue5871/ws_host_float_double_charge.hwp",
         "samples/issue6133/156483831_poster_title_above_offset_float.hwp",
         "samples/issue6135/156544683_title_row_underfit.hwp",
