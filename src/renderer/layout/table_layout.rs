@@ -10356,42 +10356,6 @@ impl LayoutEngine {
             let total_content_height = stored_empty_picture_frame
                 .map(|frame| hwpunit_to_px(frame.content_height_hu, self.dpi))
                 .unwrap_or(total_content_height);
-            // HWPX에서 셀의 줄 사다리가 문단마다 0으로 재시작해도 문단
-            // 모양의 위 간격은 남는다. 여러 문단을 담은 가운데 정렬 TAC
-            // 셀의 합성 사다리에는 이를 직접 더해 측정과 배치를 맞춘다.
-            let hwpx_reset_first_lead = if self.profile.get().hwpx_stored_layout()
-                && !self.profile.get().session_edited()
-                && table.common.treat_as_char
-                && matches!(cell.vertical_align, VerticalAlign::Center)
-                && row_filter.is_none()
-                && cell.paragraphs.len() > 1
-                && !has_nested_table
-                && !trust_stored_cell_flow
-                && cell.paragraphs.iter().all(|para| {
-                    !para.stored_text_partition_is_dirty()
-                        && para.controls.is_empty()
-                        && para.line_segs.first().is_some_and(|seg| {
-                            seg.vertical_pos == 0
-                                && seg.tag
-                                    & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
-                                    != 0
-                        })
-                }) {
-                let lead = cell.paragraphs.first().map_or(0.0, |para| {
-                    styles
-                        .para_styles
-                        .get(para.para_shape_id as usize)
-                        .map_or(0.0, |style| style.spacing_before)
-                });
-                if lead > 0.0 && total_content_height + lead <= inner_height + 0.5 {
-                    lead
-                } else {
-                    0.0
-                }
-            } else {
-                0.0
-            };
-            let total_content_height = total_content_height + hwpx_reset_first_lead;
             // 행 범위의 아래쪽이 잘려도 전체 내용이 현재 셀 상자에 들어가면
             // 그 상자를 기준으로 선언된 가운데/아래 정렬을 유지한다. 짧은 병합
             // 라벨도 뒤쪽 행을 소유할 수 있으므로 행 컷만으로 내용 잘림을 추정하지 않는다.
@@ -10473,7 +10437,7 @@ impl LayoutEngine {
             let stack_already_holds_lead = first_para_lead > 0.0
                 && stored_flow_extent > 0.0
                 && (stored_flow_extent - total_content_height).abs() <= 0.5;
-            let align_lead = if stack_already_holds_lead || hwpx_reset_first_lead > 0.0 {
+            let align_lead = if stack_already_holds_lead {
                 0.0
             } else {
                 first_para_lead
@@ -10506,8 +10470,7 @@ impl LayoutEngine {
                         + frame.paragraph_origin_offset_px(inner_height, effective_valign, self.dpi)
                 })
                 .unwrap_or(text_y_start)
-                + upper_page_clip_line_reservation
-                + hwpx_reset_first_lead;
+                + upper_page_clip_line_reservation;
             // 세로쓰기 셀
             if cell.text_direction != 0 {
                 let vert_inner_area = LayoutRect {
@@ -12844,9 +12807,9 @@ impl LayoutEngine {
     }
 
     /// A reflowed paragraph's first unit already reserves its spacing_before.
-    /// Continuation at that unit must consume it even in a 1x1 cell. A cut in
-    /// the middle of the paragraph and the source cell's first paragraph do
-    /// not own this spacing. Stored frame positions keep their own contract.
+    /// A fragment at that unit must consume it, including the source cell's
+    /// first synthetic paragraph. Mid-paragraph cuts do not own this spacing.
+    /// Stored frame positions keep their own contract.
     pub(super) fn cell_cut_owns_reflow_paragraph_start(
         &self,
         cell: &crate::model::table::Cell,
@@ -12855,12 +12818,9 @@ impl LayoutEngine {
         start_unit: usize,
         para_idx: usize,
     ) -> bool {
-        start_unit > 0
-            && para_idx > 0
-            && cell
-                .paragraphs
-                .get(para_idx)
-                .is_some_and(crate::renderer::para_has_no_stored_line_segs)
+        cell.paragraphs
+            .get(para_idx)
+            .is_some_and(crate::renderer::para_has_no_stored_line_segs)
             && self
                 .cell_units(cell, table, styles)
                 .get(start_unit)
@@ -18101,6 +18061,12 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
     ) -> f64 {
         if table.common.treat_as_char
+            // 중첩 표 컷은 부모의 child-unit/viewport ledger가 전진량을 소유한다.
+            // 이 줄의 끝 간격을 빼서 자식 유닛 하나를 다른 쪽으로 재배정하지 않는다.
+            || self
+                .nested_table_ptrs
+                .borrow()
+                .contains(&(table as *const crate::model::table::Table as usize))
             || !matches!(
                 table.page_break,
                 crate::model::table::TablePageBreak::RowBreak
@@ -18121,11 +18087,11 @@ impl LayoutEngine {
         let Some(para) = cell.paragraphs.get(closing.para_idx) else {
             return 0.0;
         };
+        // 원본 NO_LS와 정규화한 synthetic 줄은 같은 재조판 컷이다.
+        // 저장 줄이 없는 입력만 예약에서 뒤 간격을 남기면 paint와 높이가 달라진다.
         if !para.controls.is_empty()
-            || para.line_segs.is_empty()
-            || para.line_segs.iter().any(|seg| {
-                seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
-            })
+            || !crate::renderer::para_has_no_stored_line_segs(para)
+            || !self.row_has_plain_reflow_line_units(table, usize::from(cell.row), styles)
         {
             return 0.0;
         }
@@ -18135,18 +18101,20 @@ impl LayoutEngine {
         let inner_width =
             crate::renderer::composer::cell_inner_text_width(width, left, right, self.dpi);
         let comp = self.compose_cell_unit_paragraph(para, cell.text_direction, inner_width, styles);
+        // 문단을 닫은 컷의 뒤 간격은 다음 문단에 속한다. 문단 중간 컷은
+        // 같은 문단의 다음 줄 전진량을 보존한다. 선언 셀 높이는 이 줄 소속을
+        // 결정하지 않으므로 빈 물리 띠의 유무로 간격을 바꾸지 않는다.
+        if closing.vis_end != comp.lines.len() {
+            return 0.0;
+        }
         let Some(line) = comp.lines.get(closing.vis_end - 1) else {
             return 0.0;
         };
-        let after = if closing.vis_end == comp.lines.len() {
-            styles
-                .para_styles
-                .get(para.para_shape_id as usize)
-                .map(|style| style.spacing_after)
-                .unwrap_or(0.0)
-        } else {
-            0.0
-        };
+        let after = styles
+            .para_styles
+            .get(para.para_shape_id as usize)
+            .map(|style| style.spacing_after)
+            .unwrap_or(0.0);
         (hwpunit_to_px(line.line_spacing.max(0), self.dpi) + after).min(closing.height)
     }
 
@@ -25173,7 +25141,8 @@ impl LayoutEngine {
     }
 
     /// Reflow has no saved page frames to replace the declared row minimum.
-    /// Only an ordinary row owns that minimum; spanning cells use their block ledger.
+    /// The row cut's ordinary cells own that minimum. Other columns' spanning
+    /// cells retain their block ledger without erasing the ordinary-cell box.
     pub(crate) fn row_uses_reflow_physical_frame(
         &self,
         table: &crate::model::table::Table,
@@ -25183,11 +25152,6 @@ impl LayoutEngine {
             .render_normalization
             .borrow()
             .table_text_reflowed(table);
-        if self.spanning_cells(table).any(|cell| {
-            usize::from(cell.row) <= row && row < usize::from(cell.row) + usize::from(cell.row_span)
-        }) {
-            return false;
-        }
         let mut cells = self
             .cells_starting_on_row(table, row)
             .filter(|cell| cell.row_span == 1)
@@ -25202,15 +25166,49 @@ impl LayoutEngine {
             })
     }
 
-    /// Only the part of a declared minimum outside complete content occupancy
-    /// creates physical space without a content cursor. Scan and carry share this query.
+    /// Plain row units use a physical page box. A nested projection or object
+    /// viewport has its own advance ledger and cannot borrow that page budget.
+    pub(crate) fn row_has_plain_reflow_line_units(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        if self
+            .nested_table_ptrs
+            .borrow()
+            .contains(&(table as *const crate::model::table::Table as usize))
+        {
+            return false;
+        }
+        let owners = Self::row_cut_cell_order(table, row);
+        !owners.is_empty()
+            && owners.iter().all(|&index| {
+                let cell = &table.cells[index];
+                cell.paragraphs.iter().all(|p| p.controls.is_empty())
+                    && self.cell_units(cell, table, styles).iter().all(|unit| {
+                        unit.nested_row.is_none()
+                            && unit.nested_table_fragment.is_none()
+                            && !unit.mixed_nested_fragment
+                            && !unit.top_and_bottom_flow
+                            && unit.non_inline_control_range.is_none()
+                    })
+            })
+    }
+
+    /// Only the part of an independent declared minimum outside complete content
+    /// occupancy creates physical space without a content cursor. An earlier
+    /// rowspan owns its block's page bands; its interior rows do not own another
+    /// blank remainder. Scan and carry share this query.
     pub(crate) fn reflow_row_physical_minimum(
         &self,
         table: &crate::model::table::Table,
         row: usize,
         styles: &ResolvedStyleSet,
     ) -> Option<f64> {
-        if !self.row_uses_reflow_physical_frame(table, row) {
+        if !self.row_uses_reflow_physical_frame(table, row)
+            || Self::row_has_prior_rowspan_cover(table, row)
+        {
             return None;
         }
         let cells: Vec<_> = table

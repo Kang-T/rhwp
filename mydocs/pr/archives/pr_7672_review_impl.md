@@ -145,6 +145,24 @@ combined merge diff와 graph 근거는 ignored
 ignored 증거: `plain-endnote-owner-before-after-lines.json`,
 `plain-endnote-owner-{native,wasm}-{native,wasm}-results.json`, 대응review1쪽,
 `pr7672-current-tail-spacing-debug.log`, `pr7672-control-and-tail-spacing-audit.json`.
+
+같은14쪽의 독립 Print와 현재4ce raster를 같은 좌표·배율로 확대 대조했다.
+미주23 제목뿐 아니라 앞 적분 수식도 함께 내려가 있어, 마지막 render tail 간격만
+삭제하면 앞 수식의 오차를 남기면서 실제 미주 사이 간격을 줄이게 된다.
+단순 tail 간격 제거를 보정으로 적용하지 않았다.
+
+미주22 내부의 같은 높이12px 본문 줄 사이 거리를 대조했다. `양변을 미분하면`부터
+첫 `양변의 계수 비교`까지 Native365.2px / Print350.4px, 차14.8px다.
+독립 재저장본에서 이 범위의 수식 소유 줄5개가 각각225HU 줄어든 합계는15px다.
+같은 기준 줄부터 마지막 `따라서`까지는 Native692.2px / Print669.76px,
+차22.44px이며 소유 줄8개의 캐시 높이 차 합계1688HU는22.50667px다.
+누적 차이가 미주 내부의 수식/줄 높이 변화와 대응하는 원인 증거다.
+이 결과를 원본 수식 캐시의 무조건 덮어쓰기나 전체 문서 개선 완료 근거로 쓰지 않는다.
+독립 재저장본의 script/AST 변화·저장/재조판 계약을 구분한 보정이 아직 필요하다.
+증거: `pr7672-note22-23-boundary-direct-review/review/review_014.png`,
+`pr7672-note22-23-boundary-direct-review/note22-23-p14-2x.png`,
+`pr7672-note22-relative-cache-drift-observations.json`,
+`pr7672-print-notes22-24-fragment-owner-observation.json`.
 원본 편집8개·독립Print 총180쪽의 현재4ce Native/fresh 전쪽 검증 결과는
 아래 전쪽 검증 절에 기록했다. 최초browser 시작 오류1건도 재실행·측정을 완료했다.
 
@@ -172,3 +190,25 @@ ignored 결과: `pr7672-all-edits-current-4ce-native-results.json`,
 각 결과의 raw log를 code source 이름에 맞는 `*-current-4ce-{native,wasm}-sweep.log`로
 보존했다. 예전467 접미사를 가진 재실행 log도 현재 header는4ce이므로 과거467 증거로
 다시 인용하지 않는다. 이전467의 score·manifest·source provenance는 별도로 보존한다.
+
+
+## 고정 devel과 현재 후보의 같은 조건 비교 — 진행 중
+
+C12에서 수식이 없는 사회기여 표를 보정한 뒤 미주 편집 문서의 원인을 다시 분리한다.
+앞선4ce 전쪽 결과의 font path에는 현재 검증된 `validated-print-hcr-batang-program`과
+complete unicode 공급 경로가 포함되지 않았으므로 같은 실행 조건의 현재 후보 결과로
+승계하지 않는다. 다른 앞선 결과의 조건을 바꾸거나 통과 판정을 덮어쓰지 않는다.
+실제 편집 `2023-note348-mun.hwp`와 대응20쪽 Print를 같은 검증된 글꼴로 현재 C12와
+고정 BFA Native에서 순차 측정하기 시작했다.
+입력·PDF 해시는 기존 paired corpus의 값과 재대조했으며 새 대체 원본을 만들지 않았다.
+결과는 `pr7672-note348-base-c12-native-{progress.log,results.json}`에 보존한다.
+현재 최소값·전체 페이지 비교가 종료하기 전 원인을 기존 미달/새 회귀로 단정하지 않는다.
+
+
+같은 실제 편집본·Print·현재 검증 글꼴의 Native 비교가 완료됐다.
+고정 BFA는 **20/20쪽·최저28.91644%**, C12는 **20/20쪽·최저29.07705%**다.
+양쪽 모두 1·2·3·11·13·14·15·16·17·18·19·20쪽이90% 미만이다.
+현재17쪽은2.92567%p 개선됐지만 최소값·나머지 배치의 미달을 상쇄하지 않는다.
+기존 cache/미주 흐름 차이를 이번 API 변경의 새 회귀로 단정하지 않으며, 이 비교만으로
+이관·기대값 변경·수용 판정을 하지 않는다. 이 원본의 실제 출력 보정은 남아 있다.
+기존4ce 결과를 새 글꼴의 결과로 승계하지 않고 이 종료된 비교를 기준 진단에 연결한다.

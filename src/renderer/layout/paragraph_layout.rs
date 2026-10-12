@@ -597,7 +597,18 @@ fn bullet_marker_text(
     // Bullet: numbering_id(1-based)로 Bullet 참조
     let bullet_id = para_style.numbering_id;
     if bullet_id == 0 {
-        return None;
+        // 0은 명시적 정의가 없는 기본 글머리표다. 리소스 검증도 이 값을
+        // 배열의 첫 항목으로 해석하지 않는다. 기본 ●의 한 글자 영역과
+        // 50% 본문 거리를 줄 나눔과 실제 마커 배치가 함께 소비한다.
+        return Some((
+            "●".to_string(),
+            MarkerHead {
+                attr: 1 << 3,
+                width_adjust: 0,
+                text_distance: 50,
+                char_shape_id: u32::MAX,
+            },
+        ));
     }
     let bullet = styles.bullets.get((bullet_id - 1) as usize)?;
     // U+FFFF는 이미지 글머리표 표시자 — 문자 렌더링 불가, 건너뜀

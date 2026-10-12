@@ -1569,7 +1569,7 @@ pub(crate) fn column_rowbreak_fragment_opens_outer_top(
     // 표제의 쪽나눔 유무는 Para 앵커가 소유하는 바깥 여백을 바꾸지 않는다.
     // 표제의 글줄 잉크와 표의 바깥 여백은 별도로 소유하며 캡션 간격도 별도로 계산한다.
     let native_object_frame = native_host.is_some_and(|para| {
-        if object_only_saved_table_anchor(para, table) {
+        if object_only_saved_table_anchor(para, table) || reflow_empty_table_host(para, table) {
             return true;
         }
         // 각주·미주는 호스트 글줄에 속하며 표의 독립 바깥 프레임을 없애지 않는다.
@@ -5451,11 +5451,18 @@ pub(crate) fn float_pushed_line_spacing_before(
 /// whitespace hosts retain their own line boxes; negative/absolute positions
 /// and saved frames have different origins.
 pub(crate) fn reflow_empty_table_host(para: &Paragraph, table: &Table) -> bool {
+    // 구역·단 설정은 표 앵커와 함께 저장되지만 가시 글줄이나 개체가 아니다.
+    // 실제 표 하나만 이 빈 호스트의 포맷 상자를 소유한다.
+    let mut objects = para
+        .controls
+        .iter()
+        .filter(|control| !matches!(control, Control::SectionDef(_) | Control::ColumnDef(_)));
+    let only_table = matches!(objects.next(), Some(Control::Table(_))) && objects.next().is_none();
     para.text.is_empty()
         // An implementation-tagged LineSeg still describes a computed line.
         // Lack of a trustworthy saved anchor does not erase that line box.
         && para.line_segs.is_empty()
-        && matches!(para.controls.as_slice(), [Control::Table(_)])
+        && only_table
         && is_para_topbottom_float(&table.common)
         && matches!(table.common.vert_align, VertAlign::Top)
         && signed_hwpunit(table.common.vertical_offset) >= 0

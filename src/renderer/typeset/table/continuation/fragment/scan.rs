@@ -54,6 +54,7 @@ impl TypesetEngine {
             source_first_fragment_overflow_allowance,
             header_overhead,
             avail_for_rows,
+            reflow_frame_avail_for_rows,
             ..
         } = *budget;
         let source_cut_heights = budget.source_complete_frame_last_row.map(|(row, height)| {
@@ -196,6 +197,7 @@ impl TypesetEngine {
             can_intra_split,
             is_continuation,
             avail_for_rows,
+            reflow_frame_avail_for_rows,
             header_overhead,
             landscape_rowbreak_bleed,
             landscape_whole_row_tolerance,

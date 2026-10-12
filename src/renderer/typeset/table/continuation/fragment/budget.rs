@@ -1630,6 +1630,41 @@ impl TypesetEngine {
             avail_for_rows
         };
 
+        // 일반 재조판 행의 빈 물리 띠는 paint와 같은 하단을 소유한다.
+        // 블록 ledger의 가용량을 줄이지 않고 일반 행 컷에만 이 경계를 전달한다.
+        // 원점 덮어쓰기와 캡션·반복 머리 행 예약 이후의 좌표를 소비한다.
+        let reflow_frame_avail_for_rows = (!table.common.treat_as_char
+            && matches!(
+                table.page_break,
+                crate::model::table::TablePageBreak::RowBreak
+            ))
+        .then(|| {
+            let body_filling = crate::renderer::float_placement::stored_body_filling_rowbreak_frame(
+                para,
+                table,
+                st.layout.body_area.height,
+                self.dpi,
+                st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
+                st.profile.session_edited(),
+            );
+            let bottom = crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
+                table,
+                st.inline_flow_column().height,
+                self.dpi,
+                body_filling,
+            );
+            let top = fragment_placement.map_or(
+                fragment_flow_origin + host_before_overhead + vert_offset_overhead,
+                |placement| placement.table_top,
+            );
+            (bottom
+                - top
+                - caption_extra
+                - header_overhead
+                - hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi))
+            .max(0.0)
+        });
+
         // [Task #1046 Stage 2 진단] 첫/연속 fragment 의 가용공간 분해 — 렌더러
         // y_start 점프(vert_offset)·host_before 와의 정합 확인용. 동작 불변(게이트).
         if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
@@ -1687,6 +1722,7 @@ impl TypesetEngine {
             source_first_fragment_overflow_allowance,
             header_overhead,
             avail_for_rows,
+            reflow_frame_avail_for_rows,
             single_cell_fragment_shape,
             single_cell_box_height,
         }

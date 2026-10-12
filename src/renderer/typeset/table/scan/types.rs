@@ -26,6 +26,7 @@ pub(in crate::renderer::typeset) struct BlockRowScanVars {
     pub(in crate::renderer::typeset) can_intra_split: bool,
     pub(in crate::renderer::typeset) is_continuation: bool,
     pub(in crate::renderer::typeset) avail_for_rows: f64,
+    pub(in crate::renderer::typeset) reflow_frame_avail_for_rows: Option<f64>,
     pub(in crate::renderer::typeset) header_overhead: f64,
     pub(in crate::renderer::typeset) landscape_rowbreak_bleed: bool,
     pub(in crate::renderer::typeset) landscape_whole_row_tolerance: f64,

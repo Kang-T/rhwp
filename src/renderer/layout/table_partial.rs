@@ -2157,8 +2157,12 @@ impl LayoutEngine {
                             }
                             continue;
                         }
-                        if start == 0 && end > 0 && pi > 0 {
-                            total += para_style.map(|s| s.spacing_before).unwrap_or(0.0);
+                        if start == 0 && end > 0 {
+                            total += crate::renderer::cell_paragraph_spacing_before(
+                                para,
+                                pi,
+                                para_style.map_or(0.0, |style| style.spacing_before),
+                            );
                         }
                         for li in start..end.min(comp.lines.len()) {
                             let line = &comp.lines[li];
@@ -6564,6 +6568,10 @@ impl LayoutEngine {
         let owns_declared_row_frame = end_row_height_override.is_some()
             && end_row.checked_sub(1).is_some_and(|row| {
                 self.native_stored_row_has_text_frame_boundary(table, row, styles)
+                    // 재조판 행의 선언 최소 높이도 수용한 빈 물리 띠를 소유한다.
+                    // 예약과 잔여가 쓴 끝 행 상자를 paint에서 다시 접지 않는다.
+                    || (self.reflow_row_physical_minimum(table, row, styles).is_some()
+                        && self.row_has_plain_reflow_line_units(table, row, styles))
                     || (self.profile.get().hwpx_stored_layout()
                         && self
                             .stored_full_width_row_declared_height(
