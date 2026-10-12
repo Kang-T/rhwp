@@ -3333,6 +3333,33 @@ fn tac_in_front_decoration_fixed_line_spacing_deduction_hu(
         .then_some(-seg.line_spacing)
 }
 
+/// [#7702] 쪽 첫 문단이 합성 줄(`TAG_IMPLEMENTATION_PROPERTY`)로 시작하면 쪽 기준점에서
+/// 뺄 문단 앞 간격(HWPUNIT). 저장 줄이 없는 문단은 한/글이 직접 조판하며 쪽 맨 위에서도
+/// 앞 간격을 둔다(그리기 `paragraph_layout` 의 쪽 상단 갈래가 같은 규칙으로 간격을 둔다).
+/// 기준점이 그 간격을 빼지 않으면 뒤 저장 문단의 스냅이 간격만큼 되감는다(HWP5-nopassword
+/// 20쪽: 제목 앞 간격 284 HU, 뒤 저장 문단 pi=290 이 3.8px 위로). 저장 줄 경우
+/// (`stored_first_margin_is_page_relative`)와 달리 명시적 쪽 나눔 문단도 포함한다 — 그 20쪽
+/// 제목이 `pageBreak="1"` 문단이고, 한/글 2024 PDF 는 거기서도 앞 간격을 둔다.
+pub(crate) fn synthesized_first_margin_hu(
+    first: &Paragraph,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) -> i32 {
+    let synthesized = first.line_segs.first().is_some_and(|seg| {
+        seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+    });
+    if !synthesized {
+        return 0;
+    }
+    styles
+        .para_styles
+        .get(first.para_shape_id as usize)
+        .map(|style| style.spacing_before)
+        .filter(|before| *before > 0.5)
+        .map(|before| px_to_hwpunit(before, dpi))
+        .unwrap_or(0)
+}
+
 pub(crate) fn para_has_overlay_shape(para: &Paragraph) -> bool {
     use crate::model::shape::{TextWrap, VertRelTo};
     para.controls.iter().any(|c| match c {
@@ -8129,6 +8156,12 @@ impl LayoutEngine {
                     _ => None,
                 }) {
                     frame.source_origin_hu
+                } else if let Some(PageItem::FullParagraph { para_index }) = col_content.items.first() {
+                    let margin = paragraphs
+                        .get(*para_index)
+                        .map(|first| synthesized_first_margin_hu(first, styles, self.dpi))
+                        .unwrap_or(0);
+                    base - margin
                 } else {
                     base
                 }
