@@ -17,8 +17,9 @@ last_verified: 2026-10-12
 | --- | --- |
 | 원 PR / 작성자 / base | [#7614](https://github.com/edwardkim/rhwp/pull/7614) / semanticist21 / devel |
 | 초기 수용 source head | `2d4148eb8bcb561b2eac2004c7a64741864e7431` |
-| 현재 원격 source head / 상태 | `2d4148eb8bcb561b2eac2004c7a64741864e7431` / OPEN / draft=False |
-| 현재 통합 code head / base | `2d6f82fbba427035eccfddaa818b5de4bb878e31` / `bfa28a77a2714482f647ee6a7b9aa7f7876d8404` |
+| 2026-10-12 원격 조회 source head / 상태 | `2d4148eb8bcb561b2eac2004c7a64741864e7431` / OPEN / draft=False |
+| 검증 생산 소스 / 고정 base | `940ea1322617ccff5a7b47d6920ae96e94cfffad` / `bfa28a77a2714482f647ee6a7b9aa7f7876d8404` |
+| 이번 검토 기록 기준 통합 head | `75bd77e09443188701397bb7298eb5d27e10a692` |
 | 관련 이슈 | [#2740](https://github.com/edwardkim/rhwp/issues/2740), [#7444](https://github.com/edwardkim/rhwp/issues/7444), [#7612](https://github.com/edwardkim/rhwp/issues/7612) |
 
 ## 적용과 검토 범위
@@ -47,10 +48,27 @@ last_verified: 2026-10-12
 
 | 현재 검사 소스 | 이 PR에서 추가한 계약 함수 | 현재 상태 |
 | --- | --- | --- |
-| `tests/cases/auto_number_trailing_placeholder.rs` | `typing_after_a_trailing_auto_number_keeps_the_number_in_place`, `enter_after_a_trailing_auto_number_leaves_the_number_in_its_paragraph`, `typing_after_an_auto_number_merged_with_the_next_paragraph_keeps_the_number` | 현재 suite에 존재, 최종 실행 결과 대기 |
-| `tests/cases/paste_html_caret_axis.rs` | `single_paragraph_paste_lands_at_the_logical_caret_around_a_footnote`, `single_paragraph_paste_lands_after_an_inline_equation`, `multi_paragraph_paste_splits_at_the_logical_caret_after_a_footnote`, `cell_paste_of_paragraphs_splits_at_the_text_caret_after_an_inline_equation`, `cell_paste_of_paragraphs_counts_a_char_overlap_before_the_text_caret` | 현재 suite에 존재, 최종 실행 결과 대기 |
+| `tests/cases/auto_number_trailing_placeholder.rs` | `typing_after_a_trailing_auto_number_keeps_the_number_in_place`, `enter_after_a_trailing_auto_number_leaves_the_number_in_its_paragraph`, `typing_after_an_auto_number_merged_with_the_next_paragraph_keeps_the_number` | v345 실제 3 PASS; 최종 통합/시각 gate 대기 |
+| `tests/cases/paste_html_caret_axis.rs` | `single_paragraph_paste_lands_at_the_logical_caret_around_a_footnote`, `single_paragraph_paste_lands_after_an_inline_equation`, `multi_paragraph_paste_splits_at_the_logical_caret_after_a_footnote`, `cell_paste_of_paragraphs_splits_at_the_text_caret_after_an_inline_equation`, `cell_paste_of_paragraphs_counts_a_char_overlap_before_the_text_caret` | v345 실제 5 PASS; 최종 통합/시각 gate 대기 |
 
 이 목록은 현재 source와 최초 적용 patch를 대조한 결과이며 실행 통과를 뜻하지 않는다. 실제 검사 결과는 이 함수가 실행된 전체 nextest/focused 로그에서 PR별로 추출하고, 최종 입력·Print·Native/fresh 및 확대 판독을 해당 변경 의미에 연결한다. 공통 빌드·회귀 성공만으로 이 PR의 적용 경계나 편집 후 저장 출력이 검증됐다고 판정하지 않는다.
+
+### 현재 원 PR 계약의 실제 실행 확인
+
+2026-10-12 초기 수용 범위와 현재 검사 소스를 다시 대조했다. 위 계약 8건은
+v345 전체 회귀의 실제 실행 로그에서 모두 PASS다. 해당 검사 파일은 생산 소스 커밋
+`940ea1322617ccff5a7b47d6920ae96e94cfffad`의 바이트와 동일하며, 최근 교육과정 검사 이관은 이 PR의 검사나 생산 코드를 바꾸지 않았다.
+로그는 ignored `output/pr-review/semanticist21-20261008/logs/whole-regression-audit-v345-nextest.log`,
+정확한 함수·소스 SHA·로그 행의 연결은 `original-pr-contract-readiness-v396.json`에 보존한다.
+전체 v345는10254PASS/12FAIL였으므로 이 PR의 PASS를 전체 통합 성공으로 확대하지 않는다.
+
+사용자 지시에 따라 원래 체리픽 문서의 보정과 증거 정리를 우선한다. 기존 초기 편집 입력과
+같은 독립 Print48쌍/52쪽의 현재 Native/fresh WASM 비교는 v396에서 실행 중이다.
+7개 논리 캐럿 입력은 현재 v175 저장본과 기존 v94 증적 입력의 바이트가 모두 동일함을 확인했다.
+같은 생산 소스의 기존 각주·미주/누름틀8쌍(v322/v326) 증거는 입력·Print·소스 SHA와 전쪽 결과를
+확인해 해당 범위에만 연결한다. 다른 PR 문서나 미실행 경로의 통과로 대신하지 않는다.
+대표 review/overlay의 실제 판독과 이 PR의 적용·비적용 경로를 확정한 뒤 최종 판정을 갱신한다.
+원격의 후속 source 변경은 조회만 했으며 추가 체리픽하지 않았다. PR 생성은 사용자 승인 뒤 진행한다.
 
 ## 검증 입력·결과와 조판 원칙
 
