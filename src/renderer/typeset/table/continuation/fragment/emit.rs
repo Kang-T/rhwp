@@ -1457,6 +1457,14 @@ impl TypesetEngine {
                             styles,
                         ))
             });
+        // A spanning cell owns physical space across this fragment boundary,
+        // even when the ordinary row's content units have all been consumed.
+        // Reflow suppresses a second ordinary-cell minimum inside that block;
+        // it must not suppress the spanning owner's remaining band as well.
+        let crossing_span_owns_tail = table.cells.iter().any(|cell| {
+            (cell.row as usize) < end_row
+                && cell.row as usize + (cell.row_span as usize).max(1) > end_row
+        });
         let next_start_row_height_override = source_opening_row_frame
             .as_ref().map(|(_, _, remaining)| *remaining)
             .or(empty_opening_next_height)
@@ -1691,7 +1699,8 @@ impl TypesetEngine {
                 table, end_row.saturating_sub(1),
                 if end_row - 1 == cursor_row { start_cut } else { &[] }, &next_cut, styles,
             ) && !closes_original_body_frame && !complete_source_row_frame && !first_fragment_blank_band && !source_frame_trailing_trim_applied && stored_row_frame.is_none()
-                && !layout_engine.row_uses_reflow_physical_frame(table, end_row.saturating_sub(1)))
+                && (!layout_engine.row_uses_reflow_physical_frame(table, end_row.saturating_sub(1))
+                    || crossing_span_owns_tail))
             .and_then(|limit| {
             let row = end_row.checked_sub(1)?;
             // 같은 일반 행을 다시 나누는 경우 앞 조각까지 차감한 물리 상자에서
@@ -1716,11 +1725,7 @@ impl TypesetEngine {
             // 이 tail(11.0px)이 다음 조각 첫 행(새 행, 3줄 59.3px)에
             // 씌워져 글자가 아래 행과 포개졌다(한컴 PDF 는 밴드 없이 새
             // 행을 전체 높이로 시작).
-            let tail_band_continues = split_end_limit > 0.0
-                || table.cells.iter().any(|cell| {
-                    (cell.row as usize) < end_row
-                        && cell.row as usize + (cell.row_span as usize).max(1) > end_row
-                });
+            let tail_band_continues = split_end_limit > 0.0 || crossing_span_owns_tail;
             if std::env::var("RHWP_DIAG_5714").is_ok() {
                 eprintln!(
                     "DIAG_5714 FRAG pi={} cursor_row={} end_row={} limit={:.1} full={:.1} tail={:.1} split_end_limit={:.1} continues={}",

@@ -834,3 +834,61 @@ C13 사전 nextest는 run `1e8f7d6b-1b53-4b10-9204-fd620708ce86`에서
 `552f5228d2dbfd6046c838f14241704f1bcb8a05`(#7861)이며, 현재 보정을 일반 커밋으로
 고정한 뒤 이 base 위로 rebase한다. 새 base에는 dependency·GPU 제거·검증 정책 변경이 있다.
 기존 C12 증거는 원 source/base의 기록으로 보존하고 새 통합 head의 검증과 구분한다.
+
+### 최신 devel rebase와 rowspan 물리 밴드 보정 — C14
+
+`552f5228d` 위로 44개 commit의 rebase를 완료했다. 새 head는
+`d9007eccd53ef7b785d7f7d8ca760120f77ad3e8`이며 C13의 `table_partial.rs`는
+rebase 전과 byte 단위로 동일하다. 미추적 15개 파일의 SHA도 모두 보존됐다.
+충돌은 폰트 진단 JSON 두 곳과 renderer 모듈 선언 한 곳이었다. upstream의 시험지 진단
+제외·GPU 폐기를 유지하고 이번 source의 공통 `reflow_float_host_line` 선언을 보존했다.
+백업 ref는 `review/planet6897-followup-pre-552f5228d-3b249c29a`다.
+`rebase-upstream-552f5228d-{audit.json,range-diff.log,log}`에 결과를 고정했다.
+
+#3820의 실제 BFA/C12 p35는 2px 보조값 **97.57950/97.58945%**, p36은
+**72.26471/33.42162%**다. BFA에도 미세 배치 차이가 있지만 현재 p36의 빈 r12c2·r12c5
+누락과 뒤 행 전진은 새로운 회귀이며 이관 대상으로 처리하지 않는다. 두 variant의
+`issue3820-base-c12-boundary/*/review/review_036.png`를 직접 판독했다.
+이 증거는 rebase 전 source의 두 경계 쪽에 한정되며 최신 base의 전쪽 완료 증거가 아니다.
+
+C14는 조각 경계를 가로지르는 rowspan이 소유한 물리 밴드를 일반 재조판 셀 최소와
+구분한다. `scan_ordinary_row_step`의 기존 완료 컷/수용 밴드 → `fragment/emit.rs`의
+crossing span/행 높이 잔여 → `continuation.start_row_height_override` → 다음 조각의
+요구 높이·배치로 전달한다. 기존 일반 셀의 독립 최소 차단은 유지하고, 경계를 넘는
+span 소유 밴드만 이전 fallback에 넘긴다. 정확한 관계형 기대값은 변경하지 않았다.
+#3820과 함께 #7028의 불필요한 tail 재생성 여부, #7032 전체 창 동등성,
+#1749 합성 셀 앞 간격을 같은 focused 검증으로 확인한다. 새 source의 전체 Native/fresh
+WASM·lint·전체 회귀 결과는 아직 없다.
+
+C14 focused nextest는 run `b4884e67-8554-4f67-bbdc-ff86c62b18d5`에서
+**22 PASS, 854 skipped / exit 0**으로 종료됐다. #3820의 p35→p36 빈 꼬리 소유와
+p18→p19 원 행 소유, #7028의 불필요한 조각 대각선/머리행, #7032 전체 창 동등성,
+#1749 첫 문단 앞 간격을 기존 기대값으로 확인했다. 변경 source에는 rebase 충돌 해결 뒤
+rustfmt의 모듈 선언 순서 정리도 포함된다. 제품 diff SHA는
+`72aa1108e940ff9e7f2b8bf317573c9dd92c016519bf09ac2a6f5f5e9c96f4e9`다.
+이 통과를 전쪽 Visual Sweep 또는 전체 Rust 통과로 확대하지 않는다.
+`c14-crossing-span-results.json`과 `c14-crossing-span-focused.log`에 exact base/head,
+공용 target, 실제 명령과 terminal 결과가 있다. Native Skia source의 실제 출력 확인을 이어간다.
+
+C14 Native Skia 빌드도 exit0으로 종료됐다. 동결 바이너리는
+`46f79d39fb3a96e6dc9971bd8a6440d53aae93586848baf6a60f4620ad552638`이며
+`c14-crossing-span-native-candidate/provenance.json`에 base·diff·명령을 기록했다.
+같은 C14 source의 default CLI를 focused Cargo가 실제로 빌드한 시각·해시로 동결해
+먼저 Native SVG 경계를 대조했다. p35는97.58945%, p36은72.26366%다.
+빈 이어받기 칸은 복원됐지만 p36의 미달은 남으며 whole82쪽/fresh WASM 완료로 보고하지 않는다.
+`issue3820-c14-native-boundary/issue3820-c14-boundary/review/review_036.png`를 직접 확인했다.
+원본의 p36 괘선 좌표와 source cell edge 비교를
+`issue3820-c14-p36-vector-geometry.json`에 진단 자료로 보존했다. 이를 px 기대값으로 쓰지 않는다.
+
+같은 C14 Native renderer의 font snapshot으로 #1749 p5의 charShape56·문단61의 별표45글자가
+요청 `굴림체` → 선택 `Noto Sans KR`/bundled임을 관측했다. 올바른 private 공급 파일에는
+`GulimChe`와 `굴림체` family naming record가 있지만 현재 custom typeface inventory는
+Skia의 단일 primary family만 key로 삼는다. `c14-savedbounds-footer-font-probe/`의
+trace·source·command·binary hash를 관측 근거로 사용하고 일반 SFNT 가족 이름 수용을 다음 단계에서
+보정한다. 폰트 identity 계약과 실제 출력 폭을 함께 확인하며 문서별 예외나 임의 좌표 보정을 추가하지 않는다.
+
+기준 파일 재검토에서 `76076-exact-input-hwp2020-20261004.pdf`는 다른 원본
+`samples/issue1891/76076_regulatory_analysis.hwpx`(실제 HWP5, SHA49bbcc49…)에 대응함을
+확인했다. 현재 `samples/76076_regulatory_analysis.hwp`의 SHA3308ba85…와 다르므로
+이 PDF로 현재 입력의 gate를 갱신하지 않는다. 기존 독립 원본2024 Print와 실패 증거는 보존한다.
+기준 출처는 tracked `76076_exact_reference_analysis.json`의 converter-input binding으로 확인했다.
