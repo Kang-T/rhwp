@@ -58,3 +58,43 @@ ignored output의 `pr7672-current-edit-input-byte-comparison.json`,
 `pr7672-edited-native-scores-valid-subsets/pr7672-2023-note348-mun/pr7672-2023-note348-mun/review/review_015.png`,
 `pr7672-current-467-native-sweep.log`에 연결한다. 기존 raster 판독과 current 재출력을
 구분하며 미주 제목 소유 보정의 전체 시각 수용은 아직 미충족이다.
+
+
+## 미주 높이 진단의 독립 대조 — 2026-10-12
+
+동일 편집본의 2020 Print와 새 2024 Print 모두 전쪽 90% gate를 충족하지 않는다.
+원본을 새 2024 엔진에서 그대로 인쇄한 출력과 편집본의 15쪽은 100% 일치하여,
+문 접두사 편집·rhwp 저장 자체가 그 쪽 차이의 원인이라는 가정은 배제했다.
+기존 원본 PDF와 새 Print는 별도로 보존했으며 어느 쪽도 버전 표기만으로 무효로
+판정하지 않는다. 원본/새 Print 공통 HyhwpEQ 128글자와 Haansoft Dotum 245글자의
+전진폭·분해 윤곽선은 동일하다.
+
+frozen production `467bfd1d8`의 실제 미주 debug에서 22번 미주 p12·p26·p35의
+formatter 높이는 저장 LineSeg와 일치한다. 빈 줄에 기본 12pt를 잘못 가산한다는
+가정은 배제했다. 같은 미주 제목은 Print와 맞지만 이후 알짜 풀이 제목은 약15px,
+따라서 문단과 다음 미주 제목은 약22.5px 아래로 밀린다.
+
+독립 한컴 2024 재저장은 원본의 미주 LineSeg를 유지하면서 1,591수식 중60개의
+common 높이를 변경했다(미주 수식54개). 22번 미주의 단순 prime 수식은1125→900HU,
+prime+위첨자는1163→1050HU로 바뀌었고, 이 차이는 관측한 누적 전진 차이와 대응한다.
+이는 원본·재저장본 모두 실제 한컴 생성본임을 유지한 대조다. 현재 AST intrinsic 높이가
+새 한컴 높이와 같은 경우는54개 중33개뿐이므로 모든 수식을 AST 값으로 치환하는
+구현은 채택하지 않았다. cache 수용·제어 크기·미주 누적과 실제 paint의 공유 경로를
+더 확인해야 하며 전체 시각 수용은 계속 미충족이다.
+
+ignored 증거: `pr7672-note22-height-debug.log`,
+`pr7672-original-vs-edited-same-engine2024-print-p15.json`,
+`pr7672-old-fresh-print-equation-font-probe.json`,
+`pr7672-original-resaved-equation-common-comparison.json`,
+`pr7672-equation-intrinsic-original.json`, `pr7672-equation-intrinsic-resaved.json`.
+
+
+## 원 PR의 최신 동기화 확인 — 2026-10-12
+
+최신 fork head는 `c70ad95b65653acd51a63a05d3dbbfbac883421b`다. 기존 검토 head와 고정 BFA를 제외한 새 commit은
+upstream/devel 동기화 merge 하나뿐이며 새 작성자 고유 commit은 없다. 기존 적용 고유
+commit과 출처 표는 유지한다. 첫 미주 문단 소유 조회와 BFA의 등록 원본 범위 판정을 함께 유지한 병합이다. 현재 후보도 두 판정을 구분한다.
+
+combined merge diff와 graph 근거는 ignored
+`pr-7672-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
+`nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.

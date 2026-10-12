@@ -92,3 +92,14 @@ Hancom 2020 MCP engine 2020, PrintMethod=0으로 별도 생성했다. 입력 SHA
 #7669의 추가 개선을 주장하지 않는다. 기여자가 보고한 다른 문서의 악화·쪽수 불일치와
 통합 후보의 최종 시각·관계형 회귀 검증이 남아 있다. 공개 CLI의 정렬 관계 진단은
 정식 Rust 회귀 통과를 대신하지 않는다.
+
+
+## 원 PR의 최신 동기화 확인 — 2026-10-12
+
+최신 fork head는 `63c609474c768fe57542a15ebcb963f2c56f11c2`다. 기존 검토 head와 고정 BFA를 제외한 새 commit은
+upstream/devel 동기화 merge 하나뿐이며 새 작성자 고유 commit은 없다. 기존 적용 고유
+commit과 출처 표는 유지한다. 원 기여 변경과 BFA의 저장 페이지 프레임·orphan split·앞 간격 재적용 조건을 함께 유지한 병합이다. 현재 통합 후보에서도 두 경로를 유지한다.
+
+combined merge diff와 graph 근거는 ignored
+`pr-7669-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
+`nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.

@@ -108,3 +108,14 @@ before actual 출력과 font program 해시는 ignored
 보관하며, 수정 후 Native/fresh WASM 전쪽 TSV 및 실제 Canvas/Skia 확대 판독이
 충족되면 `tests/cases/`에 등록한다. before/after 함수 검출은 unchanged predicate의
 공개 범위만 넓힌 고정 e72 worktree와 보정 source를 대조할 계획이며 아직 미실행이다.
+
+
+### 실제 before 검출과 정상 대조군
+
+고정 e72 production에서 paint 판정의 공개 범위만 넓힌 library로 같은 후보 검사를
+컴파일했다. 실제 실행은 의도한 휴먼명조 TrueType 따옴표의 재축소 때문에 FAIL했고,
+기존 호환 글꼴의 좁은 paint 정상 대조군은 PASS했다(1 PASS·1 FAIL, exit101).
+컴파일 실패가 결함 재현으로 섞이지 않았다. `curly-paint-before-public-only.log`와
+library/case 해시 `curly-paint-before-public-only-provenance.json`을 보존했다.
+보정은 신뢰된 원 프로그램 폭과 기존 전각 메트릭에 한정하며 미확인 호환 폭을 보존한다.
+수정 후 실행·시각 gate는 진행 중이고 후보는 아직 정식 source에 등록하지 않았다.

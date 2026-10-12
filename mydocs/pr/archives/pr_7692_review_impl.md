@@ -41,3 +41,14 @@ last_verified: 2026-10-12
 입력/Print SHA, 실제 source SHA·명령·관측값과 `충족 / 미충족 / 미검증 / 비해당`
 판정은 실행 결과로 이 기록을 보완한다. 필요한 오늘할일은 최종 검토 묶음과 함께 통합 PR에
 포함하며 별도 기록 PR을 만들지 않는다.
+
+
+## 원 PR의 최신 동기화 확인 — 2026-10-12
+
+최신 fork head는 `0c7bede4a0780b22e43f170c25b6c116c50b6835`다. 기존 검토 head와 고정 BFA를 제외한 새 commit은
+upstream/devel 동기화 merge 하나뿐이며 새 작성자 고유 commit은 없다. 기존 적용 고유
+commit과 출처 표는 유지한다. fork는 solver에 내부 행 간격 함수를 전달한다. 현재 후보는 측정·배치 양쪽에서 constraint를 만들 때 같은 내부 간격을 먼저 제외하는 보정으로 동등한 행 합 계약을 유지한다.
+
+combined merge diff와 graph 근거는 ignored
+`pr-7692-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
+`nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.

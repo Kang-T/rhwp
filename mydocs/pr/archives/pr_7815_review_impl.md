@@ -172,3 +172,14 @@ Node package를 구분하며 Node no-opt 빌드를 web SVG sweep 증거로 바�
 원문 로그: ignored output의 `curly-host-line-fresh-node-wasm-build.log`,
 `curly-host-line-studio-unit-with-node-wasm.log`, `curly-host-line-studio-render-diff.log`.
 전체 통합 Rust·Skia와 나머지 문서의 시각 게이트는 별도로 완료해야 한다.
+
+
+## 원 PR의 최신 동기화 확인 — 2026-10-12
+
+최신 fork head는 `e932486256b8b141f56834d4ea8d7304416bcc48`다. 기존 검토 head와 고정 BFA를 제외한 새 commit은
+upstream/devel 동기화 merge 하나뿐이며 새 작성자 고유 commit은 없다. 기존 적용 고유
+commit과 출처 표는 유지한다. fork의 합쳐진 슬롯 run 분할·저장 탭·말미 공백 조건을 대조했다. 명시적 환경의 휴먼명조 프로그램 신뢰는 BFA의 검증된 원 hmtx 근거를 현재 후보에 유지한다.
+
+combined merge diff와 graph 근거는 ignored
+`pr-7815-latest-merge-combined.diff`, `source-pr-refresh-merge-review.json`,
+`nine-source-pr-live-20261012.json`에 있다. 원 PR 상태는 OPEN이며 원격 devel은 BFA다.
