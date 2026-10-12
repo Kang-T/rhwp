@@ -3438,3 +3438,23 @@ TAC 그림과 소유 TextLine은 base에서도 같은 y444.7, 현재에서도 �
 이 관측을 독립 Print 일치로 바꾸지 않는다. 같은 축소 입력의 Print와 원본 시각 범위를
 확인하기 전 검사를 수정하지 않았다. v354의 잘못된 embed-fonts none 인자는 CLI usage
 exit2이며 v355에서 옵션을 생략해 네 실제 export가 모두 exit0이었다.
+
+
+### 진행157: TAC 축소 입력의 독립 Print 확보와 동일 원문 비교 시작
+
+v358/v359에서 기존 `samples/issue6575/tac_picture_line_top.hwpx`를 수정 없이 한컴2020과
+2024에서 PrintMethod0의1-up PDF로 출력했다. 두 job은 실제 succeeded이고 download도
+exit0이다. 입력 SHA `ae4c01001405de8deb2332cab5f469896a3b5ca12b18c1c28a48ff9719cadf85`,
+두 결과 모두1쪽이며 세 그림 상자가 동일하다. 각 job·version·Print 경로·PDF SHA와
+[보존한 실제 PDF](../../../pdf/semanticist21-20261008/tac-caption-independent-print-v358/README.md)를
+연결한다. 이 자료는 실패 원인의 비교용이며 새 회귀 fixture 또는 정상 baseline이 아니다.
+
+Print의 마지막 그림 top476.479pt는 기존 검사의 y444.68px 및 현재 y458.32px와도 다르다.
+그림과 소유 글줄의 상대 정렬만으로 앞 내용의 흐름을 정상이라고 판정하지 않는다.
+v360은 동일 입력·한컴2020 Print를 고정하고 base bfa28a / 현재 Native / 현재 fresh WASM의
+전체1쪽을 순차 비교하고 있다. 실제 Print 부족을 예외로 두고 검사 기대값을 바꾸지 않았다.
+원본 HWP8쪽의 첫 그림 위치가 같다는 관측을 이 축소 입력의 전체 일치로 대신하지 않는다.
+
+실행 source는 계속940ea132이며 이후 두 문서/화면 증적 커밋은 Rust/Studio 소스를 바꾸지 않았다.
+전체 회귀 v345 및 직접3문서 전쪽 v347은 같은 live MainPID로 계속 실행 중이다. 필수 검사와
+개별18PR 판정은 미완료 상태를 유지한다. 신규 원격 이슈·PR·review·push는 수행하지 않았다.
