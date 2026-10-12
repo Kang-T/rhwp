@@ -21,7 +21,7 @@
 | 원 source | 함수 수 | 독립 증거 / 후속 범위 |
 | --- | ---: | --- |
 | `tests/cases/issue_7665_endnote_title_by_ownership.rs` | 4 | #7672 / #7665. 첫 편집본20쪽 Native/fresh 최저29.12455%,미달12쪽. 다른 편집 대조도 검증 후 등록한다. |
-| `tests/cases/cell_row_line_box_matches_hangul_pitch.rs` | 2 | #7692 / #7783. 80168 HWPX156쪽 Native/fresh 최저1.49475%,미달110쪽. 그림 칸 원본은 전쪽 Native/fresh 증거가 아직 없어 미검증으로 보류하며, 다른 RowBreak 원본의 미달을 그 증거로 재사용하지 않는다. |
+| `tests/cases/cell_row_line_box_matches_hangul_pitch.rs` | 2 | #7692 / #7783. 80168 HWPX156쪽 Native/fresh 최저1.49475%,미달110쪽. 그림 칸 원본4쪽의 현재Native는1쪽71.11796%,2쪽39.21772%로 미달이며 fresh는 미검증이다. 18쪽RowBreak 대조군과 다른 입력이다. |
 | `tests/cases/rowspan_solver_declared_overflow_before_free_row.rs` | 1 | #7692 / #7743. 1342000 교육과정418쪽 대415쪽Print의 전쪽 대응 미충족. 저장 선언을 새 배치 정답으로 고정하지 않는다. |
 
 각 본문은 같은 basename의 `.rs.txt`로 바이트를 보존했다. 실제 source/원본 조건과 함수명,

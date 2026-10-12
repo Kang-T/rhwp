@@ -251,3 +251,34 @@ helper를 직접 trusted=true로 만든 검사는 통과했지만, 원본을 실
 `curly-times-print-vs-supplied-program.json`, `curly-times-actual-document-before.log`다.
 이 Times 보정 뒤의 재빌드·관련 시각 재검증·lint·정식 suite는 미검증이며 이전 산출물의
 통과를 새 source의 통과로 쓰지 않는다.
+
+
+## Times 보정 검증과 정식 검사 — 2026-10-12
+
+production `4cebc8d095b64ce2786bc5071d31ad5a76a09bb1`의 새 web wrapper는24분05초,
+exit0으로 끝났다. 동결한 `curly-times-fixed-web-pkg`와 루트pkg/Studio public의 WASM은
+SHA-256 `588805a853cc34215e12994c0bf1609cc1dc23bf7bba601f16392e4937c5422c`로 같다.
+같은 production의17문서 전쪽 Native/fresh는 모두PASS·최저99.56697%다.
+따옴표1쪽은 두backend99.65006%, Skia99.40018%, Canvas99.51551%다.
+실제 브라우저fillText trace에서 두face의 곡선 따옴표가 모두scaleX=1이었다.
+Skia의 보정 전/후/Print 네줄을4배율로 직접 읽어 Times의 원 곡선 폭이 복원된 것을 확인했다.
+단순 점수는99.40060→99.40018로 소폭 낮아졌어도 직접 판독과 실제scale가 개선을 입증한다.
+
+[정식 검사](../../../tests/cases/issue_7702_curly_quote_paint_advance.rs)는 원본의 실제
+TextRun 소유·face별 네글자 보존·프로그램 폭 관계·paint 선택과 호환 대조군을 검사한다.
+원래paint library에서1PASS/2FAIL, Human paint 보정 후 Times 신뢰 보정 전2PASS/1FAIL,
+현재default library3PASS다. 정식generated suite025에서는 실제3건 실행·3PASS·211SKIP,
+exit0이었다. 프레임 절대px·SVG해시·현재구현의 계산값을 배치 정답으로 쓰지 않는다.
+
+Native/WASM lib/all-targets 세Clippy와workspace build·fmt check가PASS다.
+첫prepare 뒤fmt가새모듈을 포맷하면서 전체generated header해시가달라져 manifest가
+drift로FAIL했으며 원문로그를 보존했다. fmt종료후다시prepare한manifest pinnedBFA,
+fmt check, unit tier pinnedBFA는 모두PASS다. 최종inventory는1454sources/6173staticattrs다.
+code source가같은이후head의차이는 신규검사·보존·문서이고 기존생산산출물을 다른source로
+보고하지 않는다. 전체Rust 최종실행·다른PR의시각수용·통합CI/merge는아직남아있다.
+
+증거는 `curly-times-validation-results.json`, `curly-times-fixed-small-{native,wasm}-results.json`,
+`curly-times-fixed-browser-canvas/`, `curly-times-fixed-skia-owned-lines-enlarged-review.png`,
+`curly-all-actual-document-original-before.log`, `curly-times-actual-document-before.log`,
+`curly-times-formal-nextest.log`, `curly-times-formal-lint-results.json`,
+`curly-times-formal-reprepared-policy-results.json`이다.
