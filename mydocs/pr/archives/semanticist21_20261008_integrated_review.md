@@ -4481,3 +4481,76 @@ whole-row가 중첩 셀의 컷 없는 행을 별도 CellUnit 합으로 다시 �
 독립 Print10/11쪽을 대조한 결과 ECR-005의 뒷 본문은11쪽에서 계속되므로 원본 범위는4쪽이다.
 현재 후보가 기존에 누락하던 ECR-005 이어받기를 복구했는지 직접 배치와 함께 확인 중이다.
 이전 test PASS는 그 뒷 본문 누락으로 얻은 것일 수 있어 정답지와 비교하며, 미달 상태에서 기대값을 먼저 바꾸지 않았다.
+
+
+## 진행 갱신180 — 7749d 보정 후 최종 검증 진입 (2026-10-13)
+
+생산 코드 `7749d712ca338d1883cc092d8020133b312082f4`를 일반 커밋으로 고정했다.
+그 뒤 `git fetch upstream devel` 결과는 기존 `552f5228d2dbfd6046c838f14241704f1bcb8a05`와 같다.
+사용자의 지시대로 base head가 바뀌지 않아 추가 rebase하지 않았다. 원 PR18개를 원격 API로
+다시 조회했다: #7612만 MERGED이고 나머지17개는 OPEN·비draft다. 현재 적용39개 SHA가7749d의
+조상임을 다시 확인하고 각 PR 기록의 현재 production/code head를 갱신했다. **머지 보류는 유지한다.**
+
+- 현재 K-water Native 선택24/25쪽은99.94889%·99.64755%, PDF/실제 쪽수27/27·미달/누락0이다.
+  새24쪽 review를 직접 열어 상단 이어받기·중첩 표·`끝`·하단 빈 밴드와 외곽선을 함께 판독했다.
+  하단 괘선은 현재982.35px, 독립Print981.16667px으로 기존16px 차이가 없어졌고2px 이웃 안이다.
+  전27쪽 재검증은 새7749d 실행으로 별도 진행한다.
+- #157 Native 전2쪽은99.74326%·99.82668%, 미달/누락0이다. 이전 결과를 현재 코드 완료로 재표기하지 않고
+  새 immutable CLI로 실제 재출력했다. 최종 fresh는 새 package의 실행을 기다린다.
+- #4514 현재 Native9/10/11쪽은98.06674%·82.91036%·84.03715%다. 현재변경으로 잃었던ECR-004
+  이어받기와 앞/뒤 소유는 복구했고 ECR-005 뒷 본문도 나타난다.10/11쪽의 기존 간격 차이는
+  [#7808](https://github.com/edwardkim/rhwp/issues/7808)의 미해결 범위이며 전쪽 완료/90% 통과로 보고하지 않는다.
+  Native9/10쪽 review를 직접 열었으며 ECR-004 `도입수량`은9쪽, `기능 및 구성`부터10쪽에 있고 중복이 없다.
+  고정 base의 기존 미달·동일 열린 이슈·독립Print11쪽의ECR-005를 근거로 부적합한3쪽 핀만 이관했다.
+  정확한 전46쪽 무겹침·연속 소속·ECR-004 두 조각/이웃 관계는 유지했고 실제 정식 소스1PASS·exit0(6.41초)다.
+  layout 기대값을4쪽으로 갱신하거나 올바른 소유 검사를 제거하지 않았다.
+- 현재 CGMP Native 전48쪽은48/48·PDF48쪽, 최저47쪽93.64014%·미달/누락0·exit0(214.64초), source guard=true다.
+  이는7749d의 새 실행이며 이전58b63 결과와 구분한다. CGMP 실패 검사 변경은 현재fresh도 확인한 뒤 진행한다.
+- `--prepare`, `cargo fmt --all`, `cargo fmt --all -- --check`는 exit0이고 tree의 Rust source는7749d와 같다.
+  NativeClippy exit0(164.24초), WASM32libClippy exit0(157.00초), workspacebuild exit0(307초)를 확인했다.
+  workspaceall-targetClippy·base대비정책검사·공용target의freshWASM build·전체nextest/Skia와 후속 비교는 아직 미완료다.
+
+ignored `final-code-validation-v449/`의 Native/순차lint·fresh 계획에 고정 base/code SHA,
+각 입력·Print hash·immutable CLI hash·전체 source hash·실제 argv·timeout을 보존한다.
+전쪽 Native는 CGMP48→KPS77→K-water27→가맹사업142 순서로 진행한다. 종료된 각 Native SVG의
+비대표 쪽만 실제 열린fd를 확인하고 SHA/size ledger를 먼저 남긴 뒤 삭제하며 PNG·TSV·원본·Print·공용target은 보존한다.
+시험지/HML 명시 입력의 active Rust 참조를 다시 검색했고 제외 helper 이외 참조는 관측되지 않았다.
+원본 시험지 파일은 삭제하지 않았다. 원격 이슈/asset 증거 게시와 PR/CI/merge는 구분하며 아직 통합 PR은 만들지 않았다.
+필수 검증과 해결이 끝나야만 개별17개의 보류를 **메인터너 보정 후 승인**으로 변경하고 자동 승인된
+통합 PR→최신head CI→머지→후속처리로 진행한다.
+
+
+## 진행 갱신181 — zip9 검사 보조 호환성과 세 문서 Native 전쪽 확인 (2026-10-13)
+
+7749d의 workspaceall-targetClippy 최초 실행은101이었다. 새 base552f의zip9에서
+`ZipFile::name()`은`Result<Cow<str>>`인데 초기 PR의 두 테스트 보조 함수가 문자열로 사용했다.
+`inline_table_after_field_or_bookmark.rs`와`field_paragraph_control_slots.rs`에서 이름을
+검증해 소유 문자열로 받은 뒤 같은 section0.xml 선택·동일 이름 재포장에 사용하도록 보정했다.
+렌더 구현·fixture·기대값·허용치는 바꾸지 않았다. 실제 보조 테스트 실행은 최종 전체 nextest에서 확인한다.
+
+같은 공용target의 전체 workspaceall-targetClippy를 `-j2`로 재실행해exit0(1분25초)을 확인했다.
+이 호스트는RAM15GiB라동시 compiler 부하를 줄였으며 대상을 축소하지 않았다.
+앞서 통과한Native/WASM32libClippy·workspacebuild와 합쳐 세 lint 경로가 모두 통과했다.
+base552f대비manifest확인0(1459sources,6208staticattrs),unit-tier확인0(4103tests),최종fmtcheck0이다.
+source쪽cfg(test)인벤토리는진단증적이며stage하지 않는다.
+
+현재Rust생산7749d의Native 전쪽:
+
+| 원본 | 전체쪽수/Print | 최저 | 미달·누락 | 실행 구분 |
+| --- | --- | --- | --- | --- |
+| CGMP |48/48|47쪽93.64014%|0·0|새실행exit0,214.64초|
+| KPS |77/77|42쪽90.85010%|0·0|초기Chrome시작timeout후누락55~77쪽만복구|
+| K-water |27/27|3쪽96.87092%|0·0|새실행exit0,571.27초|
+| 가맹사업 |142쪽대상|미완료|미검증|현재전체SVG내보내기진행중|
+
+KPS최초실행은ChromeWS endpoint시작30초timeout으로54쪽뒤exit1,TSV미생성이었다.
+이를출력회귀나완료로보고하지않고같은immutable7749dSVG로누락23쪽만60초시작한도에서
+canonical webfontChrome캡처했다(23개모두exit0). 기존54PNG는정상파일을확인하고보존했다.
+전체77쪽TSV/manifest를다시계산했으며sourceguard=true,missing0,전쪽≥90%다.
+복구후종료된비대표SVG59개517,026,034bytes만fd/해시ledger확인후삭제했다.
+원래실패와후속복구기록을구분하며fresh통과로확대하지않는다.
+
+[7749dNative경계review·overlay](../assets/semanticist21-20261008/closed-row-overlay-v449/README.md)를
+안정경로에보존했다. K-water24쪽의직접판독과#4514부분복구/10·11쪽미달을함께기록했다.
+현재세Native문서와이전원PR계약의통과를최종전체nextest·fresh/Skia·원격CI완료로승격하지않는다.
+CGMP검사보정은현재fresh48쪽확인뒤에진행하며초기17개의최종판정은여전히머지보류다.

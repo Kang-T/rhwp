@@ -204,9 +204,10 @@ fn with_bookmark(core: &DocumentCore, anchor: &str) -> DocumentCore {
     let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for i in 0..input.len() {
         let mut entry = input.by_index(i).unwrap();
+        let entry_name = entry.name().expect("HWPX ZIP 항목 이름").into_owned();
         let mut bytes = Vec::new();
         entry.read_to_end(&mut bytes).unwrap();
-        if entry.name() == "Contents/section0.xml" {
+        if entry_name == "Contents/section0.xml" {
             let xml = String::from_utf8(bytes).unwrap();
             assert_eq!(xml.matches(anchor).count(), 1);
             bytes = xml
@@ -218,7 +219,7 @@ fn with_bookmark(core: &DocumentCore, anchor: &str) -> DocumentCore {
         }
         output
             .start_file(
-                entry.name(),
+                &entry_name,
                 zip::write::SimpleFileOptions::default().compression_method(entry.compression()),
             )
             .unwrap();

@@ -16,8 +16,8 @@ last_verified: 2026-10-13
 | 항목 | 확인 결과 |
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
-| 현재 production 보정 | `58b63a927587ebaf1ee5e60dd497d7d208868905` |
-| 문서 갱신 전 기록 head | `5cd155886dbcfb19d5f4fa17ae778f278940e08b` |
+| 현재 production 보정 | `7749d712ca338d1883cc092d8020133b312082f4` |
+| 현재 Native/fresh 재검증 code head | `7749d712ca338d1883cc092d8020133b312082f4` |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
 | 이 PR의 실제 계약 실행 | v447 source `3cdcb2e20a47dc23dfdd6d1b399ad4d247430b44`에서 3/3 PASS, FAIL 0, 미관측 0 |
 | 현재 통합 완료 판정 | **머지 보류** — 새 base/보정 head의 최종 전체 회귀·lint·필수 시각/backend 검증 진행 중 |
@@ -26,7 +26,7 @@ last_verified: 2026-10-13
 이 PR의 입력·호출 경로·계약 함수와 미검증 범위는 아래 개별 항목을 따른다. v447 계약 PASS와
 후속 #157 보정의 전2쪽 Native/fresh 통과는 각각 해당 SHA·입력 범위의 결과이며, 이 PR의
 편집 저장본 전체나 최종 통합 검증의 통과로 바꾸지 않는다. 아래 이전 진행 문단은 당시 관측이다.
-현재 적용 SHA·진행 권한·완료 여부는 이 절을 우선한다. 모든 필수 검증 완료 후 최상단 판정을
+현재 적용 SHA·진행 권한·완료 여부는 이 절을 우선한다. 현재 공통 보정과 순차 검증의 실행 결과는 [진행180](semanticist21_20261008_integrated_review.md#진행-갱신180--7749d-보정-후-최종-검증-진입-2026-10-13)에 연결한다. 모든 필수 검증 완료 후 최상단 판정을
 **메인터너 보정 후 승인**으로 갱신한다.
 
 이 PR의 검증 함수별 원문 로그 연결은 ignored
@@ -41,7 +41,7 @@ last_verified: 2026-10-13
 | --- | --- |
 | 원 PR / 작성자 / base | [#7616](https://github.com/edwardkim/rhwp/pull/7616) / semanticist21 / devel |
 | 초기 수용 source head | `ca43e499d30e90789d5e662f9cb562252fe95367` |
-| 2026-10-12 원격 조회 source head / 상태 | `ca43e499d30e90789d5e662f9cb562252fe95367` / OPEN / draft=False |
+| 2026-10-13 원격 조회 source head / 상태 | `ca43e499d30e90789d5e662f9cb562252fe95367` / OPEN / draft=False |
 | 과거 검증 생산 소스 / 당시 base | `940ea1322617ccff5a7b47d6920ae96e94cfffad` / `bfa28a77a2714482f647ee6a7b9aa7f7876d8404` |
 | 이번 검토 기록 기준 통합 head | `5cd155886dbcfb19d5f4fa17ae778f278940e08b` |
 | 관련 이슈 | [#6601](https://github.com/edwardkim/rhwp/issues/6601), [#7491](https://github.com/edwardkim/rhwp/issues/7491), [#7599](https://github.com/edwardkim/rhwp/issues/7599) |
