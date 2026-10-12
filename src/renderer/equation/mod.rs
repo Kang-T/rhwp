@@ -16,7 +16,6 @@ pub mod layout;
 pub(crate) mod legacy_hwpeq;
 pub mod parser;
 pub mod svg_render;
-mod symbol_tokens;
 pub mod symbols;
 pub mod tokenizer;
 

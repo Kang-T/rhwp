@@ -4,7 +4,6 @@
 
 use super::ast::*;
 use super::dispatch::{classify_command, matrix_style, pile_align, EqCommandClass};
-use super::symbol_tokens::symbol_node;
 use super::symbols::{
     self, is_big_operator, is_function, is_structure_command, lookup_function, lookup_symbol,
     FontStyleKind, DECORATIONS, FONT_STYLES,
@@ -234,7 +233,12 @@ impl EqParser {
             }
             TokenType::Symbol => {
                 self.pos += 1;
-                symbol_node(val)
+                // -> 는 →로 변환
+                if val == "->" {
+                    EqNode::MathSymbol("→".to_string())
+                } else {
+                    EqNode::Symbol(val)
+                }
             }
             TokenType::Text => {
                 self.pos += 1;
@@ -710,7 +714,7 @@ impl EqParser {
             TokenType::Number => EqNode::Number(val),
             TokenType::Text => EqNode::Text(val),
             TokenType::Quoted => EqNode::Quoted(val),
-            TokenType::Symbol => symbol_node(val),
+            TokenType::Symbol => EqNode::Symbol(val),
             _ => EqNode::Text(val),
         }
     }
@@ -745,7 +749,12 @@ impl EqParser {
         while self.is_tight_relational() {
             let sym = self.current_value().to_string();
             self.pos += 1;
-            items.push(symbol_node(sym));
+            // `->` 는 화살표 기호로 변환 (parse_element 와 동일)
+            if sym == "->" {
+                items.push(EqNode::MathSymbol("→".to_string()));
+            } else {
+                items.push(EqNode::Symbol(sym));
+            }
             items.push(self.parse_single_or_group());
         }
         EqNode::Row(items).simplify()

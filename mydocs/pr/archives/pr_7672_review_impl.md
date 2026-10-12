@@ -313,26 +313,27 @@ partial PNG를 같은 완료 raster로 다시 합성하고 현재/BFA14·15·17�
 UTC2026-10-12 15:19:45에 시작했으며 최종summary/exit code는 아직 없다.
 `shared-first-paragraph-band-validation-resume-jobs2-all-nextest.log`에 연결한다.
 
-## 수식 관계 기호 의미 결함 보정 시작 — 2026-10-13
+## 검토 범위 밖 수식 실험 철회 — 2026-10-13
 
-C16 `a727185524b0383257d64f2f0a981a790189f585`의 경계22건·필수 lint는 모두exit0이다.
-별도 미니 문서는 fresh WASM의 실제 빈 템플릿 API와 `insertEquation("x!=0",1200)`로 생성했으며
-수동 HWP 레코드를 작성하지 않았다. 입력SHA-256은
-`802b7ec604be9b134938e491881cde825462fbc766bb4339e6149baca59b2bdf`다.
-동일 입력의 독립 한컴2020 Print job `5eee145d-60e6-49de-bdaa-1b6769ef7214`는
-runtime11.0.0.9136 / PrintMethod0 / one-up으로 성공했다. Print는 `≠`, 현재 Native는 `!=`이며
-1쪽 Native 보조값84.01639%와 확대 PNG에서 기호 차이를 확인했다.
+추가 진단에서 `x!=0`의 ASCII 관계 기호 문제를 발견해 수식 parser 실험
+`64ba01b32`와 포맷 `062373e1b`를 작성했다. 독립 문법 진단은 3실패·1통과에서
+4통과로 바뀌었으나 원본 API 생성 문서는 Native/fresh WASM 모두 86.87259%였다.
+한컴 재저장 대조군은 별도 입력이며 Native 91.01124%와 확대 판독에서 남은 글꼴 차이를
+확인했다. 대조군 통과를 원본의 통과로 보고하지 않는다.
 
-실제 소비 경로 `parse_element`, `parse_single_or_group`, `parse_script_operand`의
-관계 기호 토큰을 공통 AST 생산 helper에 연결한다. 기존 symbols 사전의 의미를 재사용하며
-일반 한 글자 구두점과 기존 `->` 화살표는 보존한다. SVG·Canvas·Native의 EqLayout은 같은 AST를
-소비한다. 문서ID·px 좌표·별도 glyph paint 보정 조건을 추가하지 않는다.
-동결 C16 라이브러리로 독립 문법 진단을 compile0 / run101로 실행했다:
-일반·첨자·무브레이스 하한의3경로 실패, 구두점/기존 화살표 대조군1통과다.
-진단 원문은 아직 활성suite에 등록하지 않는다. 보정 후 같은 미니 문서의 Native/fresh WASM
-전체1쪽90% 이상·직접 glyph 판독을 확인한 뒤 정식 `tests/cases/`에 넣는다.
-미니 문서 검증을 기존 편집본20쪽과 나머지 편집본의 개선·통과로 보고하지 않는다.
+실제 fresh WASM의 새 `insertEquation` 출력 폭도 확인했다. 기존 생성본의 2673 HWPUNIT와
+독립 한컴 재저장본의 2811 HWPUNIT에 비해 실험 생성본은 2193 HWPUNIT로 작아졌다.
+기호 의미 변경만 수용하고 생성 메트릭 오류를 남길 수 없어 이 추가 실험의 코드 변경을
+철회한다. 실험 전 통합 C16 `a72718552`와 `src`, `crates`, `tests`, `scripts`,
+Cargo 설정의 byte-identical 복원을 `git diff --exit-code`로 확인했다.
 
-원본·Print·진단·확대 PNG·세 소비 경로 초안은 ignored
-`output/pr-review/planet6897-followup-20261011/equation-ascii-relations-diagnostic/`에 보존한다.
-현재20쪽 미주 편집 범위의 시각 수용과 전체 PR 검증은 계속 미완료다.
+원래 9개 PR·19개 고유 source commit의 검토 범위는 유지한다. 고정 upstream/devel
+`552f5228d`와 C16 사이의 equation renderer 및 equation insertion source diff는 없다.
+새 글꼴/수식 메트릭 기능을 이번 통합에 추가하지 않으며, 원래 미주 편집본과 나머지 PR의
+검증 완료 여부는 각 원본·독립 Print의 기존 범위로 계속 판정한다.
+
+실험은 `review/planet6897-equation-alias-experiment-20261013`의 `062373e1b`에 보존한다.
+입력·한컴 재저장본·Print·문법 진단·TSV·확대 이미지·생성 폭 관측은 ignored
+`output/pr-review/planet6897-followup-20261011/equation-ascii-relations-diagnostic/`와
+`equation-experiment-withdrawal-plan.json`에 남긴다. 활성 회귀 검사를 추가하거나
+기존 기대값을 완화하지 않았다.
