@@ -4307,3 +4307,34 @@ KPS/CGMP fresh 전쪽 비교, 남은 회귀 보정과 전체 회귀·lint·최�
 
 후속 지시로 최종 판정 문구는 **“메인터너 보정 후 승인”**을 사용한다. 변경 시점은
 모든 필수 테스트·검증이 완료되고 미해결 문제를 해소한 뒤이며, 현재 보류를 미리 승인으로 바꾸지 않는다.
+
+
+## 진행 갱신175 — KPS 전쪽 양 backend 완료와 부적합 검사 정정 (2026-10-13)
+
+Production58b63의 KPS Native/fresh는 각각77/77쪽·독립 Print77쪽, 최저42쪽90.85010%,
+미달·누락0으로 완료했다. fresh는exit0/1876.442초이며 생성 중 source hash가 변하지 않았다.
+전체77쪽 RGBA가 Native/fresh 사이에서 같으며, 기존 Native37·38·65·66쪽 review를 직접 판독했다.
+[공통 최종 이미지와 입력·PDF hash](../assets/semanticist21-20261008/kps-owned-fragments-v448/README.md)에 연결한다.
+
+독립 Print37쪽은 `4. 성능 요구사항`으로 끝나고38쪽은 반복 머리행 다음 `5. 데이터 요구사항`부터 잇는다.
+기존1156의 고정 `rows=0..16/16..32`는 이 정상 출력에서 실제FAIL이었다.
+원본 작성방법 표의 소유자와 데이터 항목의 행을 찾아 실제 조각의 내용·본문 단 포함을 검사하게 정정했다.
+초기 수정에서 같은 제목의 다른 원본 표를 선택한 오류는 `작성방법` 머리행 소유를 대조해 고쳤고,
+최종 실제1156 소스의2개 검사(KPS와 그대로 유지한synam 대조군)가 모두PASS했다.
+
+4698의 기존 `x<175/y<200`도 정상 라벨이 그 좌표 밖에 있다는 이유로FAIL이었다.
+새 검사는 원본 바깥 표→소유 셀→안쪽 표→병합 라벨의 경로를 따르고,3840HU→0HU 저장 줄
+재시작의 앞/뒤 내용을 각각65/66쪽에서 확인한다. 실제 글줄의 셀 포함·순서·누락·중복도 검사한다.
+기존 두 정식 검사 소스는 같은 current library에서 실제FAIL을 재현했고 정정한 두 파일은4PASS다.
+이는 정식 테스트 원본을 `rustc --test`로 링크한 실행이며 전체 Cargo/nextest 완료를 뜻하지 않는다.
+원문 로그·test/lib SHA와 기존/정정 결과는 ignored `kps-contract-before-after-intake.json`,
+`kps-relational-validation-results.json`, `kps-*-previous-*`, `kps-*-relational-*`에 연결한다.
+formatter 후 prepare와 새 base 고정 manifest 검사는 exit0이고 파생 suite는 커밋하지 않는다.
+
+CGMP fresh 전48쪽은 진행 중이며 검사 전제는 아직 변경하지 않았다.
+K-water 진단에서는 새 base의 stored block plan이577.34667px를 반환하지만 현재는None으로 떨어져
+저장 호스트417.34667px에 이미 호스트 앞에 있는 중첩 표311.74667px를 다시 더해729.09333px로
+측정함을 실제GDB로 확인했다. 새 before-host witness를 확인한 뒤 기존 fallback에 반환한 연결 오류다.
+닫힌 저장 표 프레임·호스트·뒤 문단을 측정과 실제 배치가 함께 소비하도록 보정하며, 쪽수 기대값을
+완화하거나 큰 높이를 clamp하지 않는다. base whole raster의 Chrome30초 timeout은 기존120초
+환경 설정으로 같은 SVG의 나머지 쪽을 이어 캡처 중이다. 완료 전 TSV 통과로 보고하지 않는다.
