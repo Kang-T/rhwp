@@ -12,10 +12,10 @@ last_verified: 2026-10-12
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행151): 중첩 표 원본/대조7건 Native100%, missing-named-style 편집본3→2쪽·95.47353%/92.07644%, 원본19종 구조 증가0, 정책연구 원본/왕복215/215쪽. 최신 v324의9단계 lint/정책/집중 회귀57개는 모두 통과했다. v323 fresh 빌드·v327 공개 API·v326 전체14쌍17쪽은 통과했다. 최신 v343의필수lint/정책·집중회귀65개와실행대상누락0, v344의정식신규검사3개수정전FAIL/후PASS 및정상대조전후PASS를확인했다. 단계별 기록은 진행155와156을 따른다. v349/v350의 실제 Studio Canvas2D/CanvasKit 누름틀 동작 및 초기 JS/WASM 식별도 통과했다. 전체 회귀와 직접 보정3문서 전쪽 비교는 실행 중이다. 차트 내부와직접 보정3문서의최종 전쪽·전체회귀·backend 검증은 미완료며 개별PR의보류 판정을 유지한다.
+- 최신 단계(진행158): v345 전체 회귀는10,266개 중10,254PASS/12FAIL/45제외로 종료했다. 이 중 이미 #7445/#7731로 이관한 API 목록의 잔여1행을 정리한 뒤 관련 계약6개가PASS다(v371). 전체를 다시 실행하기 전이므로 전체 무실패로 보고하지 않는다. KPS Native77쪽은최저90.91935%·미달/누락0이며 fresh WASM은진행 중이다(v347). Native Skia11문서14쪽은최저91.21234%·미달/누락0이고 대표PNG·래퍼3배확대를판독했다(v369/v372). 실제 페이지 수 회귀·차트·TAC·기존 검사 보정과 직접3문서의 최종 전쪽/전체회귀는 미완료다. 개별18PR 보류 판정을 유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. PR 생성은 사용자 승인 후 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
-- 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`, 최근 커밋: `4ceebf852543522e927db7b67230f8bc22f24662`. 진행148–151의미커밋 보정은 v315의Native 바이너리와source SHA-256 목록으로 고정한다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
+- 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
 - 직전 일반 커밋 체크포인트는 `a09fc8b968dd7bb67e74fa6ffb185c586bd19d56`이다. 설계 전7쪽 Native/fresh WASM 검증과 관계 회귀를 고정했으며 후속 #5877 보정은 진행100의 v118 이후 기록에 연결한다. 이전 체크포인트는 `004bab229877d6b8f05dff9d98410161de135e09`와 `da70ea0258ab094ed67750a813ea465840f427f4`이며 각 설계 첫 조각/CGMP 단계의 검증 근거를 따른다. 이전 체크포인트 `f56ceec135f28aa6a8eb424bd74551aba0c7831f`는 역사 단계다. 진행89의 표 뒤 쪽 경계·인접 원본 앵커 보정과 실제 검증을 커밋했으며 후속 보정은 진행90에 기록한다. 이전 체크포인트는 `c43b98e9b0bcdb8ddee6a9f049baf703f0babc21`이다. 진행88의 직접 HWPX 원점 경계 전달을 커밋하고 `upstream/devel` 동기화·리베이스를 확인했다. 후속 보정은 진행89에 기록한다. 이전 체크포인트는 `fd4e242c9e4fafb2441f8d743d01746e26d15078`이다. 진행81~87의 저장 표 보정·시험지 원본 보존과 회귀 연결 제거·주석 번역을 커밋했고, `upstream/devel` fetch와 로컬 `devel` 동기화·리베이스를 확인했다. 후속 CGMP 보정과 실제 검증 범위는 진행88에 기록한다. 이전 일반 커밋 `81ff2fe4a362b8585fe24f824282e6db7332c0bb`(보정77~79의 교육과정 이관/clip 진단/중첩 source frame 보정과 현재 시각 증거)이다. 이전 `12d96686cdd24017b44becead2c4dfeb46867bf3`는 #7700 이관 체크포인트다. 현재 단계의 동기화·rebase와 다음 편집 검증은 진행80에 연결한다. 이전 production 코드 체크포인트 `9b53bd699126205b7a93fff326167f575252f1ea`는 저장 표의 수용 행 원장과 기존 회귀 검토 증거 보정이다. 진행70의 v86 retry2 두 Rust 파일을 이 커밋으로 고정했다. 실제 Native/fresh WASM 빌드는 부모 `3874bc4be037e84998d548e7755bc689af9d871b` 위 당시 미커밋 변경에서 수행했고 커밋된 production source와 동일하다. 이후 변경은 #7700 검사·자산 경로의 이관이며 진행74에서 검증한다. `cbaf53f3fa8fc8511ac82e5bd7481cfa56f8d922`와 진행61–62는 v78/retry1의 역사 체크포인트다. `e8ae5204d1b8e61851142f22b229de38f1867816`은 진행59의 rebase 체크포인트다. 이전 `3505cb8cd8d09f3c125fdb08c9ccec6efece78ff`는 진행55–56의 v73 검증·커밋·동기화 체크포인트다. 이전 `f3c8cd7d370668e36322db71c1c2c820260124ae`는 진행54의 v72 커밋·리베이스 체크포인트다. 이전 `fe201fa05f25ee744fb465a8b8a7348d38576d18`의 v64 retry1 원본 표제/첫 조각 보정과 검증은 진행44의 역사 증거다. 이전 `eb29a7a9ce171c2cc5dfd9ff4689eb7a0d64eaae` 및 v61 결과는 역사 증거다.
 - rebase 전 contributor 누적 head: `cd0eb2d25380f6db60a4b8bb99ed90f7e1d5c84c` (#7659 포함). 메인터너 보정 v44 source는 `64cc5b5e805e2b05ab3fd64fa5aa4803e0d6357a`이며, 이후 후보와 검증은 아래 단계별 기록을 따른다.
 - 최초 17 PR 검증 code head: `134a646e5a5325daf52d614e0395094175e78301` (아래 최초 검증 결과의 역사 head)
@@ -3458,3 +3458,77 @@ v360은 동일 입력·한컴2020 Print를 고정하고 base bfa28a / 현재 Nat
 실행 source는 계속940ea132이며 이후 두 문서/화면 증적 커밋은 Rust/Studio 소스를 바꾸지 않았다.
 전체 회귀 v345 및 직접3문서 전쪽 v347은 같은 live MainPID로 계속 실행 중이다. 필수 검사와
 개별18PR 판정은 미완료 상태를 유지한다. 신규 원격 이슈·PR·review·push는 수행하지 않았다.
+
+
+### 진행158: 전체 회귀 실패 분리·이관 잔여 목록 보정·실제 Native Skia
+
+생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`, 검증 시작 head는 `bb93ab7f1`,
+고정 base는 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`다.
+v345 전체 nextest는 terminal/exit100이다. 실행 10,266개 중 10,254 PASS·12 FAIL이고 45개는 제외됐다.
+테스트 실행은 2691.894초, 컴파일 포함 3597.38초이며 생산/test 소스 해시는 변하지 않았다.
+반복 summary를 중복 제거한 실제 실패는 아래 12개다. 집중 65 PASS로 전체 실패를 대신하지 않는다.
+
+| 실제 실패 | 현재 처리 근거 / 상태 |
+| --- | --- |
+| page_bg_image_only_on_section_first_page | SHOW_ALL인데 이미지가 첫 쪽에만 있다고 기대한 합성 계약이다. SHOW_ALL/SHOW_FIRST의 이미지·색상 대조 수정안을 준비했으며 아직 적용하지 않았다. |
+| footnote_area_reserve_uses_section_shape_metrics | 저장 LH는 있지만 폭이 0인 합성 줄이다. 유효 저장 줄과 재조판 계약을 분리해야 한다. |
+| issue_6035_complete_row_does_not_emit_a_line_advance_only_tail | CGMP의 완결 행 컷과 내용 보존을 같은 Print와 대조한다. CGMP는 직접 보정 범위다. |
+| kps_ai_page37_defers_overflowing_split_row_slice | KPS 37/38쪽의 실제 행 소유를 확인했다. fresh 전쪽 90% 확인 후 관계형 검사로 보정한다. |
+| issue_6575_tac_picture_sits_on_line_top_when_line_is_taller | 축소 원본의 Print 1쪽은 base 25.31052%, 현재 Native/fresh 27.01645%다(v360). 출력 해결·검사 변경·이관으로 판정하지 않는다. |
+| every_document_path_exists_in_the_repository | 이미 이관한 API의 쪽수 목록 잔여 1행이다. 해당 행만 제거하고 6계약 PASS를 확인했다(v371). |
+| chart_moves_to_second_column_and_text_does_not_overlap | 차트의 실제 원점과 내부 글꼴·축·범례 보정이 남는다. 고정 y 기대값만 완화하지 않는다. |
+| oracle_page_count partition15 | 실제 실패 입력은 k-water HWPX의 27→28쪽 증가다. 다른 k-water HWP의 이관 기록으로 제외하지 않는다. |
+| issue_5833_stacked_cell_pics_flow_without_overlap | 같은 축소 입력의 독립 Print 1쪽을 확보했다. 고정 y 범위·셀 소유·빈 그림의 기준 출력을 대조한다. |
+| oracle_page_count partition13 | 실제 실패 입력은 issue157 HWP의 2→3쪽 증가다. 같은 원문의 독립 Print 2쪽을 확보했다. giant의 slow 출력을 실패로 세지 않는다. |
+| continuation_fragment_receives_the_remaining_paragraphs | KPS의 市場 글자는 Native baseline 217.5px와 Print top 205.55px로 양쪽 모두 기존 y≤200 범위 밖이다. 실제 셀 소유·내용 보존으로 보정할 근거를 확보했고 fresh 전쪽은 대기다. |
+| issue_2291_rowspan_declared_residual_expands_last_spanned_row | 이관된 교육과정의 정확한 table 244×10/pi8/r183c8를 추적했다. 현재 183행이 두 쪽의 조각에 걸린다. 고정 첫 조각 높이와 전체 행 계약을 구별해 이관 적합성을 확인한다. companion 재래핑 검사는 PASS다. |
+
+v371은 이미 #7445/#7731로 보존한 `hwpctl_API_v2.4.hwp`를 가리키는 쪽수 목록 1행만 제거했다.
+2026-10-12에 #7731 OPEN 본문에서 같은 원본명과 #7445 연결을 읽기 전용으로 재확인했다.
+기존 compiled regression_suite_014의 같은 fixture 계약 6개를 수정 전후 실행해
+5 PASS/1 FAIL → 6 PASS를 확인했다. 입력 파일·다른 쪽수 값·공차·정확한 semantic/parser 검사는
+바꾸지 않았다. 고정 base의 manifest 정책 검사도 exit0이다. 최종 전체 재실행은 아직 남는다.
+
+v364의 실제 `native-skia` 빌드는 590.681초/exit0이다. 바이너리 SHA는
+`9120fe0a56d99b2742c4a229888195ee3c927d7142749c6c2a014d08b1cbf85f`이고 생산 1111개 소스는 현재와 같다.
+v369에서 실제 Native PNG 11문서 14쪽을 내보냈고 v372에서 같은 원본·한컴 Print의 전체 14쪽 TSV를
+산출했다. 최저 91.21234%, 미달·누락 0이다. 래퍼 7문서는 모두 100%다.
+대표 review 4개를 열고 원본·흘림·글자취급의 오른쪽 경계와 앞/뒤 글자를 3배 확대했다.
+자식 폭·부모 clip·앞뒤 래퍼 순서·글자 기준선이 대응한다. Print stroke 0.36pt와 원본 0.12mm가
+대응하며 raster AA 농도 차이는 남는다. 각주 뒤 본문 쪽 소속은 대응하지만 Latin 획·자간 차이는
+남아 최종 수용으로 면제하지 않는다.
+[대표 review·overlay·확대 PNG와 출처](../assets/semanticist21-20261008/wrapper-native-skia-v369-v372/README.md)를 보존한다.
+진단 import 등록 오류와 최초 overlay caption의 0-based 인자 오류를 고쳤고 정상 종료·정확한
+쪽 라벨로 다시 판독했다. 도구 오류는 제품 회귀로 세지 않으며 새 source-side 검사를 추가하지 않았다.
+
+v366/v367에서 같은 issue157/5833 원본을 바꾸지 않고 실제 한컴2020 Print로 출력했다.
+두 job은 succeeded/download exit0이다.
+[PDF 2개·입력/PDF 해시·version·Print 출처](../../../pdf/semanticist21-20261008/remaining-failures-independent-print-v366/README.md)를 커밋해 보존한다.
+k-water HWPX는 서버의 macro/script 자동 처리 거절로 job이 생기지 않았다. 원본의 스크립트를 실행하거나
+삭제하지 않았다. 기존 대응 독립 Print의 출처를 별도로 확인하며 이 거절을 제품 출력 실패로 세지 않는다.
+
+v370은 issue157의 base/current 흐름을 실제 진단했다. pi2~24의 누적 흐름은 같다.
+새로 수용하는 빈 표 frame이 현재 누적 772.52px를 쓰는 반면 유효 저장 원점은 737.32px다.
+현재 표 상단 856.1067px는 Print 615.047pt(820.063px)보다 아래이며, 저장 원점+offset+outer-top의
+820.9067px가 독립 Print에 대응한다. 같은 검증된 저장 단의 원점을 fit/paint/점유 하단에 공유하는
+후보 patch를 준비했으며 production에는 아직 적용하지 않았다. v373의 GDB 변수 변경은 실제 반환 frame에
+전달되지 않아 3쪽 그대로다. 수정 후 통과 증거가 아니며 후보의 입증도 미검증이다.
+
+v374는 교육과정의 정확한 원본을 base/current에서 dump-pages했다. default DocumentCore 경로의 전체
+418/422쪽을 관측했으며 독립 Print 415쪽과 다르다. v375에서 같은 s5pi8/r183c8의 소유자를 대조했다.
+base 139쪽의 완전한 행은 56.3px, 현재 139쪽의 앞 조각은 41.9px, 140쪽의 물리 꼬리는 14.5px다.
+합계 56.4px이며 문장은 앞 조각에 보존되고 꼬리에 중복 텍스트가 없다. 첫 조각만 55~58px라고
+요구하는 검사의 가정을 다시 검토한다. 제거에 앞서 같은 고정 base·원본·독립 Print의 해당 두 쪽을
+Native/현재 fresh로 비교하는 v376을 시작했다. 전쪽 415쪽의 통과를 주장하지 않는다.
+
+생산 소스를 바꾸지 않아 v347의 KPS 77/CGMP 48/가맹 142쪽 전쪽 검증을 이어간다.
+KPS Native 77쪽은 최저 90.91935%, 미달·누락 0으로 종료했고 fresh WASM은 진행 중이다.
+CGMP/가맹의 이번 전쪽 비교는 아직 시작 전이다. 코드 변경 후 최종 head의 영향 시각·전체 회귀·lint는
+다시 확인한다. 신규 원격 issue/comment/PR/review/push는 없고 개별 18PR 보류를 유지한다.
+
+ignored output의 whole-regression-audit-v345, direct-three-current-whole-v347,
+api-transferred-inventory-correction-v371, wrapper-native-skia-png-v369,
+wrapper-native-skia-compare-v372, remaining-failures-independent-print-v366,
+issue157-flow-advance-base-current-v370, issue157-certified-origin-diagnostic-v373,
+education-source-row-owner-v374, education-row-fragments-v375, education-exact-row-visual-v376에
+명령·로그·관측을 연결한다.
