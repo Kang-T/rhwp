@@ -4212,3 +4212,55 @@ ignored `regression-root-cause-batch-v448/user-sync-check-20261013.json`,
 `scoped-frame-native-issue157/issue157/{silhouette.tsv,review/review_002.png}`에
 입력·source hash·명령·출력 근거를 연결한다.
 전체 회귀·lint·최종 Native/fresh 검증과 원격 PR 승인은 아직 완료하지 않았다.
+
+## 진행 갱신173 — #157 양 backend 선행 조건과 정식 회귀 검출 (2026-10-13)
+
+Production 보정은 `58b63a927587ebaf1ee5e60dd497d7d208868905`에 고정했다.
+새 source의 KPS Native77/77쪽 최저42쪽90.85010%, CGMP Native48/48쪽 최저47쪽93.64014%도
+모두 미달·누락0으로 종료했다. 각 해당 독립 Print와 전체 쪽수가 같다.
+KPS37·38·65·66 및 CGMP34·35쪽 review를 생성했으며, CGMP34와 KPS66을 직접 대조해
+완전한 입고 행과 병합 라벨의 다음 쪽 내용이 보존되는 것을 확인했다.
+이 두 문서의 fresh 전쪽 검증이 끝나기 전에는 기존 검사 전제를 바꾸지 않는다.
+
+공용 target·저장소 루트 wrapper의 fresh WASM build는 exit0/1298.272초다.
+최적화 WASM SHA256은 `25faec9f8f337cbcdaf439a564ffceea60b7237baf7abcec8bb41ec6275a58d9`이고,
+루트 pkg/Studio public의 JS와 WASM이 각각 같은 hash임을 확인했다.
+빌드 중 production source hash는 변하지 않았다.
+
+#157 원본은 Native/fresh 모두 전체2쪽, 독립 Print2쪽이며 각1쪽99.74326%·2쪽99.82668%다.
+각 쪽의 RGBA와2쪽 review/overlay 파일 바이트가 Native/fresh 사이에서 완전히 같다.
+fresh review도 직접 열어 상·하단 표, 앞뒤 본문, 공백 줄, 위임 제목, 날짜와 마지막 안내문을 대조했다.
+[Native/fresh 공통 최종 증적](../assets/semanticist21-20261008/stored-before-host-frame-v448/README.md)을
+한 벌만 보존하고 동일 이미지를 중복 커밋하지 않는다.
+
+위 선행 조건 뒤 `tests/cases/issue157_stored_before_host_frame.rs`를 정식 원본으로 추가했다.
+원본 참석자 표의 소유 문단을 찾고 앞 본문→표→공백 호스트→뒤 제목 및 같은 쪽의 마지막
+안내문 보존을 검사한다. 고정px 영역·전체 SVG hash로 배치를 선택하거나 기대값을 복사하지 않는다.
+동일한 실제 테스트 소스(SHA256 `836689ffebdb976f0bd624fdc9d653f52bb7c7646e273e5f1bb51964e743f8a3`)를
+새 base552f의 실제 library와 보정58b63의 library에 직접 링크했다.
+컴파일 양쪽exit0, base 실행1FAIL/exit101(공백 호스트와 표의 겹침), 보정 실행1PASS/exit0이다.
+이 개별 정식 소스의 실행을 전체 Cargo/nextest 통과로 확대하지 않는다.
+fmt check는exit0이고, formatter 뒤 파생 suite를 다시 준비해 base 고정 manifest를 검사한다.
+포맷 전 prepare의 오래된 파생 harness 때문에 발생한 drift는 policy 완화 없이 재생성으로 처리한다.
+파생 파일은 커밋하지 않는다.
+
+새 base의 실제 Native 대조도 완료했다: #4514 10쪽50.32920%, #157 전쪽 최저2쪽74.52547%,
+#6575 1쪽25.29586%, #5833 1쪽6.62281%다. 이전 bfa 결과로 대신하지 않았다.
+#4514는 동일한 overlay 컷/대기열을 생산하지만 보정 head의 마지막 행 요구 높이가
+463.8→470.4px로 늘어나 다음 표 전 슬롯에 들어가지 못하면서 paint에서 행이 사라짐을 관측했다.
+기존 미달을 현재 악화의 면제 사유로 삼지 않으며 구현 보정 대상으로 남긴다.
+
+K-water HWPX는 기존 `pdf/hwpx/k-water-rfp-hwpx-2020.pdf`(독립27쪽)를 찾았다.
+PDF 추가 commit `ce808b588fd43698fd105f0be0320921c83a829c`의 원본과 현재 원본 SHA256이
+`036ae73c4982696b9aad50c43a1c47f50871d1447aef3209e058f1b30fa2fc14`로 같다.
+새 base는27쪽·현재는28쪽이며 auto/compat2022 모두 같다. 첫 소유 차이는24쪽의 문단255 표가
+마지막 행을 이월하는 경계다. 새 MCP job이 macro guard로 거절된 사실과 기존 Print의 존재를 구분한다.
+원본/스크립트는 바꾸거나 실행하지 않았으며 기대 쪽수를28로 완화하지 않는다.
+
+종료된 이전 v396/v398 출력의 SVG315개만 삭제하여16,434,615,532bytes를 확보했다.
+`/proc/*/fd`에서 사용 중이 아님을 확인했고 PNG·TSV·JSON·원본·PDF·현재 출력은 보존했다.
+새 source·base·test/lib hash·명령·exit와 상세 관측은 ignored
+`regression-root-cause-batch-v448/`의 `scoped-frame-*`, `issue157-formal-*`, `new-base-*`,
+`kwater-existing-print-intake.json`, `old-completed-svg-cleanup-20261013.json`에 연결한다.
+KPS/CGMP fresh 전쪽 비교, 남은 회귀 보정과 전체 회귀·lint·최종 PR gate는 계속 진행 중이다.
+원격 push/PR/review/merge는 아직 수행하지 않았다.
