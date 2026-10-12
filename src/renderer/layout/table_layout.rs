@@ -5731,11 +5731,13 @@ impl LayoutEngine {
         styles: &ResolvedStyleSet,
     ) -> f64 {
         let is_last_para = pidx + 1 == total_para_count;
-        let spacing_before = crate::renderer::cell_paragraph_spacing_before(
+        let spacing_before = crate::renderer::cell_paragraph_spacing::paragraph_before(
             para,
             pidx,
             para_style.map(|s| s.spacing_before).unwrap_or(0.0),
-        );
+            self.dpi,
+        )
+        .occupied_before();
         let spacing_after = if !is_last_para {
             para_style.map(|s| s.spacing_after).unwrap_or(0.0)
         } else {
@@ -14754,27 +14756,13 @@ impl LayoutEngine {
             let para_uses_synthetic_line_segs =
                 !p.line_segs.is_empty() && p.line_segs.iter().all(|seg| line_seg_is_synthetic(seg));
             let raw_spacing_before = para_style.map(|s| s.spacing_before).unwrap_or(0.0);
-            let spacing_before = if pi > 0 || crate::renderer::para_has_no_stored_line_segs(p) {
-                raw_spacing_before
-            } else if self.profile.get().hwpx_stored_layout()
-                && is_block_rowbreak
-                && para_uses_synthetic_line_segs
-            {
-                // HWPX 에서 lineSegArray 가 누락된 표 셀 문단은 reflow 로 합성되지만,
-                // ParaShape 의 spacing_before 는 여전히 문서 속성이다. 저장 HWP 는
-                // 첫 줄 vpos 에 이 값을 반영하므로 row cut 측정도 같은 값을 사용한다.
-                raw_spacing_before
-            } else if raw_spacing_before > 0.0 {
-                let first_vpos = p
-                    .line_segs
-                    .first()
-                    .map(|ls| hwpunit_to_px(ls.vertical_pos, self.dpi))
-                    .unwrap_or(0.0)
-                    .max(0.0);
-                raw_spacing_before.min(first_vpos)
-            } else {
-                0.0
-            };
+            let spacing_before = crate::renderer::cell_paragraph_spacing::paragraph_before(
+                p,
+                pi,
+                raw_spacing_before,
+                self.dpi,
+            )
+            .occupied_before();
             let spacing_after = if !is_last_para {
                 para_style.map(|s| s.spacing_after).unwrap_or(0.0)
             } else {
@@ -25971,11 +25959,13 @@ impl LayoutEngine {
             let para_style = styles.para_styles.get(para.para_shape_id as usize);
             let is_last_para = pi + 1 == para_count;
             let line_count = comp.lines.len();
-            let spacing_before = if pi > 0 {
-                para_style.map(|s| s.spacing_before).unwrap_or(0.0)
-            } else {
-                0.0
-            };
+            let spacing_before = crate::renderer::cell_paragraph_spacing::paragraph_before(
+                para,
+                pi,
+                para_style.map(|s| s.spacing_before).unwrap_or(0.0),
+                self.dpi,
+            )
+            .occupied_before();
             let spacing_after = if !is_last_para {
                 para_style.map(|s| s.spacing_after).unwrap_or(0.0)
             } else {

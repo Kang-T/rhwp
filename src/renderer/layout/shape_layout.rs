@@ -1061,6 +1061,10 @@ impl LayoutEngine {
             {
                 x += hwpunit_to_px(i32::from(common.margin.left), self.dpi);
             }
+            // 자리차지 OLE의 위 여백은 잉크 원점과 본문 예약 높이에 함께 속한다.
+            // 일반 문단도 단 이월과 동일한 확정 프레임을 소비한다.
+            let y = crate::renderer::float_placement::column_ole_placement(shape, para_y, self.dpi)
+                .map_or(y, |placement| placement.table_top);
             (x, y)
         };
 
@@ -2476,11 +2480,12 @@ impl LayoutEngine {
                                     match crate::ole_chart::parse_ole_chart_contents(raw_contents) {
                                         Ok(ole_chart) => {
                                             let svg_fragment =
-                                                crate::ole_chart::render_ole_chart_svg_fragment_with_contents(
+                                                crate::ole_chart::render_ole_chart_svg_fragment_with_contents_at_dpi(
                                                     &ole_chart,
                                                     raw_contents,
                                                     [render_x, render_y, render_w, render_h],
                                                     ole.bin_data_id,
+                                                    self.dpi,
                                                 );
                                             push_ole_raw_svg_render_node(
                                                 tree,

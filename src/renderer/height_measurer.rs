@@ -3068,9 +3068,9 @@ impl HeightMeasurer {
                             } else { 0.0 };
                             let para_style = styles.para_styles.get(p.para_shape_id as usize);
                             let is_last_para = pidx + 1 == cell_para_count;
-                            let spacing_before = crate::renderer::cell_paragraph_spacing_before(
-                                p, pidx, para_style.map(|s| s.spacing_before).unwrap_or(0.0),
-                            );
+                            let spacing_before = crate::renderer::cell_paragraph_spacing::paragraph_before(
+                                p, pidx, para_style.map(|s| s.spacing_before).unwrap_or(0.0), self.dpi,
+                            ).occupied_before();
                             let spacing_after = if !is_last_para {
                                 para_style.map(|s| s.spacing_after).unwrap_or(0.0)
                             } else {
@@ -4164,9 +4164,9 @@ impl HeightMeasurer {
                             } else { 0.0 };
                             let para_style = styles.para_styles.get(p.para_shape_id as usize);
                             let is_last_para = pidx + 1 == cell_para_count;
-                            let spacing_before = crate::renderer::cell_paragraph_spacing_before(
-                                p, pidx, para_style.map(|s| s.spacing_before).unwrap_or(0.0),
-                            );
+                            let spacing_before = crate::renderer::cell_paragraph_spacing::paragraph_before(
+                                p, pidx, para_style.map(|s| s.spacing_before).unwrap_or(0.0), self.dpi,
+                            ).occupied_before();
                             let spacing_after = if !is_last_para {
                                 para_style.map(|s| s.spacing_after).unwrap_or(0.0)
                             } else {
@@ -4850,9 +4850,9 @@ impl HeightMeasurer {
                         let is_last_para = pi + 1 == para_count;
                         // compute_cell_line_ranges와 동일 규칙:
                         // 첫 문단은 spacing_before 없음, 마지막 문단은 spacing_after 없음
-                        let spacing_before = crate::renderer::cell_paragraph_spacing_before(
-                            p, pi, para_style.map(|s| s.spacing_before).unwrap_or(0.0),
-                        );
+                        let spacing_before = crate::renderer::cell_paragraph_spacing::paragraph_before(
+                            p, pi, para_style.map(|s| s.spacing_before).unwrap_or(0.0), self.dpi,
+                        ).occupied_before();
                         let spacing_after = if !is_last_para {
                             para_style.map(|s| s.spacing_after).unwrap_or(0.0)
                         } else {

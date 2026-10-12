@@ -16389,10 +16389,14 @@ impl LayoutEngine {
                         // 가산과 layout 정합 — 단 이동 후 단 시작 y_offset 기준.)
                         let shape_h = hwpunit_to_px(common.height as i32, self.dpi);
                         let margin_bottom = hwpunit_to_px(common.margin.bottom as i32, self.dpi);
-                        let advance = shape_h + margin_bottom;
-                        if y_offset + advance > result_y {
-                            result_y = y_offset + advance;
-                        }
+                        let occupied_bottom =
+                            crate::renderer::float_placement::column_ole_placement(
+                                shape, y_offset, self.dpi,
+                            )
+                            .map_or(y_offset + shape_h + margin_bottom, |placement| {
+                                placement.occupied_bottom
+                            });
+                        result_y = result_y.max(occupied_bottom);
                     }
                 }
             }
@@ -16806,8 +16810,8 @@ impl LayoutEngine {
                 let ordinary_para_y = accepted_shape_origin
                     .or_else(|| para_start_y.get(para_index).copied())
                     .unwrap_or(col_area.y);
-                // 단을 넘긴 OLE는 본문 cursor가 아니라 조판이 확정한 잉크 원점을 쓴다.
-                // compute_object_position이 signed offset을 소비하므로 그 몫만 분리한다.
+                // 단을 넘긴 OLE는 조판이 확정한 호스트 앵커를 전달한다.
+                // 도형 배치가 공통 프레임에서 offset·위 여백을 한 번 소비한다.
                 let deferred_ole_origin = paragraphs
                     .get(*para_index)
                     .and_then(|para| para.controls.get(*control_index))
@@ -16824,13 +16828,7 @@ impl LayoutEngine {
                                         crate::renderer::float_placement::ParagraphFloatFlow::StoredPicture { .. }
                                     )
                                 })
-                                .map(|placement| {
-                                    col_area.y + placement.table_top
-                                        - hwpunit_to_px(
-                                            signed_hwpunit(shape.common().vertical_offset),
-                                            self.dpi,
-                                        )
-                                })
+                                .map(|placement| col_area.y + placement.anchor_y)
                         }
                         _ => None,
                     });

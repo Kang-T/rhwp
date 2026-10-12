@@ -472,6 +472,7 @@ pub fn resolve_styles(doc_info: &DocInfo, dpi: f64) -> ResolvedStyleSet {
 pub(crate) fn resolve_styles_for_document(document: &Document, dpi: f64) -> ResolvedStyleSet {
     let profile = document.layout_profile();
     let mut styles = resolve_styles_with_variant(&document.doc_info, dpi, profile.hwp3_layout());
+    super::legacy_font_advances::select_native_programs(document, &mut styles);
     // [#7051] 계보 신호가 없는 저장본의 HFT ASCII 반각 판정은 로드 시 한 번 내려 출처에 둔다.
     styles.hft_ascii_halfwidth |= document.provenance.hft_ascii_halfwidth_witnessed;
     if profile.hwpx_stored_layout() {
@@ -633,6 +634,9 @@ pub fn resolve_styles_with_variant(
 /// 별칭(`layout-metric` 평면)을 타고 남의 표를 빌려 오는 경우는 거짓이다 — 그건
 /// 치환 대상의 표와 다를 바 없어서 되돌릴 근거가 못 된다.
 fn has_own_metric_table(face: &&str) -> bool {
+    if *face == "HCI Tulip" {
+        return true;
+    }
     crate::renderer::font_metrics_data::find_metric_decision(face, false, false)
         .is_some_and(|decision| decision.alias_rule_id.is_none())
 }

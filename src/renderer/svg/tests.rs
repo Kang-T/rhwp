@@ -210,6 +210,27 @@ fn planned_font_lookup_does_not_descend_below_search_roots() {
             "원 face 파일: {face}"
         );
     }
+    // 앞 루트의 대체 face가 뒤 루트의 원 face를 가리지 않아야 한다.
+    let later = root.join("later");
+    std::fs::create_dir_all(&later).expect("뒤쪽 글꼴 공급 루트");
+    let original = later.join("HMKMM.TTF");
+    std::fs::write(&original, b"original face").expect("원 휴먼명조 후보");
+    let roots = [root.clone(), later];
+    for face in ["휴먼명조", "HumanMyeongJo"] {
+        let mut lookup = plan_svg_font_file_lookup(face, &roots, false);
+        lookup.search_dirs = roots.to_vec();
+        assert_eq!(find_font_file(&lookup), Some(original.clone()));
+    }
+    // 같은 원 face가 두 루트에 있으면 호출자가 먼저 지정한 루트를 사용한다.
+    let first_original = root.join("HMKMM.TTF");
+    std::fs::write(&first_original, b"caller face").expect("앞쪽 원 face 후보");
+    let mut lookup = plan_svg_font_file_lookup("휴먼명조", &roots, false);
+    lookup.search_dirs = roots.to_vec();
+    assert_eq!(find_font_file(&lookup), Some(first_original.clone()));
+    // 원 face가 없을 때만 기존 대체 face를 사용한다.
+    std::fs::remove_file(first_original).expect("앞쪽 원 face 제거");
+    std::fs::remove_file(original).expect("뒤쪽 원 face 제거");
+    assert_eq!(find_font_file(&lookup), Some(root.join("HANBatang.ttf")));
     std::fs::remove_dir_all(root).expect("remove temporary font directory");
 }
 

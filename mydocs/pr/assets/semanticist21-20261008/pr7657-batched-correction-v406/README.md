@@ -47,6 +47,18 @@ v406 저장본의 첫 줄 원점은1200이 됐고 빈 TextLine 위도175.3px로 
 height_measurer의 세 줄 합산 경로에는 없다. 저장 첫 문단의 앞 간격을0으로 읽는
 `cell_paragraph_spacing_before` 이후 물리 lead가 빠지는 소비 위치를 후속 보정 대상으로 추적한다.
 
+후속 경로 대조에서 단순 합산 네 곳 외에도 실제 소비 지점을 확인했다.
+`height_measurer.rs`의 단일 행·rowspan·줄 범위 측정과 `calc_para_lines_height`가 예약 높이를
+생산한다. 반면 `cell_units_uncached`는 첫 저장 원점을 분리한 뒤 첫 유닛의 물리 lead를
+이미 계상한다. `stored_cell_initial_frame_origin_hu`와 실제 Top 배치도 같은 저장 원점을
+소비한다. `calc_visible_content_height_from_ranges_with_offset`의 부분 범위 합산과
+Center/Bottom의 `align_lead` 선택은 그 뒤의 별도 소비 지점이므로 함께 검증해야 한다.
+
+따라서 저장 프레임의 물리 lead와 배치 흐름에 추가할 앞 간격을 하나의 결과에서 구분하고,
+예약·컷·가시 범위·최종 정렬이 각각 그 값을 한 번만 소비하는 보정을 준비한다.
+저장 프레임이 없는 재조판의 선언 앞 간격, 둘째 문단, 앞 간격 복구 대조군과
+이어받기 뒤의 첫 줄을 함께 확인한다. 이 문단은 코드 대조 결과이며 구현·검증 완료가 아니다.
+
 | v406 실제 Native 반례 | 2px 실루엣 |
 | --- | --- |
 | unchanged-empty / second-of-two / restored-para-shape | 각각100% |

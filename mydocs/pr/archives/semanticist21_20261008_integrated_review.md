@@ -3735,3 +3735,282 @@ v409 전체 Native의 HWP3 최저42.64803%(34쪽 미달), HWPX 최저85.59465%(4
 양형식46/46쪽으로 누락·쪽수 불일치 없음. HWP3 첫쪽 전진폭 SVG-only 진단97.44400%는
 생산 코드 및 fresh 검증 전이다. HWP/HWPX 양형식 첫쪽 회귀 완료를 계속 진행하며
 현재 단계의 source·입력·독립 Print·확인 결과를 일반 commit으로 보존한다. PR 최종 준비는 미완료다.
+
+## 진행165 — 양형식 첫쪽 정식 검사와 가맹사업 결측 글리프 공급
+
+현재 head는 `cba5fc76ef363cec7e1253d9e2062a7f98a7876f`이며,
+base는 `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`다. 추가 보정은 dirty 상태이며
+검증 생산 소스는 v423의 파일별 해시로 별도 고정한다. 원격 PR 생성·push는 아직 하지 않았다.
+
+HWP의 첫쪽 정식 회귀를 `tests/cases/so_sueop_hwp_first_page_regression.rs`에 추가했다.
+원본 HWP의 1쪽만 검사하는 OLE 소유영역·독립 HFT 전진·학년 숫자 전진의 세 검사다.
+기존 HWPX 첫쪽 검사는 유지하며 파생 suite는 prepare로 등록했다.
+v430은 이 세 검사·HWPX 한 검사·원래 #7657 세 의미 검사, 합계 일곱 검사를
+실제 실행해7/7 통과·exit0을 확인했다. 고정 base manifest 정책도 exit0이다.
+파생 suite·manifest는 커밋하지 않는다.
+
+원 휴먼명조를 다른 face의 대체 파일보다 먼저 공급하는 v423에서 Native 첫쪽은
+HWP99.79294%·HWPX99.95935%다. 성공한 fresh WASM 빌드를 재사용한 비교도
+각각 같은 점수이며 두 정상 대조군을 포함한 네 입력 모두 Native/fresh RGB가 같다.
+양형식 제목·학년·교사명·학교명의 같은 좌표 확대 판독과 현재 review를 보존했다.
+전체 #7807의 해결이나 최종 PR 수용으로 확대하지 않는다.
+
+가맹사업 19쪽의 기존86.41272%는 원 휴먼명조에 없는 괄호의 공급·전진폭 문제였다.
+독립 Print와 실제 cmap/hmtx에 따라 기존 FontEnvironment의 glyphFallbacks를 선언하니
+동일 Native 생산물에서99.98153%가 됐다. 새 review를 직접 읽었다.
+[공급 계약·독립 글꼴 증거](../assets/semanticist21-20261008/franchise-glyph-fallback-v428/README.md)를 보존한다.
+v429는 후속 셀·OLE 소스 보정을 모아 적용하기 위해 중단했다. Native PNG 27쪽과
+512개 글꼴 검사는 생성됐으나 전쪽 TSV·fresh WASM은 미완료다.
+종료된 불필요한 SVG 133개를 제거해 약 12.39GiB를 확보했고 대표 9쪽과 기존 증거는 보존했다.
+최종 보정 소스에서 공용 target과 루트 pkg로 전체142쪽 Native/fresh를 다시 검증한다.
+
+셀 높이·KPS·CGMP·남은 전체 회귀 실패·최종 lint와 초기18개 전체 시각 gate는 아직 미완료다.
+각 개별 PR의 보류와 승인 후 원격 PR 생성 원칙을 유지한다.
+
+v434는 정식 HWP 첫쪽의 정확히 동일한 세 검사 소스를 기존 공용 v406/v423 library에
+직접 링크했다. 컴파일0/0, 이전1PASS/2FAIL, 이후3PASS이며 새 Cargo/WASM 빌드는 없다.
+학교명·숫자 전진 두 계약의 결함 검출을 확인했고 OLE는 v406에서 이미 보정돼 이전에도 PASS다.
+
+v432의 현재 소스 재실행은12검사 중2PASS/10FAIL·exit100이다.
+문서 경로 검사와 원 face 조회 검사는 PASS이며, 나머지 실제 실패와 로그를 보존했다.
+과거 CGMP rowspan 이름은 현재에 없으므로 해당 필터를 실행 성공으로 세지 않는다.
+복구된 현재 CGMP 의미 검사는 v433에서 별도1/1 PASS·exit0이다.
+이는 선택 검사 진단이며 현재 전체 회귀의 성공/실패 건수로 확대하지 않는다.
+
+## 진행166 — 사용자 제공 OLE 분리 입력과 공통 프레임 보정
+
+사용자가 OLE 차트만 복사해 저장한 다음 세 파일을 현재 보정 입력으로 사용한다.
+기존 단 배치 원본의 검증을 대신하지 않으며 수정 후 두 범위를 다시 비교한다.
+
+| 파일 | SHA-256 |
+| --- | --- |
+| `samples/hwpx/143E433F503322BD33-ole.hwp` | `9f7975a341f9bf0be89e3d6dc1385b59de5e61e079eeb0048db0090c932ad14c` |
+| `samples/hwpx/143E433F503322BD33-ole.hwpx` | `83815ff764b8ab40e6e232e57bc20b6dcb6f0b2c824f7673148fe63d965e1255` |
+| `pdf/143E433F503322BD33-ole-2024.pdf` | `584902f845c4b0d88d4e827a8a7dde23bf3ee3d92bd843f4c1f925b7a7498b20` |
+
+PDF는 Hwp 2024 13.0.0.3901 / Hancom PDF 1.3.0.550의 1쪽이다.
+독립 출력의 축은0–2000·4분할, 계열은 `#73b1d1`·`#cd6565`·`#ebc452`다.
+기존 production reader는 혼합형(9)만 수용해 두 분리 입력의 막대형(1)을 거부했다.
+저장 종류별 painter와 해당 축·색상을 연결했다. 독립 parser 진단은 이전 두 입력 모두
+unsupported, 이후 두 입력 모두 독립 축·색상과 일치한다. 시각 수용 증거와는 구분한다.
+
+OLE 일반 배치에서는 위 바깥여백1417 HWPUNIT가 누락됐다.
+`column_ole_placement`의 `anchor_y → table_top → occupied_bottom`을
+일반 `shape_layout` 및 본문 전진에서 소비하고, 이월 OLE도 원래 앵커를 전달해
+offset·위 여백을 중복 가산하지 않는다. 임의 좌표 상수를 더하지 않았다.
+
+공용 `target/pr-review` Native build는 exit0이다. 생산 소스는 ignored
+`ole-isolated-v439/batch-native-plan.json`, 바이너리 해시는 build-result에 고정했다.
+Native 방향 검증에서 OLE 원점은 y132.3→151.2로 이동했고, 독립 PDF는 약151.0이다.
+전쪽(각1쪽) 일치율은 HWP/HWPX 모두48.44923%→51.99896%로 **미달**이다.
+제목·범례 글꼴과 크기 및 플롯 내부 배치는 아직 기본 renderer 경로이며 보정 중이다.
+새 실물 회귀·기대값 갱신·최종 fresh WASM·PR 수용은 보류한다.
+
+셀 앞 간격은 흐름 간격과 저장 첫 줄 앞의 물리 띠를 공통 결과로 분리했다.
+측정 세 경로·전체 줄 높이·첫 분할 유닛·범위별 높이가 같은 점유량을 소비한다.
+부분 줄 범위는 첫 유닛이 선택될 때만 앞 띠를 포함하며, 중첩 표 offset은 소비한 몫을 뺀다.
+10개 셀/편집 경계의 Native 방향 검증(v440)은 exit0으로 종료했다.
+최저99.76088%·미달/누락0이며, 원래 셀 서식 삭제 HWP/HWPX 두 입력은 각각100%다.
+대표 셀·서식 변경 대조군의 review/overlay를 새로 만들고 실제 셀 외곽·텍스트·뒤 내용을 대조했다.
+이 수치는 **별도 셀 문서들의 결과**이며 OLE 차트51.99896%와 구분한다.
+fresh WASM과 최종 소스 영향 범위 검증 전이므로 최종 수용은 미검증이다.
+
+기존 source unit도 독립 계약으로 재검토했다. 쪽 배경은 첫 쪽 제한 플래그를 명시하고
+뒤쪽의 흰 종이 및 제한 없는 배경을 확인한다. 폭0 합성 각주를 저장 LH로 고정하던 검사는
+같은 두 각주의 구역 여백 차이(위1000·아래700·사이900 HWPUNIT)를 확인한다.
+글꼴 조회 검사에서는 시스템/환경 글꼴을 섞지 않고 임시 두 루트만 비교한다.
+unit-tier는 신규 cfg support helper를 제거한 뒤 고정 base 비교 exit0이며 manifest도 exit0이다.
+이 검사들과 기존 OLE unit의 정식 focused nextest는36/36 PASS·3960 skipped·exit0으로 종료했다.
+run ID는 `131d2bb8-f971-4dd8-906c-db0e55652b02`이며 production source hash guard는 변경 없음이다.
+전체 회귀·lint 완료는 아니다.
+
+동일 분리 HWP/HWPX의 독립 한컴2024 Print도 각각 완료했다.
+job `0c72375e-1e5c-4adb-8e16-6b9baeb0196a` / `adc0d17b-9f9a-4ce3-be82-44ab526607ac`의
+실행 증거는 build13.0.0.3901, PrintMethod0, `frame_print_to_pdf_ex_one_up`이다.
+`pdf/semanticist21-20261008/ole-isolated-independent-print-v439/`에 두 출력 PDF를 보존한다.
+두 독립 출력의 96dpi RGB는 동일하다. 사용자 PDF와는 일부 글자 원점 약1.2pt 차이가 있어
+같은 바이트·래스터로 간주하지 않으며, 이후 보정에서 두 출력을 직접 대조한다.
+
+## 진행167 — OLE 저장 글꼴·제목 원문과 실제 SVG 글꼴 공급
+
+`hwp_ole_spec.md`는 컨테이너 구조의 역사 자료임을 확인하고 현행
+`chart_ole_v1_boundary.md` 및 이미 확보한 한컴 차트 revision1.2와 연결했다.
+기존 bounded reader에서 소유 객체의 `VtString → VtFont → VtTextBlock`을 보존한다.
+축 첫 참조는 제목이며 둘째 참조의 레이블 배열이 실제 눈금/범주 글꼴을 소유한다.
+단일 글꼴로 표현할 수 없는 다단 레이블은 하나의 face로 덮어쓰지 않는다.
+제목/범례 표시 플래그와 제목 전각 공백을 보존하고 저장 포인트 크기는 layout DPI로 변환한다.
+임의 문서 ID·위치 맞춤 상수·캐시 사각형을 글꼴 크기로 쓰지 않았다.
+미검증 글꼴 스타일 플래그는 이번 plain-font 소비 범위로 확대하지 않는다.
+
+`RawSvg → SVG text의 명시적 속성/그룹 상속 → font_codepoints 및 bold face 수집 →
+기존 generate_font_style`로 실제 공급을 연결했다. 단순 family 속성 추가로 끝내지 않았다.
+분리 입력 양형식과 원래 차트 Contents의 제목/범례/축은 모두 굴림체10pt로 추출된다.
+기존 혼합형 `samples/issue6938/mixed_chart.hwp`/`.hwpx`도 type9·두 축과 두 계열을
+계속 수용한다. 이는 parser 진단이며 혼합형 전체 시각 검증의 대체 증거가 아니다.
+
+공용 target Native 묶음 빌드는 exit0/155.839초이며 바이너리는
+`defefad25332a9d23d31d60c56c924218080edfb44ccb34039951b9034793aab`다.
+생산 소스·명령은 ignored `ole-font-metadata-v442/native-build-plan.json`에 고정했다.
+빌드 뒤 기존 조각 원문 보존 unit을 확장한 test-only 변경은 별도로 기록했다.
+동일 source 모듈의 공유 rlib 링크 검사는19/19 PASS·exit0이며 정식 전체 nextest는 아니다.
+처음 추가했던 source unit은 base19 상한에 걸려 기존 계약 검사 확장으로 수정했다.
+unit-tier/base 및 manifest/base 최종 exit0이며 기준선 상향은 없다.
+
+| 실제 Native 전쪽 비교 | 최저 실루엣 | 판정 |
+| --- | ---: | --- |
+| 분리 HWP / 사용자2024 PDF | 52.22510% | 미달 |
+| 분리 HWPX / 사용자2024 PDF | 52.22510% | 미달 |
+| 분리 HWP / 같은 원본의 독립2024 Print | 52.70762% | 미달 |
+| 분리 HWPX / 같은 원본의 독립2024 Print | 52.70762% | 미달 |
+| 원래 단 배치 HWP / 대응2020 Print | 91.72377% | 수치 통과, 차트 영역 결함 유지 |
+| 원래 단 배치 HWPX / 대응 독립2020 Print | 91.96023% | 수치 통과, 차트 영역 결함 유지 |
+
+모두1/1쪽이며 분리 입력은 실제 Print 세대에 따라 compat2024로 재검증했다.
+v439 방향 검증은 compat2022였으므로 그 점수를 최종2024 검증으로 재사용하지 않는다.
+원래 HWPX 기준은 job `530ba761-3985-4838-9c71-3a28494f86bf`의
+2020/11.0.0.9136·PrintMethod0·one-up 출력이며 compat2022를 사용했다.
+입력/기준/전체 source hash·명령·TSV·비교 PNG는 `ole-font-metadata-v442/`에 보존한다.
+새 분리 review를 직접 확인했고 Native SVG에서 실제 GulimChe 프로그램
+`790131a9f24edef28f95f90a10bacebab649b137c8096fb5b785922f0ca650fa`의 임베딩과 cmap을 확인했다.
+제목/플롯 원점·범례 마커/간격·격자선·외곽선 차이는 남는다.
+원래 문서의91%로 분리 차트52% 결함을 상쇄하지 않으며 머지 보류를 유지한다.
+저장 section/여백·레이블 점유에 따른 공통 배치, fresh WASM 및 최종 전체 회귀/lint가 남는다.
+
+### 공식 차트 사양의 저장 간격 대응 확인 — v443
+
+[한컴 차트 파일 형식 revision1.2](https://cdn.hancom.com/link/docs/%ED%95%9C%EA%B8%80%EB%AC%B8%EC%84%9C%ED%8C%8C%EC%9D%BC%ED%98%95%EC%8B%9D_%EC%B0%A8%ED%8A%B8_revision1.2.pdf)의
+Location·Plot.AutoLayout·BarGap/xGap·Pen/Tick 정의를 실제 owning object와 대조했다.
+공식 PDF SHA는 `e014db3e4b55bc57d93b3aba0b186151b3487575e3a6397a2983715b43beeeb1`이다.
+설치본의 ReadFrom/SetBarGap/SetXGap 읽기 전용 대조로 Plot prefix의8/12 byte 필드를 확인했다.
+분리 HWP/HWPX와 원래 단 배치 Contents는 BarGap0/xGap1이며 혼합 차트 대조군은1.5/1이다.
+앞서 prefix의 마지막 float를 간격 후보로 추정한 가정은 제거했다.
+생산 reader에서 이 값을 읽고 column renderer의 계열/항목 간격 계산에 전달했다.
+현재 reader/renderer를 기존 실제 parser IR과 연결한 진단 컴파일 및 양형식 출력은 exit0이다.
+source/input SHA와 명령·진단 출력은 ignored `ole-gap-spec-mapping-v443/production-diagnostic-result.json`에 보존한다.
+이 진단은 정식 Native/fresh WASM·독립 Print 비교를 대체하지 않는다.
+v442 점수는 이 변경 전 결과이며, 일반적인 비영 간격의 배치와 나머지 플롯/범례/축 보정은 미검증이다.
+
+
+## 진행168 — OLE 소유 배치·축 정렬·범례 간격 보정(v444/v445)
+
+사용자가 제공한 `/home/tsjang/mydocs/tech/한글문서파일형식_차트_revision1.2.md`
+(SHA256 `7c844d8846162b62b3363adcb10cf7efb6addff54fce9900bddb7452a4f95676`)의
+Location, TextLayout, HorizontalAlignment/VerticalAlignment를 owning archive 객체와 대조했다.
+`legacy_presentation`에서 root/Section Backdrop, 축 Pen/Grid/Tick, TextBlock의 점유/그리기 상자와
+정렬, 계열 LegendLabel을 보존하고 `legacy_column_renderer`가 같은 root 변환으로 소비한다.
+저장 캐시 좌표와 글꼴·펜의 물리 포인트 크기를 구분한다. 마커 packing 여유와 실제 글자 여백도 구분했다.
+설치된 차트 라이브러리의 읽기 전용 필드/소비 위치 대조는 진단 근거이며 Native 라이브러리 호출이나
+새 런타임 의존성은 추가하지 않는다. 특정 문서 ID나 절대 픽셀 보정은 사용하지 않는다.
+
+v445 현재 Native 빌드는 exit0/104.160초이며 source guard는 unchanged다.
+바이너리 SHA256은 `a5b0a186a71ae0db9074e77bee7d59690756183c8b197e53d4346417f5d4e3fd`다.
+검증 명령·전체 Rust source hash와 입력/독립 Print hash는 ignored `ole-text-position-v445/`의
+build/sweep plan, 각 run_manifest와 TSV에 보존했다. Native 두 묶음은 각각 exit0이다.
+
+| 실제 Native 전쪽 비교(각1/1쪽) | v442 | v445 |
+| --- | ---: | ---: |
+| 분리 HWP / 사용자2024 PDF | 52.22510% | 98.94751% |
+| 분리 HWPX / 사용자2024 PDF | 52.22510% | 98.94751% |
+| 분리 HWP / 같은 원본의 독립2024 Print | 52.70762% | 99.02533% |
+| 분리 HWPX / 같은 원본의 독립2024 Print | 52.70762% | 99.02533% |
+| 원래 단 배치 HWP / 대응2020 Print | 91.72377% | 97.06291% |
+| 원래 단 배치 HWPX / 대응 독립2020 Print | 91.96023% | 97.78619% |
+
+전체 TSV에 미달/누락/쪽수 불일치는 없다. silhouette-only의 gate `not_evaluated`는 승인 판정이 아니다.
+Native review/overlay와 동일 좌표3배 확대 `native-zoom-before-after-review.png`를 직접 확인했다.
+플롯·막대 간격, gray frame, 저장 grid 표시, 숫자의 가운데 정렬, 범주 레이블 위치, 범례 간격은 개선됐다.
+범례 기준선 및 한글 전진폭의 작은 차이는 별도 추적하며 수치 통과로 면제하지 않는다.
+PDF와 공급 TTF 모두 GulimChe의 동일 hhea/advance를 확인했으므로 글꼴 누락 예외로 분류하지 않는다.
+PDF 원문 TJ는 한글 -36.1/숫자 -18.1의 전진 보정을 포함한다. 사용자 PDF의 숫자 기준선은
+독립 Print와1.2pt 다르지만 범례/제목 기준선은 같다. 원문을 `user-independent-text.json`,
+`user-pdf-content.txt`, `independent-pdf-content.txt`, `remaining-text-position-evidence.json`에 보존했다.
+
+범례 TextBlock의 own paint 상자를 사용하는 후속 방향 검증은99.83461%다.
+이는 실제 Native 페이지의 해당 차트 조각만 교체한 **진단**이며 정식 Native 또는 fresh WASM 결과로 보고하지 않는다.
+`legend-owned-paint-provenance.json`에 실제 parent SVG와 진단 source hash를 고정했다.
+진단에서 확인한 상자 소비 수정의 생산 반영·최종 Native/fresh WASM·기존 관계형 회귀·lint는 남는다.
+새 렌더 회귀/golden은 이 선행 증거를 완료하기 전 추가하지 않는다. 머지 보류와 원격 PR 생성 보류를 유지한다.
+
+
+### 범례 own paint 상자의 생산 반영 — v446
+
+후속 진단을 생산 renderer에 반영했다. 범례 packing의 물리 마커 높이와 TextBlock의
+root paint 상자를 구분하며 실제 문구도 계열의 owning LegendLabel에서 가져온다.
+지원하는 제목/범주/범례 정렬은 명시하고 그 외 정렬은 기존 경로를 유지한다.
+plot node의 큰 메타데이터는 Box로 소유하며 파일 길이는 column renderer299/reader879줄이다.
+실제 Native 빌드는 exit0/89.572초·source unchanged이며 바이너리 SHA256은
+`70adad665c81d17d5dd6109c088fd2fc066aeab5f3334fc1c72125fff88d7d6d`다.
+
+| 실제 Native 전쪽 비교(각1/1쪽) | v446 최저 실루엣 |
+| --- | ---: |
+| 분리 HWP / 사용자2024 PDF | 99.83461% |
+| 분리 HWPX / 사용자2024 PDF | 99.83461% |
+| 분리 HWP / 독립2024 Print | 99.91386% |
+| 분리 HWPX / 독립2024 Print | 99.91386% |
+| 원래 단 배치 HWP / 대응2020 Print | 97.05704% |
+| 원래 단 배치 HWPX / 독립2020 Print | 97.78626% |
+
+양형식의 새로운 review/overlay를 직접 확인했다. 원래 단 배치 전체 review와 분리 입력의
+같은 좌표3배 확대 `native-zoom-review.png`를 보존했다. 범례의 아래 처짐은 개선됐으며
+원래 문서의 차트·뒤 문단·표·각주도 직접 대조한다. 한컴 PDF의 글자 전진 보정과 세대별
+숫자 기준선의 작은 차이는 앞 절의 독립 근거와 연결하며 전체 PR 완료로 확대하지 않는다.
+증거는 ignored `ole-text-layout-final-v446/`에 보존한다.
+Native Clippy와 고정 base unit-tier 검사는 exit0이고 WASM Clippy도 통과했다.
+최종 최적화 WASM·workspace/all-target lint·같은 입력의 fresh 전쪽 비교는 진행 중이다.
+
+기존 #1156 검사를 그대로 실행한 진단은1 PASS/1 FAIL이며 실패 원인은 `chart_y < 130px`다.
+최종 Print의 차트와 뒤 문단이 비겹침이어도 이 고정 원점으로 실패한다.
+고정 영역 대신 원본 OLE 참조·Column(1)·최종 Print paint 외곽·같은 단의 뒤 문단 포함/순서를
+소비하는 관계형 후보는 HWP/HWPX 모두2/2 PASS다. 이는 독립 rlib 링크 진단이고 정식 nextest가 아니다.
+후보는 ignored output에만 있으며 **활성 회귀 검사는 아직 수정하지 않았다**.
+최종 Native/fresh 시각 선행 증거와 정식 회귀 확인 뒤 검사 변경을 반영한다.
+이 단계에서 신규 렌더 회귀/golden 추가 또는 PR 생성은 수행하지 않았다.
+
+v445 WASM 최적화는 v446의 확정된 범례 상자 수정으로 대체되어 소유 프로세스만 중단했다.
+그 실행은1152.441초/exit1이며 성공 증거로 사용하지 않는다.
+중단 사유·프로세스 소유와 종료 결과를 `ole-text-position-v445/superseded-wasm-optimization.json`,
+`wasm-build-result.json`에 보존한다. v446의 새 최적화는 같은 공용 target과 루트 pkg를 재사용한다.
+
+
+### v446 Native/fresh 교차 검증과 관계형 회귀 반영
+
+최적화 WASM 빌드는 exit0/1117.671초·production source unchanged다.
+루트 pkg와 Studio public의 JS/WASM SHA-256 일치도 확인했다.
+Native와 fresh WASM의 위 여섯 전쪽 비교는 모두 같은 점수이며,
+모든 실제 PNG의 RGBA가 완전히 같다. 분리 입력 Native/fresh review를 각각 직접 판독했다.
+WASM 두 sweep은94.932/78.185초·exit0이고 미달/누락/쪽수 불일치는 없다.
+[새 대표 PNG와 producer/입력/TSV 증거](../assets/semanticist21-20261008/ole-owned-text-layout-v446/README.md)를 보존한다.
+
+시각 선행 조건을 확인한 뒤 `tests/issue_1156_chart_column_flow.rs`의 고정px 선택/원점을
+원본 OLE 참조·두 번째 단·최종 Print 외곽·같은 단의 뒤 문단 포함/비겹침으로 변경했다.
+원래 HWP/HWPX 모두 검사한다. 워터마크 opacity의 기존 의미 검사는 유지했다.
+`tests/cases/ole_chart_stored_text_layout.rs`에는 분리 양형식의 값축 가운데 정렬과
+범례의 마커 오른쪽/위쪽 반 정렬 관계를 추가했다. 절대 좌표나 SVG 해시는 고정하지 않는다.
+
+정렬 검사 before/after는 커밋 `cba5fc76ef363cec7e1253d9e2062a7f98a7876f`의 실제
+OLE reader/combo/기본 painter를 복원하고 같은 원본 Contents·변하지 않은 데이터 IR로 실행했다.
+컴파일/실행 성공 뒤 동일 검사에서 `end` 대 `middle`로 FAIL했고, 수정 후 실제 공개 API의
+HWP/HWPX는 PASS했다. `before-painter/provenance.json`에 old source hash를 고정했다.
+이 비교는 독립 painter 진단이며 이전 전체 Native 문서 재출력으로 과장하지 않는다.
+
+Native/WASM Clippy와 workspace build는 각각 exit0이다. 처음 all-target Clippy는
+기존 SO-SUEOP HWP 검사에 남은 단일 항목 for loop 하나로 실패했다.
+반복문을 단일 바인딩으로 바꾸었고 기대값/검사 항목은 유지했다.
+후속 fmt·fmt check·prepare·고정 base manifest·all-target Clippy retry는 모두 exit0이다.
+최종 관련 nextest는 exit0/561.383초이며 6/6 통과했다(빌드9분15초, 실행1.787초).
+새 양형식 OLE 정렬1개, 원래 양형식 #1156 관계/워터마크2개, SO-SUEOP HWP 1쪽3개다.
+기존 SO-SUEOP HWPX 1쪽 검사도 별도로 exit0/5.275초·1/1 통과했다.
+실행 명령과 로그는 `ole-text-layout-final-v446/qualified-test-validation-plan.json`,
+`focused-nextest.log`, `hwpx-first-page-nextest-plan.json`, `hwpx-first-page-nextest.log`에 보존했다.
+production source는 시각 검증 뒤 바뀌지 않았고 test source hash를 별도로 보존했다.
+전체 PR의 나머지 원본/편집 저장본/회귀 게이트는 이 OLE 범위의 결과와 구분하며 머지 보류를 유지한다.
+
+### v446 단계 종료와 PR 검토 재개
+
+최종 확대 review를 다시 직접 열어 범례·제목·값축·범주 위치를 대조했다.
+사용자는 원래 HWPX97.79%에서 추가 보정을 중단하고 커밋 후 현재 PR 검토를 재개하도록 지시했다.
+분리 차트 HWP/HWPX는 Native/fresh99.83461%이며 이 보정 단계를 마무리한다.
+현재 누적 셀/글꼴/OLE 코드·정식 회귀·입력/PDF·대표 이미지·실행 기록을 함께 로컬 커밋한다.
+원래18개 체리픽 범위의 검토를 이어가며 후속6개는 체리픽하지 않는다.
+전체 회귀와 남은 시각 범위는 아직 완료가 아니므로 개별 PR의 최종 판정은 일괄 변경하지 않는다.
+최신 upstream/devel은 fetch 후 SHA가 바뀐 경우에만 rebase하며 원격 push/PR 생성은 별도 승인 대상이다.
