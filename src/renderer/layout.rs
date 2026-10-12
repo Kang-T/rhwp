@@ -9160,6 +9160,7 @@ impl LayoutEngine {
                                             as i32
                                 });
                             hcursor.vpos_lazy_base = seed;
+                            hcursor.seed_lazy_base_from_next_stored = seed.is_none();
                         }
                     }
                 }

@@ -217,6 +217,9 @@ pub(crate) struct HeightCursor {
     /// 시작하는지(번호 장식 `문1)` 의 대리값)로 읽으면 같은 미주 안 `문서…` 본문도 제목이 된다.
     /// 미주 흐름 단에서만 호출자가 채운다.
     pub endnote_note_first_paras: std::sync::Arc<std::collections::HashSet<usize>>,
+    /// [#7702] 쪽/단 첫 항목인 이어지는 부분 문단의 연속 줄이 합성 줄이라 #5820 의 기준을
+    /// 그 줄에서 세우지 못했다. 다음 저장 문단이 자기 실제 흐름 위치로 기준을 세운다.
+    pub seed_lazy_base_from_next_stored: bool,
 }
 
 #[path = "height_cursor_lazy_base.rs"]
@@ -265,6 +268,7 @@ impl HeightCursor {
             session_edited: false,
             curr_item_is_table_fragment: false,
             endnote_note_first_paras: Default::default(),
+            seed_lazy_base_from_next_stored: false,
         }
     }
 
@@ -288,8 +292,32 @@ impl HeightCursor {
             return y_offset;
         }
         let Some(prev_pi) = self.prev_layout_para else {
+            // [#7702] #5820 확장 — 연속 줄이 합성이면 첫 저장 문단에서 기준을 세운다. 세우지
+            // 않으면 다음 문단이 이 문단 끝에서 기준을 거꾸로 재는데, 그 역산식은 끝 줄간격·
+            // 아래 간격을 트림한 조판 흐름을 전제해 그리기 흐름에서는 그만큼 아래로 밀린다
+            // (HWP5-nopassword 15쪽 pi=215: 1168 HU = 15.6px). 조판은 같은 자리에서 앞 합성
+            // 문단의 연속 사다리로 같은 기준을 얻는다.
+            if self.seed_lazy_base_from_next_stored {
+                if let Some(seg) = paragraphs
+                    .get(item_para)
+                    .and_then(|para| para.line_segs.first())
+                    .filter(|seg| {
+                        seg.tag & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+                    })
+                {
+                    self.seed_lazy_base_from_next_stored = false;
+                    let delta_hu =
+                        ((y_offset - self.col_area_y) / self.dpi * 7200.0).round() as i32;
+                    let base = seg.vertical_pos - delta_hu;
+                    if base >= 0 {
+                        self.vpos_lazy_base = Some(base);
+                    }
+                }
+            }
             return y_offset;
         };
+        // 표시는 리셋 바로 뒤 한 문단에만 유효하다.
+        self.seed_lazy_base_from_next_stored = false;
         if item_para == prev_pi {
             return y_offset;
         }
