@@ -4138,3 +4138,37 @@ production source는 보정 전후 동일하다. 검사 이름·실행 명령·�
 사용자가 요청한 output 정리로 종료된 v1~v99 진단 바이너리97개(5,325,788,648bytes)만 제거했다.
 `/proc/*/exe` 사용 여부·파일별 SHA·크기는 같은 폴더의 `old-completed-binary-cleanup.json`에 남겼으며
 공유 `target/pr-review`와 현재/base/candidate CLI 및 검증 증거는 보존했다.
+
+
+## 진행 갱신171 — 최신 devel 리베이스 완료와 검토 재개 (2026-10-13)
+
+보정 commit `d9a2a63657a80511c0e47c204e7a048fec97475d`를 고정한 뒤
+최신 `upstream/devel` **`552f5228d2dbfd6046c838f14241704f1bcb8a05`** 위로165개 로컬 commit을 리베이스했다.
+리베이스 후 code HEAD는 **`df7574f29db1a98a34c3cd9043f724922313ffeb`**다.
+`merge-base`가 위 base와 같고 작업 트리는 clean이다.
+셀 원점·표 block entry·OLE 두 production module·cell spacing 및 SO-SUEOP HWP/OLE 정식 회귀의
+7개 파일 바이트가 리베이스 전 commit과 같음을 실제 대조했다.
+
+충돌은 시험지·이관 corpus 선택과 GPU module 경계에서 해결했다.
+HWP5/IR/envelope 수집은 최신 시험지 제외와 기존 보존 codec corpus 조건을 함께 적용했다.
+시험지 golden 제거·기존 gym 과제 집합·upstream GPU 폐기는 유지하고 legacy font helper를 보존했다.
+세 standalone Studio 스크립트는 upstream의 명시적 실행 거절 guard다. 일반 문서 검사의 통과로 집계하지 않는다.
+원본 시험지와 범위 밖의 정상 검사는 보존한다. source 전부를 어느 한쪽으로 덮어쓰지 않았다.
+
+리베이스 직전 기존 정식 nextest4개는13분04초 빌드 뒤 **3PASS/1FAIL**로 종료했다.
+#6639의 `rowbreak_fragments_keep_origins_and_only_changed_fragments_move`,
+`line_spacing_reflow_preserves_rowbreak_origins`, `rowbreak_origin_survives_shrink_then_restore`가 PASS다.
+기존 실패에서 원점250→200을 복원했으며 검사 기대값은 바꾸지 않았다.
+CGMP `issue_6035_complete_row_does_not_emit_a_line_advance_only_tail`은 종료 컷을 요구하는
+기존 전제로 FAIL이 남는다. 전체 회귀 통과나 CGMP 검토 완료로 보고하지 않는다.
+
+새 base의 충돌 영향 Python 검사는4모듈 **134/134PASS**(2.896초)다.
+prepare·fmt check·base 고정 manifest·source unit tier 검사도 모두 exit0이며,
+공용 `target/pr-review`에서 새 dependency/base의 Native CLI를 다시 빌드하고 검토를 재개했다.
+현재 Native build·관련 출력 비교와 남은 회귀/lint/fresh/backend 최종 게이트는 진행 중이다.
+기존 bfa 결과를 새552f base의 검증으로 승격하지 않는다.
+
+ignored `regression-root-cause-batch-v448/rebase-result.json`, `rebase-conflict-policy.json`,
+`rebase-python-conflict-validation-result.json`, `rebase-validation-plan.json` 및 단계별 log/result에
+SHA·명령·관측을 연결한다. 최종 전체 검증 뒤 개별 PR 판정을 확정하며 원격 PR/push/review/merge는
+사용자의 구체적인 승인 후 진행한다. 이번 동기화는 원격 읽기와 로컬 커밋/리베이스만 수행했다.
