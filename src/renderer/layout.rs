@@ -10350,6 +10350,7 @@ impl LayoutEngine {
                     &[],
                     &[],
                     None,
+                    false,
                     &overlay_ctx,
                     col_area.y,
                 );
@@ -11544,6 +11545,7 @@ impl LayoutEngine {
                 straddle_row_relief,
                 straddle_page_bands,
                 fragment_row_heights,
+                end_row_owns_stored_frame,
             } => {
                 y_offset = self.layout_partial_table_item(
                     tree,
@@ -11564,6 +11566,7 @@ impl LayoutEngine {
                     straddle_row_relief,
                     straddle_page_bands,
                     fragment_row_heights.as_deref(),
+                    *end_row_owns_stored_frame,
                     &ctx,
                     y_offset,
                 );
@@ -14814,6 +14817,7 @@ impl LayoutEngine {
         straddle_row_relief: &[(usize, f64)],
         straddle_page_bands: &[crate::renderer::pagination::StraddleCellCarry],
         fragment_row_heights: Option<&[f64]>,
+        end_row_owns_stored_frame: bool,
         ctx: &ColumnItemCtx,
         mut y_offset: f64,
     ) -> f64 {
@@ -15051,6 +15055,7 @@ impl LayoutEngine {
             is_block_split,
             start_cut_is_block,
             row_cursor_is_nested,
+            end_row_owns_stored_frame,
             end_row_height_override,
             start_row_height_override,
             straddle_row_relief,
@@ -17000,6 +17005,7 @@ impl LayoutEngine {
                             false,
                             &[],
                             &cut.end_cut,
+                            false,
                             false,
                             false,
                             false,

@@ -3109,6 +3109,7 @@ impl DocumentCore {
             straddle_row_relief,
             straddle_page_bands,
             fragment_row_heights,
+            end_row_owns_stored_frame,
         }) = col.items.first()
         else {
             return Ok(Unsupported);
@@ -3153,15 +3154,16 @@ impl DocumentCore {
         // 모든 셀 렌더 후 수행되는 border clip 확장으로 바깥 셀 bbox를 넓힐 수 있다.
         // `cellBounds`도 공개 JSON 계약이므로, 이 형상에서는 대상 셀만 끝까지
         // 렌더해 같은 후처리를 재현한다. 다른 셀과 페이지 트리는 여전히 생략한다.
-        let needs_full_cell_for_bounds = cell
-            .paragraphs
-            .iter()
-            .skip(cell_para_idx.saturating_add(1))
-            .any(|para| {
-                para.controls
-                    .iter()
-                    .any(|control| matches!(control, Control::Table(_)))
-            });
+        let needs_full_cell_for_bounds = *end_row_owns_stored_frame
+            || cell
+                .paragraphs
+                .iter()
+                .skip(cell_para_idx.saturating_add(1))
+                .any(|para| {
+                    para.controls
+                        .iter()
+                        .any(|control| matches!(control, Control::Table(_)))
+                });
         // 반복 제목행 사본으로 그려질 수 있는 셀은 컷 창 모델 밖
         let cell_row = cell.row as usize;
         let cell_end_row = cell_row + (cell.row_span as usize).max(1);
@@ -3173,7 +3175,7 @@ impl DocumentCore {
         // 대상 셀이 그 행의 유일한 칸일 때만 같은 값을 재현한다 — 그 밖에는 legacy 로
         // 폴백한다. 접는 조각에서는 여분이 실제 배치 커서로 정해지므로 대상 셀을 끝까지
         // 렌더한다(`needs_full_cell_for_bounds` 와 같은 이유·같은 방법).
-        let fragment_may_fold = end_cut.iter().any(|&unit| unit > 0);
+        let fragment_may_fold = !*end_row_owns_stored_frame && end_cut.iter().any(|&unit| unit > 0);
         if fragment_may_fold {
             let Some(fold_row) = (*end_row).min(table.row_count as usize).checked_sub(1) else {
                 return Ok(Unsupported);
@@ -3250,6 +3252,11 @@ impl DocumentCore {
         // 존재 이유(속도)를 지키는 게이트다.
         const FULL_COMPOSE_MAX: usize = 64;
         let n_paras = cell.paragraphs.len();
+        // 저장 정렬은 선택 내용의 높이를 함께 읽는다. 빠른 경로의 기존 전량
+        // 구성 상한을 넘으면 같은 item을 소비하는 정상 전체 배치로 돌아간다.
+        if *end_row_owns_stored_frame && n_paras > FULL_COMPOSE_MAX {
+            return Ok(Unsupported);
+        }
         let (windowed, window_paras) = match plan {
             ProbeCutPlan::Unsupported => return Ok(Unsupported),
             ProbeCutPlan::Uncut => {
@@ -3379,6 +3386,7 @@ impl DocumentCore {
             *is_block_split,
             *start_cut_is_block,
             *row_cursor_is_nested,
+            *end_row_owns_stored_frame,
             *end_row_height_override,
             *start_row_height_override,
             straddle_row_relief,

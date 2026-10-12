@@ -120,6 +120,7 @@ struct PartialTableHostContext<'a> {
     resolved_table_top: Option<f64>,
     resolved_table_left: Option<f64>,
     predecessor_flow_bottom: Option<f64>,
+    end_row_owns_stored_frame: bool,
 }
 
 /// 투명하고 비어 있는 1×1 감싸기 표 안의 내용 표를 반환한다.
@@ -1123,6 +1124,7 @@ impl LayoutEngine {
         center_pinned_single_cell: bool,
         center_saved_spanning_cell: Option<usize>,
         align_saved_opening_frame: bool,
+        end_row_owns_stored_frame: bool,
         // 원본 쪽 재시작과 전달된 물리 높이를 함께 확인한 시작/끝 행.
         original_restart_alignment_rows: [Option<usize>; 2],
         // [#6976] 접기 대상 행(모델 행 인덱스)과 그 행이 남긴 여분의 최솟값 수집기.
@@ -1507,26 +1509,12 @@ impl LayoutEngine {
             // 저장 재시작 컷의 내용 밖 빈 띠도 수용한 마지막 행 상자에 속한다.
             // 그 물리 상자를 읽을 때에는 같은 선택 줄을 원본 정렬로 배치한다.
             // 임의 예산 컷·병합/개체 셀에는 이 소유를 추정하지 않는다.
-            let closing_source_frame_owns_alignment = cell.row_span == 1
+            let closing_source_frame_owns_alignment = end_row_owns_stored_frame
+                && cell.row_span == 1
                 && cell_row + 1 == end_row
                 && !is_block_split
                 && !start_cut_is_block
-                && end_row_height_override.is_some_and(|height| {
-                    let start = if cell_row == start_row {
-                        start_cut
-                    } else {
-                        &[]
-                    };
-                    self.row_has_original_plain_text_owners(table, cell_row, end_cut)
-                        && (self.row_cut_ends_at_original_plain_text_reset(
-                            table, cell_row, start, end_cut, styles,
-                        ) || self.row_cut_ends_at_saved_zero_origin_frame(
-                            table, cell_row, start, end_cut, styles,
-                        ))
-                        && height
-                            > self.row_cut_content_height(table, cell_row, start, end_cut, styles)
-                                + f64::EPSILON * height.abs().max(1.0) * 4.0
-                });
+                && end_row_height_override.is_some();
             let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment || is_rowbreak_straddle
                 && cell.row_span > 1
                 && cell.vertical_align != crate::model::table::VerticalAlign::Top
@@ -4420,6 +4408,7 @@ impl LayoutEngine {
                                                             .and_then(|f| f.table_left)
                                                     },
                                                 ),
+                                                end_row_owns_stored_frame: false,
                                                 // 같은 원본 프레임의 바깥여백은 부모 흐름에 예약했다.
                                                 // 실제 표 원점에서는 위 여백만 한 번 소비한다.
                                                 resolved_table_top: source_frame_height
@@ -5074,6 +5063,7 @@ impl LayoutEngine {
         // [#6935] 시작 컷의 인덱스 공간 — 끝 컷과 다를 수 있다.
         start_cut_is_block: bool,
         row_cursor_is_nested: bool,
+        end_row_owns_stored_frame: bool,
         end_row_height_override: Option<f64>,
         start_row_height_override: Option<f64>,
         straddle_row_relief: &[(usize, f64)],
@@ -5149,6 +5139,7 @@ impl LayoutEngine {
                 resolved_table_top,
                 resolved_table_left: None,
                 predecessor_flow_bottom,
+                end_row_owns_stored_frame,
             },
             section_index,
             styles,
@@ -5226,6 +5217,7 @@ impl LayoutEngine {
             resolved_table_top,
             resolved_table_left,
             predecessor_flow_bottom,
+            end_row_owns_stored_frame,
         } = host;
 
         // [Issue #4326] 쪽 나누기는 투명한 1×1 감싸기 표 안의 중첩 표 행을 의도적으로 사용할 수 있다.
@@ -6559,6 +6551,7 @@ impl LayoutEngine {
                 || page_cap_fold > 0.5)
                 && enclosing_cell_ctx.is_none()
                 && !align_saved_opening_frame
+                && !end_row_owns_stored_frame
                 // 이어받은 원본 행은 수용한 빈 띠도 소유한다.
                 && !(fold_row == 0 && start_row == 0 && is_continuation
                     && source_first_row_frame.as_ref().is_some_and(|(cut, _, remaining)| {
@@ -6633,6 +6626,7 @@ impl LayoutEngine {
             center_pinned_single_cell,
             center_saved_spanning_cell,
             align_saved_opening_frame,
+            end_row_owns_stored_frame,
             original_restart_alignment_rows,
             fold_last_row,
             &mut fold_slack,

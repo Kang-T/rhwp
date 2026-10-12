@@ -972,6 +972,7 @@ impl TypesetEngine {
                     straddle_row_relief: straddle_row_relief.clone(),
                     straddle_page_bands: straddle_page_bands.clone(),
                     fragment_row_heights: input.fragment_row_heights.map(<[f64]>::to_vec),
+                    end_row_owns_stored_frame: false,
                 });
                 // 마지막 fragment: spacing_after만 포함 (Paginator engine.rs:1051 동일)
                 // host line advance/positive offset은 원 anchor 조각의 계약이며,
@@ -1200,6 +1201,7 @@ impl TypesetEngine {
             straddle_row_relief: straddle_row_relief.clone(),
             straddle_page_bands: accepted_straddle_cells.clone(),
             fragment_row_heights: input.fragment_row_heights.map(<[f64]>::to_vec),
+            end_row_owns_stored_frame: is_continuation && stored_complete_extent.is_some(),
         });
         // 저장 host 원점이 없는 조각은 흐름 좌표로 같은 상자를 잰다 — 위는 흐름 커서 +
         // host·세로 오프셋, 아래는 비끝 조각 상자 바닥(7062 2~9쪽 996.49 ↔ 정본 996.43).

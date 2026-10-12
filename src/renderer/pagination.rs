@@ -765,6 +765,8 @@ pub enum PageItem {
         /// Fragment row geometry with previously accepted physical boxes.
         /// None keeps the ordinary global measured-row contract.
         fragment_row_heights: Option<Vec<f64>>,
+        /// 예산에서 인증·수용한 종료 행의 저장 물리 프레임 소유. 배치가 다시 추정하지 않는다.
+        end_row_owns_stored_frame: bool,
     },
     /// 그리기 개체
     Shape {
@@ -971,6 +973,7 @@ impl PageItem {
                 straddle_row_relief,
                 straddle_page_bands,
                 fragment_row_heights,
+                end_row_owns_stored_frame,
             } => PageItem::PartialTable {
                 para_index: adjust(*para_index),
                 control_index: *control_index,
@@ -987,6 +990,7 @@ impl PageItem {
                 straddle_row_relief: straddle_row_relief.clone(),
                 straddle_page_bands: straddle_page_bands.clone(),
                 fragment_row_heights: fragment_row_heights.clone(),
+                end_row_owns_stored_frame: *end_row_owns_stored_frame,
             },
             PageItem::Shape {
                 para_index,

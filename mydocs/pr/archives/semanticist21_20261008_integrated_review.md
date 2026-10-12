@@ -4773,3 +4773,28 @@ upstream/devel을 다시 fetch했으며552f5228… 그대로여서 리베이스�
 각 쌍의 decoded RGBA가 같다. 이 결과를 새 표 보정 후보의 재검증으로 바꾸어 보고하지 않는다.
 종료된 이전 K-water 비대표SVG46개3,632,085,473bytes만 fd/hash ledger 뒤 삭제했다.
 입력·Print·PNG·TSV·JSON·대표/미달SVG·공용target은 보존한다.
+
+
+## 진행 갱신189 — Native 경계 통과 후 저장 프레임 소유의 직접 전달 (2026-10-13)
+
+f8495824b의 Native CLI build exit0·12분1초다. 새 경계6쪽 비교는exit0·181.551초,
+55/56/57/78/79/80쪽 각각99.99889/99.99893/99.99882/99.99907/99.53600/99.99655%,
+미달·누락0·sourceguard=true다. 실제6쪽review를 모두열어독립Print와대조했다.
+[새 경계 PNG와 생산 증거](../assets/semanticist21-20261008/franchise-source-frame-boundary-v450/README.md)를
+보존한다. Native 포맷·Clippy와WASM32lib Clippy도 같은f849에서각exit0이다.
+
+55/57쪽의 완료행 앞 띠는 정합했고79쪽 반복 프레임의 하단도 복구됐다.
+80쪽 전체render tree는이전7749d와동일하며남은12줄의쪽소속·줄바꿈·기준선이유지된다.
+다만79쪽 마지막오른쪽두줄은이전위치를유지한다. 높은점수로이차이를면제하지않는다.
+첫보정의배치경로가프레임소유를다시판독하던부분을제거하고,예약에서인증·수용한
+`stored_body_closing_fragment_extent`의사실을`PageItem.end_row_owns_stored_frame`으로
+전달하도록보완한다. 선택줄구성·Center·마지막행접기·cursor의실제소비경로가같은사실을읽는다.
+논리컷과다음쪽내용은바꾸지않는다. 구형paginator·overlay·재귀·합성item은인증producer가
+없으므로false를넘기며원래동작을유지한다. 주소변환/미주item복사도이소유정보를보존한다.
+기존생성자의필드기본값만추가했으며검사기대값·허용치나새렌더fixture는등록하지않는다.
+
+처음기계적라우팅검사에서overlay caller의새인수누락으로cargo check가실패했다.
+해당호출을수정했고최종source로재실행중이다. f849 CLI의release-test 프로파일은
+debug정보가없어GDB breakpoint가pending으로끝났다. 내부변수를관측했다는근거로사용하지않는다.
+실제관측은새PNG·render tree와독립Print의대조다. 이추가보정도새source에서빌드/경계/전쪽을
+재확인하며,개별17개는모든필수검증과해결전까지 **머지 보류**다.
