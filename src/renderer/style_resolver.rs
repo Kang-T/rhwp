@@ -971,11 +971,13 @@ pub(crate) struct FontNameDecision {
 /// - `휴먼고딕` — `HMKMG.TTF`의 실제 `periodcentered`(gid12190)는 512/512이다.
 ///   독립 `80250` Print p10의 같은 face도 이웃 원점 사이에 1em을 소비한다.
 ///   이 목록은 기존 TTF 선언·비치환 조건과 함께 쓰므로 HFT·불명 face는 유지한다.
+/// - `HY중고딕` / `HYGothic-Medium` — `H2GTRM.TTF`의 가운데점·작은따옴표는
+///   모두 1024/1024이다. 실제 SVG 임베딩과 원 파일의 glyf/hmtx/cmap도 같으며,
+///   독립 개인정보 Print 66쪽의 가운데점 29개·작은따옴표 8개가 같은 1em을 확인한다.
 ///
 /// 새 face 를 넣으려면 그 글꼴 파일의 글리프와 한/글 출력 실측을 함께 남긴다.
 ///
-/// 아직 넣지 않은 것 — `HY중고딕`(정본 5문서 n=41 이 전각이지만 저장소에 글꼴 파일이
-/// 없다) · `HY견고딕`·`HY그래픽`(글꼴 파일은 있으나 정본이 사실상 한 문서뿐) ·
+/// 아직 넣지 않은 것 — `HY견고딕`·`HY그래픽`(글꼴 파일은 있으나 정본이 사실상 한 문서뿐) ·
 /// `휴먼명조`(정본 22문서가 전각이고 `HMKMM.TTF` 도 512/512 지만, 저장소
 /// 표본에서는 이 face 가 `alt_type == 1 && !substituted` 를 만족하지 않아 목록에 넣어도
 /// 값이 움직이지 않는다 — 실측으로 확인했다. HFT/TrueType 두 realization 을 가르는 다른
@@ -990,6 +992,8 @@ fn metric_widths_verified_face(face: &str) -> bool {
             | "HY울릉도M"
             | "HYwulM"
             | "휴먼고딕"
+            | "HY중고딕"
+            | "HYGothic-Medium"
     )
 }
 
