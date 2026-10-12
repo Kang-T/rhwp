@@ -110,6 +110,86 @@ fn issue_6389_environment_is_session_local_and_preserves_embedded_fonts() {
         first(&trace(&embedded))["layoutMetric"]["widthSource"],
         "kopubTable"
     );
+
+    // 기본 glyph 공급과 명시 환경도 같은 chain을 측정·paint·폰트 준비에 전달한다.
+    // 이 계약 입력은 전진폭의 상대 관계를 검사하며 화면 좌표를 고정하지 않는다.
+    let mut program = core(false);
+    let mut document = program.document().clone();
+    for fonts in &mut document.doc_info.font_faces {
+        for font in fonts {
+            font.name = "휴먼명조".into();
+            font.alt_type = 1;
+        }
+    }
+    program.set_document(document);
+    program.insert_text_native(0, 0, 1, "․").unwrap();
+    let original = program.export_hwp_native().unwrap();
+    let default_trace = trace(&program);
+    let dot = default_trace["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|record| record["source"]["character"] == "․")
+        .expect("원 프로그램에 없는 한점 리더");
+    let chain = dot["layoutName"]["cssFamilyChain"].as_array().unwrap();
+    assert_eq!(chain, &[json!("휴먼명조"), json!("Haansoft Batang")]);
+    let dot_advance = dot["layoutMetric"]["baseAdvanceHwpunit"].as_f64().unwrap();
+    let hangul_advance = first(&default_trace)["layoutMetric"]["baseAdvanceHwpunit"]
+        .as_f64()
+        .unwrap();
+    assert!(dot_advance > 0.0 && dot_advance < hangul_advance / 2.0);
+    let info: Value = serde_json::from_str(&program.get_document_info()).unwrap();
+    assert!(info["fontsUsed"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("Haansoft Batang")));
+    assert!(
+        program.font_environment().is_none(),
+        "글리프 공급만으로 형식 환경을 승격하지 않음"
+    );
+    program
+        .set_font_environment(Some(
+            FontEnvironment::from_json(
+                r#"{"id":"explicit-glyph-provider","substitutions":{},"glyphFallbacks":{"휴먼명조":["HCR Batang"]}}"#,
+            )
+            .unwrap(),
+        ))
+        .unwrap();
+    let explicit_trace = trace(&program);
+    let explicit_dot = explicit_trace["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|record| record["source"]["character"] == "․")
+        .unwrap();
+    assert_eq!(
+        explicit_dot["layoutName"]["cssFamilyChain"],
+        json!(["휴먼명조", "HCR Batang"])
+    );
+    assert_eq!(
+        program.export_hwp_native().unwrap(),
+        original,
+        "공급 체인으로 원본을 바꾸지 않음"
+    );
+    let mut document = program.document().clone();
+    for fonts in &mut document.doc_info.font_faces {
+        for font in fonts {
+            font.is_embedded = true;
+        }
+    }
+    program.set_document(document);
+    let info: Value = serde_json::from_str(&program.get_document_info()).unwrap();
+    assert!(!info["fontsUsed"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("Haansoft Batang")));
+    assert!(
+        !info["fontsUsed"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("HCR Batang")),
+        "임베딩된 원 프로그램은 그대로 공급함"
+    );
 }
 
 #[test]
