@@ -12,7 +12,7 @@ last_verified: 2026-10-12
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행151): 중첩 표 원본/대조7건 Native100%, missing-named-style 편집본3→2쪽·95.47353%/92.07644%, 원본19종 구조 증가0, 정책연구 원본/왕복215/215쪽. 최신 v324의9단계 lint/정책/집중 회귀57개는 모두 통과했다. v323 fresh 빌드·v327 공개 API·v326 전체14쌍17쪽은 통과했다. 최신 v337의필수lint/정책·집중회귀61개와실행대상누락0을확인했다. 단계별기록은진행154를따른다. 차트 내부와직접 보정3문서의최종 전쪽·전체회귀·backend 검증은 미완료며 개별PR의보류 판정을 유지한다.
+- 최신 단계(진행151): 중첩 표 원본/대조7건 Native100%, missing-named-style 편집본3→2쪽·95.47353%/92.07644%, 원본19종 구조 증가0, 정책연구 원본/왕복215/215쪽. 최신 v324의9단계 lint/정책/집중 회귀57개는 모두 통과했다. v323 fresh 빌드·v327 공개 API·v326 전체14쌍17쪽은 통과했다. 최신 v343의필수lint/정책·집중회귀65개와실행대상누락0, v344의정식신규검사3개수정전FAIL/후PASS 및정상대조전후PASS를확인했다. 단계별기록은진행155를따른다. 차트 내부와직접 보정3문서의최종 전쪽·전체회귀·backend 검증은 미완료며 개별PR의보류 판정을 유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. PR 생성은 사용자 승인 후 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 현재 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`, 최근 커밋: `4ceebf852543522e927db7b67230f8bc22f24662`. 진행148–151의미커밋 보정은 v315의Native 바이너리와source SHA-256 목록으로 고정한다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -3324,3 +3324,55 @@ Native·WASM SHA/원본과대조군구분은같은README에기록한다. qualifi
 중간JSON/SVG는ignored output에남기며Git에추가하지않는다. 새조판정식회귀는
 현재qualified 원본/대조군의관계형검사와수정전후검출을갖추기위해다음단계에서작성한다.
 PR제출·원격push·merge·새6PR체리픽은아직하지않았다.
+
+
+### 진행155: 최종 인쇄 관계 검사4개와 실제 수정 전후 검증
+
+검증 head는 `643812fab0a2c6f82f1a74b49bc52b19f6f88e2b`, pinned base는
+`bfa28a77a2714482f647ee6a7b9aa7f7876d8404`다. production1111파일은 Native v315와
+fresh v323/v326/v338의 해시 목록과 동일하다. 이번 변경은 검사 원본·지원 helper·누락 입력 보존이며
+렌더 구현이나 기준값을 변경하지 않았다. 신규 관계 검사의 원본/독립 Print는 앞 단계의 전체
+Native/fresh17쪽 중7개 래퍼 입력각100%, 같은 missing-named-style 입력2쪽
+95.47353/92.07644%로 먼저 검증했다. v329의본문 끝/다음 쪽 확대를 다시 직접 표시·판독했고,
+글꼴 raster·가는 선의 진하기 잔차를 전체 일치나 최종 수용으로 보고하지 않는다.
+
+`tests/cases/wrapper_cell_print_relations.rs`는 실제 `export-svg --profile print --compat 2022`를
+소비한다. 글자 `뒤`가 각각 한 번만 남는 두 자식 셀의 클립과 실제 부모 괘선을 찾아,
+flow/TAC 자식의 저장 폭은 축소하지 않고 최종 표시 끝은 부모 괘선 안에 있는지 검사한다.
+클립ID·문서의 절대px 위치를 고정하지 않는다. 흐름 제한이 없는 원본/offset/padding/height/
+정상한컴HWP 대조군은 자기 표시 영역을 유지해야 한다. 기존 누름틀 전체 셀 주소·활성화·분할
+검사4개도 그대로 실행했다. `footnote_stored_width_body_ownership.rs`는 동일 편집 저장본의
+첫 쪽 `location.replace("URL")`, 둘째 쪽 `navigator`와 마지막screen속성 목록의 소유·순서·
+누락/중복 및독립Print전체2쪽을 확인한다. 쪽 소속 검사를 글꼴/차트/모든backend의 증거로 확장하지 않는다.
+
+원인 소비 경로는 진행151의 `TableWrapperVerticalFrame → render_transparent_borders`와
+`wrapper_cell_viewport::retain → TableCell clip → PageLayerTree → SVG clip-path`,
+`footnote_area_has_stored_lines(actual area_width) → 무효폭 재조판/예약 → 본문 쪽 소유`를 잇는다.
+새 검사들은 마지막 실제 출력에서 위 계약을 확인한다. source모듈4개와그정상대조를 이번4검사로
+모두 입증했다고 주장하지 않으며, 저장사다리·부모높이 세부계약의 기존 직접Print대조와 진단은
+해당 기록으로 구분한다.
+
+v343의9단계 prepare/fmt-check/Native·WASM·workspace-all-targets Clippy/workspace build/
+pinned manifest·unit policy/집중nextest는 모두exit0이다. 실제65PASS/2772skip/7.593초,
+컴파일 포함174.644초이며 기대실행65개와실제실행65개를대조해누락0을확인했다.
+초기 `#[path]`외부모듈 구성은 integration target50>48로 prepare에서 실패했다.
+동일 지원 파일을 inline module에서 포함하는 기존 suite 패턴으로 바로잡아28suite+20exception,
+48/48예산을 유지했고 새 Cargo target·정책완화·registry 예외를 추가하지 않았다.
+파생 suite는커밋하지않는다. 실제 source/test해시와모든명령은 ignored
+`wrapper-note-formal-validation-v343-result.json`에보존했다.
+
+v344는 동일 새 검사 실행 파일에 런타임 `CARGO_BIN_EXE_rhwp`를 지정해 실제 CLI를 대조했다.
+수정전 v306 Native SHA `059c7aa34e2018311cfb9558a250afdf62e6917f9439447bf511f3c0caa77e84`,
+수정후 v315 SHA `3d50e1311eb579afd41d0dcf3bafade916b8b763a633083c8f89d2b001340ae3`다.
+inline/flow는 수정전 부모right676.54667 밖으로자식 표시right687.12가남아 관계 검사exit101,
+각주 원본은 같은Print2쪽대신3쪽이라exit101이다. 정상 unrestricted대조는수정전exit0,
+수정후4개모두exit0을 실제확인했다. 좌표는 실패 원인 진단값이며 검사 기대값은 아니다.
+`wrapper-note-formal-before-after-v344-result.json`의실행파일/CLI해시·명령·각로그를보존했다.
+
+검증에 쓴 missing-named-style 입력은 이미Git에있다는이전가정과달리 output에만있었다.
+같은10443바이트/SHA `6b4f6a375029dcb0c9def5b4443683d1b55cf09acbdb9cb9ab87ac2d94888edb`를
+변경없이 `mydocs/pr/assets/semanticist21-20261008/current-print-inputs-v175/`에 보완했다.
+같은내용의tracked사본은없고대응독립Print는기존pdf경로에있다. README에생성·출처·해시를연결했다.
+새 입력·검사가 시험지/HML 제외원본을 사용하지 않는지확인했다.
+이번65개를전체회귀0FAIL로바꾸지않는다. 마지막전체29FAIL은역사결과이며현재전체를다시실행해
+실제남은실패를확인한다. 차트내부·KPS/가맹사업/CGMP최종전체·backend·개별18PR수용·원격PR는계속보류다.
