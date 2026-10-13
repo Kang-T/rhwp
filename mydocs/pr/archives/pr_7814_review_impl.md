@@ -96,3 +96,29 @@ PDF 개방·raster 생성도 확인했다. 버전 표기만을 이유로 재변�
 
 입력/Print SHA·Git blob 일치·기존 출처와 미확인 항목은 ignored
 `c20-hwp3-original11-existing-oracle-reuse-audit.json`에 기록했다.
+
+## sample10 원본 Print PDF 크기 예외 승인 — 2026-10-13
+
+사용자가 **“96MB 원본 PDF 커밋 예외 승인”**으로 50 MiB 상한의 예외를 승인했다.
+전763쪽의 원본 PDF를 [`pdf/hwp3-sample10-original-2020.pdf`](../../../pdf/hwp3-sample10-original-2020.pdf)에
+일반 Git blob으로 보존한다. 파일은 96,135,304바이트이며 분할·재인코딩·페이지 생략 없이
+수신 원본과 SHA-256이 같다.
+
+| 항목 | 확인값 |
+| --- | --- |
+| 원본 입력 | `samples/hwp3-sample10.hwp` |
+| 입력 SHA-256 | `d9ceb35d8abfb73e9afbe349bccb2a986cf552d66ae7f3f34dcfe4d9d385cb48` |
+| PDF SHA-256 | `f96b37df92a720389c342bbe84e5782790c80b44b8ee0e6311952ee8ed262fb9` |
+| 출력 출처 | Windows Hancom Office 2020 `11, 0, 0, 9136`, COM `PrintToPDFEx`, Hancom PDF |
+| 인쇄 계약 | `PrintMethod=0`, 전체 범위, 100%, 1부; 논리 쪽수와 실제 PDF 모두763쪽 |
+
+출력 실행·수신 증거는 ignored `c20-hwp3-original10-com-print-provenance.json`,
+사용자 승인·보존 파일 확인은 `c21-hwp3-original10-approved-full-pdf-preservation.json`에 기록했다.
+source commit `5bd2620a3`의 전체 회귀 종료 후 이 증적을 별도 커밋한다.
+그 실행은10,240건 통과·1건 실패·45건 제외였고, HML 성능 검사는533ms로500ms 상한을 넘었다.
+동일 소스·상한의 단독 재검증은통과했다(테스트 전체 실행 시간88ms).
+전체 실행의 실패 기록은 유지하며, 실행 격리 보정 후 전체 검증을 다시 확인한다.
+이 단계의 Native Skia·정식 lint·fresh WASM·Canvas 재캡처는 실행되지 않았다.
+상세 결과는 ignored `c21-validation-sequence-results.json`, `c21-isolated-hml-results.json`에 보존한다.
+크기 예외는 전쪽 Native/fresh WASM TSV·쪽수 대조·90% 기준·직접 확대 판독을 면제하지 않는다.
+이 문서의 시각 수용 판정은 아직 미검증이다.
