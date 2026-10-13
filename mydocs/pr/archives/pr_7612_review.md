@@ -127,3 +127,20 @@ nextest 설치 버전 `0.9.137`에서 권장 `0.9.140` 경고와 비기능적 JU
 ### 병합 후 자동 실행 확인
 
 [Refresh nextest target duration data #37843669946](https://github.com/edwardkim/rhwp/actions/runs/37843669946)는 success다. 수집 결과는 `ready:false`, `reason:no-verified-pr-duration-measurements`로 실측 정책 갱신 보류다. 이는 검증 CI 실패가 아니며 CI를 추가 실행하지 않는다. [Close Issues on devel Push #37843669943](https://github.com/edwardkim/rhwp/actions/runs/37843669943)도 success다. source merge SHA의 run 목록에서 CI·CodeQL·Adapter·Proptest·Oracle의 병합 후 재실행은 없었다.
+
+
+## 현재 통합 검토와 후속 처리 — 2026-10-13
+
+초기18개 목록에 속한 이 PR은 이미 병합됐다. 병합 SHA `83131ecd186bd7483671b7886d659ecb4fd380ca`가
+현재 고정 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`의 조상임을 실제 Git으로 확인했다.
+이번 통합에서 다시 체리픽하거나 별도 병합 대상으로 처리하지 않는다. 위 승인·예외와 당시 검증은
+#7612의 기존 기록이며, 다른17개 PR 또는 현재 통합 head의 검증을 면제하지 않는다.
+
+현재 브랜치 `review/semanticist21-20261008`, 기록 기준 head `5cd155886dbcfb19d5f4fa17ae778f278940e08b`다.
+작업지시자의 자동 승인에 따라 모든 필수 테스트와 시각 검증 완료 후 통합 PR 생성·최신 head CI 확인·
+머지·후속 처리를 진행한다. 이미 완료된 #7612의 승인·병합 상태는 유지한다.
+
+
+## 초기18개 통합 검토와의 관계 — 2026-10-14
+
+#7612는 이미 `83131ecd186bd7483671b7886d659ecb4fd380ca`로 병합됐으며 기존 승인·명시 시각 예외를 보존한다. 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)의 code candidate `0d59e7f73cc366897891329a21d353458db7776e`·base `22317614b03722e95349a1d3d71c86923363c6f5`에서 기존 기여의 devel 포함을 유지했고, 초기18개 가운데 새 열린17개 범위를 검증했다. 이번 통합 때문에 이 PR을 다시 merge/close하거나 과거 미실행 시각 검사를 PASS로 바꾸지 않는다.
