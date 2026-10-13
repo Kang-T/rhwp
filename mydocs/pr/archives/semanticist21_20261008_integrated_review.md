@@ -5215,3 +5215,18 @@ SHA ledger뒤삭제했다. 원본/Print/PNG/TSV/tree/immutableCLI/package/공용
 패키지·PNG 해시, v452 direct-reading/provenance와 전쪽 TSV를 연결한다.
 Python/JSON 보정은94bb1cf70에 고정했고 관련137개 PASS·전체 도구442개
 PASS다. Rust source guard는 그대로이며 전체10267개 검증을 재시작하지 않았다.
+
+## 진행 갱신209 — Skia3종 통과와 원 체리픽 문서 비교 우선 실행 (2026-10-13)
+
+현재 b4ff8c의 Native Skia3종은 모두 exit0/source guard=true다. lib4041개
+PASS·12ignored, placeholder2개 PASS, 직접 PDF 검사 exit0을 확인했다.
+`final-rust-gates-result.json`과 세 단계의 실제 로그에 연결하며 doc-test는
+아직 진행 중이다. 이 종료 결과는 Python 수정에 따른 전체 회귀 재실행이 아니다.
+
+원래 체리픽 문서를 우선하라는 지시에 맞춰24쌍27쪽의 Native/fresh 비교를
+먼저 실행했다. 기존 두 대기 스케줄러는 자식 프로세스/캡처/출력 없음과 정확한
+PID·명령을 확인한 뒤 종료했으며 렌더링 실행을 중단·중복하지 않았다.
+`original-pr-priority-scheduler-change.json`에 기록했다. 같은 승인된 명령,
+입력/Print 해시, 현재 immutable CLI와 최적화 WASM을 사용한다. 입력/Print
+총1,534,489bytes, 당시 여유18GiB 이상이며 가맹사업 전쪽/Cargo는 유지한다.
+현재 원문 로그에서 Native SVG/트리와 fresh WASM 내보내기 시작을 확인했다.
