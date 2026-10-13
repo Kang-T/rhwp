@@ -11,6 +11,7 @@ pub(super) struct CellFrameWriteback {
     pub(super) control_idx: usize,
     pub(super) cell_idx: usize,
     pub(super) resets: Vec<(usize, usize)>,
+    pub(super) uncharged_hosts: BTreeSet<usize>,
     pub(super) generated_host_lines: Vec<(usize, usize)>,
     pub(super) preserved_frames: Vec<((usize, usize), (usize, usize))>,
 }

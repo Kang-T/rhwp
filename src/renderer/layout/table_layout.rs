@@ -1853,6 +1853,12 @@ pub(super) struct CellUnit {
     /// Square/Tight/Through non-inline flow fragment가 걸친 원 문단 control index 범위
     /// (inclusive). 높이·unit 경계는 바꾸지 않고 partial renderer의 page owner 판단에만 쓴다.
     non_inline_control_range: Option<(usize, usize)>,
+    /// 중첩 표 host 문단의 마지막 행 유닛이 host 줄의 줄간격을 계상했는가.
+    ///
+    /// 저장 사다리가 다음 문단까지 `lh + ls` 를 전진했다고 증언할 때만 계상한다(#6126·
+    /// #7140). 되감김은 증언이 아니다. [#7114] 저장 되쓰기가 옮겨 없앤 되감김 자리를
+    /// 채울 때 이 판정을 그대로 보존해야 재열기가 편집 직후와 같은 유닛 높이를 쓴다.
+    host_trailing_spacing_charged: bool,
 }
 
 impl CellUnit {
@@ -13833,6 +13839,7 @@ impl LayoutEngine {
                     empty_spacer: cell.paragraphs[pi].text.trim().is_empty(),
                     nested_host_closing_line_height: 0.0,
                     non_inline_control_range: None,
+                    host_trailing_spacing_charged: false,
                 })
                 .collect();
         }
@@ -13874,6 +13881,7 @@ impl LayoutEngine {
                 empty_spacer: false,
                 nested_host_closing_line_height: 0.0,
                 non_inline_control_range: Some((0, cell.paragraphs[0].controls.len() - 1)),
+                host_trailing_spacing_charged: false,
             }];
         }
         let (pad_left, pad_right, pad_top, pad_bottom) = self.resolve_cell_padding(cell, table);
@@ -14252,6 +14260,7 @@ impl LayoutEngine {
                         empty_spacer: false,
                         nested_host_closing_line_height: 0.0,
                         non_inline_control_range: None,
+                        host_trailing_spacing_charged: false,
                     });
                     non_inline_h -= h;
                 }
@@ -14289,6 +14298,7 @@ impl LayoutEngine {
                     // Square 경로와 같이 그 control 의 **첫** unit 을 품은 cut 만 emit 한다.
                     nested_host_closing_line_height: 0.0,
                     non_inline_control_range: tb_range,
+                    host_trailing_spacing_charged: false,
                 });
             };
         let append_non_inline_units = |units: &mut Vec<CellUnit>,
@@ -15407,6 +15417,7 @@ impl LayoutEngine {
                                         empty_spacer: false,
                                         nested_host_closing_line_height: 0.0,
                                         non_inline_control_range: None,
+                                        host_trailing_spacing_charged: false,
                                     });
                                     unit_cum += uh;
                                     driver_before = driver_after;
@@ -15469,6 +15480,7 @@ impl LayoutEngine {
                                     0.0
                                 };
                         }
+                        let mut host_trailing_spacing_charged = false;
                         if ri + 1 == nrow {
                             uh += terminal_band + nt_cap_bot;
                             // [#5880] 직접 HWPX 의 저장 사다리는 중첩 표 host 문단
@@ -15539,6 +15551,7 @@ impl LayoutEngine {
                                     };
                                     if charge {
                                         uh += hwpunit_to_px(seg.line_spacing.max(0), self.dpi);
+                                        host_trailing_spacing_charged = true;
                                     }
                                 }
                             }
@@ -15591,6 +15604,7 @@ impl LayoutEngine {
                             empty_spacer: false,
                             nested_host_closing_line_height: 0.0,
                             non_inline_control_range: None,
+                            host_trailing_spacing_charged,
                         });
                         unit_cum += uh;
                     }
@@ -15813,6 +15827,7 @@ impl LayoutEngine {
                                 empty_spacer: false,
                                 nested_host_closing_line_height: 0.0,
                                 non_inline_control_range: None,
+                                host_trailing_spacing_charged: false,
                             });
                             unit_cum += uh;
                         }
@@ -15938,6 +15953,7 @@ impl LayoutEngine {
                             empty_spacer: false,
                             nested_host_closing_line_height: 0.0,
                             non_inline_control_range: None,
+                            host_trailing_spacing_charged: false,
                         });
                         unit_cum += lh;
                     }
@@ -16104,6 +16120,7 @@ impl LayoutEngine {
                                 empty_spacer: false,
                                 nested_host_closing_line_height: 0.0,
                                 non_inline_control_range: None,
+                                host_trailing_spacing_charged: false,
                             });
                             unit_cum += fragment.height;
                         }
@@ -16298,6 +16315,7 @@ impl LayoutEngine {
                     empty_spacer: is_empty_spacer_para,
                     nested_host_closing_line_height: 0.0,
                     non_inline_control_range: None,
+                    host_trailing_spacing_charged: false,
                 });
                 unit_cum += para_h;
             } else {
@@ -16441,6 +16459,7 @@ impl LayoutEngine {
                         empty_spacer: is_empty_spacer_para,
                         nested_host_closing_line_height: 0.0,
                         non_inline_control_range: None,
+                        host_trailing_spacing_charged: false,
                     });
                     unit_cum += lh;
                 }
@@ -16902,6 +16921,28 @@ impl LayoutEngine {
                     && owner.para_idx < next.para_idx)
                     .then_some((owner.para_idx, next.para_idx))
             })
+            .collect()
+    }
+
+    /// [#7114] 행 유닛이 host 줄의 줄간격을 계상하지 않은 중첩 표 host 문단들.
+    ///
+    /// 저장 되쓰기가 이 문단 뒤의 되감김을 없앨 때, 재열기 판정이 같은 결과를 내도록
+    /// 채울 간격을 정하는 데 쓴다. 컷 판정과 같은 `cell_units` 를 소비한다.
+    pub(crate) fn cell_uncharged_nested_hosts(
+        &self,
+        cell: &crate::model::table::Cell,
+        table: &crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+    ) -> std::collections::BTreeSet<usize> {
+        let units = self.cell_units(cell, table, styles);
+        let host_rows = || units.iter().filter(|unit| unit.nested_row.is_some());
+        let charged: std::collections::BTreeSet<usize> = host_rows()
+            .filter(|unit| unit.host_trailing_spacing_charged)
+            .map(|unit| unit.para_idx)
+            .collect();
+        host_rows()
+            .map(|unit| unit.para_idx)
+            .filter(|para_idx| !charged.contains(para_idx))
             .collect()
     }
 
@@ -26322,6 +26363,7 @@ mod row_cut_tests {
             empty_spacer: false,
             nested_host_closing_line_height: 0.0,
             non_inline_control_range: None,
+            host_trailing_spacing_charged: false,
         }
     }
 
@@ -26363,6 +26405,7 @@ mod row_cut_tests {
             empty_spacer: false,
             nested_host_closing_line_height: 0.0,
             non_inline_control_range: None,
+            host_trailing_spacing_charged: false,
         }
     }
 

@@ -2104,12 +2104,20 @@ impl DocumentCore {
                         if resets.is_empty() {
                             continue;
                         }
+                        // 줄간격을 계상하지 않은 중첩 표 host — 뒤의 되감김을 없앨 때
+                        // 사다리 등식(`lh + ls`)을 새로 만들지 않도록 채울 간격을 줄인다.
+                        let uncharged_hosts = self.layout_engine.cell_uncharged_nested_hosts(
+                            cell,
+                            table,
+                            &self.styles,
+                        );
                         plans.push(CellFrameWriteback {
                             section_idx,
                             para_idx,
                             control_idx,
                             cell_idx,
                             resets,
+                            uncharged_hosts,
                             generated_host_lines,
                             preserved_frames,
                         });
@@ -2130,6 +2138,7 @@ impl DocumentCore {
             control_idx,
             cell_idx,
             resets,
+            uncharged_hosts,
             generated_host_lines,
             preserved_frames,
         } in plans
@@ -2150,7 +2159,15 @@ impl DocumentCore {
             for (cell_para_idx, cell_para) in cell.paragraphs.iter_mut().enumerate() {
                 for (line_idx, seg) in cell_para.line_segs.iter_mut().enumerate() {
                     let stored = seg.vertical_pos;
-                    let occupied = seg.line_height.saturating_add(seg.line_spacing);
+                    // 되감김이 사라진 자리를 채울 이 줄의 점유 높이. 중첩 표 host 의 줄간격은
+                    // 조판이 저장 사다리의 `lh + ls` 등식을 증거로만 계상한다(#6126). 편집 직후
+                    // 조판이 계상하지 않은 host 뒤를 `lh + ls` 로 채우면 재열기에서 없던 증거가
+                    // 생겨 그 줄간격이 조각에 더해진다 — 이 경우 줄 높이만 채운다.
+                    let occupied = if uncharged_hosts.contains(&cell_para_idx) {
+                        seg.line_height
+                    } else {
+                        seg.line_height.saturating_add(seg.line_spacing)
+                    };
                     let next = match previous {
                         None => stored,
                         Some((previous_stored, previous_new, previous_occupied)) => {
