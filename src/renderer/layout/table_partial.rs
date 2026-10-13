@@ -3118,12 +3118,20 @@ impl LayoutEngine {
                                 + effective_margin_left_line(para_margin_left, para_indent, 0)
                         }
                     };
-                    let mut empty_tac_y = para_y_before_compose;
+                    let picture_paragraph_origin =
+                        super::table_inline_picture_origin::rendered_picture_paragraph_origin(
+                            &cell_node,
+                            para,
+                            section_index,
+                            cp_idx,
+                        )
+                        .unwrap_or(para_y_before_compose);
+                    let mut empty_tac_y = picture_paragraph_origin;
                     // [#6122] 텍스트를 가진 문단의 인라인 TAC 개체 폴백은 저장 lineseg 를
                     // 보지 않고 x 만 누적해 왔다 — 폭 초과 개행을 위해 현재 줄과 그 줄의
                     // 흐름 y 를 함께 들고 간다.
                     let mut inline_tac_line = 0usize;
-                    let mut inline_tac_y = para_y_before_compose;
+                    let mut inline_tac_y = picture_paragraph_origin;
                     // 폭 초과로 줄을 내린 개체의 하단(#6122). 쪽 분할 칸의 단독 TAC
                     // 그림(#6114)도 같은 값으로 흐름을 민다 — 일반 칸까지 밀면
                     // 칸 상자 밖 글이 아래 본문과 겹친다.
@@ -3231,7 +3239,7 @@ impl LayoutEngine {
                                                 if let Some(segment) =
                                                     para.line_segs.get(target_line)
                                                 {
-                                                    empty_tac_y = para_y_before_compose
+                                                    empty_tac_y = picture_paragraph_origin
                                                         + hwpunit_to_px(
                                                             segment.vertical_pos - first_vpos,
                                                             self.dpi,
@@ -3292,13 +3300,14 @@ impl LayoutEngine {
                                         // 보지 않고 x 만 누적해 둘째 그림이 칸·용지 밖으로
                                         // 나갔다(#4370·#6101 과 같은 인라인 개체 폭 초과
                                         // 미개행 계열).
-                                        if inline_x > inner_area.x + INLINE_WRAP_WIDTH_EPSILON_PX
+                                        let wrapped_to_next_line = inline_x
+                                            > inner_area.x + INLINE_WRAP_WIDTH_EPSILON_PX
                                             && inline_x + clamped_w
                                                 > inner_area.x
                                                     + inner_area.width
                                                     + INLINE_WRAP_WIDTH_EPSILON_PX
-                                            && inline_tac_line + 1 < para.line_segs.len()
-                                        {
+                                            && inline_tac_line + 1 < para.line_segs.len();
+                                        if wrapped_to_next_line {
                                             inline_tac_line += 1;
                                             let line_margin = effective_margin_left_line(
                                                 para_margin_left,
@@ -3325,17 +3334,12 @@ impl LayoutEngine {
                                             if let Some(segment) =
                                                 para.line_segs.get(inline_tac_line)
                                             {
-                                                inline_tac_y = para_y_before_compose
+                                                inline_tac_y = picture_paragraph_origin
                                                     + hwpunit_to_px(
                                                         segment.vertical_pos - first_vpos,
                                                         self.dpi,
                                                     );
                                             }
-                                            wrapped_tac_flow_bottom = Some(
-                                                wrapped_tac_flow_bottom
-                                                    .unwrap_or(f64::MIN)
-                                                    .max(inline_tac_y + clamped_h),
-                                            );
                                         }
                                         // [#4068] `#2004` 정규화가 부동 그림 스택을 인라인으로
                                         // 재분류하며 버린 `horzOffset` 을 되살린다.
@@ -3370,7 +3374,7 @@ impl LayoutEngine {
                                             Some(&cell_context),
                                             styles,
                                         );
-                                        if split_cell_tac_flow {
+                                        if split_cell_tac_flow || wrapped_to_next_line {
                                             wrapped_tac_flow_bottom = Some(
                                                 wrapped_tac_flow_bottom
                                                     .unwrap_or(f64::MIN)
