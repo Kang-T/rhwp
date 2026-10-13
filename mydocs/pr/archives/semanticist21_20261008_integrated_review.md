@@ -5067,3 +5067,18 @@ SO-SUEOP4개 Native는 exit0, HWP1쪽99.79294%·HWPX1쪽99.95935%·
 전체 Rust는 실제 cargo-nextest/Rust 컴파일 프로세스가 실행 중이며 최종 통과 전이다.
 전쪽·관계형 회귀 등록·최종 backend/Canvas·원격CI 미완료를 승인으로 바꾸지 않는다.
 개별17개 HOLD와 승인된 원격 PR/merge/후속처리 순서는 유지한다.
+
+## 진행 갱신201 — OLE/SO10개 최신 양쪽 비교 완료 (2026-10-13)
+
+현재 b4ff8c/94fe70의 OLE6개 및 SO-SUEOP4개는 Native/fresh 모두exit0,
+source guard=true, `ole-so-current-result.json`의 all_pass=true다. SO 첫쪽 점수는
+양쪽 동일하게 HWP99.79294%·HWPX99.95935%·일반 글꼴 대조99.84371%·
+issue5821 99.75702%다. SO4개의 새 Native/fresh RGBA 및 직접 판독한7f04c
+Native와의 RGBA가 모두 동일하다. OLE6개도 같은 관계를 앞서 확인했다. 사용한
+원본·Print17개 실제 바이트가 현재 HEAD blob과 동일함을 검증했고, 결과는 v452의
+`so-current-pixel-identity.json`, `ole-so-current-input-head-proof.json`에 보존한다.
+SO 검증 범위는 첫쪽이며 #7807 전체46쪽 해결로 확대하지 않는다.
+
+fresh 경계 직접 판독 통과 뒤 Native 가맹사업 전142쪽과 fresh CGMP 전48쪽
+검증 프로세스가 실제 시작됐음을 확인했다. 전체 nextest는 Cargo/Rust 컴파일 중이다.
+전쪽·정식 관계형 회귀·backend/Canvas·원격CI는 완료 전이며 개별17개 HOLD를 유지한다.
