@@ -5244,3 +5244,20 @@ PID·명령을 확인한 뒤 종료했으며 렌더링 실행을 중단·중복�
 보류는전쪽Native/fresh·실제Canvas·시각선행조건뒤의정식관계회귀3개및
 기존본문포함검사보완에따른다. 기존Rust전체를Python/문서때문에다시돌리지않는다.
 관계회귀등록뒤에는변경검사/필수lint/정책/최신headCI를검증한다.
+
+## 진행 갱신211 — 원 PR24쌍27쪽 양쪽 검증 및 현재 대표 확대 판독 완료 (2026-10-13)
+
+현재 b4ff8c/94fe70의 원 PR편집/정상24쌍27쪽 Native/fresh는각각exit0,
+892.431초/1021.503초다. 양쪽최저current-04 2쪽92.07644%,미달/누락0,
+모든원본/독립Print의전체쪽수일치및입력/Print/source해시를확인했다.
+전27쪽Native/fresh및이전직접판독7f소스의RGBA는모두동일하다.
+현재대표16개review와최저원본본문/각주의동일좌표2배/3배확대를직접열었다.
+누름틀정상/자식offset·HWP저장의외곽/셀내용/뒤문단,스타일삭제의가시대조군·
+원본HWP/HWPX,최저원본문/각주번호/구분선/쪽소속/내용순서를확인했다.
+글자획·폭·자간의기존차이는남으며Print와완전픽셀일치를주장하지않는다.
+
+정확한명령/TSV/로그/guard/현재PNG해시와판독은v452의
+`original-edited-{native,fresh}-result.json`, `original-current-qualification.json`,
+`original-edited-zooms/provenance.json`이다. 대표review/overlay/확대및24입력/Print
+해시표는`mydocs/pr/assets/semanticist21-20261008/original-current-proof-v452/`에
+보존했다. 다른직접문서전쪽·실제Canvas·정식관계회귀의미완료로는확대하지않는다.
