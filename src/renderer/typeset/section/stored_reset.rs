@@ -218,6 +218,21 @@ impl TypesetEngine {
                     && st.wrap_around_cs < 0
                     && !para_is_page_bottom_fixed_table_anchor(para)
                     && stored_vpos_top_collision(prev_para, para);
+                // 좌표 축을 닫은 완전한 TAC 표도 원본 쪽 경계는 보존한다.
+                // 부분 이어받기는 이 단에 원본 전체 줄을 소비한 증거가 아니다.
+                let inline_frame_page_restart = st.col_count == 1
+                    && !profile.session_edited()
+                    && profile.hwp5_stored_pagination_layout()
+                    && matches!(st.current_items.last(), Some(crate::renderer::typeset::PageItem::Table {
+                        para_index, control_index: 0,
+                    }) if *para_index == para_idx - 1)
+                    && crate::renderer::stored_page_origin::stored_inline_frame_restarts_page(
+                        prev_para,
+                        para,
+                        paragraphs.get(para_idx + 1),
+                        styles,
+                        self.dpi,
+                    );
                 let source_margin_restart = st.col_count == 1
                     && !profile.session_edited()
                     && (profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
@@ -257,6 +272,7 @@ impl TypesetEngine {
                         || native_inline_shape_reset
                         || stored_top_collision_reset
                         || source_margin_restart
+                        || inline_frame_page_restart
                 };
                 // [#2279 OMIT-fit] spacing-누락 문서군에서 fresh 재계산이 직전
                 // 쪽에서 밀어낸 빈 문단만 담긴 쪽에는 저장 리셋 경계를 적용하지

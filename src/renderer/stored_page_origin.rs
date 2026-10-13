@@ -95,3 +95,76 @@ pub(crate) fn stored_first_margin_is_page_relative(
                 || (next_before > 0.5 && float_closes_next)
         }
 }
+
+/// 완전한 인라인 표의 저장 상자 뒤에서 새 본문 사다리가 0으로 재시작하면
+/// 다음 문단이 새 쪽을 소유한다. 표 완료 뒤 좌표 축을 닫는 것과 쪽 경계
+/// 보존은 별개다. 단순 vpos 되감김이나 표 크기만으로 판정하지 않는다.
+pub(crate) fn stored_inline_frame_restarts_page(
+    previous: &Paragraph,
+    current: &Paragraph,
+    next: Option<&Paragraph>,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) -> bool {
+    use crate::model::paragraph::LineSeg;
+    let [Control::Table(table)] = previous.controls.as_slice() else {
+        return false;
+    };
+    let [object_line] = previous.line_segs.as_slice() else {
+        return false;
+    };
+    let [first] = current.line_segs.as_slice() else {
+        return false;
+    };
+    let Some(next) = next else {
+        return false;
+    };
+    let Some(successor) = next.line_segs.first() else {
+        return false;
+    };
+    if !table.common.treat_as_char
+        || table.common.height == 0
+        || object_line.vertical_pos <= 0
+        || object_line.line_height <= 0
+        || object_line.line_spacing < 0
+        || i64::from(object_line.line_height)
+            != i64::from(table.common.height)
+                + i64::from(table.outer_margin_top)
+                + i64::from(table.outer_margin_bottom)
+        || previous
+            .text
+            .chars()
+            .any(|ch| !ch.is_whitespace() && !ch.is_control() && ch != '\u{FFFC}')
+        || !current.controls.is_empty()
+        || current.text.trim().is_empty()
+        || first.vertical_pos != 0
+        || first.line_height <= 0
+        || first.line_spacing < 0
+        || [previous, current, next]
+            .iter()
+            .any(|p| p.stored_text_partition_is_dirty() || p.cell_format_vpos_dirty)
+        || [object_line, first, successor].iter().any(|seg| {
+            seg.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+                || seg.tag & LineSeg::TAG_FIRST_SEGMENT == 0
+                || seg.segment_width <= 0
+        })
+    {
+        return false;
+    }
+    let Some(current_style) = styles.para_styles.get(current.para_shape_id as usize) else {
+        return false;
+    };
+    let Some(next_style) = styles.para_styles.get(next.para_shape_id as usize) else {
+        return false;
+    };
+    let spacing = current_style.spacing_after + next_style.spacing_before;
+    if !spacing.is_finite() || spacing < 0.0 || !dpi.is_finite() || dpi <= 0.0 {
+        return false;
+    }
+    let expected = i64::from(first.line_height)
+        + i64::from(first.line_spacing)
+        + (spacing * 7200.0 / dpi).round() as i64;
+    // 새로운 제목과 그 다음 줄은 같은 원본 사다리를 닫는다. 문단마다
+    // 0을 쓰는 로컬 좌표와 편집 후 재조판에는 이 독립 증거가 없다.
+    i64::from(successor.vertical_pos) == expected
+}
