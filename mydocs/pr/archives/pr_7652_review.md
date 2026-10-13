@@ -16,8 +16,8 @@ last_verified: 2026-10-13
 | 항목 | 확인 결과 |
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
-| 현재 production 보정 | v453 프레임 출처 분리 보정 — Native build exit0; 실제 source SHA는 v453/native-build-result.json. 직전 b4ff8c의118쪽 회귀를 복구하고72쪽 개선을 유지 |
-| 현재 Native/fresh 재검증 code head | v453 Native 전142쪽 tree 대조: 직전b4와118쪽만 다름·이전7f와72쪽만 다름. 실제 경계17쪽 PNG 비교 진행 중; fresh·필수회귀/lint·Canvas는 새 소스 검증 필요 |
+| 현재 production 보정 | `ddf17f86476293b114b6236bfa6cf1ebc9d9d474` — 원본 전체 행/중첩 셀의 프레임 출처와 정렬 높이 계약 분리 |
+| 현재 Native/fresh 재검증 code head | ddf17f864 Native17쪽 통과(최저93.16816%,72쪽99.95995%,118쪽99.99852%)·현재 직접 판독. 전142쪽 tree118복구/72개선 보존. 새 fresh·전쪽·관련 회귀/lint·Canvas는 미완료 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
 | 이 PR의 실제 계약 실행 | 직전 b4ff8c 전체 nextest에서 1/1 PASS, FAIL/SKIP/미관측0; 현재 검사 source SHA 동일 확인 |
 | 현재 통합 완료 판정 | **머지 보류** — 직전 b4ff8c의 전체10267개/원PR78계약·Skia/doc는 PASS였으나, 전142쪽 직접 대조에서118쪽 정렬 회귀 확인. 새 보정 소스의 검증 필요 |

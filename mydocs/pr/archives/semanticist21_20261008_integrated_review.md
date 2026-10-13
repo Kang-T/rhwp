@@ -12,7 +12,7 @@ last_verified: 2026-10-13
 **머지 보류 — 118쪽 정렬 회귀 확인; 메인터너 보정과 새 소스 검증 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 직전 b4ff8c의 전체 nextest/Skia/doc는 통과했지만 전142쪽의 직접 대조에서118쪽 중첩 표 정렬 회귀를 확인했다. 프레임 출처 보정과 새 Native/fresh·회귀·lint·Canvas의 검증이 필요하다. 과거 실패 기록을 현재 실패로 표시하지 않는다. 해당 필수 완료 후 개별17개를 메인터너 보정 후 승인으로 바꾸고 통합한다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행208): PR 준비 중이다. production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`, 검증 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 영향16쪽 Native/fresh 모두 통과(최저93.16816%,72쪽99.95995%), OLE/SO10개 양쪽 및 CGMP fresh48쪽(최저93.64014%)·KPS fresh77쪽(90.85010%)·K-water fresh27쪽(96.87092%)이 통과했다. 필수lint/Studio, 전체Rust10267PASS·45SKIP·exit0, 원PR78계약, Skia3종(lib4041PASS·12ignored, placeholder2PASS, 직접PDF4PASS)·doc8PASS·3ignored 및 도구442개도 통과했다. Native 전쪽·나머지 fresh·원PR 시각 대조·정식 관계 회귀 등록·Canvas·원격CI는 완료 전이다. 현재 완료와 역사 기록을 구분하고 개별17개HOLD를 유지한다.
+- 최신 단계(진행215): production `ddf17f86476293b114b6236bfa6cf1ebc9d9d474`의 프레임 출처 분리 보정이다. Native build/fmt·경계17쪽 비교가 통과했고(최저93.16816%,72쪽99.95995%,118쪽99.99852%) 현재 review와 확대를 직접 확인했다. 전142쪽 새 tree에서118쪽 복구/72쪽 개선을 보존했다. 새 fresh·전쪽 이미지·관련 회귀/필수lint·Canvas·최신head CI는 검증 전이다. 직전b4의10267PASS·Skia/doc·원PR/시각 결과는 해당 바이트의 역사 근거로 보존한다. upstream/devel fetch는552f5228d로 같아 rebase하지 않았다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -5318,3 +5318,18 @@ immutableCLI SHA-256은`bcf415c03b79c2e37627d558628136ca05e356e7cd0b54b0980426a9
 현재경계17쪽Native이미지/TSV검증은진행중이다.새freshWASM·전쪽/
 관련회귀/필수lint/Canvas/CI의검증완료는아직주장하지않는다.프레임분리보정
 코드와이관측을일반커밋으로함께고정하고다음검증을계속한다.
+
+## 진행 갱신215 — Native17쪽·118쪽 복구 직접 확인과 fresh 준비 (2026-10-13)
+
+보정production은ddf17f864다. Native17쪽exit0/source guard=true,최저68쪽
+93.16816%,미달/누락0이다.72쪽99.95995%를유지하고118쪽99.99852%로복구됐다.
+현재72/118 review와동일좌표확대를독립Print와직접대조했다.원래첫16쪽은
+b4의통과/판독RGBA와동일하며118쪽은정상7f의RGBA와동일하다.표외곽/글줄/
+각주/뒤내용은보존되고글자획·자간·불릿크기·괘선래스터차이는남는다.
+
+정확한source/명령/TSV/PNG/직접판독은v453의native-boundary-plan/result/
+direct-reading/prior-pixel-comparison이다.현재대표PNG와구현/소비연결은
+`mydocs/pr/assets/semanticist21-20261008/franchise-nested-frame-source-v453/`에보존한다.
+새fresh빌드는Native경계/판독완료뒤공용target·루트wrapper로진행하도록준비했다.
+새 fresh/전쪽/관련회귀/필수lint/Canvas/CI는미완료다. upstream/devel fetch는
+552f5228d로동일해사용자지시에따라rebase하지않았다.
