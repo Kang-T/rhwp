@@ -77,3 +77,22 @@ phase4의 전체 Native 161쪽 SVG 파일 집합과 페이지별 바이트는 ba
 phase4에서 기존 focused 검사 4개 파일 / 10건이 모두 통과했다. 증적은 `output/pr-review/issue7639-perf-20261013/phase4/`와 `browser/`에 있으며 `build-provenance.json`, `source-hashes.json`, `svg-parity.json`, `focused-tests.json`, `*-open.json`, `*-edit.json`, `raw-canvas-parity.json`으로 연결한다. 새 원본 확인 탭은 `http://localhost:7796/?review=issue7639-candidate-review`다.
 
 완료하지 않은 범위는 전체 Rust 회귀, 전체 Rust lint 묶음, 구조 편집·문서 교체·Undo/Redo의 추가 실행, 독립 Print에 대한 전체 Native/fresh WASM TSV 및 확대 판독이다. 기존 161/162쪽 차이의 처리 범위도 아직 확정되지 않았다. 이 상태에서 PR 생성·push·이슈 종료를 실행하지 않는다.
+
+## 스크롤과 캐럿 클릭 지연의 재현·보정
+
+사용자는 7796의 첫 표시가 빨라졌지만 마우스 스크롤과 캐럿 클릭이 오래 기다린다고 확인했다. 실제 Chrome에서 표 안 첫 클릭이 51.676초를 기다렸고, 그중 `getTableCellBboxes` 한 번이 51.597초였다. 이는 최초 조판과 별개인 메인 스레드 정지다. 기존 `page_hint`는 정확한 한 페이지가 아니라 탐색 시작점이므로, hover가 161쪽 표의 미방문 조각까지 렌더 트리를 준비했다.
+
+계약은 조회 대상과 실제 소비 범위를 일치시키는 것이다. `table.rs`의 셀 수집 결과 → 페이지 단위 Native/WASM API → `WasmBridge.getTableCellBboxesAtPage` → `ensureTableCellBboxCache` → 현재 쪽 `pageBboxes`를 소비하는 hover/리사이즈 경로로 연결한다. 기존 전체 표 API와 페이지 API는 같은 `find_table_cells`를 사용해 모델 셀 인덱스, 조각의 페이지 소속, 좌표와 직렬화 순서를 보존한다. 다른 페이지로 이동하면 그 페이지 조각을 조회한다. 빈 결과·오류를 전체 표 조회로 확대하지 않는다.
+
+F5 하이라이트·Tab 읽기 순서·표 전체 선택은 기존 전체 표 API를 유지한다. 중첩 표의 ByPath API도 유지하며 해당 경로의 성능 개선은 이번 보정으로 입증하지 않는다. 기존 WASM과의 호환 fallback은 명시적으로 남기되 실제 보정 검증은 새 Docker WASM에서 새 API 호출을 확인한다. `getPageControlLayout`의 child 순번을 원본 셀 인덱스로 추측해 대체하지 않는다.
+
+스크롤의 별도 병목은 Canvas font setter에서 같은 CSS font를 그릴 때마다 fallback 목록을 다시 해석하는 비용이었다. `CanvasFontResolutionScope`는 정확한 font 문자열을 키로 **동기 paint callback 내부**에서만 기존 해석 결과를 재사용한다. 다음 paint·중첩 host/portable scope·await 뒤에는 새로운 정책을 읽는다. 실제 native font setter, 글꼴 준비와 Canvas 메트릭 재조판은 생략하지 않는다. TS 보정의 예비 페이지 이동 5회에서 paint 최댓값은 135.9ms → 13.9ms, 최대 RAF 간격은 187.6ms → 70.8ms였다. 이 실행의 트리는 이미 준비된 상태였으므로 미방문 페이지의 전체 비용으로 보고하지 않는다. 새 문서의 미방문 쪽 이동을 별도로 확인한다.
+
+캐시 계약 검사 2건은 기존 구현에서 실제 assertion 실패, 보정 구현에서 통과했다. 새 font scope 계약 4건과 기존 관련 검사를 합친 focused 33건은 통과했다. Studio 전체는 1,840건 통과·실패 0·기존 skip 2였다. Native Clippy와 WASM lib Clippy는 통과했다. 새 export의 TypeScript 확인은 새 Docker build의 타입 생성 뒤 수행한다. 첫 클릭 지연, 전쪽 Canvas 버퍼 보존, 페이지 조회와 기존 전체 조회를 필터한 결과의 일치는 새 artifact에서 이어서 검증한다. 증적은 기존 ignored 경로의 `browser/scroll/`와 `phase5/`에 둔다.
+
+
+phase5 Docker build는 성공했고 실제 Chrome의 WASM SHA는 `03e7e558007c93eaa87777467012455e83416b8ea2d18bc99ee9c8227885a89e`다. root pkg/public 해시도 같으며 TypeScript 검사와 세 Clippy, workspace build, manifest base 비교, fmt가 모두 통과했다. 같은 첫 표 클릭은 51.676초 → 78ms이고, 해당 조회는 전체 표 대신 페이지 API 1회·0.3ms였다. 캐럿이 실제 cell 27로 이동했음을 확인했다. 이후 두 표 안 클릭은 61ms와 59ms였다(다른 한 번은 페이지 밖이므로 셀 클릭의 증거로 세지 않는다).
+
+전체 161쪽 Canvas raw RGBA SHA-256은 TS 보정 전과 모두 동일하다. 현재 쪽 0·80·130·마지막 쪽의 페이지 조회 결과는 기존 전체 조회를 같은 pageIndex로 필터한 결과와 모델 인덱스·rowspan·좌표·순서 모두 같았다. 존재하지 않는 표는 빈 배열, 범위 밖 페이지는 오류였다. `page-query-canvas-parity.json`, `page-query-contract.json`, `click-page-query.json`과 phase5 source/build provenance로 연결한다. 원본 모델 인덱스 0인 반복 제목 셀을 포함한 분할 조각도 그대로 유지한다.
+
+실제 CDP 마우스 휠은 스크롤 위치를 전진·복귀시켰지만, 미방문 쪽 이동은 최대 1.157초·RAF 1.102초가 남았다. paint 최댓값은 13.7ms였고 `getCanvasPageLayerTree`의 cold build가 최대 405.5ms였다. 이를 완료로 보고하지 않는다. 별도 Native 프로브에서 원본의 5,277행·52,694셀에 대한 `invalid_declared_width_rows`만 335.6–375.9ms를 사용했다. 행마다 모든 셀을 다시 검색하는 순수 선언 검사이므로, 다음 단계에서 규칙·정렬·오류 판정은 유지하고 탐색을 개선한다. 이 단계는 아직 전체 Rust 회귀·Native Skia·독립 Print 시각 게이트를 완료하지 않았으며 원격 반영하지 않는다.
