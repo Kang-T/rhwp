@@ -5678,3 +5678,10 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 `emit.rs` 일반 주석8줄과 `table_partial.rs` 일반 주석9줄만 한글화했고 포맷 뒤/commit 뒤의 비주석 원문 바이트·파일 줄 수 동일성을 확인했다. 코드·검사·fixture·출력 계약의 변경은 없어 조판/Visual Sweep 범위는 비해당이다. 기존 Native/fresh 자료는 해당 생산 SHA의 역사 증거로 유지하며 새 source 재출력으로 주장하지 않는다. 이 두 파일은 기존 크기를 유지하고 언어 수정에 리팩토링을 섞지 않았다.
 
 같은 PR에 이 review와 오늘할일만 single-parent trailing commit으로 반영한다. 새 trailing head의 CI·정책 status·mergeability를 확인한 뒤 병합하며 현재 merge 완료로 기록하지 않는다. 원 PR #7882/#7887의 issue·contributor 후속처리는 이미 완료된 범위로 보존하고 반복하지 않는다. 이 주석 PR에는 추가 종료 이슈가 없다. 병합 후 duration 갱신 결과·devel 포함과 전용 브랜치 정리만 확인한다.
+
+
+## 진행 갱신243 — 주석 보완 PR #7889 통합 완료 (2026-10-14)
+
+**주석 한글화 통합 완료.** [#7889](https://github.com/edwardkim/rhwp/pull/7889)는 merge `79f66b6c470c61f8e08883c33215ba5e0fd668b1`로 병합됐고 `upstream/devel` 포함을 확인했다. code candidate `7b6cdc6e235553e3df676c6be31848b14ab03544`의 full CI 및 문서-only trailing `7b0f79cb8ff96fdbb3462b2be5781c933d4d4f29`의 실제 CI·정책 status 성공, `MERGEABLE/CLEAN` 확인 뒤 exact-head merge했다. trailing 실제 실행은 [CI](https://github.com/edwardkim/rhwp/actions/runs/38485743742) · [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38485743701) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38485743690) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38485743669) · [Cancel stale PR runs](https://github.com/edwardkim/rhwp/actions/runs/38485743620) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38485743584). 이 문단이 주석 보완의 현재 상태이며 진행241~242의 당시 대기 상태는 역사 기록이다.
+
+두 파일의 일반 영문 주석17줄은 한글로 바뀌었으며 비주석 원문 바이트·파일 줄 수 동일성을 최종 head에서도 확인했다. 기존 source/test/fixture/출력 계약과 원 통합 PR #7882/#7887의 증거·#7764/원 PR16개 종료·17개 댓글을 유지한다. 오늘할일은 #7889에 이미 포함된 trailing 기록을 보존하고 반복 갱신하지 않는다. 추가 종료 이슈는 없다. 이 문서는 완료된 원 PR의 확정 SHA만 보완하는 review-only 후속 기록이며 별도 code 검증·issue/contributor 후속처리를 반복하지 않는다. merge 후 duration 갱신 결과와 전용 브랜치 정리의 실행 증거는 해당 PR의 완료 comment 및 ignored 운영 로그에 남긴다.
