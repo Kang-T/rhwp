@@ -721,8 +721,8 @@ reviewer가 저장소를 찾아 열게 하지 않는다.
    실제 빌드 명령·옵션·인쇄 프로필·글꼴 공급을 적는다. 입력/기준 Print PDF의 경로·해시·제품/빌드·출처도 연결한다.
 2. 전체 결과: 입력마다 Native/fresh WASM 두 행을 만들어 실제 검증 페이지 범위·전체 쪽수·최저값과 그 쪽,
    90% 미만/누락/측정 불가 쪽·gate를 적는다. 여러 문서의 최저값을 하나로 합쳐 개별 실패를 가리지 않는다.
-   검증 대상 전체 페이지의 **Native TSV와 fresh WASM TSV 원본 모두** ZIP으로 묶어 PR 본문에 업로드하거나
-   검토자가 내려받을 수 있는 동일 파일의 링크를 첨부한다. ZIP 안에서 Native/fresh WASM을 구분한다.
+   검증 대상 전체 페이지의 **Native TSV와 fresh WASM TSV 원본 모두** PR 본문에 첨부하거나
+   검토자가 내려받을 수 있는 동일 파일의 링크를 첨부한다. Native/fresh WASM 출력 경로를 구분한다.
    첨부 파일의 입력·출력 경로·검증 head를 명시한다.
    요약 표·최저값·로컬 output 경로만으로 TSV 원본을 대신하지 않는다. TSV는 ignored output에
    보존하고 Git에 커밋하지 않는다. 수정 전 비교를 실행했다면 source SHA와 같은 입력·페이지의 전후 값도 연결한다.
@@ -750,7 +750,7 @@ reviewer가 저장소를 찾아 열게 하지 않는다.
 - PR head repository/SHA: `<head-owner>/<head-repo>` / `<head-sha>`
 - 검증 source·빌드/글꼴 환경·입력/Print PDF 해시: <실제 실행 기록>
 - Native/fresh WASM TSV 명령과 ignored output 경로: <실제 실행 기록>
-- 전체 검증 범위 TSV 원본: [Native·fresh WASM TSV ZIP](TSV_ATTACHMENT_URL) — <입력·출력 경로·검증 head>
+- 전체 검증 범위 TSV 원본: [Native TSV](NATIVE_TSV_ATTACHMENT_URL), [fresh WASM TSV](WASM_TSV_ATTACHMENT_URL) — <입력·출력 경로·검증 head>
 - 아래 이미지는 대표 페이지에만 첨부한다. 전체 페이지 이미지는 필요하지 않다.
 
 | 입력·기준 Print PDF | 경로 | 검증 범위/전체 쪽수 | 최저 일치율·쪽 | 90% 미만/누락/측정 불가 쪽 | 판정 |
