@@ -5170,3 +5170,31 @@ bfa28a77a에서552f5228d로 fast-forward했다. 현재review HEAD/source를 보�
 Native Skia/doc/Canvas 미완료로 보류.** 과거 실패나 미완료를 현재 전체회귀 실패로
 표시하지 않는다. 남은 gate 종료 뒤 승인 문구로 갱신한다. 현재source/검사 기대값은
 변경하지 않았으며 새 렌더링 회귀는 여전히 전쪽 양쪽 자격 뒤에 등록한다.
+
+## 진행 갱신207 — KPS fresh全77쪽·Skia lib와 도구 계약 보정 (2026-10-13)
+
+현재b4ff8c/94fe70 KPS fresh 전77쪽은exit0,최저42쪽90.85010%,미달/누락0이다.
+새42/68쪽review를직접열었다.76쪽RGBA는앞선7f04c fresh와동일하며68쪽의
+차이는한픽셀RGB2단계(253↔255)뿐이다.68쪽전체render tree와실루엣98.69518%는
+동일하고본문/날인칸/내용배치차이는관측하지않았다. Native현재전쪽은대기중이다.
+Native Skia/lib는exit0이며root3859+workspace15/165/2,합4041PASS·12ignored다.
+실제root 실행298.13초이며Native Skia placeholder/directPDF/doc는아직진행전/중이다.
+
+변경된검증도구의시각/Python221개,oracle_self42개,font/rasterNode19개,manifestNode23개는
+통과했다. oracle_public/work_receipt137개묶음은초기135PASS/2FAIL이었다. 독립
+메타데이터fixture의pairs11개/일반문서8개는이미정확했으나요약pairCount6/
+matched5/link6및2020/2022건수2/2가남아있었다. 기존pairs목록과문서/PDF를
+보존하고요약11/8/11·연도4/5로정정했으며같은137개재실행은137PASS·exit0이다.
+이합성목록은시험지원본렌더회귀가아니며시험지목록을활성화하지않았다. 최초
+2FAIL 로그와보정근거/새fileSHA는v452의affected-tool-contracts-qualified-after-retry에
+보존한다. 현재5묶음총442개PASS이며Rust기대값/생산소스/시각기준은변경하지않았다.
+
+사용자의「Python만수정이면전체Rust재실행불필요」지시에따라Python/JSON보정에
+대해서는관련검사만재실행했다. 이미통과한현재production10267개전체회귀를
+다시시작하지않으며진행중Skia는이전Rust보정의기존필수후속게이트다. 향후정식
+관계형회귀등록후에도생산코드가그대로라면추가/변경검사와필수Rustlint/정책을
+검증하고같은생산소스의전체PASS와연결한다. code변경으로인한재실행과구분한다.
+
+종료된Native/fresh영향16쪽중복SVG32개4,711,622,430bytes를fd/PNG/TSV확인과
+SHA ledger뒤삭제했다. 원본/Print/PNG/TSV/tree/immutableCLI/package/공용target은
+보존한다.현재가맹사업Native전쪽캡처와freshK-water및나머지필수검증을계속한다.

@@ -2,17 +2,17 @@
   "schemaVersion": "1.0",
   "generator": "tools/oracle_public/oracle_resolver.py",
   "targetPairCount": 269,
-  "pairCount": 6,
-  "matchedSampleCount": 5,
+  "pairCount": 11,
+  "matchedSampleCount": 8,
   "unmatchedCount": 2,
-  "oracleLinkCount": 6,
+  "oracleLinkCount": 11,
   "oracleRoots": [
     "pdf"
   ],
   "byHancomVersion": {
     "2018": 1,
-    "2020": 2,
-    "2022": 2,
+    "2020": 4,
+    "2022": 5,
     "2024": 1
   },
   "pairs": [
