@@ -5520,3 +5520,11 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 - `stored_page_origin::stored_inline_frame_restarts_page`가 완전한 TAC 줄의 높이=원본 표 높이+바깥 여백과 새 제목의0 원점/다음 줄의 정확한 저장 전진을 함께 확인한다. `apply_stored_paragraph_boundary`는 바로 앞 완전한 Table 항목이 현재 단을 소유할 때만 이 쪽 경계를 수용한다. dirty/합성/문단별 로컬0/부분 이어받기를 제외하고, TAC 좌표 축 종료 및 #7877 물리 컷 계약은 그대로 소비한다.
 - 이 함수의 결과는 문단 fit 전에 단/쪽 전환에 사용되고, 그 결과의 PageItem 소속을 실제 배치가 소비한다. 표 height나 화면 좌표를 clamp하지 않으며, 임시4px 안전마진을 되살리지 않는다. 원본 제목/표 소속을 검사하는 관계 초안2개는 아직 정식 경로에 넣지 않았다.
 - 다음 검증은 현재 보정 source의 KPS 영향 쪽·초안2개/#7877·기존 관계 검사·필수 lint와 전 문서 Native/fresh 리베이스 전후 비교다. 이 단계는 구현과 검증 계획이며 아직 보정 후 PASS로 보고하지 않는다.
+
+## 진행230 — KPS 전77쪽 검증과 정식 관계형 검사2개 완료 (2026-10-14)
+
+- 생산 source `6995bc5d35b14f598e03cf0f5cc99bd957a42843`, base `22317614b03722e95349a1d3d71c86923363c6f5`에서 KPS Native/fresh 전77쪽은 모두 최저42쪽90.85010%·미달/누락0·독립 Print 쪽수77/77이다. 리베이스 전보다 낮은 쪽은 없고47/60쪽 개선을 수용한다. fresh13/14/22 review를 직접 열어 제목과 표의 같은 쪽 소속·본문 순서·셀 포함을 확인했다. Native와 fresh76쪽 RGBA가 같고22쪽 라벨의 raster 차이는 따로 판독했다.
+- 선행 검증 뒤 `tests/cases/kps_heading_page_ownership.rs`에 최종 render tree의 제목/표 쪽 소속·순서·제목 내용 보존 관계2개를 등록했다. 절대 쪽 번호·px 좌표·SVG 해시를 검사하지 않는다. 같은 정식 test binary와 frozen CLI를 실행해 리베이스 전2 PASS → 회귀558의 소속 assertion2 FAIL(exit101) → 보정699의2 PASS를 입증했다. `formal-kps-before-after-result.json`에 연결한다.
+- 새2개와 기존 중요 문서·원PR/#7877 계약을 포함한 focused146개가 실제146 PASS·누락/예상 밖 실행0이었다. 초기 fmt는 새 cases 파일을 generated suite에 등록하기 전에 실행돼 새 파일을 발견하지 못했고, 이후 fmt-check가 실패했다. generated 경로를 준비한 뒤 다시 fmt했으며 canonical rustfmt 바이트가 같아 검사 의미가 바뀌지 않았음을 확인했다. 전체10,267개를 다시 실행하지 않았다. 필수 lint7단계는 별도로 계속 진행한다.
+- Native 직접 문서5종은 KPS77/CGMP48/K-water27/#157 2/가맹사업142쪽 모두 미달/누락0이다. 최초48입력52쪽·편집24입력27쪽도 Native 통과했다. Native batch 부모는 exit143으로 중단됐지만 실행 중이던 whole 자식이 계속 실행해5종을 모두 exit0으로 완료했다. 이를 부모 exit0으로 바꾸어 보고하지 않는다. 실제 child 결과·완료 manifest·source guard로 범위를 재대조하며 이미 완료된 출력을 반복 생성하지 않는다.
+- 현재 source의 Studio4단계와 실제 K-water Canvas24/25 소비 검사가 완료됐다. 최신 원격 devel은 여전히223176이어서 추가 rebase를 하지 않았다. 초기18개 중17개 OPEN/7612 MERGED, 후속6개는 미적용으로 유지한다. 전체174 TSV·770쪽/backend와 나머지 fresh·lint가 완료되기 전 개별 승인·원격 PR은 아직 진행하지 않는다. 증거는 `output/pr-review/semanticist21-20261008/kps-source-page-boundary-v456/`다.
