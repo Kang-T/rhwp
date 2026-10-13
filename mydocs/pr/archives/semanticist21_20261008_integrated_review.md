@@ -5036,3 +5036,15 @@ actual pointer는 새WASM 해시를 확인했고 임시 서버를 종료했다. 
 fresh 경계 재시도는 실행 중이다. Native 전쪽 재시도는 fresh 경계의 완료·직접 판독 뒤
 시작하도록 대기시켜 동일한 두 대용량 중간 출력이 다시 겹치지 않게 했다.
 필수 시각·회귀·backend/UI·원격 CI의 완료 판정은 여전히 보류한다.
+
+## 진행 갱신199 — 현재 소스 OLE 6개 Native/fresh 통과 (2026-10-13)
+
+b4ff8c 소스와94fe70 WASM package의 OLE6개 비교는 Native/fresh 모두exit0이다.
+분리4개는 독립Print99.91386% 또는 사용자PDF99.83461%, 원본HWP97.05704%·
+HWPX97.78626%다. 각 Native/fresh의RGBA와 이미 판독한7f04c Native의RGBA가
+6개 모두동일하다. 실제 비교 결과는 v452의 `ole-current-pixel-identity.json`에 보존한다.
+사용자가 수용한 원본OLE 범위를 추가로 보정하지 않는다. SO-SUEOP4개는 실행 중이고
+전체10개 완료로 보고하지 않는다. 새소스의 전체Rust는 컴파일 진행 중이다.
+현재fresh 경계의 글꼴 정책은 처리 중이며, 필요한K-water24쪽 SVG/Native27쪽
+완료를 기다리는 actual Canvas 검사도 준비했다. 전쪽·최종 회귀·관계형 회귀 등록과
+원격PR/CI/merge는 아직 완료되지 않았다.
