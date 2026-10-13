@@ -1647,9 +1647,21 @@ impl TypesetEngine {
                 st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout(),
                 st.profile.session_edited(),
             );
+            let frame_boundary = if is_continuation
+                || prepared.host_frame
+                    != (
+                        st.pages.len(),
+                        st.current_column,
+                        st.current_zone_y_offset.to_bits(),
+                    ) {
+                st.available_height()
+            } else {
+                first_fragment_actual_footnote_boundary.unwrap_or(table_available)
+            }
+            .min(st.inline_flow_column().height);
             let bottom = crate::renderer::float_placement::rowbreak_fragment_frame_bottom(
                 table,
-                st.inline_flow_column().height,
+                frame_boundary,
                 self.dpi,
                 body_filling,
             );

@@ -6029,7 +6029,10 @@ pub(crate) fn rowbreak_fragment_frame_bottom(
     dpi: f64,
     body_filling_source_frame: bool,
 ) -> f64 {
-    if body_filling_source_frame {
+    // The extra inset is a single-cell fragment contract. Ordinary multirow
+    // frames close at the body's outer-bottom margin; borrowing the inset
+    // loses physical space from a spanning cell's carried page-end band.
+    if body_filling_source_frame || table.row_count != 1 || table.col_count != 1 {
         body_bottom - hwpunit_to_px(i32::from(table.outer_margin_bottom), dpi)
     } else {
         single_cell_page_fragment_bottom(table, body_bottom, dpi)
