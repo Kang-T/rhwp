@@ -310,7 +310,19 @@ pub(crate) fn stored_empty_successor_advance(
         .get(next.para_shape_id as usize)?
         .spacing_before;
     let advance = hwpunit_to_px(delta, dpi) - before;
-    (advance >= 0.0).then_some(advance)
+    // 저장 차이는 현재 줄의 상단부터 시작하지만 소비자는 문단 앞 간격을
+    // 적용하기 전 커서를 넘긴다. 뒤 문단의 앞 간격은 그 배치에서 소비하므로
+    // 제외하고, 현재 문단의 흐름 앞 간격은 측정과 같이 한 번 포함한다.
+    // 첫 문단의 저장 앞 띠는 흐름 간격이 아니므로 다시 더하지 않는다.
+    let current_before = super::cell_paragraph_spacing_before(
+        current,
+        index,
+        styles
+            .para_styles
+            .get(current.para_shape_id as usize)
+            .map_or(0.0, |style| style.spacing_before),
+    );
+    (advance >= 0.0).then_some(current_before + advance)
 }
 
 /// Inline picture ink can contain subsequent empty lines through signed saved

@@ -2678,10 +2678,14 @@ impl LayoutEngine {
                                 .get(para.para_shape_id as usize)
                                 .map(|s| s.spacing_before)
                                 .unwrap_or(0.0);
-                            // 가운데·아래 정렬 셀의 첫 원본 띠는 정렬할 내용에 속한다.
-                            // 부분 컷이 그 내용을 일시적으로 위에서부터 그리는 경우에도 이 소유 관계를 유지한다.
+                            // 가운데·아래 정렬 셀의 첫 원본 띠는 선택 문단의
+                            // 정렬 내용에 속하므로 선차감하지 않는다. 잉크 끝으로
+                            // 인증한 선언 프레임은 저장 원점을 직접 소유한다.
+                            // 이어받기 문단은 배치에서 재가산할 앞 간격을 차감한다.
                             if cp_idx > 0
-                                || (spacing > 0.0
+                                || ((matches!(cell.vertical_align, VerticalAlign::Top)
+                                    || declared_opening_content_height.is_some())
+                                    && spacing > 0.0
                                     && hwpunit_to_px(seg.vertical_pos - vpos_origin, self.dpi)
                                         >= spacing)
                             {

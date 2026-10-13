@@ -5495,3 +5495,11 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 - 다음 빌드부터 사용자 지시대로 `CARGO_BUILD_JOBS=8`을 사용한다. 실제 진단 시 사용가능 메모리 약12GiB, active swap-in/out0, I/O wait0–1%여서 메모리·디스크 압박은 확인되지 않았다. 마지막 source libtest의 `lto cgu.00` 작업이 관측됐다. `lto=false`에도 local Thin LTO가 수행되므로 jobs 증가만으로 이 단일 crate의 마지막 최적화 구간을 단축한다고 주장하지 않는다. 현재 프로필·toolchain은 변경하지 않았다.
 - 입력/PDF208개 항목·고유205파일 모두 기존 입력 SHA 및 현재 commit 바이트와 일치했다. 원PR17개의 기능 commit39개는 새 head의 조상이며37개는 stable patch-id가 같고2개는 upstream 변경 문맥 차이를 별도 range-diff로 보존했다. 후속6개는 적용하지 않았다.
 - 완료 증거는 `v454/pr7877-priority-result.json`, `pr7877-priority-nextest.log`, `pr7877-source-budget-nextest.log`, `current-input-pdf-audit.json`, `original-application-rebased-audit.json`이다. #7877 회귀 우선 검사는 완료됐고, 현재 source의 나머지 focused/Native·fresh WASM·필수 lint·원격 CI는 계속 진행한다. 전체10,267개를 다시 실행한 결과로 보고하지 않는다.
+
+## 진행227 — 리베이스 뒤 가맹사업 정렬 회귀 두 곳의 직접 확인
+
+- `d9befb30381a7c29ce7cc17e37510ef910351d48`에서 초기 PR/관계 focused83개는81 PASS/2 FAIL이었다. 실패는 `stored_partial_frame_alignment`의 완전한 가운데 정렬 셀과 중첩 시작 문단 관계다. 이 문서는 현재 메인터너 보정 대상이며 검사를 이관하거나 허용치를 완화하지 않는다.
+- 같은 가맹사업 원본·독립 한컴 Print로 Native 경계17쪽을 재출력했다. 55쪽99.90891%는 이전 Native/fresh99.99889%보다0.08998%p 낮다. 빈 문단 뒤 본문이 이전보다2.6667px 위로 이동했다. 118쪽89.30514%는90% gate 미달이며, 하단 중첩 표의 첫 문단이 이전보다8px 위로 이동했다. 두 review/확대 PNG를 직접 열고 사용자에게 표시했다. `v454/franchise-failure-visual.json`, `native-boundary-result.json`, `native-boundary/franchise5966/review/`에 연결한다.
+- 첫 원인 경로는 `stored_empty_successor_advance`의 저장 줄 원점 차이 → partial/whole의 문단 앞 간격 적용 전 커서 덮어쓰기다. 현재 문단의 흐름 앞 간격은 측정에 있지만 덮어쓰기에서 빠진다. 공통 helper가 현재 문단의 앞 간격을 포함한 전진량을 반환하도록 보정한다. 첫 원본 문단의 저장 띠는 흐름 앞 간격과 구분하며 기존 zero-origin 계약을 유지한다.
+- 둘째 원인은 partial 셀의 첫 저장 줄 스냅에서 Center/Bottom의 앞 띠까지 선차감하도록 범위가 바뀐 것이다. 가맹사업 첫 source 줄은 그 띠를 선택 문단 정렬에 소유하며, 선언 상자와 잉크 끝이 일치하는 #7877 인증 프레임과 다르다. 선언 프레임은 새 계약을 유지하고 독립 문단 정렬은 기존 소유를 복구한다. 측정/실제 스냅/최종 문단 앞 간격 소비를 함께 대조한다.
+- 같은 head의 초기48개 Native52쪽·편집24개 Native27쪽은 전쪽90% 이상·쪽수 일치였다. 필수 lint/정책7단계도 통과했다. 이 결과는 보정 전 증거로 보존한다. 보정 뒤 관련83개/#7877의46개, 영향 시각 범위와 필수 lint를 새 source에서 확인하며, 로컬 전체10,267개는 반복하지 않는다. 개별 PR 최종 승인·원격 PR은 아직 보류다.
