@@ -308,7 +308,11 @@ pub struct ResolvedParaStyle {
     pub border_spacing: [f64; 4],
     /// 같은 테두리를 가진 이웃 문단과 연결 (ParaShape attr1 bit 28).
     pub border_connect: bool,
-    /// BorderText: use the paragraph text area rather than the column area.
+    /// 문단 테두리/배경의 범위 선택 (ParaShape attr1 bit 29, HWPX `ignoreMargin`).
+    ///
+    /// 한/글 2020 출력 실측: 꺼져 있으면 테두리/배경이 단 너비 전체와 문단 전체 흐름
+    /// (앞 간격·줄간격·뒤 간격 포함)을 덮는다. 켜져 있으면 문단 여백 안쪽과 줄 상자
+    /// (첫 줄 위 ~ 마지막 줄 상자 아래)만 덮는다.
     pub border_ignore_margin: bool,
     /// 기본 탭 간격 (px)
     pub default_tab_width: f64,

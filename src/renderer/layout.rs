@@ -7601,10 +7601,14 @@ impl LayoutEngine {
                     } else {
                         last_sig.is_some() && last_sig == cur_sig
                     };
-                    if same_visual
-                        && (last.10 == para_idx || (connects(last.10) && connects(para_idx)))
-                        && (y_start - last.4) < 30.0
-                    {
+                    // 연결(bit 28)은 양쪽 문단이 모두 연결을 허용할 때만 테두리를 잇는다.
+                    // 채움만 있는 문단은 연결돼도 줄간격 틈을 칠하지 않고 맞닿은 범위만 잇는다.
+                    let fill_only = last_sig.is_none() && cur_sig.is_none();
+                    let joined = last.10 == para_idx
+                        || (connects(last.10)
+                            && connects(para_idx)
+                            && (!fill_only || y_start - last.4 <= 0.5));
+                    if same_visual && joined && (y_start - last.4) < 30.0 {
                         last.4 = y_end;
                         last.6 = bottom_inset;
                         // 그룹의 partial_end 는 마지막 range 의 값으로 갱신.
