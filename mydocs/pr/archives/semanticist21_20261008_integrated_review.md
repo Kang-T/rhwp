@@ -4881,3 +4881,34 @@ PNG/TSV/render tree/로그와 공용 target은 보존한다. 정리 스크립트
 초안으로만 준비했으며 전쪽 Native/fresh 선행 조건 전에는 활성 회귀에 추가하지 않는다.
 모든 필수 검증·해결 뒤에만 각 PR의 보류 사유를 **메인터너 보정 후 승인**으로 갱신한다.
 이후 자동 승인된 통합 PR 생성·정확한 head CI·merge·후속 처리를 진행한다.
+
+## 진행 갱신193 — 원 PR 양쪽 대조 완료와 timeout/입력 보존 보완 (2026-10-13)
+
+최신7f04c의 원 PR 편집·정상 대조24쌍·27쪽은 Native exit0·873.268초,
+fresh exit0·1324.191초다. 양쪽 최저92.07644%, 미달·누락0이며 새27쪽의
+Native/fresh decoded RGBA가 모두 같다. 이전에 직접 판독한 Native와도27쪽 모두 같다.
+낮은 쪽과 셀 서식 보존 대조군의 새review를 직접 열어 내용 소속·순서·본문/꼬리말·
+색/밑줄/테두리를 대조했다. 글꼴 획·폭과 미세한 테두리 래스터 차이는 남는다.
+[최신 review·overlay와 입력/Print/생산 해시](../assets/semanticist21-20261008/original-pr-current-proof-v451/README.md)를 보존한다.
+
+OLE/SO10쌍의 현재 검증은 첫5단계exit0 뒤 SO fresh4개 묶음의 마지막 사례에서
+1800초 timeout(exit124)으로 끝났다. HWP/HWPX 첫쪽과 일반 글꼴 대조군3개는 이미
+99.79294/99.95935/99.84371%로 완료됐다. 미완료 #5821 대조군만 같은소스/패키지/입력으로
+독립 재실행해exit0·51.532초,99.75702%를 확인했다. 최종10쌍의 Native/fresh RGBA는
+모두 같다. 최초exit124와 원로그를 별도 보존하고 `ole-so-current-qualified-after-retry.json`에
+분할 완료 근거를 기록했다. 최초 명령을exit0으로 바꾸어 기록하지 않는다.
+
+입력 commit 확인에서 일반 글꼴 대조군의 실행HWP가ignored 위치에만 있는 것을 찾았다.
+[동일 바이트의 대조 입력과 범위](../assets/semanticist21-20261008/so-first-page-normal-font-input-v451/README.md)를
+커밋에 보존한다. Native/fresh 첫쪽만 검증한 입력이며46쪽 전체 수용이나 #7807 종료를
+주장하지 않는다. 원본/기준PDF/실행입력은 바꾸지 않는다.
+
+K-water Canvas 초기 실행은 최신Native의24쪽 SVG를 만들기전에 시작해ENOENT/exit1이었다.
+렌더러 결함으로 분류하지 않는다. 최초결과를 보존하고 Native 전쪽exit0·sourceguard 확인뒤
+같은current package를 검증하도록 순서를 고쳤다. 실제 재검증은 아직 완료전이다.
+추가로 종료된 v449의 번호 없는 단일쪽 중복SVG28개1,225,328,008bytes를 fd/hash ledger뒤
+삭제했다. 입력·Print·PNG·TSV·render tree·로그·공용target은 보존한다.
+
+원 PR 시각 대조와 OLE/SO 범위의 완료를 공통 문서의 전쪽·전체 Rust·Skia/doc·Canvas·
+원격 CI 완료로 확대하지 않는다. 최신 전체회귀와 가맹사업/KPS 등 전쪽 비교는 실행중이다.
+개별17개는 모든필수검증과해결뒤에만 **메인터너 보정 후 승인**으로 바꾸며 현재 **머지 보류**다.
