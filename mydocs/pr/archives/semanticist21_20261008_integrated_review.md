@@ -9,10 +9,10 @@ last_verified: 2026-10-14
 
 ## 현재 판정
 
-**로컬 검증 완료 — 새 exact-head CI 확인 전까지 merge를 보류한다.** 생산 소스 `9591883177d902ed3e2fa239fe047f602c05c7d3`에서 산재 표 HWP/HWPX52→54쪽 회귀를 구현 보정으로52쪽에 복구했다. 관련191개 회귀(초기 PR 계약78개·oracle16분할·overlap16분할 포함), 필수 세 Clippy·workspace build·정책 및 새 WASM package가 통과했다. Native/fresh WASM178 TSV·978쪽/backend는 미달·누락·독립 Print 쪽수 불일치0이다. 현재 보정 영역을 직접 판독하고 중요한 문서의 이전 출력과 대조했다. 전체10,267은 이전 source의 역사 결과이며 사용자 지시에 따라 로컬 전체를 재수행하지 않았다. 원격 새 code head의 CI 성공 뒤 개별17개 판정을 **승인 — 메인터너 보정 후 승인**으로 갱신하고 같은 PR의 trailing 기록·merge·후속처리를 진행한다.
+**재검토 — exact-head CI의 #5877 병합 종료 행 회귀를 구현 보정하고 재검증 중이다.** `ef9712a77856efa2dd0e33f3be908e23759da380`의 Archive B에서 `restart_frames_align_selected_content_and_preserve_the_spanning_tail`이 실패했다. 집중191개에는 이 함수가 포함되지 않았으며 로컬에서도 같은 원인으로 재현됐다. 기존 검사는 독립 한컴 Print와 일치하므로 유지한다. 완료된 일반 행의 실제 상자를 같은 행에 남은 걸침 컷의 원장에 반영하는 보정 후 Native 전31쪽은 최저26쪽91.70631%·18쪽95.40188%·미달/누락0이다. 새 source의 집중 회귀·필수 lint·fresh WASM 및 영향 문서 검증과 새 exact-head CI가 완료되기 전에는 승인·merge하지 않는다. 로컬 전체10,267은 사용자 지시에 따라 다시 실행하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행236): CI 회귀 보정의 로컬 검증 완료. 현재 base `22317614b03722e95349a1d3d71c86923363c6f5`, 생산 소스 `9591883177d902ed3e2fa239fe047f602c05c7d3`. [원문 TSV178개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/b2596295b382ff4585bf28ed40efe6a3ab568cba)는 압축 없이 게시하고 API로 원문 바이트를 다시 확인했다. 이전 진행232의146/174/770 결과는 당시 기록이다.
+- 최신 단계(진행237): #5877 CI 실패의 구현 원인을 수정하고 새 source를 검증 중이다. base는 `22317614b03722e95349a1d3d71c86923363c6f5`로 fetch 후 동일하며 불필요한 rebase는 하지 않았다. 진행236의178 TSV·978쪽/backend 및191 PASS는 생산9591883의 역사 결과다. 현재 검증과 구분한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -5607,3 +5607,12 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 - 초기 입력 aggregate는 독립 문서 병렬 처리로 전환하기 위해 SIGINT로 중단했다. 완료된 현재 소스38개 TSV/PNG는 보존하고 미완료44개(나머지 초기10·편집24·OLE6·SO4)는 독립 출력에서 문서4개·문서당 페이지 작업자1개로 실제 실행했다. 중단한 aggregate의 exit-2와 개별 완료 문서 및 새 coordinator exit0을 구분한다. 실제 캡처 경로를 보존한 동일 hardlink를 정식 group 경로에 연결했고 source/pkg/입력/Print·쪽수·최저값을 각 문서에서 검증했다. `document-parallel-plan.json`/`document-parallel-results.json`에 실제 명령·관측·소요 시간을 보존한다.
 - 59043은 현재 base/current25쪽48.36347%·동일 PNG이고 같은 원본/증상#7778(#7445 하위)이 이미 등록돼 있어 겹침 원장의 활성 참조/기준선1행만 이관했다. 원본/PDF와 다른 의미 검사는 보존하며4→6허용치 완화는 없다. #7778을 해결로 닫지 않는다.
 - 증적은 ignored `output/pr-review/semanticist21-20261008/shared-row-plan-v459/`의 source/입력/Print/font/pkg hash·실행 명령·TSV·로그·직접 판독 JSON 및 committed `ci-correction-v459`의 HWP/HWPX Native/fresh review·overlay8개다. 완료 SVG는 압축하지 않고 삭제했다. 새 exact-head CI는 push 후 확인하며 failed edd8dc49 또는 이전 green 결과로 대신하지 않는다.
+
+
+## 진행237: #5877 CI 실패 재현과 완료 행 원장 보정 (2026-10-14, v460)
+
+- [실패 CI Archive B](https://github.com/edwardkim/rhwp/actions/runs/38458366449/job/115512064094)는 기존 관계 검사 `issue_5877_source_frame_relations::restart_frames_align_selected_content_and_preserve_the_spanning_tail`의 종료 행 높이 관계에서 실패했다. 로컬에서도 같은 production9591883으로4개 중3 PASS/1 FAIL을 재현했다. 생성 suite 번호는 환경별로 달라질 수 있으므로 원본 module/function으로 연결한다. CI에서는028, 로컬 준비 inventory에서는015다. 검사 삭제·기대값 완화는 없다.
+- 원본 `samples/issue5877/fragment_ghost_vrules.hwp`, 독립 `pdf/fragment_ghost_vrules-2020.pdf` 전31쪽을 동일 Print profile/compat2022로 다시 비교했다. 수정 전18쪽76.80448%로 실제 회귀였으며 독립 PDF의 종료 행 높이52.263pt는 약69.684px다. 수정 전 종료 행과 앞 새 행이 모두64.2px로 잘못 같아졌다.
+- 생산·소비 경로는 `emit이 완료한 일반 행의 실제 상자 → accepted_row_boxes → stored_fragment_row_plan의 앞 물리 높이 차감 → fragment_row_heights → scan 요구·예약 → 실제 paint`다. 걸침 셀의 미소비 유닛이 남으면 커서는 일반 칸을 이미 소비한 같은 행에 머문다. 기존 계획이 cursor 이전 행만 복사해 완료한 현재 행의 실제58.493px를 원장에 넣지 않았고, 추정64.16px를 다시 사용했다. 일반 컷의 모든 소유 유닛 소비와 실제 accepted 상자가 확인된 경우 이 상자도 포함한다. 미소비 일반 행·분할 재시작 상자·알 수 없는 prefix는 기존 계약을 유지한다. 문서/쪽/px 예외나 clamp를 추가하지 않는다.
+- 보정 후 종료 행69.8px로 복구했고 전31쪽 render-tree에서18쪽만 변경됐다. 새 Native 전31쪽은 최저26쪽91.70631%,18쪽95.40188%,17쪽96.50076%, 미달/누락0·독립 PDF31쪽과 일치한다. 현재17/18/26쪽 review·overlay를 직접 표시해 앞/뒤 병합 유닛·종료 행·뒤 제연 설비·본문/외곽/뒤 문단 보존을 확인했다. 글리프 굵기·미세한 기준선 차이는 남는다.
+- 증적은 ignored `output/pr-review/semanticist21-20261008/complete-row-prefix-v460/`의 source proof·patch·before-failure·Native 명령/TSV/manifest·현재 트리·직접 판독 기록이다. 필수 lint·집중 회귀(기존191개+위4개)·fresh WASM·영향 문서 확인은 진행 중이며 현재 Native 선행 통과를 최종 승인으로 바꾸지 않는다. Cargo는 공용 `target/pr-review`·jobs8에서 순차 실행하고 로컬 전체 회귀는 반복하지 않는다.

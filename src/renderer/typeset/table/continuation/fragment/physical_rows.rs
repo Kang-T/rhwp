@@ -99,12 +99,25 @@ impl TypesetEngine {
                 .then_some(cursor.start_row_height_override?)
                 .map(|current| before + current)
         });
+        // 일반 칸을 모두 소비했어도 걸침 칸의 남은 유닛 때문에 커서는 같은
+        // 행에 머물 수 있다. 이때 앞 조각이 이미 수용한 행 상자를 병합 최소
+        // 높이의 차감 원장에 포함하고, 미소비 일반 행의 추정값과 구분한다.
+        let completed_start_row_box = (!cursor.start_cut.is_empty()
+            && prepared.layout_engine.row_cut_consumes_all_ordinary_units(
+                table,
+                cursor.row,
+                &cursor.start_cut,
+                source.styles,
+            ))
+        .then(|| cursor.accepted_row_boxes.get(cursor.row).copied().flatten())
+        .flatten();
+        let start_row_box = resumed_row_box.or(completed_start_row_box);
         // A cut's start owner subtracts every preceding physical row of its
         // spanning cell. Do not mix accepted boxes with original estimates for
         // unknown partial rows: that can repeat already consumed source units.
         let prefix_known = |first: usize, end: usize| {
             (first..end).all(|row| {
-                (row == cursor.row && resumed_row_box.is_some())
+                (row == cursor.row && start_row_box.is_some())
                     || cursor
                         .accepted_row_boxes
                         .get(row)
@@ -131,10 +144,10 @@ impl TypesetEngine {
                 *target = *height;
             }
         }
-        if let Some(height) = resumed_row_box {
+        if let Some(height) = start_row_box {
             heights[cursor.row] = height;
         }
-        let accepted_prefix_end = cursor.row + usize::from(resumed_row_box.is_some());
+        let accepted_prefix_end = cursor.row + usize::from(start_row_box.is_some());
         // A resumed first row owns a cut, not a complete source row. Keep its
         // existing cut/remaining-band contract while later whole rows consume
         // the accepted physical prefix from earlier fragments.
