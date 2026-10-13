@@ -2,17 +2,56 @@
 kind: evidence
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-12
+last_verified: 2026-10-13
 ---
 
 # PR #7672 체리픽·메인터너 보정 검토 계획
+
+## 변경 전 C20 통합 검증 — 2026-10-13
+
+변경 전 C20 검증 source HEAD는 `e2a525d36f2923918185f62610869e7c3068b9d0`, 검증 base는
+`552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 오늘 `upstream/devel` fetch와 rebase가 모두 성공했으며
+SHA 변경·충돌은 없었다. 아래 과거 단계의 SHA·관측값은 당시 기록으로 유지한다.
+
+이 C20 source에서 Rust 전체 회귀 **10,241건 통과·45건 제외**, Studio **1,836건 통과·실패 0건**,
+Native Skia library/workspace **4,046건 통과·12건 ignored**를 확인했다.
+Studio typecheck/build, Native·WASM·workspace all-target Clippy와 두 정책의 base 비교,
+최적화 fresh WASM 및 Native 빌드도 exit 0이다. 모든 Cargo 빌드는 공용
+`/home/tsjang/rhwp/target/pr-review`를 사용했다. 실행 명령·시간·SHA·exit code는
+ignored `output/pr-review/planet6897-followup-20261011/c20-validation-sequence-results.json`,
+상세 lint 결과는 `c20-lint-results.json`에 보존한다.
+
+9개 PR의 전체 Native/fresh WASM 시각 검증은 **진행 중**이다. 이 테스트 통과를
+시각 수용·PR 승인으로 판정하지 않는다. 문서별 실제 Print 세대, 전체 TSV, 대표 review와
+직접 확대 판독을 대조한 뒤 이 PR의 적용 범위를 최종 판정한다. 현재 head의 결과는
+`c20-native-whole-corpus-results.json`과 `c20-wasm-whole-corpus-results.json`에 기록한다.
+완료되지 않은 결과 파일의 부재·일부 레코드는 통과가 아니다. 원격 통합 PR·CI·merge와
+후속 처리는 아직 진행하지 않았다.
+
+
+### C21 Canvas 점 페인트 보정 후보
+
+현재 소스에는 C20 이후의 Canvas 가운뎃점 보정이 있다. 일반/효과 페인트가
+SVG·Skia와 같은 전진 상자 중앙 및 점 기하 상수를 소비한다. 근거·실제 호출
+차이는 [#7815 구현 검토](pr_7815_review_impl.md)의 최신 문장부호 항목을 따른다.
+C20 Native 주요24문서·325쪽은 완료했지만 미달 문서가 남았다. C20 전체 WASM과
+뒤 추가 corpus는 새 소스와 섞이지 않도록 중단됐다. C20 완료 증거는 그대로 보존한다.
+
+보정 후보의 prepare·fmt·Native/WASM/all-target Clippy·workspace build와
+고정 base 대비 manifest/unit-tier **8단계 preflight는 모두exit0**다.
+새 code commit의 정식 회귀·fresh WASM 실제 재생·관련 전쪽 시각 검증은 아직
+필요하며, 이전 C20 결과를 보정 후보의 최종 통과로 옮겨 적지 않는다.
+원격 PR·CI·merge와 후속 처리는 미실행이다. 상세 후보와 명령은 ignored
+`c21-canvas-dot-source-candidate.json`, `c21-canvas-lint-preflight-results.json`,
+`c21-c20-source-supersession.json`에 보존한다.
+
 
 ## 상태와 검토 범위
 
 검토 진행 중이며 수용·승인 판정은 아직 하지 않았다. 범위는 **미주 제목 소유 경계**다.
 
 - branch: `review/planet6897-followup-20261011`
-- 고정 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`
+- 초기 검토 base(과거 단계): `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`
 - 원 PR head: `b387d1358256c0ae02f68b8c2a497026c3f0d1e9`
 - 기본 경로: `collaborator_external_pr` 9.1.1, 주 작업공간 체리픽 통합
 - 보조 경로: intake, local validation, visual fixture, multi PR, rework
@@ -337,3 +376,78 @@ Cargo 설정의 byte-identical 복원을 `git diff --exit-code`로 확인했다.
 `output/pr-review/planet6897-followup-20261011/equation-ascii-relations-diagnostic/`와
 `equation-experiment-withdrawal-plan.json`에 남긴다. 활성 회귀 검사를 추가하거나
 기존 기대값을 완화하지 않았다.
+
+## 현재 전쪽 Native 재검증과 실제 Print 세대 — 2026-10-13
+
+현재 `e2a525d36`의 같은 편집 입력·독립 Print로 `note348-mun`과 대조군은
+각각20쪽 최저 **29.07841%**다. 두 입력은 실제2020 Print에 맞춰 compat2022로
+검증했다. `gap20-note134-mun`은 실제2024 Print에 맞춰 compat2024로24쪽을
+검증했고 최저10쪽 **35.58943%**다. 이전에 다른 세대로 산출한 진단 값과 구분한다.
+
+현재 note348 마지막20쪽은 앞에서 넘어온 본문으로 시작하고 두 원 도형과 뒤 문30의
+세로 위치·칼럼 소속이 Print와 다르다. gap20의10쪽은 첫 수식 줄부터 대응 내용이
+다르고 문8/9·그래프와 오른쪽 문10/11/12의 누적 전진이 어긋난다. 실제 배치 차이를
+글꼴 획 차이나 테스트 통과로 면제하지 않는다. 같은 입력과 실제 Print 세대를 사용한
+고정 devel `552f5228d` 비교를 진행 중이며, 기존 미달·현재 회귀 판정은 아직 보류한다.
+
+ignored 근거: `c20-native-whole-corpus-results.json`,
+`c20-current-edited-note-direct-review/provenance.json`,
+같은 폴더 `pr7672-2023-note348-mun/review/review_020.png`와
+`pr7672-gap20-note134-mun/review/review_010.png`,
+`c20-pinned-upstream-note348-mun-native-results.json`,
+`c20-pinned-upstream-gap20-mun-native-results.json`.
+
+## note348 최신 기준 비교 — 2026-10-13
+
+고정 devel `552f5228d`의 같은 편집본·2020 Print·compat2022 Native 전20쪽도
+미달이며 최저 **28.91722%**다. 현재 `e2a525d36`은 **29.07841%**다.
+쪽별 TextRun 내용·순서는 전20쪽에서 같지만,17쪽의 배치 노드52개가 바뀌었다.
+현재17쪽 오른쪽 칼럼은 앞에서 넘어온 수식 뒤 `x≥0`, `g(x)`로 시작한다.
+기준 devel은 `x≥0`부터, Print는 `g′(x)`부터 시작하며 양쪽의 누적 세로 위치도
+Print와 다르다. 과거 미달이라는 사실만으로 현재 출력이 무변화이거나 회귀가 없다고
+판정하지 않는다. 두 출력 모두 시각 수용은 미충족이고 원인·fresh WASM 검토가 남았다.
+
+ignored 근거: `c20-note348-pinned-base-current-native-comparison.json`,
+`c20-note348-page17-base-current-direct-review/base/review/review_017.png`,
+같은 폴더의 `current/review/review_017.png`.
+
+## 17쪽 변경과 미주 소유 판정 경로 — 2026-10-13
+
+현재 dump-pages에서 렌더 문단846은 원본 본문348의 미주 내부
+`noteParaIndex=6`이며 문자열은 `문서…`로 시작한다. 번호·제목 소유자인0번
+문단이 아니다. 기준의 접두사 판정은 이 본문을 제목으로 읽지만 현재 소유 판정은
+제목에서 제외한다. 입력의 소유 정보로 이 분기 의미를 확인했으며 과거 픽셀로
+되돌리기 위해 잘못된 제목 압축을 복원하지 않는다. 이 확인은 전체 Print 배치가
+정확하다는 증거가 아니며 전20쪽 시각 수용은 계속 미충족이다.
+
+출처 생산은 `typeset/notes/endnotes/paragraph.rs`의 원본 `ep_idx` 등록, 측정은
+`typeset.rs::endnote_first_local_paras`와 `notes/endnotes/measure.rs`의 cursor 설정,
+렌더는 `layout.rs::set_endnote_para_sources`·`endnote_para_starts_note`와
+`height_cursor.rs::starts_endnote`다. 같은 소유 기준 뒤의 실제 배치 차이는 별도로
+유지한다. 근거는 ignored `c20-note348-page17-title-ownership-path-audit.json`과
+`c20-note348-current-dump-pages.json`이다.
+
+
+## 최신 devel의 fresh WASM 확인과 추가 직접 판독 — 2026-10-13
+
+동일 note348 편집본·2020 Print·compat2022에서 고정 devel `552f5228d`의
+fresh WASM **전20쪽**을 완료했고 최저 **28.91722%**로 Native와 같다.
+현재 Native 전20쪽 최저는 **29.07841%**이며 현재 fresh WASM은 대기 중이다.
+기준도 미달이라는 사실만으로 현재17쪽 배치 변경을 무회귀로 판정하지 않는다.
+ignored 근거는 `c20-pinned-upstream-note348-mun-wasm-results.json`과 대응 TSV다.
+
+현재15쪽 확대 전 비교에서도 왼쪽은 Print에 없는 이월 확률 문단으로, 오른쪽은
+앞의 분수로 시작하며 문24~30의 누적 위치와 마지막 내용의 쪽 소속이 다르다.
+gap20의 마지막24쪽은 그래프·후속 증명·빈 오른쪽 꼬리가 대응하지만 수식·본문
+모양과 간격의 확대 판독이 남았다. 이 한 쪽의90% 통과로 앞쪽 미달을 상쇄하지 않는다.
+`c20-current-edited-note-additional-direct-reading.json`에 판독과 이미지 출처를 연결했다.
+
+
+gap20-note134의 고정 devel fresh WASM도 실제2024 Print·compat2024로 **전24쪽**
+완료했고 최저 **35.58337%**다. 기준 Native와 동일하다. 기준 note34820쪽은
+모든 Native/fresh WASM PNG가 바이트 단위로 같고 쪽별 TSV 점수도 같다.
+gap2024쪽은 쪽별 TSV 점수가 같지만17쪽의2픽셀이 다르므로 이미지 전체의
+동일성을 단정하지 않는다. 두 backend의 점수 일치를 Print와의 시각 수용으로 읽지 않는다.
+현재의 대응 fresh WASM 완료와 변경 영역 판독은 계속 남아 있다.
+근거: `c20-pinned-upstream-gap20-mun-wasm-results.json`,
+`c20-pinned-upstream-edited-note-native-fresh-wasm-parity.json`.

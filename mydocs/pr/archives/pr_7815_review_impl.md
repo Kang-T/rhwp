@@ -2,17 +2,56 @@
 kind: evidence
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-12
+last_verified: 2026-10-13
 ---
 
 # PR #7815 체리픽·메인터너 보정 검토 계획
+
+## 변경 전 C20 통합 검증 — 2026-10-13
+
+변경 전 C20 검증 source HEAD는 `e2a525d36f2923918185f62610869e7c3068b9d0`, 검증 base는
+`552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 오늘 `upstream/devel` fetch와 rebase가 모두 성공했으며
+SHA 변경·충돌은 없었다. 아래 과거 단계의 SHA·관측값은 당시 기록으로 유지한다.
+
+이 C20 source에서 Rust 전체 회귀 **10,241건 통과·45건 제외**, Studio **1,836건 통과·실패 0건**,
+Native Skia library/workspace **4,046건 통과·12건 ignored**를 확인했다.
+Studio typecheck/build, Native·WASM·workspace all-target Clippy와 두 정책의 base 비교,
+최적화 fresh WASM 및 Native 빌드도 exit 0이다. 모든 Cargo 빌드는 공용
+`/home/tsjang/rhwp/target/pr-review`를 사용했다. 실행 명령·시간·SHA·exit code는
+ignored `output/pr-review/planet6897-followup-20261011/c20-validation-sequence-results.json`,
+상세 lint 결과는 `c20-lint-results.json`에 보존한다.
+
+9개 PR의 전체 Native/fresh WASM 시각 검증은 **진행 중**이다. 이 테스트 통과를
+시각 수용·PR 승인으로 판정하지 않는다. 문서별 실제 Print 세대, 전체 TSV, 대표 review와
+직접 확대 판독을 대조한 뒤 이 PR의 적용 범위를 최종 판정한다. 현재 head의 결과는
+`c20-native-whole-corpus-results.json`과 `c20-wasm-whole-corpus-results.json`에 기록한다.
+완료되지 않은 결과 파일의 부재·일부 레코드는 통과가 아니다. 원격 통합 PR·CI·merge와
+후속 처리는 아직 진행하지 않았다.
+
+
+### C21 Canvas 점 페인트 보정 후보
+
+현재 소스에는 C20 이후의 Canvas 가운뎃점 보정이 있다. 일반/효과 페인트가
+SVG·Skia와 같은 전진 상자 중앙 및 점 기하 상수를 소비한다. 근거·실제 호출
+차이는 [#7815 구현 검토](pr_7815_review_impl.md)의 최신 문장부호 항목을 따른다.
+C20 Native 주요24문서·325쪽은 완료했지만 미달 문서가 남았다. C20 전체 WASM과
+뒤 추가 corpus는 새 소스와 섞이지 않도록 중단됐다. C20 완료 증거는 그대로 보존한다.
+
+보정 후보의 prepare·fmt·Native/WASM/all-target Clippy·workspace build와
+고정 base 대비 manifest/unit-tier **8단계 preflight는 모두exit0**다.
+새 code commit의 정식 회귀·fresh WASM 실제 재생·관련 전쪽 시각 검증은 아직
+필요하며, 이전 C20 결과를 보정 후보의 최종 통과로 옮겨 적지 않는다.
+원격 PR·CI·merge와 후속 처리는 미실행이다. 상세 후보와 명령은 ignored
+`c21-canvas-dot-source-candidate.json`, `c21-canvas-lint-preflight-results.json`,
+`c21-c20-source-supersession.json`에 보존한다.
+
 
 ## 상태와 검토 범위
 
 검토 진행 중이며 수용·승인 판정은 아직 하지 않았다. 범위는 **문장부호 언어 슬롯**다.
 
 - branch: `review/planet6897-followup-20261011`
-- 고정 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`
+- 초기 검토 base(과거 단계): `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`
 - 원 PR head: `f2a334bc4e90fbedd021e59f4cf2420cbcfbdb21`
 - 기본 경로: `collaborator_external_pr` 9.1.1, 주 작업공간 체리픽 통합
 - 보조 경로: intake, local validation, visual fixture, multi PR, rework
@@ -302,3 +341,36 @@ WASM 입력에서 Node 바인딩을 생성했다(exit0). 이 Node package까지 
 ignored 로그: `current-4ce-native-skia-lib.log`, `current-4ce-fresh-node-wasm-build.log`,
 `current-4ce-studio-unit-with-node-wasm.log`, `current-4ce-native-skia-focused-results.json`.
 이 결과를 최종 통합 전체 Rust 검사 또는 남은 원본의 시각 통과로 보고하지 않는다.
+
+
+## 현재 fresh WASM의 실제 문장부호 페인트 확인 — 2026-10-13
+
+현재 `e2a525d36`의 fresh package와 실제 Studio 초기화 응답의 JS/WASM 해시를
+대조했다. 기존 curly 원본 전1쪽의 실제 Canvas API와 독립2020 Print 비교는
+**99.51551%**다. 원본의 따옴표32개는 휴먼명조·Times 프로그램을 사용하며
+모두 수평 배율1로 그렸다. 같은 영역4배 확대에서 전각 휴먼명조/좁은 Times의
+모양과 앞뒤 `가`의 순서가 유지되고 추가 반폭 축소·겹침은 보이지 않는다.
+작은 raster 획 차이는 남아 있으며 나머지 범위의 완료로 확대하지 않는다.
+원본에는 실제 U+00B7이 없어 가운뎃점 검출 증거로 재사용하지 않았다.
+
+별도 기존 원본 `k-water-rfp.hwp`의 실제27쪽 문서를 로드한 뒤 첫 점을 소유한
+3쪽을 선택했다. 가운뎃점7개는 현재 Canvas에서 Palatino 선언 글리프를
+수평0.5배로 그리지만 같은 fresh WASM SVG는 원 도형7개를 그린다.
+독립 Print3쪽의 Type3 `/T5`·`/HFT43` 원 프로그램은 전진0.384em,
+가로 중심0.192em, 세로 중심0.3515em, 반지름0.057/0.0565em의 원형 윤곽이다.
+SVG/Skia의 전진 상자 중앙·공통 점 기하와 Canvas의 글리프 축소 소비 경로가
+다르므로 Canvas의 해당 경로 보정과 실제 재생 재검증이 필요하다.
+효과 페인트도 별도 글리프 경로여서 적용 조건을 함께 대조해야 한다.
+
+이 진단에서 명시 공급한 집합에 Palatino 프로그램은 없어 실제 대체 글리프의
+모양을 정본 Palatino로 판정하지 않는다. 실행으로 확인한 소비 경로 차이와
+독립 Print 기하를 기록한 것이며, 원본27쪽의 전쪽 시각 수용이나 현재 변경이
+새 회귀를 만들었다는 판정은 아니다. 첫 진단의 스크립트 범위 오류와 빈 초기
+HWP를 조회한 두 번째 오류는 보존했고, 실제 다쪽 원본의 로드 완료를 기다린
+세 번째 실행은exit0이다. 제품 실패와 진단 실패를 구분한다.
+
+근거는 ignored `c20-current-curly-canvas-print-review/provenance.json` 및
+`review/review_001.png`, `quote-enlargement/compare_001.png`,
+`c20-middle-dot-paint-consumer-audit.json`,
+`c20-middle-dot-independent-print-glyph-records.json`,
+`c20-current-middle-dot-canvas-trace-attempt3-command.json`에 연결한다.

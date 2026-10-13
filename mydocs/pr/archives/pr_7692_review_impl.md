@@ -2,17 +2,56 @@
 kind: evidence
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-12
+last_verified: 2026-10-13
 ---
 
 # PR #7692 체리픽·메인터너 보정 검토 계획
+
+## 변경 전 C20 통합 검증 — 2026-10-13
+
+변경 전 C20 검증 source HEAD는 `e2a525d36f2923918185f62610869e7c3068b9d0`, 검증 base는
+`552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 오늘 `upstream/devel` fetch와 rebase가 모두 성공했으며
+SHA 변경·충돌은 없었다. 아래 과거 단계의 SHA·관측값은 당시 기록으로 유지한다.
+
+이 C20 source에서 Rust 전체 회귀 **10,241건 통과·45건 제외**, Studio **1,836건 통과·실패 0건**,
+Native Skia library/workspace **4,046건 통과·12건 ignored**를 확인했다.
+Studio typecheck/build, Native·WASM·workspace all-target Clippy와 두 정책의 base 비교,
+최적화 fresh WASM 및 Native 빌드도 exit 0이다. 모든 Cargo 빌드는 공용
+`/home/tsjang/rhwp/target/pr-review`를 사용했다. 실행 명령·시간·SHA·exit code는
+ignored `output/pr-review/planet6897-followup-20261011/c20-validation-sequence-results.json`,
+상세 lint 결과는 `c20-lint-results.json`에 보존한다.
+
+9개 PR의 전체 Native/fresh WASM 시각 검증은 **진행 중**이다. 이 테스트 통과를
+시각 수용·PR 승인으로 판정하지 않는다. 문서별 실제 Print 세대, 전체 TSV, 대표 review와
+직접 확대 판독을 대조한 뒤 이 PR의 적용 범위를 최종 판정한다. 현재 head의 결과는
+`c20-native-whole-corpus-results.json`과 `c20-wasm-whole-corpus-results.json`에 기록한다.
+완료되지 않은 결과 파일의 부재·일부 레코드는 통과가 아니다. 원격 통합 PR·CI·merge와
+후속 처리는 아직 진행하지 않았다.
+
+
+### C21 Canvas 점 페인트 보정 후보
+
+현재 소스에는 C20 이후의 Canvas 가운뎃점 보정이 있다. 일반/효과 페인트가
+SVG·Skia와 같은 전진 상자 중앙 및 점 기하 상수를 소비한다. 근거·실제 호출
+차이는 [#7815 구현 검토](pr_7815_review_impl.md)의 최신 문장부호 항목을 따른다.
+C20 Native 주요24문서·325쪽은 완료했지만 미달 문서가 남았다. C20 전체 WASM과
+뒤 추가 corpus는 새 소스와 섞이지 않도록 중단됐다. C20 완료 증거는 그대로 보존한다.
+
+보정 후보의 prepare·fmt·Native/WASM/all-target Clippy·workspace build와
+고정 base 대비 manifest/unit-tier **8단계 preflight는 모두exit0**다.
+새 code commit의 정식 회귀·fresh WASM 실제 재생·관련 전쪽 시각 검증은 아직
+필요하며, 이전 C20 결과를 보정 후보의 최종 통과로 옮겨 적지 않는다.
+원격 PR·CI·merge와 후속 처리는 미실행이다. 상세 후보와 명령은 ignored
+`c21-canvas-dot-source-candidate.json`, `c21-canvas-lint-preflight-results.json`,
+`c21-c20-source-supersession.json`에 보존한다.
+
 
 ## 상태와 검토 범위
 
 검토 진행 중이며 수용·승인 판정은 아직 하지 않았다. 범위는 **병합 칸 높이와 줄 상자**다.
 
 - branch: `review/planet6897-followup-20261011`
-- 고정 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`
+- 초기 검토 base(과거 단계): `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`
 - 원 PR head: `135e2b075a8bee4aec792b003e9fa89618c32b5c`
 - 기본 경로: `collaborator_external_pr` 9.1.1, 주 작업공간 체리픽 통합
 - 보조 경로: intake, local validation, visual fixture, multi PR, rework
@@ -951,3 +990,24 @@ C15 fresh diagnostic web build는 exit0으로 종료됐다. WASM SHA는
 미달을 숨기지 않으며, 현재 발생시킨 회귀의 복원과 기존 미달 범위를 구분한다.
 현 시점에서 C15 소스·폰트 identity 계약을 일반 commit으로 고정하고 남은 필수 lint와
 Cargo suite·Skia·Studio·전쪽 시각 검증을 이어간다.
+
+## 최신 고정 base의 원본 대조 — 2026-10-13
+
+`valid_generated/nested-split.hwp`의 같은 원본·독립 2020 Print·글꼴·compat2022로
+고정 devel `552f5228d`와 현재 `e2a525d36`의 Native 전6쪽을 확인했다.
+최저값은 각각 **21.08402% / 21.08609%**, 두 출력 모두4–6쪽 미달이다.
+Page/Body/Column/Table/Cell/Image/TextLine169개 노드의 bbox·소유 메타데이터와
+쪽별 TextRun 내용·순서는 양쪽이 동일하다. TextRun의 글자 bbox까지 같다는 주장은 아니다.
+현재4쪽 review에서 Print의 세 번째 자식 행이 뒤쪽으로 이동하고,6쪽은 Print의 빈
+이어받기 띠에 Native 본문이 남는 것을 직접 확인했다. fresh WASM 비교는 대기 중이다.
+
+#7788을 원격에서 다시 확인하면 기존 등록은 마지막 빈 문단의 셀 외곽선 함수와
+당시5쪽89.52230%·6쪽100% 기록이다. 같은 파일명만으로 현재4–6쪽의 전체
+쪽 소유 차이가 이미 등록됐다고 판정하지 않는다. 위 과거 단계의 #7788 연결과
+현재 증상 범위를 구분하며, 이관 판정 전에 범위 연결을 명시적으로 보완한다.
+정확한 기존 검사와 원본·Print는 유지했고 검사 제거·기대값 갱신은 하지 않았다.
+
+ignored 근거: `c20-generated-split-pinned-base-current-native-comparison.json`,
+`c20-generated-split-existing-issue-scope-audit.json`,
+`c20-current-native-representative-review/valid_generated-nested-split/review/review_004.png`,
+같은 경로의 `review_006.png`, `c20-pinned-upstream-generated-split-native-results.json`.
