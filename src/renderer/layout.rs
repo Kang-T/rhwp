@@ -3716,6 +3716,7 @@ pub struct LayoutEngine {
     /// `cell_units_uncached` 안에서 계산되어 52,694 셀 표에서 O(셀²)(≈28억) 로 폭증했다.
     /// `cell_units_cache` 와 동일 조판 경계에서 clear 한다.
     table_nested_text_flag_cache: std::cell::RefCell<std::collections::HashMap<usize, bool>>,
+    table_row_index_cache: table_rows::TableRowIndexCache,
     /// 셀 안에 든 표(중첩 표)의 포인터. 저장 쪽 되감김 줄간격 트림은 쪽 프레임을 소유하는
     /// 바깥 표에만 쓴다. `cell_units_cache` 와 동일 조판 경계에서 clear 한다.
     nested_table_ptrs: std::cell::RefCell<std::collections::HashSet<usize>>,
@@ -3741,6 +3742,7 @@ mod shape_layout;
 mod table_cell_content;
 pub(crate) mod table_layout;
 mod table_partial;
+mod table_rows;
 mod text_measurement;
 mod utils;
 
@@ -3848,6 +3850,7 @@ impl LayoutEngine {
             cell_units_cache: std::cell::RefCell::new(std::collections::HashMap::new()),
             nested_table_ptrs: std::cell::RefCell::new(std::collections::HashSet::new()),
             table_nested_text_flag_cache: std::cell::RefCell::new(std::collections::HashMap::new()),
+            table_row_index_cache: Default::default(),
             cursor_probe_block_cache: std::cell::RefCell::new(std::collections::HashMap::new()),
             single_line_overflow_cache: Default::default(),
             #[cfg(test)]
@@ -3861,8 +3864,87 @@ impl LayoutEngine {
         self.cell_units_cache.borrow_mut().clear();
         self.nested_table_ptrs.borrow_mut().clear();
         self.table_nested_text_flag_cache.borrow_mut().clear();
+        self.table_row_index_cache.clear();
         self.cursor_probe_block_cache.borrow_mut().clear();
         self.single_line_overflow_cache.clear();
+    }
+
+    /// 반환한 guard가 표 borrow와 행 색인을 함께 소유한다.
+    pub(crate) fn table_rows_scope<'a>(
+        &self,
+        table: &'a crate::model::table::Table,
+    ) -> table_rows::TableRows<'a> {
+        self.table_row_index_cache.scope(table)
+    }
+
+    pub(crate) fn cells_starting_on_row<'a>(
+        &self,
+        table: &'a crate::model::table::Table,
+        row: usize,
+    ) -> impl Iterator<Item = &'a crate::model::table::Cell> {
+        let indices = self.table_row_index_cache.lookup(table).map_or_else(
+            || {
+                table
+                    .cells
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, cell)| usize::from(cell.row) == row)
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>()
+            },
+            |rows| rows.starting(row).to_vec(),
+        );
+        indices.into_iter().map(move |index| &table.cells[index])
+    }
+
+    fn spanning_cells<'a>(
+        &self,
+        table: &'a crate::model::table::Table,
+    ) -> impl Iterator<Item = &'a crate::model::table::Cell> {
+        let indices = self.table_row_index_cache.lookup(table).map_or_else(
+            || {
+                table
+                    .cells
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, cell)| cell.row_span > 1)
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>()
+            },
+            |rows| rows.spanning().to_vec(),
+        );
+        indices.into_iter().map(move |index| &table.cells[index])
+    }
+
+    fn indexed_row_cut_cell_order(
+        &self,
+        table: &crate::model::table::Table,
+        row: usize,
+    ) -> Vec<usize> {
+        self.table_row_index_cache.lookup(table).map_or_else(
+            || Self::row_cut_cell_order(table, row),
+            |rows| rows.single_by_column(row).to_vec(),
+        )
+    }
+
+    fn indexed_raw_row_heights(
+        &self,
+        table: &crate::model::table::Table,
+    ) -> std::sync::Arc<Vec<crate::model::HwpUnit>> {
+        self.table_row_index_cache.lookup(table).map_or_else(
+            || std::sync::Arc::new(table.get_raw_row_heights()),
+            |rows| rows.raw_heights(),
+        )
+    }
+
+    fn indexed_rowspan_declared_overflow_shrink(
+        &self,
+        table: &crate::model::table::Table,
+    ) -> std::sync::Arc<Vec<crate::model::HwpUnit>> {
+        self.table_row_index_cache.lookup(table).map_or_else(
+            || std::sync::Arc::new(table.rowspan_declared_overflow_shrink()),
+            |rows| rows.declared_shrink(),
+        )
     }
 
     pub(crate) fn register_exact_font_source(

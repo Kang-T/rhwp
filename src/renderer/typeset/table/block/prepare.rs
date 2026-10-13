@@ -81,6 +81,8 @@ impl TypesetEngine {
         // 행 컷 측정도 같은 렌더링의 일부이므로 조판기와 동일한 표 출처를 사용한다.
         layout_engine
             .set_render_normalization_overlay(std::sync::Arc::clone(&self.render_normalization));
+        let _geometry_rows = layout_engine.table_rows_scope(row_geometry_table);
+        let _host_rows = layout_engine.table_rows_scope(table);
         // [Task #993] rowspan(row_span>1) 셀이 걸친 행 — 컷 모델(advance_row_cut)은
         // row_span==1 셀만 다루므로 rowspan 셀 높이를 측정하지 못한다. 구현계획서
         // §4대로 rowspan 행은 MeasuredTable 행 높이를 권위로 쓴다(렌더러도 동일).
@@ -102,22 +104,23 @@ impl TypesetEngine {
             {
                 return false;
             }
-            row_geometry_table.cells.iter().any(|cell| {
-                cell.row as usize == row
-                    && cell.row_span == 1
-                    && cell.paragraphs.iter().enumerate().any(|(para_idx, para)| {
-                        para.controls.iter().enumerate().any(|(control_idx, _)| {
-                            stored_square_picture_has_adjacent_text(cell, para_idx, control_idx)
+            layout_engine
+                .cells_starting_on_row(row_geometry_table, row)
+                .any(|cell| {
+                    cell.row as usize == row
+                        && cell.row_span == 1
+                        && cell.paragraphs.iter().enumerate().any(|(para_idx, para)| {
+                            para.controls.iter().enumerate().any(|(control_idx, _)| {
+                                stored_square_picture_has_adjacent_text(cell, para_idx, control_idx)
+                            })
                         })
-                    })
-            })
+                })
         };
         let cut_row_h: Vec<f64> = (0..row_count)
             .map(|r| {
-                let has_single_row_cells = row_geometry_table
-                    .cells
-                    .iter()
-                    .any(|c| c.row as usize == r && c.row_span == 1);
+                let has_single_row_cells = layout_engine
+                    .cells_starting_on_row(row_geometry_table, r)
+                    .any(|c| c.row_span == 1);
                 let row_cut_h = if row_has_stored_square_picture_flow(r) {
                     // native HWP5 RowBreak stores the adjacent text LINE_SEG ladder as
                     // the authoritative row height. Recomputing this whole row from

@@ -5086,6 +5086,7 @@ impl LayoutEngine {
         } else {
             outer_table
         };
+        let _rows = self.table_rows_scope(table);
 
         if table.cells.is_empty() {
             return y_start;
