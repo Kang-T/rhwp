@@ -2,16 +2,93 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-13
+last_verified: 2026-10-14
 ---
 
 # PR #7615 리뷰 — 수정: 누름틀 문단 편집이 다른 컨트롤 슬롯과 문단 앞 정의를 지킨다
 
 ## 최종 판정
 
+**승인 — 메인터너 보정 후 승인.** 초기 수용 범위의 원 기여와 분리된 보정이 포함된 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)의 정확한 code candidate `0d59e7f73cc366897891329a21d353458db7776e`를 검증했다. 로컬 집중195개·원 PR의 계약33/33 PASS, 필수 lint/정책, 전쪽 Native/fresh WASM 및 변경 영역 판독을 완료했고 동일 PR/code head의 GitHub Actions도 성공했다. 원 contributor head를 직접 merge 대상으로 바꾸지 않으며, 문서-only trailing head CI·최신 mergeability 확인 뒤 이 통합 PR을 병합한다.
+
+## 현재 개별 검토 상태 — 2026-10-14
+
+| 항목 | 실제 확인 결과 |
+| --- | --- |
+| 브랜치 / 정책 base | `review/semanticist21-20261008` / `22317614b03722e95349a1d3d71c86923363c6f5` |
+| 통합 code candidate / 조판 생산 소스 | `0d59e7f73cc366897891329a21d353458db7776e` / `6cbebc7457ea8899c3949e48ed1255d43f40bcb2`; 검증한 Rust 생산1117개 파일·원 PR 계약 source 및 공용 pkg/Studio 바이트 동일성 확인 |
+| 이 PR의 실제 계약 실행 | 33/33 PASS·FAIL/SKIP/누락0. `output/pr-review/semanticist21-20261008/complete-row-prefix-v460/original-pr-current-focused-contract-results.json`의 함수·source SHA·focused 실제 관측 연결 |
+| 전체 원 PR 집중/중요 문서 검사 | 195 PASS·누락/예상 밖0. 전체10,267 PASS는 이전 ddf17f864 소스의 역사 실행이며 현재 전체 로컬 재수행으로 세지 않음 |
+| Native/fresh WASM | 180 TSV·1040쪽/backend에서90% 미만·누락·쪽수 불일치0. 중요 문서 최저값 하락0; 산재 표 HWP/HWPX52쪽 복구. 원 PR의 실제 입력 범위는 아래 개별 표와 TSV manifest를 따름 |
+| 최종 source CI | [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38475033894) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38475033796) · [CI](https://github.com/edwardkim/rhwp/actions/runs/38475033776) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38475033750) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38475033733) — 동일 PR/head의 실제 실행 결과. 진행 중·취소·이전 source CI를 대신 사용하지 않음 |
+| 현재 판정과 남은 merge 조건 | **승인 — 메인터너 보정 후 승인**. 문서-only trailing head 검사 및 latest mergeability 확인 뒤 자동 승인된 merge·후속처리 |
+
+이 절이 현재 판정이다. 아래 역사 기록의 당시 머지 보류·미검증·옛 base/SHA는 현재 상태로 적용하지 않는다. [최종 로컬 증거 진행238](semanticist21_20261008_integrated_review.md#진행-갱신238--5877-ci-회귀-보정의-최종-로컬-검증-2026-10-14)와 [원문 TSV180개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/1d7a7fe25f0960cb43496b28bed1965a68e282cf)를 연결한다. 조판·입력·Print·관계 검사의 구체적 의미와 미검증 범위는 원 PR별 항목 및 원문 manifest에 유지한다.
+
+### 현재 적용 commit
+
+| 원 commit | rebase 후 현재 적용 | 원 기여 대비 처리 |
+| --- | --- | --- |
+| `f189e5dd59d38c6e4b3c31581a7b55d03c4d20a2` | `2d6d7de9788fbb6b0150845daa5ed33e229e99a1` | 기존 적용과 stable patch-id 동일 |
+| `0a76f6fabbd313ddd908da4b3949cbfb0d4db68e` | `d7e612c188689828731b857e2e325a558236da5f` | 기존 적용과 stable patch-id 동일 |
+| `c09761d797a13f31c5c6a0ca687c2134a1535c47` | `4a14bc135eb74ea25f33e9b6bdc6081b1a360838` | 기존 적용과 stable patch-id 동일 |
+| `1dad94cf07f2be5ffba6e84dc42cc521975bb862` | `666bd8ab3578b341c675d92acc6ebefb40878085` | 기존 적용과 stable patch-id 동일 |
+| `4091704afca53dadf067d85be36779c6abf246d5` | `5612fe986f3393b4485e657b0754a0dc9832b127` | 기존 적용과 stable patch-id 동일 |
+| `8a17e2e770d98215e0d5f2259868b58a2cf1ee75` | `1b0cc39271d6fb34c0b485471050b4b8864cb66f` | 기존 적용과 stable patch-id 동일 |
+| `ae2a058d63b8340d56549097af844697925eacb5` | `00295db6056c512ee4a17621e81eafff86e6bc1a` | 기존 적용과 stable patch-id 동일 |
+
+### 이 PR의 현재 계약 함수
+
+- `auto_number_trailing_placeholder::typing_after_a_trailing_auto_number_in_a_click_here_paragraph_keeps_both` — PASS; `tests/cases/auto_number_trailing_placeholder.rs` SHA-256 `91b4d9f964d94c9025646b94ba5c9304965c371030036d4817b9ee69720596df`.
+- `field_paragraph_control_slots::control_fields_only_paragraph_keeps_slots_when_typing` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_outside_field_keeps_footnote_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_inside_active_field_keeps_footnote_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::local_replace_before_field_keeps_field_and_footnote` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::split_keeps_footnote_shape_and_bookmark_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::page_break_keeps_footnote_shape_and_bookmark_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::pasted_footnote_keeps_slot_before_following_field` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_into_first_empty_field_keeps_later_field` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_into_later_field_keeps_first_empty_field_at_start` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_into_first_empty_field_keeps_footnote_and_bookmark_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::breaking_before_empty_field_keeps_both_fields_in_new_paragraph` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::setting_field_value_keeps_later_footnote_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::splitting_inside_filled_field_keeps_later_footnote_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::setting_field_value_keeps_adjacent_field_value` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_after_field_keeps_header_table_and_picture_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_inside_field_keeps_header_table_and_picture_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::breaking_before_last_char_keeps_header_table_and_picture_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::pasting_field_copied_from_header_paragraph_leaves_header_behind` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::pasting_after_field_that_ends_paragraph_keeps_field_end_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_in_cell_keeps_bookmark_and_field_slots` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::merging_after_field_that_ends_paragraph_keeps_field_end_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::merging_paragraph_that_starts_with_empty_field_counts_its_end_slot` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `field_paragraph_control_slots::typing_after_footnote_marker_by_logical_caret_goes_after_it` — PASS; `tests/cases/field_paragraph_control_slots.rs` SHA-256 `340bf89535dfcfd8022a966275b8b68c7fb1b784ad9bc0800f9b29f987941cb5`.
+- `leading_definition_controls::typing_before_a_leading_object_keeps_definitions_first` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::composing_before_a_leading_object_keeps_definitions_first` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::splitting_before_a_leading_object_keeps_it_first_in_the_new_paragraph` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::pasting_before_a_leading_object_keeps_definitions_first` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::splitting_before_an_inline_object_mid_paragraph_keeps_it_first` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::splitting_right_before_a_click_here_field_keeps_it_first` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::title_marks_in_the_gap_keep_their_slots` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `leading_definition_controls::typing_at_the_start_of_an_ordinary_first_paragraph_is_unchanged` — PASS; `tests/cases/leading_definition_controls.rs` SHA-256 `63a8b33bfdf7aa8289c36f35f0d448a1195fc0fb73362cc330df6f704fcccfaa`.
+- `split_caret_axis::undo_of_enter_right_after_auto_number_restores_the_paragraph` — PASS; `tests/cases/split_caret_axis.rs` SHA-256 `4e8801885c7e2e8586661bdb62c6cf0c3602016d60d281a7fc8d3661744a1350`.
+
+**범위 제한:** 초기 수용 head `ed9c2847523c18f658344ec89cb7ed1a426807ae`까지만 승인한다. 원격 최신 head에 들어간 #7662 의존 후속 변경은 이번에 적용/승인하지 않았으므로 원 PR 전체를 해결 완료로 닫지 않는다.
+
+### 이 PR의 현재 대표 문서·판독 연결
+
+- 입력 `mydocs/pr/assets/semanticist21-20261008/additional-edit-inputs-v94/additional-edited-logical-caret-01-v94.hwpx` SHA-256 `9331dd52058f07e277889f24c6c9c68bc2ed9c79f197c7122c0f94dacf184400`; 독립 Print `pdf/semanticist21-20261008/additional-edit-v94/additional-edited-logical-caret-01-v94-9331dd52058f-2020.pdf` SHA-256 `6851573d1e140b65ae5638fa03cfc909b8b8f9c66921622860f753c42311a261`.
+- `original-30-9331dd52058f` 전체1쪽 Native/fresh TSV에서 미달·누락0. 대표p1는 각각100.00000%/100.00000%이며 전체 scope와 구분한다.
+- [Native review](../assets/semanticist21-20261008/initial-48-current-proof-v453/original-30-9331dd52058f-native-review.png) · [fresh review](../assets/semanticist21-20261008/initial-48-current-proof-v453/original-30-9331dd52058f-fresh-review.png). 기존 asset은 현재 양 backend의 재출력 PNG와 이전 직접 판독 PNG의 RGBA 동일성을 확인해 재사용한 것으로 기록하며 새 캡처로 가장하지 않는다.
+- 이 PR의 실제 명령/편집·소유·내용 검사와 Print의 해당 영역을 함께 판단한다. 점수로 수식·미세 간격 또는 범위 밖 차이를 면제하지 않는다.
+
+## 이전 단계의 검증 기록
+
+### 이전 최종 판정
+
 **머지 보류 — 118쪽 회귀 보정과 현재 전체 Rust 회귀 통과. Rust13게이트 완료. 가맹사업 fresh 전쪽·정식 관계 검사 완료 후 승인.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
 
-## 현재 개별 검토 상태 — 2026-10-13
+### 이전 개별 검토 상태 — 2026-10-13
 
 | 항목 | 확인 결과 |
 | --- | --- |
@@ -41,6 +118,7 @@ last_verified: 2026-10-13
 
 수정 전 production `7f04c48cd395086ed59c08565f343d3f9e1b013d`의 전체 회귀에서 이 PR 계약 33/33개가 PASS했다. 현재 production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`는 72쪽 배치 차이를 보정한 새 소스이며, 이전 PASS를 현재 소스의 검증으로 대신하지 않는다. Native/fresh 영향 쪽·최종 회귀 및 필수 게이트 완료 전 판정은 **머지 보류**다. 근거와 소비 경로는 [누적 기록의 진행 갱신195](semanticist21_20261008_integrated_review.md#진행-갱신195--전-회귀-통과와-72쪽-정렬-높이-소비-경로-보정-2026-10-13)에 연결한다.
 
+
 ## 접수 정보
 
 | 항목 | 값 |
@@ -56,7 +134,7 @@ last_verified: 2026-10-13
 
 원 기여는 초기18개 scope에 이미 체리픽된 기능 commit에 한정한다. 초기 수용 뒤 새 원격 source가 있더라도 추가 체리픽하지 않는다. 메인터너 보정은 같은 review 브랜치에서 분리해 보존하며 최종 code head의 검증으로 판정한다.
 
-| 원 commit | 최초 검토 적용 commit(역사) | 현재 rebase 적용 commit |
+| 원 commit | 최초 검토 적용 commit(역사) | 당시 rebase 적용 commit(역사) |
 | --- | --- | --- |
 | `f189e5dd59d38c6e4b3c31581a7b55d03c4d20a2` | `a2ef9eab3` | `a99ad3618cd518893c9e2f79e01e7e95e333f794` |
 | `0a76f6fabbd313ddd908da4b3949cbfb0d4db68e` | `761499928` | `62d2d3b17582b95214eade6ab0198cf4ded57ad1` |
@@ -136,3 +214,16 @@ fmt·Native/WASM32 Clippy와 workspace build는 v172 source에서 통과했다. 
 통합 PR 전체 성공으로 확대하지 않는다. 실패별 보정과 필수 시각/backend 검증 뒤 최종 판정을 갱신한다.
 원문 로그와 함수별 연결은 ignored `pr-review-resumed-v447/full-nextest.log`,
 `original-pr-contract-results.json` 및 [누적 기록](semanticist21_20261008_integrated_review.md)에 보존한다.
+
+
+## Merge 후 contributor PR comment 계획 — #7882
+
+통합 PR의 실제 merge SHA가 devel에 반영되고 asset이 존재한 뒤, 원 기여와 메인터너 보정·이 PR의 초기 수용 범위를 구분하여 한국어 존댓말로 게시한다. 현재 code head CI와 원 PR 계약의 실제 PASS를 연결하며, 동일 입력의 전쪽 Native/fresh90% 이상·변경 영역 판독을 기록한다. 임시 output만 링크하지 않고 merge SHA 고정 review/overlay PNG 및 원문 TSV를 함께 표시한다. 전체10,267 결과는 당시 소스의 기록으로만 설명한다.
+
+- 원 PR 대표 입력 `mydocs/pr/assets/semanticist21-20261008/additional-edit-inputs-v94/additional-edited-logical-caret-01-v94.hwpx`, 독립 Print `pdf/semanticist21-20261008/additional-edit-v94/additional-edited-logical-caret-01-v94-9331dd52058f-2020.pdf`. 대응 페이지·점수 및 전체 범위는 TSV manifest의 `original-30-9331dd52058f` Native/fresh 항목을 인용한다.
+
+- 원 PR 대표 입력 `mydocs/pr/assets/semanticist21-20261008/additional-edit-inputs-v94/additional-edited-logical-caret-02-v94.hwpx`, 독립 Print `pdf/semanticist21-20261008/additional-edit-v94/additional-edited-logical-caret-02-v94-d12cf3413e13-2020.pdf`. 대응 페이지·점수 및 전체 범위는 TSV manifest의 `original-31-d12cf3413e13` Native/fresh 항목을 인용한다.
+
+- 후속 댓글에 사용할 이 PR의 대표는 `original-30-9331dd52058f` p1다. Native 100.00000% /fresh 100.00000% 및 전체1쪽 범위를 구분한다.
+- merge SHA로 고정할 실제 asset은 `mydocs/pr/assets/semanticist21-20261008/initial-48-current-proof-v453/original-30-9331dd52058f-native-review.png`(SHA-256 `d628372fd128d739aac0a3d5d3a3fcc023d698035a030de86b9c898c287193b5`) 및 `mydocs/pr/assets/semanticist21-20261008/initial-48-current-proof-v453/original-30-9331dd52058f-fresh-review.png`(SHA-256 `1b1b645b5bd3ca58daa655fbf6ed63d5b8167d191ec941751a9d40cc42161c7d`)이며 두 이미지를 실제 Markdown으로 표시한다. 입력/독립 Print SHA·현재 재출력과 RGBA 동일성·원문 TSV를 함께 연결한다.
+- 이후 #7662 의존 변경은 제외했음을 명시하고 원 PR은 열린 상태로 보존한다.

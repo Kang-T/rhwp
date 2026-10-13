@@ -2,16 +2,56 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-13
+last_verified: 2026-10-14
 ---
 
 # PR #7659 리뷰 — 수정: 새 각주가 이름이 '각주'인 스타일을 쓰게 한다
 
 ## 최종 판정
 
+**승인 — 메인터너 보정 후 승인.** 초기 수용 범위의 원 기여와 분리된 보정이 포함된 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)의 정확한 code candidate `0d59e7f73cc366897891329a21d353458db7776e`를 검증했다. 로컬 집중195개·원 PR의 계약3/3 PASS, 필수 lint/정책, 전쪽 Native/fresh WASM 및 변경 영역 판독을 완료했고 동일 PR/code head의 GitHub Actions도 성공했다. 원 contributor head를 직접 merge 대상으로 바꾸지 않으며, 문서-only trailing head CI·최신 mergeability 확인 뒤 이 통합 PR을 병합한다.
+
+## 현재 개별 검토 상태 — 2026-10-14
+
+| 항목 | 실제 확인 결과 |
+| --- | --- |
+| 브랜치 / 정책 base | `review/semanticist21-20261008` / `22317614b03722e95349a1d3d71c86923363c6f5` |
+| 통합 code candidate / 조판 생산 소스 | `0d59e7f73cc366897891329a21d353458db7776e` / `6cbebc7457ea8899c3949e48ed1255d43f40bcb2`; 검증한 Rust 생산1117개 파일·원 PR 계약 source 및 공용 pkg/Studio 바이트 동일성 확인 |
+| 이 PR의 실제 계약 실행 | 3/3 PASS·FAIL/SKIP/누락0. `output/pr-review/semanticist21-20261008/complete-row-prefix-v460/original-pr-current-focused-contract-results.json`의 함수·source SHA·focused 실제 관측 연결 |
+| 전체 원 PR 집중/중요 문서 검사 | 195 PASS·누락/예상 밖0. 전체10,267 PASS는 이전 ddf17f864 소스의 역사 실행이며 현재 전체 로컬 재수행으로 세지 않음 |
+| Native/fresh WASM | 180 TSV·1040쪽/backend에서90% 미만·누락·쪽수 불일치0. 중요 문서 최저값 하락0; 산재 표 HWP/HWPX52쪽 복구. 원 PR의 실제 입력 범위는 아래 개별 표와 TSV manifest를 따름 |
+| 최종 source CI | [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38475033894) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38475033796) · [CI](https://github.com/edwardkim/rhwp/actions/runs/38475033776) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38475033750) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38475033733) — 동일 PR/head의 실제 실행 결과. 진행 중·취소·이전 source CI를 대신 사용하지 않음 |
+| 현재 판정과 남은 merge 조건 | **승인 — 메인터너 보정 후 승인**. 문서-only trailing head 검사 및 latest mergeability 확인 뒤 자동 승인된 merge·후속처리 |
+
+이 절이 현재 판정이다. 아래 역사 기록의 당시 머지 보류·미검증·옛 base/SHA는 현재 상태로 적용하지 않는다. [최종 로컬 증거 진행238](semanticist21_20261008_integrated_review.md#진행-갱신238--5877-ci-회귀-보정의-최종-로컬-검증-2026-10-14)와 [원문 TSV180개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/1d7a7fe25f0960cb43496b28bed1965a68e282cf)를 연결한다. 조판·입력·Print·관계 검사의 구체적 의미와 미검증 범위는 원 PR별 항목 및 원문 manifest에 유지한다.
+
+### 현재 적용 commit
+
+| 원 commit | rebase 후 현재 적용 | 원 기여 대비 처리 |
+| --- | --- | --- |
+| `9d0c9efb3970fd0497d97fbaed5388dab5f6094a` | `7109d94e617cd6c7b522a542fbc6027edf4025d0` | 기존 적용과 stable patch-id 동일 |
+| `db6f70d9c523692080f5318e406a578c11e6c32e` | `5acc8a73b488c68e670b67c2b4d93a8ad968a7e8` | 기존 적용과 stable patch-id 동일 |
+
+### 이 PR의 현재 계약 함수
+
+- `new_note_paragraph_style::blank_document_note_takes_named_style` — PASS; `tests/cases/new_note_paragraph_style.rs` SHA-256 `2f1f8a0cb89fdd4ba84a9088637e9d956f3104d830fc90b2c889ac6429e8b87d`.
+- `new_note_paragraph_style::hancom_note_takes_named_style_from_its_own_style_table` — PASS; `tests/cases/new_note_paragraph_style.rs` SHA-256 `2f1f8a0cb89fdd4ba84a9088637e9d956f3104d830fc90b2c889ac6429e8b87d`.
+- `new_note_paragraph_style::footnote_without_footnote_style_follows_cursor_paragraph` — PASS; `tests/cases/new_note_paragraph_style.rs` SHA-256 `2f1f8a0cb89fdd4ba84a9088637e9d956f3104d830fc90b2c889ac6429e8b87d`.
+
+### 이 PR의 현재 대표 문서·판독 연결
+
+- 입력 `mydocs/pr/assets/semanticist21-20261008/current-print-inputs-v175/additional-edited-note-style-missing-named-style-v175.hwpx` SHA-256 `6b4f6a375029dcb0c9def5b4443683d1b55cf09acbdb9cb9ab87ac2d94888edb`; 독립 Print `pdf/semanticist21-20261008/new_note_paragraph_style-0462-6b4f6a375029-2020.pdf` SHA-256 `778594c4e099ec86ddaa825f1dd307c195c4ffe49b842a5082df0c15274d6828`.
+- `current-04-6b4f6a375029` 전체2쪽 Native/fresh TSV에서 미달·누락0. 대표p1는 각각95.47491%/95.47491%이며 전체 scope와 구분한다.
+- [Native review](../assets/semanticist21-20261008/original-current-proof-v453/current-04-6b4f6a375029-native-p001-review.png) · [fresh review](../assets/semanticist21-20261008/original-current-proof-v453/current-04-6b4f6a375029-fresh-p001-review.png). 기존 asset은 현재 양 backend의 재출력 PNG와 이전 직접 판독 PNG의 RGBA 동일성을 확인해 재사용한 것으로 기록하며 새 캡처로 가장하지 않는다.
+- 이 PR의 실제 명령/편집·소유·내용 검사와 Print의 해당 영역을 함께 판단한다. 점수로 수식·미세 간격 또는 범위 밖 차이를 면제하지 않는다.
+
+## 이전 단계의 검증 기록
+
+### 이전 최종 판정
+
 **머지 보류 — 118쪽 회귀 보정과 현재 전체 Rust 회귀 통과. Rust13게이트 완료. 가맹사업 fresh 전쪽·정식 관계 검사 완료 후 승인.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
 
-## 현재 개별 검토 상태 — 2026-10-13
+### 이전 개별 검토 상태 — 2026-10-13
 
 | 항목 | 확인 결과 |
 | --- | --- |
@@ -41,6 +81,7 @@ last_verified: 2026-10-13
 
 수정 전 production `7f04c48cd395086ed59c08565f343d3f9e1b013d`의 전체 회귀에서 이 PR 계약 3/3개가 PASS했다. 현재 production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`는 72쪽 배치 차이를 보정한 새 소스이며, 이전 PASS를 현재 소스의 검증으로 대신하지 않는다. Native/fresh 영향 쪽·최종 회귀 및 필수 게이트 완료 전 판정은 **머지 보류**다. 근거와 소비 경로는 [누적 기록의 진행 갱신195](semanticist21_20261008_integrated_review.md#진행-갱신195--전-회귀-통과와-72쪽-정렬-높이-소비-경로-보정-2026-10-13)에 연결한다.
 
+
 ## 접수 정보
 
 | 항목 | 값 |
@@ -56,7 +97,7 @@ last_verified: 2026-10-13
 
 원 기여는 초기18개 scope에 이미 체리픽된 기능 commit에 한정한다. 초기 수용 뒤 새 원격 source가 있더라도 추가 체리픽하지 않는다. 메인터너 보정은 같은 review 브랜치에서 분리해 보존하며 최종 code head의 검증으로 판정한다.
 
-| 원 commit | 최초 검토 적용 commit(역사) | 현재 rebase 적용 commit |
+| 원 commit | 최초 검토 적용 commit(역사) | 당시 rebase 적용 commit(역사) |
 | --- | --- | --- |
 | `9d0c9efb3970fd0497d97fbaed5388dab5f6094a` | `47a304211` | `abd17dbbc73f5455e67750e8bb779a25fb5aa0f5` |
 | `db6f70d9c523692080f5318e406a578c11e6c32e` | `cd0eb2d25` | `9d83ce2be1c2256adc37fd982f76c16b3e130eb9` |
@@ -128,3 +169,16 @@ HWP 각주 입력1쪽88.40005%(Native/fresh)와 이름이 각주인 스타일이
 통합 PR 전체 성공으로 확대하지 않는다. 실패별 보정과 필수 시각/backend 검증 뒤 최종 판정을 갱신한다.
 원문 로그와 함수별 연결은 ignored `pr-review-resumed-v447/full-nextest.log`,
 `original-pr-contract-results.json` 및 [누적 기록](semanticist21_20261008_integrated_review.md)에 보존한다.
+
+
+## Merge 후 contributor PR comment 계획 — #7882
+
+통합 PR의 실제 merge SHA가 devel에 반영되고 asset이 존재한 뒤, 원 기여와 메인터너 보정·이 PR의 초기 수용 범위를 구분하여 한국어 존댓말로 게시한다. 현재 code head CI와 원 PR 계약의 실제 PASS를 연결하며, 동일 입력의 전쪽 Native/fresh90% 이상·변경 영역 판독을 기록한다. 임시 output만 링크하지 않고 merge SHA 고정 review/overlay PNG 및 원문 TSV를 함께 표시한다. 전체10,267 결과는 당시 소스의 기록으로만 설명한다.
+
+- 원 PR 대표 입력 `mydocs/pr/assets/semanticist21-20261008/current-print-inputs-v175/additional-edited-note-style-blank-endnote-v175.hwpx`, 독립 Print `pdf/semanticist21-20261008/new_note_paragraph_style-0460-31414e6363d5-2020.pdf`. 대응 페이지·점수 및 전체 범위는 TSV manifest의 `current-01-31414e6363d5` Native/fresh 항목을 인용한다.
+
+- 원 PR 대표 입력 `mydocs/pr/assets/semanticist21-20261008/current-print-inputs-v175/additional-edited-note-style-blank-footnote-v175.hwpx`, 독립 Print `pdf/semanticist21-20261008/new_note_paragraph_style-0458-56839e167e11-2020.pdf`. 대응 페이지·점수 및 전체 범위는 TSV manifest의 `current-02-56839e167e11` Native/fresh 항목을 인용한다.
+
+- 후속 댓글에 사용할 이 PR의 대표는 `current-04-6b4f6a375029` p1다. Native 95.47491% /fresh 95.47491% 및 전체2쪽 범위를 구분한다.
+- merge SHA로 고정할 실제 asset은 `mydocs/pr/assets/semanticist21-20261008/original-current-proof-v453/current-04-6b4f6a375029-native-p001-review.png`(SHA-256 `00e1ac05af071dc34710c822f0035aa91dccdc1ebaa6e07e2b55b6b461857992`) 및 `mydocs/pr/assets/semanticist21-20261008/original-current-proof-v453/current-04-6b4f6a375029-fresh-p001-review.png`(SHA-256 `ea5565f7b313051f3a744c6cd6339af97677ae9fd98ce011bd9f9b358919a33a`)이며 두 이미지를 실제 Markdown으로 표시한다. 입력/독립 Print SHA·현재 재출력과 RGBA 동일성·원문 TSV를 함께 연결한다.
+- 초기 수용 head와 원격 상태가 바뀌지 않았음을 재확인하고, 해당 범위가 통합된 원 PR은 #7882를 링크한 supersede 설명 뒤 close한다. 후속6개는 변경하지 않는다.

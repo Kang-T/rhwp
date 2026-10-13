@@ -9,7 +9,7 @@ last_verified: 2026-10-14
 
 ## 현재 판정
 
-**로컬 검증 완료 — 새 exact-head CI 확인 전까지 merge를 보류한다.** 생산 `6cbebc7457ea8899c3949e48ed1255d43f40bcb2`에서 #5877의 완료 시작 행 상자 전달을 보정했다. 기존 관계 검사를 유지한 채 집중195개·필수 세 Clippy·workspace build·고정 base manifest 정책·새 WASM 및 공개 API6종이 통과했다. Native/fresh180 TSV·1040쪽/backend는 미달·누락·독립 Print 쪽수 불일치0이다. #5877 전31쪽은 양 backend 최저26쪽91.70631%·18쪽95.40188%이며 직접 판독을 완료했다. 중요 문서의 이전 점수 하락0·초기 PR 계약78/78과 대표32개 재출력 동일성을 확인했다. 전체10,267은 이전 소스의 역사 결과이고 로컬 전체를 재수행하지 않았다. 새 제출 head의 실제 CI 성공 뒤 개별17개 승인·같은 PR의 trailing 기록·merge·후속처리를 진행한다.
+**승인 — 메인터너 보정 후 승인.** 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)의 code candidate `0d59e7f73cc366897891329a21d353458db7776e`에서 승인된 로컬 검증·전쪽 Native/fresh 및 exact-head GitHub CI를 완료했다. 원 PR별17개 판정을 승인으로 갱신하고 이미 병합된#7612 기록을 보존했다. 문서-only trailing head CI·mergeability 확인 후 자동 승인된 merge·후속처리를 진행한다. 현재 merge/close 완료로 기록하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
 - 최신 단계(진행238): #5877 CI 회귀의 최종 로컬 검증 완료. 생산 `6cbebc7457ea8899c3949e48ed1255d43f40bcb2` / base `22317614b03722e95349a1d3d71c86923363c6f5`. [원문 TSV180개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/1d7a7fe25f0960cb43496b28bed1965a68e282cf)를 압축 없이 게시하고 API로 원문 바이트를 재확인했다. 이전191/178/978 결과는 당시 소스의 역사 실행이다.
@@ -5630,3 +5630,8 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 - 증적은 ignored `output/pr-review/semanticist21-20261008/complete-row-prefix-v460/`의 source proof·실행 로그·현재 TSV/manifest·직접 판독·전후/동일성 비교와 committed `ci-correction-v460`의 현재 review/overlay PNG다. source1117개 파일 hash를 고정했고 dev/optimized CLI의 #5877 전31 트리 바이트 동일성도 확인했다. 완료 SVG는 압축하지 않고 삭제하며 입력/PDF/PNG/TSV/로그·공용 target은 보존한다.
 - 가맹사업 fresh는 전142쪽 WASM/SVG 및 내장 글꼴 검사 완료 뒤 페이지1작업자 캡처를4작업자로 전환했다. 기존26쪽의 완료 PNG/기록을 보존하고 같은 source/package/입력/Print의 남은116쪽만 실제 재캡처했다. 원 coordinator의 의도적 SIGINT·exit-2/전체exit1을 원본 기록으로 보존하고, 새 Node4작업자 캡처·전142쪽 실루엣 비교의 exit0을 별도로 확인했다. 중단한 시도를 source 실패나 전체 성공으로 바꾸지 않는다. 전환용 임시 도구의 multiprocessing main guard와 Snap wrapper 실행 경로 오류도 보존했으며 main 진입점·같은 Chromium155의 직접 실행 경로를 지정한 최종 재캡처/비교만 성공 근거로 사용한다. 실제 명령·완료 기록·동일성은 `franchise-raster-speedup-plan/result.json`과 원/후속 raster JSONL을 따른다.
 - 이전 ef9712a77 CI의 실제 실패와 현재 로컬 검증을 구분한다. 새 exact-head GitHub CI가 성공하기 전에는 개별 PR 승인·통합을 적용하지 않는다. 59043의 이관은 진행236의 base/current9591883 미달·기존 #7778 등록 근거를 유지하며 원본/PDF는 보존한다. #7445 전체 또는 #7778/#7807을 해결로 닫지 않는다.
+
+
+## 진행 갱신239 — 정확한 code head CI 성공과 개별 승인·오늘할일 trailing 기록 (2026-10-14)
+
+통합 PR#7882의 `0d59e7f73cc366897891329a21d353458db7776e` 실제 CI를 모두 확인했다: [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38475033894) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38475033796) · [CI](https://github.com/edwardkim/rhwp/actions/runs/38475033776) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38475033750) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38475033733). code head에 대한 결과가 성공한 뒤 원PR17개를 **승인 — 메인터너 보정 후 승인**으로 갱신하고#7612의 기존 병합·명시 예외를 보존했다. 현재 적용39개의 조상 관계와 실제 focused 원 계약78/78 PASS를 재확인해 각 문서에 원/보정 SHA·자기 계약·원문 입력/Print 범위·후속 댓글 계획을 연결했다. 오늘할일은 현재 날짜 파일에 이 PR 항목만 추가하며 최종 merge-tree에서 최신 base의 기존 기록과 신규 기록 보존을 검증한다. 같은 PR의 문서-only trailing commit이고 통합번호용 별도 review 문서를 만들지 않았다. 최신 trailing head 검사와 merge SHA·devel·issue/원 PR 후속처리는 다음 단계다.
