@@ -422,3 +422,27 @@ Native Clippy·빌드는 jobs6·공용target에서 exit0이다. 원본147쪽은
 표 분할·줄 원점·예약 높이 보정이 같은 생산·소비 경로에 들어왔다. 현재 보정
 소스를 보존하고 최신 base 위로 rebase한 다음 실제 공통 결과와 중복 예약 여부를
 확인한다. `c28-upstream-base-audit.json`에 전후 base/head를 고정했다.
+
+
+### C29 최신 devel 리베이스와 중복 물리 예약 조정
+
+기준을552f5228d에서22317614b로 올리고64개 로컬 커밋을 재적용했다.
+원래 커밋의 raw author·작성 시각·메시지를 전부 대조해 보존을 확인했다.
+리베이스 전 head dff44e489는 별도 백업 브랜치에 남겼으며 원 기여자 원격은 변경하지 않았다.
+충돌별 보정과 전후 대응은 ignored output의 `c29-conflict-resolution-ledger.md`,
+`c29-rebase-commit-map.json`, `c29-rebase-range-diff.txt`에 기록했다.
+
+새 upstream의 원본 프레임 빈 띠(`source_frame_band`)는 이미 `consumed`에 예약돼 있다.
+현재 보정의 실제 수용 행 상자(`accepted_end_row_box`)와 함께 보존하고,
+아직 예약하지 않은 쪽 끝 띠만 끝 행 상자·흐름 높이에 한 번 더한다.
+그 후 upstream의 `accepted_straddle_fragment_units`가 동일 상자에서 유닛을 선택하며,
+이어받기 장부는 기존 원본 띠와 새 띠의 합을 받는다. 닫힌 원본 첫 프레임의
+상한은 일반 행 예산과 물리 높이 예산에 함께 적용한다. 문단 아래 간격은
+새 upstream의 공통 경로에서 한 번만 제외하며 합성 줄 인증 조건은 유지했다.
+문서 writeback의 원본 프레임 보존과 생성 호스트 줄 provenance도 함께 유지했다.
+
+리베이스 뒤 `emit.rs` 영문 주석을 한국어로 다시 정리했다. 번역 직전과 직후
+주석 외 바이트의 동일성을 확인했으며 포맷 변경은 별도 diff로 확인했다.
+리베이스 전 출력과 테스트는 최종 결과로 재사용하지 않는다.
+새 base/head의 Native 경계 출력부터 재검증하며 전체 fresh WASM·회귀·lint·PR은
+아직 완료되지 않았다. 새 회귀 검사나 baseline 완화는 추가하지 않았다.

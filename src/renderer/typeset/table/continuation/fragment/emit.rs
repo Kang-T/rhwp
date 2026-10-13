@@ -145,7 +145,7 @@ impl TypesetEngine {
             let height = accepted_scan_height.max(current_content).max(source_space);
             Some((row, used, height, accepted_scan_height))
         });
-        // 행 컷이 소비한 내용과 header의 요구 높이. 저장 상자의 빈 밴드는
+        // 행 컷이 소비한 내용과 머리행의 요구 높이. 저장 상자의 빈 밴드는
         // 아래에서 별도로 물리 점유에 포함하며 컷 유닛을 더 소비하지 않는다.
         let mut partial_height: f64 =
             consumed + header_overhead + hwpunit_to_px(table.outer_cell_spacing_hu(), self.dpi);
@@ -234,7 +234,7 @@ impl TypesetEngine {
             end_row_height_override = Some(height - header_overhead);
             partial_height = height;
         }
-        // #7095의 동일한 쪽 하단 상자를 저장 rowspan 경계에도 적용한다.
+        // #7095의 동일한 쪽 하단 상자를 저장 병합 셀 경계에도 적용한다.
         // 내용 컷과 물리 빈 밴드를 분리하며 다음 조각은 실제 남은 행에서 재개한다.
         let stored_rowspan_frame = (is_continuation
             && start_cut.is_empty()
@@ -271,7 +271,7 @@ impl TypesetEngine {
         }
 
         // 저장 첫 조각의 상자는 내용 컷만으로 표현되지 않는 빈 하단 밴드도 소유한다.
-        // 뒤 조각의 유닛은 그대로 남기며, 이 밴드를 내용 tail에서 차감하지 않는다.
+        // 뒤 조각의 유닛은 그대로 남기며, 이 밴드를 내용 잔여에서 차감하지 않는다.
         let saved_block_opening_frame = (!is_continuation
             && cursor_row == 0
             && start_cut.is_empty())
@@ -313,7 +313,7 @@ impl TypesetEngine {
         })
         .flatten();
         // 종료 행의 원본 프레임은 현재 컷의 내용 높이와 독립적으로 닫힌다.
-        // 마지막 한 행의 이어받기일 때 동일 높이를 예약과 paint에 전달한다.
+        // 마지막 한 행의 이어받기일 때 동일 높이를 예약과 그리기에 전달한다.
         if is_continuation
             && cursor_row + 1 == end_row
             && split_end_cut.is_empty()
@@ -614,15 +614,15 @@ impl TypesetEngine {
             });
         }
         // 종료 조각의 실제 프레임과 뒤 저장 줄이 아래 여백을 닫으면 동일한
-        // 배치 계획으로 예약과 paint 흐름을 함께 전진시킨다.
+        // 배치 계획으로 예약과 그리기 흐름을 함께 전진시킨다.
         if is_continuation
             && end_row >= row_count
             && split_end_limit == 0.0
             && fragment_placement.is_none()
-            // [#5585] 끝 조각 뒤 흐름을 중첩 자식의 저장 빈 Enter(`terminal_host_spacing`)가
+            // [#5585] 끝 조각 뒤 흐름을 중첩 자식의 저장 빈 엔터 줄(`terminal_host_spacing`)가
             // 소유하면 그 간격이 이미 표 아래를 닫는다. 바깥 아래 여백을 따로 열면 둘을
             // 겹쳐 더한다 — 한글 2024 PDF 86712 26쪽: 조각 아래 괘선 145.76px 뒤 다음 표
-            // 193.87px 은 Enter 간격만 더한 위치다(여백까지 더하면 +1.9px).
+            // 193.87px 은 엔터 줄 간격만 더한 위치다(여백까지 더하면 +1.9px).
             && terminal_host_spacing <= 0.0
             && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
             && !st.profile.session_edited()
@@ -659,7 +659,7 @@ impl TypesetEngine {
             }
         }
         // 원본 첫 상자가 마지막 줄의 뒤 간격 안에서 끝나면 모든 컷 유닛을 보존하고
-        // 예약과 paint가 같은 선언 물리 프레임을 소비한다.
+        // 예약과 그리기가 같은 선언 물리 프레임을 소비한다.
         let two_frame_successor_origin =
             input
                 .source
@@ -793,8 +793,8 @@ impl TypesetEngine {
                     });
             }
         }
-        // 끝 조각의 원본 조회는 스캔 이후 여백을 예약할 수 있다. 최종 수용한
-        // 예약에서 아직 소유되지 않은 흐름의 남은 몫을 계산한다.
+        // 종료 프레임의 원본 정보를 조회하면서 스캔 이후 여백이 예약됐을 수 있다.
+        // 최종 수용한 예약량을 기준으로 아직 소유되지 않은 흐름 잔여를 구한다.
         // 끝 조각의 물리 상자와 아래 바깥여백은 같은 영역을 소유한다.
         // 엄격 예산·캡션 등이 이미 예약한 몫을 다시 더하지 않는다.
         let terminal_flow_outer_bottom =
@@ -803,9 +803,8 @@ impl TypesetEngine {
             input.prepared.host_spacing_after_only + terminal_flow_outer_bottom;
         let commit_fragment = |st: &mut TypesetState, owner_height: f64, terminal: bool| {
             if let Some(mut placement) = fragment_placement {
-                // 끝이 아닌 컷은 다음 내용을 소유할 수 없다. 끝 조각의 원본
-                // 원점은 유지하되, 간격을 소비하는 경로에서는 그 원점이
-                // 최종 수용된 물리 하단과 일치해야 한다.
+                // 끝 조각이 아닌 컷은 후속 문단을 소유할 수 없다. 끝 조각의 원본 원점은
+                // 유지하되, 간격을 소비하는 경로에서는 최종 수용한 물리 하단과 일치해야 한다.
                 if !terminal {
                     placement.stored_successor_line_origin = None;
                 }
@@ -843,7 +842,7 @@ impl TypesetEngine {
             }
         };
 
-        // [Task #1046 Stage 2 진단] walk 결과 — fragment 경계/소비 높이. 동작 불변.
+        // [작업 #1046 2단계 진단] 순회 결과 — 조각 경계/소비 높이. 동작 불변.
         if std::env::var("RHWP_TABLE_DRIFT").is_ok() {
             eprintln!(
                 "TABLE_SPLIT_RESULT: pi={} sec={} cursor_row={} end_row={} consumed={:.1} partial_h={:.1} split_end_limit={:.1} avail_for_rows={:.1} fits={}",
@@ -979,9 +978,9 @@ impl TypesetEngine {
                     fragment_row_heights: input.fragment_row_heights.map(<[f64]>::to_vec),
                     end_row_owns_stored_frame: false,
                 });
-                // 마지막 fragment: spacing_after만 포함 (Paginator engine.rs:1051 동일)
-                // host line advance/positive offset은 원 anchor 조각의 계약이며,
-                // continuation 끝에서 다시 더하면 다음 본문을 이중으로 민다(#2439).
+                // 마지막 조각: spacing_after만 포함 (페이지 분할기 engine.rs:1051과 동일)
+                // 호스트 줄 전진과 양의 오프셋은 원래 앵커 조각의 계약이며,
+                // 이어받기 끝에서 다시 더하면 다음 본문을 이중으로 민다(#2439).
                 let occupied = host_before_overhead
                     + vert_offset_overhead
                     + partial_height
@@ -1031,9 +1030,9 @@ impl TypesetEngine {
                     relax_terminal_table_footnote_fit && is_continuation,
                     false,
                 );
-                // terminal fragment에 들어가지 못한 URL 각주는 새 page의 footer
-                // lane에 먼저 예약한다. 다음 본문은 그 reservation을 보고 같은
-                // page에 fit하거나 필요할 때만 다음 page로 분할된다.
+                // 끝 조각에 들어가지 못한 URL 각주는 새 쪽의 하단 각주
+                // 영역에 먼저 예약한다. 다음 본문은 그 예약량을 보고 같은
+                // 쪽에 들어가거나 필요할 때만 다음 쪽으로 분할된다.
                 while continuation.pending_table_footnote_fragment.is_some()
                     || continuation.next_table_footnote < table_footnotes.len()
                 {
@@ -1079,8 +1078,8 @@ impl TypesetEngine {
         }
 
         // 최종 행의 컷이 모든 가시 유닛을 소비했다면 다음 조각은 없다.
-        // 컷을 지우면 원래 행 높이가 복원되므로 paint 컷은 그대로 보존하고,
-        // 빈 후속 페이지를 할당하기 전에 continuation만 종료한다.
+        // 컷을 지우면 원래 행 높이가 복원되므로 그리기 컷은 그대로 보존하고,
+        // 빈 후속 페이지를 할당하기 전에 이어받기만 종료한다.
         let terminal_cut_consumed = input.closes_terminal_content_cut(
             end_row,
             split_end_limit,
@@ -1145,9 +1144,11 @@ impl TypesetEngine {
         {
             let last_row = end_row - 1;
             let last_height = end_row_height_override
-                .or_else(|| accepted_end_row_box
-                    .filter(|(row, _)| *row == last_row)
-                    .map(|(_, height)| height))
+                .or_else(|| {
+                    accepted_end_row_box
+                        .filter(|(row, _)| *row == last_row)
+                        .map(|(_, height)| height)
+                })
                 .unwrap_or(cut_row_h[last_row]);
             end_row_height_override = Some(last_height + unreserved_page_end_band);
             partial_height += unreserved_page_end_band;
@@ -1172,7 +1173,7 @@ impl TypesetEngine {
             straddle_page_bands.clone()
         };
 
-        // 중간 또는 내용이 완전히 소비된 최종 컷 fragment 배치
+        // 중간 또는 내용이 완전히 소비된 최종 컷 조각 배치
         let complete_physical_end_cut = split_block_start.is_none()
             && split_end_limit > 0.0
             && end_row_height_override.is_some()
@@ -1242,9 +1243,9 @@ impl TypesetEngine {
             fragment_row_heights: input.fragment_row_heights.map(<[f64]>::to_vec),
             end_row_owns_stored_frame: is_continuation && stored_complete_extent.is_some(),
         });
-        // 저장 host 원점이 없는 조각은 흐름 좌표로 같은 상자를 잰다 — 위는 흐름 커서 +
-        // host·세로 오프셋, 아래는 비끝 조각 상자 바닥(7062 2~9쪽 996.49 ↔ 정본 996.43).
-        // 첫 조각의 위는 흐름 커서가 아니라 host 저장 vpos 다 — 렌더러가 그 자리에 칠하고,
+        // 저장 호스트 원점이 없는 조각은 흐름 좌표로 같은 상자를 잰다 — 위는 흐름 커서 +
+        // 호스트·세로 오프셋, 아래는 비끝 조각 상자 바닥(7062 2~9쪽 996.49 ↔ 정본 996.43).
+        // 첫 조각의 위는 흐름 커서가 아니라 호스트의 저장 vpos 다 — 렌더러가 그 자리에 칠하고,
         // 흐름은 저장 사다리보다 늦을 수 있다(7062: 흐름 484.3 ↔ 저장 488.8, 156645214:
         // 116.3 ↔ 121.0). 흐름으로 재면 첫 상자가 그만큼 커져 끝 상자가 모자란다.
         let single_cell_box_height = if declared_opening_frame {
@@ -1266,10 +1267,10 @@ impl TypesetEngine {
                         .iter()
                         .find(|seg| !is_synthetic_line_seg(seg))
                         .map(|seg| {
-                            // [#7418] 저장 앵커는 문단 상단이다. host 글을 선방출했으면
-                            // `vert_offset_overhead` 는 host 뒤 흐름 기준이라, 같은 기준으로
-                            // 맞추려면 앵커에도 host 높이를 더한다(156403546 3쪽: 섞이면 첫
-                            // 상자가 host 만큼 커져 끝 조각의 1×1 칸 연장 16.8px 가 사라졌다).
+                            // [#7418] 저장 앵커는 문단 상단이다. 호스트 글을 선방출했으면
+                            // `vert_offset_overhead` 는 호스트 뒤 흐름 기준이라, 같은 기준으로
+                            // 맞추려면 앵커에도 호스트 높이를 더한다(156403546 3쪽: 섞이면 첫
+                            // 상자가 호스트만큼 커져 끝 조각의 1×1 칸 연장 16.8px 가 사라졌다).
                             hwpunit_to_px(
                                 seg.vertical_pos
                                     .saturating_sub(st.vpos_page_base.unwrap_or(0)),
@@ -1304,8 +1305,8 @@ impl TypesetEngine {
         if let Some((row, used, height)) = accepted_stored_row_frame {
             continuation.stored_row_box_sum = Some((row, used + height));
         }
-        // [#2238] 중간 fragment 가시높이 부기 — used_height(flush 시 current_height)
-        // 표시용. advance 직후 current_height 가 리셋되므로 흐름/기하 불변.
+        // [#2238] 중간 조각의 가시 높이 기록 — used_height(페이지 확정 시 current_height)
+        // 표시용. 전진 직후 current_height 가 리셋되므로 흐름/기하 불변.
         st.advance_flow_by(
             host_before_overhead
                 + vert_offset_overhead
@@ -1352,9 +1353,9 @@ impl TypesetEngine {
             continuation.stored_fragment_outer_frame = true;
             continuation.stored_fragment_closes_body = source_frame_closes_body;
         }
-        // 큰 RowBreak 표가 기존 각주를 이미 가진 page에서 시작할 때에는 첫 fragment의
-        // cell-footnote를 같은 lane에 섞지 않는다. 그 page의 기존 각주(표 25의
-        // 105·106)를 보존하고, 표가 이어지는 fresh page에서 cell-footnote를 순서대로
+        // 큰 RowBreak 표가 기존 각주를 이미 가진 쪽에서 시작할 때에는 첫 조각의
+        // 셀 각주를 같은 영역에 섞지 않는다. 그 쪽의 기존 각주(표 25의
+        // 105·106)를 보존하고, 표가 이어지는 새 쪽에서 셀 각주를 순서대로
         // 배치해야 원본 HWP/PDF의 107–111 / 112– 분할을 재현한다.
         let defer_large_first_fragment_notes = st.profile.hwp5_stored_pagination_layout()
             && queue_table_footnotes
@@ -1383,7 +1384,7 @@ impl TypesetEngine {
         }
         st.advance_column_or_new_page();
 
-        // 커서 전진 — [Task #993] 컷은 절대 유닛 인덱스이므로 누적 없이 대입.
+        // 커서 전진 — [작업 #993] 컷은 절대 유닛 인덱스이므로 누적 없이 대입.
         let empty_opening_next_height = input
             .prepared
             .empty_opening_row_frame
@@ -1737,13 +1738,13 @@ impl TypesetEngine {
                 ) {
                 return None;
             }
-            // [#5714] 압축된 끝행의 빈 tail 밴드는 **물리적으로 이어지는
-            // 것이 있을 때만** 다음 조각으로 넘어간다: intra-row 컷이면 그
-            // 행 자신이 이어지고, 행 경계 끝이면 경계를 가로지르는 rowspan
-            // 셀의 선언 공간이 이어진다(76076 p36 의 24.1px 밴드 — 한컴 PDF
+            // [#5714] 압축된 끝행의 빈 잔여 띠는 **물리적으로 이어지는
+            // 것이 있을 때만** 다음 조각으로 넘어간다: 행 내부 컷이면 그
+            // 행 자신이 이어지고, 행 경계 끝이면 경계를 가로지르는 병합
+            // 셀의 선언 공간이 이어진다(76076 36쪽의 24.1px 밴드 — 한컴 PDF
             // 실측, r8 rs=7 셀이 경계를 걸침). 둘 다 아니면 완결된 행의
-            // 선언 잔여는 쪽 경계에서 죽는다 — rowspan 없는 19×2 표에서
-            // 이 tail(11.0px)이 다음 조각 첫 행(새 행, 3줄 59.3px)에
+            // 선언 잔여는 쪽 경계에서 죽는다 — 병합 셀 없는 19×2 표에서
+            // 이 잔여(11.0px)가 다음 조각 첫 행(새 행, 3줄 59.3px)에
             // 씌워져 글자가 아래 행과 포개졌다(한컴 PDF 는 밴드 없이 새
             // 행을 전체 높이로 시작).
             let tail_band_continues = split_end_limit > 0.0 || crossing_span_owns_tail;
@@ -1795,7 +1796,7 @@ impl TypesetEngine {
     }
 
     /// 다음 실제 흐름 문단이 증언한 마지막 표 여백만 수용한다.
-    /// deferred float 앞에서 이미 채운 문단은 이 조각의 후속 문단이 아니다.
+    /// 지연 배치하는 떠 있는 개체 앞에서 이미 채운 문단은 이 조각의 후속 문단이 아니다.
     fn consume_stored_terminal_empty_line_gap(
         &self,
         st: &mut TypesetState,
