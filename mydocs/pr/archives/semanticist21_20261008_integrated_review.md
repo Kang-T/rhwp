@@ -5559,3 +5559,16 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 TSV 원문 게시 및 재조회 확인: [Native/fresh TSV174개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e). 같은 원문의SHA와 입력·Print·쪽 범위는 `manifest.json`이다. 압축 파일 없이 원문을 제출하며, JSON/로그/TSV 작업 파일은 ignored output에 보존한다. 현재 대표 PNG는 [현재 생산 소스 증적](../assets/semanticist21-20261008/current-source-page-proof-v456/README.md)에 연결한다. 회귀 이관 증적 `.rs.txt`의 불필요한 마지막 빈 줄1개도 제거해 제출 whitespace gate를 정리했다.
 
 Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 및 #7759/#7807/#4514는 Refs로 남긴다. #7769의 synam-001, #7773의2024 HWP는 현재 KPS/K-water 입력과 다르므로 종료하지 않는다. 후속6개 및 #7615의 초기 수용 이후 #7662 의존 변경은 적용하지 않았다. 현재 원격 PR·CI·merge는 다음 순차 단계이며 이미 완료한 것으로 보고하지 않는다.
+
+
+## 진행 갱신233 — Render Diff 계약 검사 실패 보정과 실제 로컬 재검증 (2026-10-14)
+
+통합 PR#7882의 첫 code candidate `b318a881d71ffa3f401beb12d3b2e06ab876680c`에서 [Render Diff job115401467632](https://github.com/edwardkim/rhwp/actions/runs/38427681153/job/115401467632?pr=7882)가 실패했다. WASM/Native CLI 빌드는 성공했으며 화면 비교 전에 `npm run e2e:renderer-contract`의 테스트용 CanvasKit 모형에서 `ColorType.RGBA_8888`을 읽지 못했다. 이 단계 실패를 문서 출력 회귀 또는 CI 통과로 보고하지 않는다.
+
+- 테스트용 이미지 API·enum·shader 생성/해제를 별도21줄 helper에 구현했다. 실제 렌더러를 실행해 직렬화한 무늬/배경색이 이미지에 있고 shader가 원래 도형에 그려지는지, Repeat/Linear API·행 stride·이미지 길이·그리기 이후 자원 해제를 검사한다. 실제 렌더러나 출력 공차를 바꾸지 않았다.
+- 이어 드러난 각주 baseline의 옛 source-regex `op.fontSize ??7` 핀은32줄 helper의 실제 `renderOp → renderTextRun` 소비 검사로 교체했다. 저장 기준선 및 유효0의 보존, 누락 시 기존 fontSize/기본값 fallback, bbox/본문/색 보존을 확인했다. 같은 실제 모듈에서 기준선 보정을 진단용으로 제거하면 의도한 assertion FAIL(10 대4), 현재 모듈은 PASS다. 합성 API 계약이며 실물 문서의 px 배치를 고정하지 않는다.
+- manifest에서 `hwpctl-api`는 이미 `bce6b28088b684f79aa4f1d514bda4453ac6b05f`로 #7445/#7731에 이관됐지만 계약은 대표 표본23개를 기대했다. 남은22개로 정확히 맞추고 해당 이관 ID가 활성 목록에 없음을 추가 확인했다. 다른 표본을 지우거나 허용치를 완화하지 않았다.
+- 로컬 수정 전 동일 TypeError/exit1을 재현했고 보정 뒤 `e2e:renderer-contract` exit0을 확인했다. CI의 해당 step 전체를 그대로 실행해 모든 Node syntax 검사, Native/CanvasKit provenance self-test, renderer 계약 및 `e2e:canvaskit-font-coverage`가 모두 exit0이었다.
+- 변경은 e2e 계약·새 모형 helper2개와 이 기록이다. Rust1395개 생산 소스와 실제 CanvasKit renderer 바이트가 같아 이전146 PASS·lint·WASM·174 TSV/770쪽 및 직접 판독은 같은 범위로 유지한다. 전체 Rust 또는 전쪽 재출력을 반복하지 않았다. 실패 원문·로컬 before/after·진단 결과는 ignored `v456/render-diff-contract-fix-result.json`과 각 로그에 보존한다.
+
+사용자의 개선 후 remote push 지시에 따라 새 test code candidate를 같은 PR에 제출한다. 새 head의 전체 원격 CI 성공 뒤 개별17개 승인·오늘할일을 같은 PR의 trailing docs-only commit으로 반영한다. 첫 candidate의 실패를 무시하거나 진행 중 CI를 완료로 표시하지 않는다.
