@@ -12,7 +12,7 @@ last_verified: 2026-10-12
 **머지 보류 — 메인터너 보정과 검토 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 남은 일반 문서의 시각 미통과·내용 소속 차이·최종 head 검증이 해소되기 전에는 통합하지 않는다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행204): PR 준비 중이다. production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`, 검증 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 영향16쪽 Native/fresh 모두 통과(최저93.16816%,72쪽99.95995%), OLE/SO10개 양쪽 및 CGMP fresh 전48쪽 통과(최저93.64014%)다. 필수lint/Studio도 통과했다. 전체Rust·직접 문서 전쪽·원PR 대조·관계형 회귀 등록·backend/Canvas·원격CI는 완료 전이다. 이전 단계 결과와 현재 재실행을 구분하고 개별17개HOLD를 유지한다.
+- 최신 단계(진행205): PR 준비 중이다. production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`, 검증 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 영향16쪽 Native/fresh 모두 통과(최저93.16816%,72쪽99.95995%), OLE/SO10개 양쪽 및 CGMP fresh 전48쪽 통과(최저93.64014%)다. 필수lint/Studio도 통과했다. 현재 전체Rust10267PASS·45SKIP·exit0 및 원PR78계약PASS다. 직접 문서 전쪽·원PR 시각 대조·관계형 회귀 등록·backend/Canvas·원격CI는 완료 전이다. 이전 단계 결과와 현재 재실행을 구분하고 개별17개HOLD를 유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -5139,3 +5139,25 @@ exact head merge와 후속처리 순서를 따른다. user 자동승인은 유�
 upstream/devel fetch 결과552f5228d2dbfd6046c838f14241704f1bcb8a05로 이전과
 동일하다. head가 바뀌지 않아 rebase하지 않았다. 현재 Cargo/시각 프로세스는
 정상 실행 중이며 완료하지 않은 항목을 통과로 표시하지 않는다.
+
+## 진행 갱신205 — 현재 전체 nextest·원PR78계약 통과와 devel 동기화 (2026-10-13)
+
+b4ff8c 소스의 전체 nextest는 **10267PASS·45SKIP·exit0**, 실제 테스트2089.664초,
+컴파일 포함4088.686초로 종료했다. source guard=true다. 같은 로그에서 원PR17개
+계약78개를 정확한 qualified name·source SHA로 추출했고 전부1회PASS, FAIL/SKIP/
+미관측0이다. 결과는 v452의 `original-pr-contract-results.json`이며 개별17개 문서에
+각 계약의 현재 통과 수를 갱신했다. 원 기여 적용39개가 현재HEAD 조상임도 확인했고
+이전 stable patch-id equality와 연결했다. 이 전체 결과는 아직 등록하지 않은 저장
+프레임 관계3검사의 통과를 포함하지 않는다. Native Skia/lib 빌드는 이어서 실행 중이며
+Skia 두 integration·doc·최종 시각·Canvas가 남아 현재 승인/HOLD를 바꾸지 않는다.
+
+upstream/devel을 다시 fetch했고552f5228d로 기존 검증 base와 같다. 로컬devel은
+bfa28a77a에서552f5228d로 fast-forward했다. 현재review HEAD/source를 보존했고
+새base의 ancestry를 확인했다. upstream HEAD가 바뀌지 않아rebase하지 않았다.
+`devel-sync-current-result.json`에 전후 SHA와 사유를 보존한다. 기존 검사 입력
+59개 원본 보존과 활성 제외 helper의 source 참조 감사도 유지한다.
+
+현재 #7445 하위 이슈를 다시 조회해 실제 보정한 CGMP/KPS/K-water/고용지원과
+타 브랜치 이관 기록을 구분했다. 이슈 종료는 이번 PR 통합 완료 뒤 정확한 범위로
+갱신하며 현재 원격 종료를 수행하지 않았다. 사용자의「남은 사항 모두 검증 후PR 준비」
+지시에 따라 남은 필수 검증을 모두 마치고 개별승인/PR/CI/merge/후속처리를 이어간다.
