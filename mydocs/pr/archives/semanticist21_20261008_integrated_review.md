@@ -4845,3 +4845,39 @@ base552대비manifest와unit-tier를순차실행중이다. 현재snapshot의여�
 NativeSkia3종/문서검사·Studio실제consumer와필수gate를완료한다.
 모든필수검증/해결후개별17개를 **메인터너 보정 후 승인**으로바꾸고자동승인된PR/CI/merge/
 후속처리를진행한다. 현재개별최종판정은여전히 **머지 보류**다.
+
+## 진행 갱신192 — 최신 fresh 패키지와 실제 Studio 소비 경로 통과 (2026-10-13)
+
+생산 코드 `7f04c48cd395086ed59c08565f343d3f9e1b013d`의 root wrapper fresh WASM은
+exit0·1426.585초이며 source guard가 유지됐다. 공용 `target/pr-review`와 공용 wasm-opt를 사용했다.
+`pkg/rhwp_bg.wasm`과 `rhwp-studio/public/rhwp_bg.wasm`의 SHA-256은 모두
+`460a928d8423b17b150eee98f4408af330682512f0d0806a78d4cc709316586a`다.
+JS 두 경로도 같은 해시다. 실제 패키지 반영 후 Studio production build·frontend bindings·
+공개 API 소비자·누름틀 마우스 동작 검증은 각각 exit0이다. 임시 Studio 서버는 종료했다.
+TypeScript와 Studio 단위 검사도 새 실행에서 exit0, 1834 PASS·2 SKIP·0 FAIL이다.
+이는 전체 조판 비교나 Rust 회귀의 완료를 뜻하지 않는다.
+
+최신 가맹사업 전142쪽 Native는 임베딩 글꼴 검사를 마치고 페이지별 캡처 중이다.
+직접 보정 CGMP/KPS/K-water/#157과 원PR 편집·정상 대조24쌍, OLE/SO-SUEOP 범위도
+동일 생산 소스의 새 Native/fresh 비교를 실행한다. OLE 원본·분리6쌍의 양backend 비교는
+모두 exit0이며 원본 HWP/HWPX는97.05704/97.78626%, 분리 차트는 독립 Print99.91386%,
+사용자 PDF99.83461%다. SO-SUEOP 뒤 단계와 직접 문서의 전체 gate는 아직 완료 전이다.
+전체 실행 명령·입력/Print/소스/패키지 해시·TSV·로그는 ignored
+`output/pr-review/semanticist21-20261008/final-code-validation-v451/`에 보존한다.
+
+앞선 lint driver의 파생 harness drift는 prepare 뒤 base552 대비 manifest와 unit-tier를
+재실행해 각exit0, 준비된 전체 target Clippy도 exit0으로 교정했다. 포맷·Native Clippy·
+WASM32 lib Clippy·workspace build와 함께 최신 소스의 lint 묶음을 충족했다.
+최신 전체 Rust 회귀·Native Skia3종·doc 검사는 별도로 순차 실행 중이다.
+신규 sample 보안 검사에는 이번 base 대비 추가된 분리 OLE HWP/HWPX 두 입력을 명시해 전달한다.
+
+이전 v449에서 캡처가 완료되고 대응 PNG/TSV가 있는 중복 SVG146개6,708,924,192bytes만
+fd 확인·SHA ledger 뒤 삭제했다. 과거 가맹사업 미달55/57/79쪽 SVG, 모든 원본/Print/
+PNG/TSV/render tree/로그와 공용 target은 보존한다. 정리 스크립트의 첫 실행은 파일명
+변형에서 IndexError가 발생해 삭제 전에 중단됐으며, 이름 검사를 교정한 재실행이 exit0이다.
+종료된 idle 검증 대기 프로세스만 종료하고 공용 Cargo 작업 종료·공간 확보 후 전체 회귀를 시작했다.
+
+개별17개 판정은 여전히 **머지 보류**다. 새 저장 앞 띠·종료 프레임 관계 검사는 ignored
+초안으로만 준비했으며 전쪽 Native/fresh 선행 조건 전에는 활성 회귀에 추가하지 않는다.
+모든 필수 검증·해결 뒤에만 각 PR의 보류 사유를 **메인터너 보정 후 승인**으로 갱신한다.
+이후 자동 승인된 통합 PR 생성·정확한 head CI·merge·후속 처리를 진행한다.
