@@ -138,3 +138,28 @@ TextRun의 가로 원점/폭 차이만 작게 남았고 세로 원점/높이는 
 [보존 기록](../assets/issue7445/rowbreak_continuation_20261012/README.md)에 함께 남겼다.
 현재 보정 후 경계·회귀·Native/fresh WASM 검증은 아직 완료 전이며 수용 판정은 유지 보류한다.
 C15 동결 출력은 추가 보정 전 대조군이고 이후 source head의 통과 증거로 재사용하지 않는다.
+
+## 원 head 추가 보정 접수 — 저장 0→0 경계
+
+2026-10-13 최신 원 head는 `fd2001f801d45f191e90c99b41c14c5f7a6828dc`다.
+추가 코드 `0012228b0eb9548836c96bc3dde06a1ae4691d80`을
+`789febd75`로 충돌 없이 적용했다. 검토 이력은9개 원 PR·20개 고유 source commit이며,
+기여자가 이미 닫은 #7669의 이력과 기존 보정도 유지한다. 문서·PNG 추가와 이미 반영된
+devel merge는 코드로 중복 체리픽하지 않았다.
+
+`stored_zero_restart_is_confirmed`를 호출하는 분할 후보와 재시작 높이 소비 위치에 같은
+profile 인자를 전달한다. 실제 인자는 `hwp5_stored_pagination_layout()`이며
+`native_hwp5_layout || hwp5_origin_hwpx`다. 순수 HWPX는 제외되지만 HWP5 출처 마커를
+보존한 HWPX는 적용되므로 이 경로도 확인해야 한다.
+
+실제 원본1342000의 구역1·문단3·두 번째 표(47×8) 셀35/38에서 저장vpos `0,0,1300`,
+높이1000·줄간격300을 확인했다. raw HWP 레코드도 파서 dump와 대조했으며 뒤 줄의
+tag는 `0x60000`이다. 독립415쪽 Print의52쪽에는 첫 서울 조례 제목,53쪽에는 뒤 `제10조`
+본문이 있다. 같은 원본의 다른 세 셀에서도 동일 저장 사다리가 관측되어 추가 경계로 선정했다.
+본문 검색만으로 새 구현의 배치·소유나 전쪽90%를 충족으로 판정하지 않는다.
+
+원본 저장값·비트·독립 Print 본문과 실제 적용/비적용 경로는 ignored
+`c21-pr7701-original-zero-ladder-observations.json`, `c21-pr7701-original-zero-ladder-raw-tags.json`,
+`c21-pr7701-independent-print-p052-p053-text.json`, `c21-pr7701-incoming-review-plan.json`에 있다.
+새 통합 head의 경계·쪽 소속·누락/중복·후속 내용, Native/fresh WASM 전쪽 TSV 및 직접 판독은
+아직 필요하다. 기존 #7743 이관과415쪽 신규 검사 철회는 유지하며 수용 판정은 보류한다.
