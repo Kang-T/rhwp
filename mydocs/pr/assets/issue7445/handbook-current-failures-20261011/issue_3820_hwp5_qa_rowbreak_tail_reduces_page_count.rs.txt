@@ -19,4 +19,3 @@ fn issue_3820_hwp5_qa_rowbreak_tail_reduces_page_count() {
         "Hancom PDF physical p285와 같이 Q8 표제는 Q7 tail 뒤 같은 쪽에서 시작해야 한다"
     );
 }
-

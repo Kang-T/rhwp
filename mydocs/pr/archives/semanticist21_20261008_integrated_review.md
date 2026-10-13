@@ -2,17 +2,17 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-13
+last_verified: 2026-10-14
 ---
 
 # semanticist21 비 draft PR 통합 검토
 
 ## 현재 판정
 
-**머지 보류 — 118쪽 정렬 회귀는 메인터너 보정으로 해결했고 현재 Native/fresh 경계 판독을 통과했다. 남은 전쪽·추가 검사 완료 후 승인한다.** 초기18개 PR의41개 contributor commit과 개별 검토를 보존한다. 현재 production `ddf17f864` 전체 Rust10,267개는 통과했다. 디스크 부족으로 중단된 Skia/doc와 가맹사업 fresh142쪽만 재개했으며, 모든 필수 결과 후 관계 회귀를 등록하고 개별17개를 메인터너 보정 후 승인으로 변경한다.
+**로컬 검증 완료 — 통합 PR 제출 후 정확한 head의 GitHub CI를 확인한다.** 현재 조판 생산 소스는 `6995bc5d35b14f598e03cf0f5cc99bd957a42843`, 정책 base는 `22317614b03722e95349a1d3d71c86923363c6f5`이다. 원 PR·#7877·중요 문서의 집중 회귀146개, 필수 lint·정책, Native/fresh WASM174 TSV·770쪽/backend와 변경 영역 판독을 통과했다. 이전 전체10,267 PASS는 당시 ddf17f864 소스의 기록이며 현재 전체 실행으로 바꾸어 보고하지 않는다. 사용자의 전체 로컬 재실행 생략 지시에 따라 관련 검증을 실행했고, 통합 PR의 정확한 code head CI 성공 후 원 PR별17개 판정을 **승인 — 메인터너 보정 후 승인**으로 확정하는 trailing 기록을 같은 PR에 포함한다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행221): 현재 production `ddf17f86476293b114b6236bfa6cf1ebc9d9d474`의 Rust13게이트가 모두 exit0이다. 전체 nextest10,267 PASS·45 SKIP, Skia lib4,041 PASS·12 IGNORE, placeholder2 PASS, 직접PDF4 PASS, doctest8 PASS·3 IGNORE를 확인했다. 초기48입력52쪽과 편집24입력27쪽의 현재 Native/fresh 전쪽·대표/확대 판독 완료. 원PR별 대표 review10개를 추가 직접 확인해 후속 댓글 자료를 준비했다. 가맹사업 Native142쪽은 통과했고 fresh142쪽은 SVG 생성 완료·글꼴/PNG 비교 진행 중이다. 전체 양쪽 시각 조건 뒤 관계 검사4개 신규 등록과 #6718의 엄격한 본문/셀 내용 검사1개 변경을 한 번에 검증한다. 원PR별 검토18개를 유지하며, 통합 PR 별도 검토 문서를 만들지 않는다(`collaborator_external_pr`9.1.1). 실제 CI 성공 뒤 같은 통합 PR의 원PR별 문서/오늘할일 trailing 기록을 적용한다.
+- 최신 단계(진행232): 승인된 모든 로컬 검증 및 전쪽 비교 완료. 리베이스 전 대비762쪽 동일·8쪽 개선·하락0. 759쪽 PNG의 전체 RGBA가 같고 나머지11쪽의 변경 부위는 직접 판독 또는 현재 Native/fresh 동일성으로 연결했다. TSV 원문174개를 압축 없이 게시·원문 바이트 재조회 확인했고 현재 대표 review/overlay24개를 추가했다. 코드 head CI가 녹색이면 같은 통합 PR에 개별18개 검토·오늘할일을 최종 보완한다. 통합 PR 별도 번호용 review 문서는 만들지 않는다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -5536,3 +5536,26 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 - 실제1/4 실행의77 PNG RGBA, TSV 원 바이트, 글꼴 내용 보고서가 모두 동일했다. 최저42쪽90.85010%·쪽수77/77·미달/누락0이고 각 Chrome의 동시 탭은1이었다. 별도 과거 Native 캡처와는22쪽 라벨 raster가 다르나 SVG 원 바이트와 render tree는 같고 점수도 같다. 현재1/4 출력은 현재 fresh22와도 같은 RGBA다. raw benchmark의 이 추가 역사 비교 실패를 보존하고 `actual-file-benchmark-reviewed.json`에서 실제 병렬화 비교와 과거 raster 진단을 분리했다. 과거77 PNG까지 모두 같다고 주장하지 않는다.
 - 기존 Python119개·Node7개, 새 spawn/실제 Chrome/픽셀/순서 검사6개가 통과했다. Linux Snap Chrome의 private `/tmp` 때문에 첫 실제 캡처가 실패해 작업용 output 아래 TMPDIR로 다시 실행했고 실패 로그를 보존했다. Windows는 기본 Python의 Pillow/fonttools 미설치 실패 뒤 저장소 venv로 실행해16 PASS 및4개 작업자 중단/한글·공백 경로/브라우저·profile·wrapper·manifest 정리를 확인했다. Windows 임시 검증 외곽 디렉터리와 archive 삭제는 후속 SSH가 exit255로 돌아와 미완료로 기록한다.
 - 원문 SHA/Native/fresh 패키지는 변경하지 않았고 전체 Rust10,267개를 반복하지 않았다. source1395개와 frozen CLI/패키지 해시의 동일성을 유지한 채 나머지 문서 검증은 새4작업자 옵션을 사용한다. 증거·명령·도구 SHA·원본 로그는 `output/pr-review/semanticist21-20261008/visual-sweep-page-workers-v457/`에 보존한다. 필수 lint와 전770쪽/backend 완료 후 개별 PR 최종 판정·통합 PR·CI·merge·후속 처리를 진행한다.
+
+
+## 진행 갱신232 — 최종 로컬 검증과 제출 증적 완료 (2026-10-14)
+
+현재 브랜치는 `review/semanticist21-20261008`, 조판 생산 소스는 `6995bc5d35b14f598e03cf0f5cc99bd957a42843`, 고정 정책 base는 `22317614b03722e95349a1d3d71c86923363c6f5`다. fetch 뒤 base SHA가 같아 불필요한 rebase를 하지 않았다. 현재 소스의1395개 production/Cargo 파일 및 공용 pkg/Studio JS·WASM 바이트를 검증 자료와 대조했다.
+
+| 실행 범위 | 실제 결과와 증거 |
+| --- | --- |
+| 집중 Rust 회귀 | 146 PASS·누락/예상 밖0. 원 PR 계약 및 #7877, 현재 중요 문서 관계, 새 KPS2개 포함. `v456/focused-result.json` |
+| KPS 새 정식 회귀의 검출 | 실제 release-test binary·같은 CLI 원본으로 rebase 전2 PASS →558 회귀2 assertion FAIL →699 보정2 PASS. 단순 helper 계산값이 아닌 최종77쪽 RenderTree의 소유·순서·보존 관계. `formal-kps-before-after-result.json` |
+| 필수 lint·정책 | fmt, Native/WASM32 Clippy, workspace build, all-target Clippy, base 고정 manifest/unit-tier 모두 exit0. KPS 소스 fmt 뒤 shard weight가 바뀐 파생 목록을 정식 prepare로 갱신하고 fmt·policy·all-target 재확인. 실패 원문 보존, 생성28개 harness는 PR에 stage하지 않음 |
+| 전체 시각 비교 | 174 TSV /770쪽/backend, 전쪽90% 이상·누락/쪽수 차이0, 리베이스 전 대비762 동일·8 개선·하락0. 원본/Print/공급 글꼴·DPI provenance 차이0. `before-rebase-comparison-result.json` |
+| 변경 부위 판독 | 이전 대비759 PNG 전체 RGBA 동일,11쪽 변경. 현재 양 backend385쌍 중382 동일; 다른3쌍은 KPS22 및 K-water3/10의 기록된 글꼴 raster·1px 부위를 개별 판독. 가맹사업50/119는 Native 판독 후 fresh RGBA 동일성으로 연결. `final-current-direct-reading-qualification.json` |
+| 직접 문서 전쪽 Native/fresh | CGMP48쪽 최저47쪽93.64014%, KPS77쪽 최저42쪽90.85010%, K-water27쪽 최저3쪽96.87092%, #157 2쪽 최저1쪽99.74326%, 가맹사업142쪽 최저68쪽93.16816%; 양쪽 미달·누락0 |
+| Studio·공개 소비 | 현재 공용 fresh 패키지로 production build, bindings, 공개 계약6종, 실제 누름틀 클릭 및 K-water Canvas24/25 완료·exit0·source/package guard 유지. 기존 TypeScript/unit1834 PASS·2 SKIP은 변경 없는 source 범위의 기록으로만 재사용 |
+| Visual Sweep 도구 | 기존 Python119·Node7, 새 spawn/실제 Chrome6 PASS; Windows 실제16 PASS와4worker 중단·한글/공백·최대1탭·소유 browser/profile/wrapper/manifest 정리 PASS. Windows probe directory/archive 없음 및 owned process0을 재접속 후 실제 확인 |
+| 성능 비교 | 같은 KPS77쪽 전체 pipeline1worker382.794초 →4worker147.709초,235.085초(61.41%) 단축·2.59배. 전체77 PNG RGBA·TSV 바이트·글꼴 검사 결과 동일. 과거 캡처22쪽의 raster 차이는 별도 진단으로 보존하며 이 실험의1/4 결과와 혼동하지 않음 |
+
+전체 로컬10,267개는 반복하지 않았다. 기존 ddf17f864의10,267 PASS·45 SKIP·Skia4041 PASS 등의 실행은 역사 소스에 연결하며, 현재 추가 생산 보정699는 focused·fresh WASM·전쪽·필수 lint와 통합 PR exact-head CI로 검증한다. Native batch parent가143으로 끝난 사실은 `native-current-batch-reconciliation.json`에 보존했고 실제 완료한 child5종 exit0·296쪽 및 선행 초기/편집 완료 결과로 판단했다. parent를 exit0으로 정정하지 않았다.
+
+TSV 원문 게시 및 재조회 확인: [Native/fresh TSV174개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e). 같은 원문의SHA와 입력·Print·쪽 범위는 `manifest.json`이다. 압축 파일 없이 원문을 제출하며, JSON/로그/TSV 작업 파일은 ignored output에 보존한다. 현재 대표 PNG는 [현재 생산 소스 증적](../assets/semanticist21-20261008/current-source-page-proof-v456/README.md)에 연결한다. 회귀 이관 증적 `.rs.txt`의 불필요한 마지막 빈 줄1개도 제거해 제출 whitespace gate를 정리했다.
+
+Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 및 #7759/#7807/#4514는 Refs로 남긴다. #7769의 synam-001, #7773의2024 HWP는 현재 KPS/K-water 입력과 다르므로 종료하지 않는다. 후속6개 및 #7615의 초기 수용 이후 #7662 의존 변경은 적용하지 않았다. 현재 원격 PR·CI·merge는 다음 순차 단계이며 이미 완료한 것으로 보고하지 않는다.
