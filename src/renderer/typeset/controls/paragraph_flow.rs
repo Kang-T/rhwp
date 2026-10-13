@@ -331,6 +331,7 @@ pub(in crate::renderer::typeset) fn place(
             para,
             next_para,
             &fmt,
+            styles,
             measured_tables,
             tac_count,
             height_before,

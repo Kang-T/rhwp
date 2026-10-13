@@ -134,6 +134,9 @@ pub(in crate::renderer::typeset) struct StateView {
         std::collections::HashMap<usize, crate::renderer::inline_flow::InlineFlowPlan>,
     pub(in crate::renderer::typeset) stored_paragraph_flow_ends:
         std::collections::HashMap<usize, f64>,
+    /// 쪽 상단의 첫 문단이 이미 예약한 저장 앞 간격.
+    pub(in crate::renderer::typeset) stored_column_top_spacings:
+        std::collections::HashMap<usize, crate::renderer::float_placement::StoredColumnTopSpacing>,
     pub(in crate::renderer::typeset) paragraph_float_placements: std::collections::HashMap<
         (usize, usize),
         crate::renderer::float_placement::ParagraphFloatPlacement,

@@ -3149,6 +3149,7 @@ impl DocumentCore {
             end_row_height_override,
             start_row_height_override,
             straddle_row_relief,
+            straddle_page_bands,
         }) = col.items.first()
         else {
             return Ok(Unsupported);
@@ -3413,6 +3414,7 @@ impl DocumentCore {
             *end_row_height_override,
             *start_row_height_override,
             straddle_row_relief,
+            straddle_page_bands,
             pt_margin_left,
             pt_margin_right,
             pt_mt,

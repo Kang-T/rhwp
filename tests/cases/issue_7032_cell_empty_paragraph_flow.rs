@@ -230,6 +230,7 @@ fn fragment(
         end_row_height_override: cut.map(|_| measured.tables[0].row_heights[0]),
         start_row_height_override: None,
         straddle_row_relief: Vec::new(),
+        straddle_page_bands: Vec::new(),
     }];
     LayoutEngine::new(96.0).build_render_tree(
         page,

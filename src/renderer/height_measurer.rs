@@ -2953,6 +2953,16 @@ impl HeightMeasurer {
         };
 
         let row_count = table.row_count as usize;
+        let coincident_source_height = |cell: &crate::model::table::Cell| {
+            ((self.is_native_hwp5 || self.hwpx_stored_layout)
+                && !self.session_edited
+                && !self.render_normalization.table_text_reflowed(table))
+            .then(|| {
+                crate::renderer::float_placement::stored_coincident_empty_cell_height(cell, table)
+            })
+            .flatten()
+            .map(|height| hwpunit_to_px(height, self.dpi))
+        };
         let mut row_heights = vec![0.0f64; row_count];
         // 행별 **컨텐츠** 하한 — 2단계에서만 채워지며, 병합 선언이 행합보다 작을 때
         // (2-b 축소 규칙) 글자가 잘리지 않도록 축소 바닥으로 쓴다.
@@ -2964,7 +2974,8 @@ impl HeightMeasurer {
             if cell.row_span == 1 && (cell.row as usize) < row_count {
                 let r = cell.row as usize;
                 if cell.height < 0x80000000 {
-                    let h = hwpunit_to_px(cell.height as i32, self.dpi);
+                    let h = coincident_source_height(cell)
+                        .unwrap_or_else(|| hwpunit_to_px(cell.height as i32, self.dpi));
                     if h > row_heights[r] {
                         row_heights[r] = h;
                     }
@@ -3402,7 +3413,18 @@ impl HeightMeasurer {
                                 )
                                 > last_end_px * 1.15
                     };
-                let content_height = if let Some(flow) = stored_block_flow {
+                let stored_picture_flow = (!self.session_edited
+                    && (self.is_native_hwp5 || self.hwpx_stored_layout)
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| {
+                    crate::renderer::float_placement::stored_partitioned_picture_cell_flow(
+                        cell, table,
+                    )
+                })
+                .flatten();
+                let content_height = if let Some(flow) = stored_picture_flow {
+                    hwpunit_to_px(flow.content_height_hu(), self.dpi)
+                } else if let Some(flow) = stored_block_flow {
                     // A block and its saved anchor line share an origin. The
                     // same plan places both the table and its following lines;
                     // additive fallback must not prepend the anchor line again.
@@ -3525,7 +3547,11 @@ impl HeightMeasurer {
                     let declared_cell_h = if cell.height < 0x8000_0000 {
                         hwpunit_to_px(cell.height as i32, self.dpi)
                     } else {
-                        f64::INFINITY
+                        // A negative saved size is not a containing cell frame.
+                        // Treat it as an absent lower bound, as row sizing does,
+                        // so the empty object anchor does not become a second
+                        // content line solely because of an invalid declaration.
+                        0.0
                     };
                     let empty_para_line_height: f64 = cell
                         .paragraphs
@@ -3773,7 +3799,25 @@ impl HeightMeasurer {
                         self.render_normalization.table_text_reflowed(table),
                         relaxed_pad_mirror,
                     );
-                let required_height = if let Some(frame) = stored_inline_frame {
+                let closed_plain_frame = (!self.session_edited
+                    && (self.is_native_hwp5 || self.hwpx_stored_layout)
+                    && !self.is_hwp3_variant
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| {
+                    crate::renderer::float_placement::stored_plain_closed_cell_ink_height(
+                        cell, table,
+                    )
+                })
+                .flatten()
+                .map(|ink| {
+                    hwpunit_to_px(
+                        ink + cell.effective_vertical_padding_hu(&table.padding),
+                        self.dpi,
+                    )
+                });
+                let required_height = if let Some(height) = closed_plain_frame {
+                    height
+                } else if let Some(frame) = stored_inline_frame {
                     hwpunit_to_px(frame.body_height_hu, self.dpi)
                 } else if let Some(end) = stored_frame_end {
                     end
@@ -3792,7 +3836,17 @@ impl HeightMeasurer {
                     } else {
                         0.0
                     };
-                    text_height.max(object_req)
+                    let declared = if cell.height < 0x8000_0000 {
+                        hwpunit_to_px(cell.height as i32, self.dpi)
+                    } else {
+                        f64::MAX
+                    };
+                    crate::renderer::float_placement::stored_text_cell_required_height(
+                        text_height,
+                        declared,
+                        total_pad,
+                    )
+                    .max(object_req)
                 } else {
                     content_height + total_pad
                 };
@@ -3960,6 +4014,7 @@ impl HeightMeasurer {
                         }
                     }
                 }
+                let required_height = coincident_source_height(cell).unwrap_or(required_height);
                 if required_height > content_row_floor[r] {
                     content_row_floor[r] = required_height;
                 }
@@ -4369,7 +4424,17 @@ impl HeightMeasurer {
                     } else {
                         0.0
                     };
-                    text_height.max(object_req)
+                    let declared = if cell.height < 0x8000_0000 {
+                        hwpunit_to_px(cell.height as i32, self.dpi)
+                    } else {
+                        f64::MAX
+                    };
+                    crate::renderer::float_placement::stored_text_cell_required_height(
+                        text_height,
+                        declared,
+                        pad_top + pad_bottom,
+                    )
+                    .max(object_req)
                 } else {
                     let reflow_block_host = cell.paragraphs.iter().all(
                         crate::renderer::para_has_no_stored_line_segs,
@@ -4385,16 +4450,34 @@ impl HeightMeasurer {
                     let content_height = (flow_height + non_inline_h).max(wrap_bottom);
                     content_height + pad_top + pad_bottom
                 };
-                let required_height =
-                    crate::renderer::float_placement::stored_hwpx_no_adjust_cell_content_end(
-                        cell,
-                        table,
-                        self.dpi,
-                        self.hwpx_stored_layout,
-                        self.session_edited,
-                        self.render_normalization.table_text_reflowed(table),
-                        relaxed_pad_mirror,
+                let closed_plain_frame = (!self.session_edited
+                    && (self.is_native_hwp5 || self.hwpx_stored_layout)
+                    && !self.is_hwp3_variant
+                    && !self.render_normalization.table_text_reflowed(table))
+                .then(|| {
+                    crate::renderer::float_placement::stored_plain_closed_cell_ink_height(
+                        cell, table,
                     )
+                })
+                .flatten()
+                .map(|ink| {
+                    hwpunit_to_px(
+                        ink + cell.effective_vertical_padding_hu(&table.padding),
+                        self.dpi,
+                    )
+                });
+                let required_height = closed_plain_frame
+                    .or_else(|| {
+                        crate::renderer::float_placement::stored_hwpx_no_adjust_cell_content_end(
+                            cell,
+                            table,
+                            self.dpi,
+                            self.hwpx_stored_layout,
+                            self.session_edited,
+                            self.render_normalization.table_text_reflowed(table),
+                            relaxed_pad_mirror,
+                        )
+                    })
                     .unwrap_or(required_height);
                 let combined: f64 = (r..r + span).map(|i| row_heights[i]).sum::<f64>()
                     + hwpunit_to_px(1, self.dpi) * table.inner_cell_spacing_hu(span) as f64;
@@ -4410,6 +4493,23 @@ impl HeightMeasurer {
             if *h <= 0.0 {
                 *h = hwpunit_to_px(400, self.dpi);
             }
+        }
+
+        // Measurement and paint consume the same independently closed saved
+        // row boxes, before any declared-height fitting can redistribute them.
+        let stored_rows = (!self.session_edited
+            && !self.is_hwp3_variant
+            && !self.render_normalization.table_text_reflowed(table))
+        .then(|| {
+            super::float_placement::stored_complete_row_frame_heights(table)
+                .or_else(|| super::float_placement::stored_plain_object_row_frame_heights(table))
+        })
+        .flatten();
+        if let Some(rows) = &stored_rows {
+            row_heights = rows
+                .iter()
+                .map(|height| hwpunit_to_px(*height, self.dpi))
+                .collect();
         }
 
         // 셀 간격 포함한 표 높이
@@ -4447,7 +4547,9 @@ impl HeightMeasurer {
         // 편집으로 셀이 자란 성장분까지 선언높이로 눌러 다른 행의 몫을 잠식한다
         // (셀 Enter 재현: 표가 선언 높이에 고정된 채 행 경계만 위로 밀림).
         // 편집 세션은 실측을 신뢰한다.
-        let table_height = if table.common.treat_as_char
+        let table_height = if stored_rows.is_some() {
+            raw_table_height
+        } else if table.common.treat_as_char
             && !self.session_edited
             && common_h > 0.0
             && raw_table_height > common_h + shrink_threshold

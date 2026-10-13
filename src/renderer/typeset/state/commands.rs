@@ -301,9 +301,16 @@ impl TypesetState {
     pub(in crate::renderer::typeset) fn protect_current_ladder_floor(&mut self) {
         self.data.ladder_band_floor = self.data.ladder_band_floor.max(self.data.current_height);
     }
-    pub(in crate::renderer::typeset) fn register_square_band(&mut self, top: f64, bottom: f64) {
+    /// Keep the source host origin separate from the object's physical box.
+    /// Following stored paragraph offsets use this origin; closing flow uses
+    /// the occupied bottom supplied by the accepted object placement.
+    pub(in crate::renderer::typeset) fn register_square_band(
+        &mut self,
+        source_origin: f64,
+        bottom: f64,
+    ) {
         self.data.square_band_bottom = self.data.square_band_bottom.max(bottom);
-        self.data.square_band_top = Some(top);
+        self.data.square_band_top = Some(source_origin);
     }
     pub(in crate::renderer::typeset) fn record_ladder_band_table(&mut self, key: (usize, usize)) {
         self.data.current_ladder_band_tables.push(key);
@@ -341,6 +348,17 @@ impl TypesetState {
         end: f64,
     ) {
         self.data.stored_paragraph_flow_ends.insert(para_idx, end);
+    }
+
+    pub(in crate::renderer::typeset) fn record_stored_column_top_spacing(
+        &mut self,
+        para_idx: usize,
+        frame: crate::renderer::float_placement::StoredColumnTopSpacing,
+    ) {
+        self.data.vpos_page_base = Some(frame.source_origin_hu);
+        self.data.vpos_lazy_base = None;
+        self.data.vpos_col_anchor = self.data.current_height;
+        self.data.stored_column_top_spacings.insert(para_idx, frame);
     }
     /// 뒤 줄간격과 문단 아래 여백을 제외한 확정 본문 하단을 보존한다.
     pub(in crate::renderer::typeset) fn record_paragraph_content_bottom(

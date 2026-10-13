@@ -3847,14 +3847,39 @@ impl LayoutEngine {
                             } else {
                                 pic_h
                             };
-                            // [#5820 축2] 인라인 형제는 **하단 정렬** — 한글은 같은 줄의
-                            // TAC 그림들을 베이스라인(하단)에 맞춘다(156560092 로고 A/B:
-                            // 한글 A top = B top + 10.4px = 상자-상대 +12.8, rhwp 상단
-                            // 정렬은 두 그림 top 이 같아 A 가 12.1px 낮았다).
+                            // A saved object line owns its baseline, which need
+                            // not be the bottom of the object box. Preserve the
+                            // baseline proportion for each inline picture when
+                            // the complete saved line matches this object row.
+                            // Without an authoritative row, keep the existing
+                            // composed bottom alignment (#5820).
+                            let baseline_fraction = para
+                                .line_segs
+                                .get(inline_line_idx)
+                                .filter(|line| {
+                                    !para.stored_text_partition_is_dirty()
+                                        && !para.cell_format_vpos_dirty
+                                        && line.tag
+                                            & crate::model::paragraph::LineSeg::TAG_IMPLEMENTATION_PROPERTY
+                                            == 0
+                                        && line.line_height > 0
+                                        && line.baseline_distance >= 0
+                                        && line.baseline_distance <= line.line_height
+                                        && (max_inline_height
+                                            - hwpunit_to_px(line.line_height, self.dpi))
+                                            .abs()
+                                            <= self.dpi / 7200.0
+                                })
+                                .map(|line| {
+                                    f64::from(line.baseline_distance)
+                                        / f64::from(line.line_height)
+                                })
+                                .unwrap_or(1.0);
                             let pic_container = LayoutRect {
                                 x: inline_x,
                                 // [#6465] 개체가 뒤 줄에 배정됐으면 그 줄의 y 를 쓴다.
-                                y: inline_obj_y + (max_inline_height - clamped_h).max(0.0),
+                                y: inline_obj_y
+                                    + (max_inline_height - clamped_h).max(0.0) * baseline_fraction,
                                 width: clamped_w,
                                 height: clamped_h,
                             };

@@ -205,14 +205,30 @@ impl FormattedParagraph {
                 self.spacing_before, self.total_height, self.height_for_fit
             );
         }
+        // Normalization's rebuilt ladder no longer restores the original
+        // outside spacing. Preserve its actual composed advances rather than
+        // trimming against an anchor in a different coordinate frame.
+        let ladder_rebuilt = para
+            .source_line_seg_vertical_pos
+            .as_ref()
+            .is_some_and(|source| {
+                source.len() != para.line_segs.len()
+                    || source
+                        .iter()
+                        .zip(&para.line_segs)
+                        .any(|(vpos, line)| *vpos != line.vertical_pos)
+            });
         if para.controls.is_empty()
             && has_authoritative_seg
             && !ladder_dirty
+            && !ladder_rebuilt
             && (sa_trim || sb_trim)
             && self.height_for_fit > 0.0
             && self.height_for_fit + 0.5 < self.total_height
         {
-            return self.height_for_fit.min(self.total_height);
+            // Fit excludes outside after-space; the accepted flow still
+            // carries that band to the successor's origin.
+            return (self.height_for_fit + self.spacing_after).min(self.total_height);
         }
         self.total_height
     }

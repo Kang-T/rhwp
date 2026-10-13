@@ -33,18 +33,12 @@ impl TypesetEngine {
             .as_ref()
             .unwrap_or(&input.prepared.cut_row_heights);
         let straddle_row_relief = &input.start.straddle_row_relief;
+        let straddle_page_bands = &input.start.straddle_page_bands;
         let caption_is_top = input.prepared.caption_is_top;
         let caption_overhead = input.prepared.caption_overhead;
         let queue_table_footnotes = input.prepared.queue_table_footnotes;
         let table_footnotes = &input.prepared.table_footnotes;
         let host_spacing_total = input.prepared.host_spacing_total;
-        // 끝 조각의 물리 상자와 아래 바깥여백은 같은 영역을 소유한다.
-        // 엄격 예산·캡션 등이 이미 예약한 몫을 다시 더하지 않는다.
-        let terminal_flow_outer_bottom = (input.prepared.terminal_outer_bottom_flow
-            - budget.terminal_outer_bottom_overhead)
-            .max(0.0);
-        let host_spacing_after_only =
-            input.prepared.host_spacing_after_only + terminal_flow_outer_bottom;
         let terminal_host_spacing = input.prepared.terminal_host_spacing;
         let relax_terminal_table_footnote_fit = input.prepared.relax_terminal_table_footnote_fit;
         let cursor_row = input.start.cursor_row;
@@ -70,6 +64,7 @@ impl TypesetEngine {
             ..
         } = *budget;
         let BlockTableRowScan {
+            source_frame_band,
             consumed,
             mut end_row,
             split_block_start,
@@ -577,7 +572,6 @@ impl TypesetEngine {
             && end_row >= row_count
             && split_end_limit == 0.0
             && fragment_placement.is_none()
-            && terminal_outer_bottom_overhead == 0.0
             // [#5585] 끝 조각 뒤 흐름을 중첩 자식의 저장 빈 Enter(`terminal_host_spacing`)가
             // 소유하면 그 간격이 이미 표 아래를 닫는다. 바깥 아래 여백을 따로 열면 둘을
             // 겹쳐 더한다 — 한글 2024 PDF 86712 26쪽: 조각 아래 괘선 145.76px 뒤 다음 표
@@ -604,13 +598,13 @@ impl TypesetEngine {
                 })
                 .filter(|margin| top + partial_height + margin <= st.base_available_height())
             {
-                terminal_outer_bottom_overhead = margin;
+                terminal_outer_bottom_overhead = terminal_outer_bottom_overhead.max(margin);
                 fragment_placement =
                     Some(crate::renderer::float_placement::ParagraphFloatPlacement {
                         flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
                         anchor_y: st.current_height,
                         stored_host_origin: None,
-                        stored_successor_line_origin: None,
+                        stored_successor_line_origin: Some(top + partial_height + margin),
                         table_left: None,
                         table_top: top,
                         occupied_bottom: top + partial_height + margin,
@@ -653,7 +647,6 @@ impl TypesetEngine {
         }
         // 종료 상자의 마지막 유닛 뒤 빈 공간은 누적 상자와 잔여의 합이 cellSz를 닫고
         // 다음 원본 줄이 전체 바깥 상자를 닫을 때만 수용한다. 같은 계획이 후속 간격을 소유한다.
-        let mut terminal_saved_successor_closure = false;
         if single_cell_fragment_shape
             && two_frame_successor_origin.is_some()
             && is_continuation
@@ -706,7 +699,6 @@ impl TypesetEngine {
                 partial_height = height;
                 end_row_height_override = Some(height);
                 terminal_outer_bottom_overhead = margin;
-                terminal_saved_successor_closure = true;
                 fragment_placement =
                     Some(crate::renderer::float_placement::ParagraphFloatPlacement {
                         flow: crate::renderer::float_placement::ParagraphFloatFlow::NextLine,
@@ -719,10 +711,20 @@ impl TypesetEngine {
                     });
             }
         }
+        // Closing source queries may have reserved a margin after scan. Derive
+        // the unowned flow remainder from that final accepted reservation.
+        // 끝 조각의 물리 상자와 아래 바깥여백은 같은 영역을 소유한다.
+        // 엄격 예산·캡션 등이 이미 예약한 몫을 다시 더하지 않는다.
+        let terminal_flow_outer_bottom =
+            (input.prepared.terminal_outer_bottom_flow - terminal_outer_bottom_overhead).max(0.0);
+        let host_spacing_after_only =
+            input.prepared.host_spacing_after_only + terminal_flow_outer_bottom;
         let commit_fragment = |st: &mut TypesetState, owner_height: f64, terminal: bool| {
             if let Some(mut placement) = fragment_placement {
-                // 실제 조각의 컷/쪽 소유로 바뀌었으므로 전체 프레임의 후속 원점은 재사용하지 않는다.
-                if !terminal || !terminal_saved_successor_closure {
+                // A nonterminal cut cannot own the successor. A terminal
+                // source origin remains available; spacing consumers require
+                // equality with the final accepted physical bottom.
+                if !terminal {
                     placement.stored_successor_line_origin = None;
                 }
                 placement.occupied_bottom = placement.table_top
@@ -879,6 +881,7 @@ impl TypesetEngine {
                     end_row_height_override,
                     start_row_height_override,
                     straddle_row_relief: straddle_row_relief.clone(),
+                    straddle_page_bands: straddle_page_bands.clone(),
                 });
                 // 마지막 fragment: spacing_after만 포함 (Paginator engine.rs:1051 동일)
                 // host line advance/positive offset은 원 anchor 조각의 계약이며,
@@ -982,40 +985,63 @@ impl TypesetEngine {
         // 최종 행의 컷이 모든 가시 유닛을 소비했다면 다음 조각은 없다.
         // 컷을 지우면 원래 행 높이가 복원되므로 paint 컷은 그대로 보존하고,
         // 빈 후속 페이지를 할당하기 전에 continuation만 종료한다.
-        let terminal_cut_consumed = end_row >= row_count
-            && split_end_limit > 0.0
-            && !split_end_cut.is_empty()
-            && split_block_start.is_none()
-            && !start_cut_is_block
-            && !row_cursor_is_nested
-            && end_row_height_override.is_none()
-            && mt.allows_row_break_split()
-            && caption_overhead <= 0.0
-            && !queue_table_footnotes
-            && can_intra_split
-            && layout_engine
-                .advance_row_cut(
-                    row_geometry_table,
-                    row_count - 1,
-                    &split_end_cut,
-                    f64::MAX,
-                    styles,
-                )
-                .consumed_height
-                <= 0.0
-            && layout_engine
-                .straddle_continuation_demand(
-                    row_geometry_table,
-                    row_count - 1,
-                    row_count - 1,
-                    &split_end_cut,
-                    None,
-                    &mt.row_heights,
-                    styles,
-                    (row_count, true),
-                )
-                .is_none_or(|remaining| remaining <= 0.0);
+        let terminal_cut_consumed = input.closes_terminal_content_cut(
+            end_row,
+            split_end_limit,
+            &split_end_cut,
+            split_block_start,
+            end_row_height_override,
+        );
 
+        // A source rowspan crossing a complete row boundary owns the closing
+        // physical page band too. Reserve it using the accepted fragment origin,
+        // then select its units from the same extended row box that paint uses.
+        let accepted_straddle_end_band = if split_end_limit == 0.0
+            && split_block_start.is_none()
+            && end_row > cursor_row
+            && table_footnotes.is_empty()
+            && !st.profile.session_edited()
+            && !self
+                .render_normalization
+                .table_text_reflowed(row_geometry_table)
+            && mt.allows_row_break_split()
+            && row_geometry_table.cells.iter().any(|cell| {
+                usize::from(cell.row) < end_row
+                    && end_row < usize::from(cell.row) + usize::from(cell.row_span)
+            }) {
+            let outer_bottom = (hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
+                - fragment_outer_bottom_overhead)
+                .max(0.0);
+            let band = (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0);
+            if band > 0.0 {
+                let last_row = end_row - 1;
+                let last_height = end_row_height_override.unwrap_or(cut_row_h[last_row]);
+                end_row_height_override = Some(last_height + band);
+                partial_height += band;
+            }
+            band
+        } else {
+            0.0
+        };
+
+        let accepted_straddle_cells = if !start_cut_is_block && split_block_start.is_none() {
+            layout_engine.accepted_straddle_fragment_units(
+                row_geometry_table,
+                &mt.row_heights,
+                cursor_row,
+                end_row,
+                start_cut,
+                &split_end_cut,
+                is_continuation,
+                start_row_height_override,
+                end_row_height_override,
+                straddle_row_relief,
+                straddle_page_bands,
+                styles,
+            )
+        } else {
+            straddle_page_bands.clone()
+        };
         // 중간 또는 내용이 완전히 소비된 최종 컷 fragment 배치
         st.append_item(PageItem::PartialTable {
             para_index: para_idx,
@@ -1033,6 +1059,7 @@ impl TypesetEngine {
             end_row_height_override,
             start_row_height_override,
             straddle_row_relief: straddle_row_relief.clone(),
+            straddle_page_bands: accepted_straddle_cells.clone(),
         });
         // 저장 host 원점이 없는 조각은 흐름 좌표로 같은 상자를 잰다 — 위는 흐름 커서 +
         // host·세로 오프셋, 아래는 비끝 조각 상자 바닥(7062 2~9쪽 996.49 ↔ 정본 996.43).
@@ -1385,13 +1412,17 @@ impl TypesetEngine {
             0.0
         } else {
             // 한/글은 쪽 끝 행 상자를 본문 바닥에서 표 바깥 아래 여백을 뺀 자리까지 늘린다.
-            let outer_bottom = hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi);
-            (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
+            let outer_bottom = (hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
+                - fragment_outer_bottom_overhead)
+                .max(0.0);
+            source_frame_band
+                + accepted_straddle_end_band
+                + (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
         };
         continuation.straddle_page_bands =
             crate::renderer::layout::LayoutEngine::straddle_page_bands_after_fragment(
                 row_geometry_table,
-                &continuation.straddle_page_bands,
+                &accepted_straddle_cells,
                 if split_end_limit > 0.0 {
                     end_row.saturating_sub(1)
                 } else {

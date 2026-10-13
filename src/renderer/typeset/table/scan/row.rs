@@ -53,6 +53,7 @@ impl RowScanQuery<'_> {
                 start_cut,
                 start_row_height_override,
                 &mt.row_heights,
+                rows.straddle_page_bands,
                 styles,
                 (r + 1, true),
             )

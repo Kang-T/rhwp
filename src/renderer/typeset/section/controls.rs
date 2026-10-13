@@ -336,7 +336,10 @@ impl TypesetEngine {
                                     });
                                     crate::renderer::float_placement::stored_picture_successor_with_following_placement(
                                         para, next, following, host_style.spacing_before,
-                                        next_style.spacing_before, frame_vpos, actual_host_flow_y, self.dpi,
+                                        host_style.spacing_after, next_style.spacing_before,
+                                        frame_vpos, actual_host_flow_y,
+                                        Some(st.current_height + hwpunit_to_px(base - frame_vpos, self.dpi)),
+                                        self.dpi,
                                     )
                                 });
                                 if let Some(placement) = saved.filter(|p| {

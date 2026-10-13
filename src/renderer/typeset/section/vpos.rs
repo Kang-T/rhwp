@@ -221,7 +221,9 @@ impl TypesetEngine {
         // [#2243 진단] snap 입출력 — 동작 불변.
         if std::env::var("RHWP_DIAG_SNAPALL").is_ok() {
             eprintln!(
-                "DIAG_SNAPALL pi={} y_in={:.1} y_out={:.1} base={:?} lazy={:?} anchor={:.1} dirty={}",
+                "DIAG_SNAPALL sec={} page={} pi={} y_in={:.1} y_out={:.1} base={:?} lazy={:?} anchor={:.1} dirty={}",
+                st.section_index,
+                st.pages.len(),
                 para_idx,
                 st.current_height,
                 y,

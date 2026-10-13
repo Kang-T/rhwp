@@ -217,6 +217,20 @@ impl TypesetEngine {
                     && st.wrap_around_cs < 0
                     && !para_is_page_bottom_fixed_table_anchor(para)
                     && stored_vpos_top_collision(prev_para, para);
+                let source_margin_restart = st.col_count == 1
+                    && !profile.session_edited()
+                    && (profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
+                    && st.vpos_page_base.is_some_and(|origin| {
+                        crate::renderer::float_placement::stored_margin_page_restart(
+                            prev_para,
+                            para,
+                            paragraphs.get(para_idx + 1),
+                            styles,
+                            origin,
+                            st.current_height - st.vpos_col_anchor,
+                            self.dpi,
+                        )
+                    });
                 let trigger = if st.col_count > 1 {
                     if is_distribute {
                         cv < prev_vpos_end && prev_vpos_end > 0
@@ -232,9 +246,16 @@ impl TypesetEngine {
                             // 쪽 리셋 신호가 아니다.
                             && !para_hosts_page_anchored_block(para))
                         || near_page_top_reset
-                        || native_near_top_reset
+                        // The accepted column origin can survive a broken
+                        // source ladder. Its dirty/provenance flag controls
+                        // backward snapping, not ownership of a carried frame.
+                        || (native_near_top_reset
+                            && !st
+                                .vpos_page_base
+                                .is_some_and(|origin| cv < origin))
                         || native_inline_shape_reset
                         || stored_top_collision_reset
+                        || source_margin_restart
                 };
                 // [#2279 OMIT-fit] spacing-누락 문서군에서 fresh 재계산이 직전
                 // 쪽에서 밀어낸 빈 문단만 담긴 쪽에는 저장 리셋 경계를 적용하지
@@ -326,6 +347,9 @@ impl TypesetEngine {
                             None => false,
                         }
                     };
+                // Plain-text near-top source resets were evaluated against the
+                // accepted stored origin above. Explicit zero/shape/column
+                // boundaries retain their separate ownership contracts.
                 let trigger = trigger
                     && !stored_boundary_invalidated_by_reflow
                     && !omit_pushed_empty_page

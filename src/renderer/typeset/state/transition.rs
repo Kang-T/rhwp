@@ -60,6 +60,7 @@ impl TypesetState {
                 inline_placements: std::collections::HashMap::new(),
                 inline_flow_plans: std::collections::HashMap::new(),
                 stored_paragraph_flow_ends: std::collections::HashMap::new(),
+                stored_column_top_spacings: std::collections::HashMap::new(),
                 paragraph_float_placements: std::collections::HashMap::new(),
                 float_pushed_line_spacings: std::collections::HashMap::new(),
                 inline_box_flow_bottom: 0.0,
@@ -393,6 +394,7 @@ impl TypesetState {
             inline_placements: std::mem::take(&mut self.data.inline_placements),
             inline_flow_plans: std::mem::take(&mut self.data.inline_flow_plans),
             stored_paragraph_flow_ends: std::mem::take(&mut self.data.stored_paragraph_flow_ends),
+            stored_column_top_spacings: std::mem::take(&mut self.data.stored_column_top_spacings),
             paragraph_float_placements: std::mem::take(&mut self.data.paragraph_float_placements),
             float_pushed_line_spacings: std::mem::take(&mut self.data.float_pushed_line_spacings),
         };
@@ -470,6 +472,7 @@ impl TypesetState {
             inline_placements: std::mem::take(&mut self.data.inline_placements),
             inline_flow_plans: std::mem::take(&mut self.data.inline_flow_plans),
             stored_paragraph_flow_ends: std::mem::take(&mut self.data.stored_paragraph_flow_ends),
+            stored_column_top_spacings: std::mem::take(&mut self.data.stored_column_top_spacings),
             paragraph_float_placements: std::mem::take(&mut self.data.paragraph_float_placements),
             float_pushed_line_spacings: std::mem::take(&mut self.data.float_pushed_line_spacings),
         };

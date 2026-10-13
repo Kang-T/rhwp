@@ -26,8 +26,10 @@ impl TypesetEngine {
             styles,
             cut_row_h,
             whole_row_fit_h,
+            opening_source_frames,
             rowspan_touched,
             start_cut,
+            straddle_page_bands,
             v,
             table_storage_declares_splits,
         } = input;
@@ -47,6 +49,7 @@ impl TypesetEngine {
             source_first_fragment_overflow_allowance,
             source_first_fragment_row_end,
             start_row_height_override,
+            ..
         } = v;
         let ScanProgress {
             mut r,
@@ -54,6 +57,7 @@ impl TypesetEngine {
             mut bleed_absorbed_row_height,
         } = progress;
         let BlockTableRowScan {
+            source_frame_band,
             mut consumed,
             mut end_row,
             mut split_block_start,
@@ -69,6 +73,7 @@ impl TypesetEngine {
             cut_row_h,
             rowspan_touched,
             cs,
+            straddle_page_bands,
         };
         let keep_scanning = (|| {
             // rowspan 셀이 걸친 행 — 기본은 MeasuredTable 높이로 통째 배치한다.
@@ -84,6 +89,18 @@ impl TypesetEngine {
                 start_cut,
                 start_row_height_override,
             };
+            let opening_available = (avail_for_rows - consumed - cs_before).max(0.0);
+            let opening_frame = opening_source_frames.get(r).copied().unwrap_or(0.0);
+            if r > cursor_row
+                && opening_frame > opening_available
+                && opening_frame <= st.base_available_height() - header_overhead
+            {
+                // The ordinary row box cannot substitute for the opening
+                // stored paragraph frame of another cell. Later paragraphs
+                // and natural source-frame rewinds remain splittable.
+                end_row = r;
+                return false;
+            }
             let rowbreak_rowspan_row_splittable =
                 mt.allows_row_break_split() && can_intra_split && mt.is_row_splittable(r);
             if rowspan_touched[r] && !rowbreak_rowspan_row_splittable {
@@ -854,6 +871,13 @@ impl TypesetEngine {
             let split_total = saved_opening_frame_height.unwrap_or_else(|| {
                 layout_engine.row_cut_content_height(table, r, row_start_cut, &res.end_cut, styles)
             });
+            let source_blank_band = layout_engine
+                .stored_nested_plain_cut_frame_extra(table, r, row_start_cut, &res.end_cut, styles)
+                .map(|extra| {
+                    (split_total + extra).min((avail_for_rows - consumed - cs_before).max(0.0))
+                })
+                .filter(|height| *height > split_total);
+            let split_total = source_blank_band.unwrap_or(split_total);
             // [#3738 Stage 15] native HWP5의 RowBreak 표에 저장된 셀 내부 reset은
             // 같은 row의 앞부분을 현재 쪽 끝에 두고 tail을 다음 쪽에서 재개하라는
             // 물리 경계다. 이때 content-only 첫 cut은 25px orphan 경계에 몇 px
@@ -959,16 +983,19 @@ impl TypesetEngine {
                                 .is_some_and(|(_, confirmed)| confirmed.contains(&cut))
                         })
                 };
-            // 한 셀의 마지막 저장 줄만 다음 쪽으로 이어지는 컷도 한 줄을 남긴다.
-            // 완결된 다른 셀까지 동일한 컷인지 확인하고 실제 높이 예산은 아래에서 검사한다.
-            let stored_terminal_zero_origin_keep = (st.profile.hwp5_stored_pagination_layout()
+            // A capacity-selected cut separates complete original line units
+            // at a local restart. Do not reject that fitting line merely for
+            // being shorter than the heuristic minimum fragment height.
+            // This does not force a source page boundary: the scan selects
+            // the cut, and the physical-height budget below still applies.
+            let stored_restart_capacity_keep = (st.profile.hwp5_stored_pagination_layout()
                 || st.profile.hwpx_stored_layout())
                 && mt.allows_row_break_split()
                 && !table.common.treat_as_char
                 && row_start_cut.is_empty()
                 && !self.render_normalization.table_text_reflowed(table)
                 && layout_engine
-                    .row_stored_terminal_zero_origin_cut(table, r, styles)
+                    .row_plain_restart_capacity_cut(table, r, styles)
                     .is_some_and(|cut| cut == res.end_cut);
             // 저장된 물리 컷 근거가 없는 다줄 행에서 현재 쪽에 첫 유닛 하나만
             // 남고 행 전체가 새 쪽에 들어가면 행 경계에서 이월한다. 내용 높이가
@@ -1009,10 +1036,17 @@ impl TypesetEngine {
                 && !stored_plain_reset_boundary_keep
                 && !landscape_boundary_band_keep
                 && !stored_zero_origin_rewind_keep
-                && !stored_terminal_zero_origin_keep
+                && !stored_restart_capacity_keep
                 && !uses_source_frame_tail
                 && !rowbreak_row_has_internal_saved_vpos_reset(table, r)
                 && !row_has_stored_cross_paragraph_zero_reset(table, r);
+            let closed_paragraph_restart_keep = row_start_cut.is_empty()
+                && layout_engine.row_cut_ends_at_closed_paragraph_restart(
+                    table,
+                    r,
+                    &res.end_cut,
+                    styles,
+                );
             let stored_page_reset_keep = mt.allows_row_break_split()
                 && !table.common.treat_as_char
                 && res.consumed_height > 0.5
@@ -1030,7 +1064,8 @@ impl TypesetEngine {
                         && !stored_plain_reset_boundary_keep
                         && !landscape_boundary_band_keep
                         && !stored_zero_origin_rewind_keep
-                        && !stored_terminal_zero_origin_keep
+                        && !stored_restart_capacity_keep
+                        && !closed_paragraph_restart_keep
                         && !row_split_meets_min_top_keep(
                             res.consumed_height,
                             split_total,
@@ -1272,6 +1307,9 @@ impl TypesetEngine {
             // 같은 원본 컷에서 수용한 물리 상자를 continuation ledger에
             // 넘긴다. 내용 높이를 이미 수용한 빈 공간의 대용으로 쓰지 않는다.
             if end_row == r + 1 && split_end_limit > 0.0 && split_block_start.is_none() {
+                if let Some(height) = source_blank_band {
+                    end_row_height_override = Some(height);
+                }
                 if let Some(height) = layout_engine.saved_single_cell_opening_frame_height(
                     table,
                     r,
@@ -1296,6 +1334,7 @@ impl TypesetEngine {
             end_row_height_override = Some(consumed);
         }
         let scan = BlockTableRowScan {
+            source_frame_band,
             consumed,
             end_row,
             split_block_start,

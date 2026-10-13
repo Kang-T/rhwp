@@ -16,8 +16,78 @@ impl TypesetEngine {
     pub(super) fn prepare_block_table_entry<'a>(
         &self,
         st: &mut TypesetState,
-        input: BlockTableInput<'a>,
+        mut input: BlockTableInput<'a>,
     ) -> Option<SplitTableEntry<'a>> {
+        // A saved opening fragment can establish its column frame through
+        // the independently known body boundary. The object-only anchor,
+        // saved object height and closing outside margin must close that
+        // boundary in original integer units; no missing origin defaults to
+        // zero. The same accepted origin then feeds scan and table paint.
+        if st.col_count == 1
+            && st.vpos_page_base.is_none()
+            && st.vpos_lazy_base.is_none()
+            && !st.profile.session_edited()
+            && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
+            && input.ft.table_footnotes.is_empty()
+            && input.table.caption.is_none()
+            && input.table.page_break == crate::model::table::TablePageBreak::RowBreak
+            && !input.table.common.treat_as_char
+            && input.table.common.vert_rel_to == crate::model::shape::VertRelTo::Para
+            && signed_hwpunit(input.table.common.vertical_offset) == 0
+            && input.para.text.is_empty()
+            && matches!(input.para.controls.as_slice(), [Control::Table(_)])
+            && !input.para.stored_text_partition_is_dirty()
+            && !input.para.cell_format_vpos_dirty
+            && !self.render_normalization.table_text_reflowed(input.table)
+            && input.table.cells.iter().all(|cell| {
+                !cell.dirty_flag
+                    && cell.paragraphs.iter().all(|paragraph| {
+                        !paragraph.stored_text_partition_is_dirty()
+                            && !paragraph.cell_format_vpos_dirty
+                    })
+            })
+        {
+            if let [line] = input.para.line_segs.as_slice() {
+                let body_hu = crate::renderer::px_to_hwpunit(st.base_available_height(), self.dpi);
+                let closing_hu = i64::from(line.vertical_pos)
+                    + i64::from(input.table.common.height)
+                    + i64::from(input.table.outer_margin_top)
+                    + i64::from(input.table.outer_margin_bottom);
+                let anchor = hwpunit_to_px(line.vertical_pos, self.dpi);
+                let later_frame = input
+                    .paragraphs_all
+                    .get(input.para_idx + 1)
+                    .and_then(|next| next.line_segs.first())
+                    .is_some_and(|next| {
+                        !is_synthetic_line_seg(next)
+                            && next.vertical_pos > 0
+                            && i64::from(next.vertical_pos) < closing_hu
+                    });
+                if line.vertical_pos > 0
+                    && line.segment_width == 0
+                    && !is_synthetic_line_seg(line)
+                    && input
+                        .para
+                        .source_line_seg_vertical_pos
+                        .as_ref()
+                        .is_none_or(|source| source.as_slice() == [line.vertical_pos])
+                    && input.table.common.height > 0
+                    && input.ft.effective_height
+                        > hwpunit_to_px(input.table.common.height as i32, self.dpi)
+                    && (closing_hu - i64::from(body_hu)).abs() <= 2
+                    && st.current_height <= anchor
+                    && later_frame
+                {
+                    let delta = anchor - st.current_height;
+                    st.record_vpos_column_anchor(0.0);
+                    st.record_vpos_page_origin(Some(0));
+                    st.record_vpos_origin_provenance(true);
+                    st.align_flow_to(anchor);
+                    input.para_start_height += delta;
+                    input.budget_para_start_height += delta;
+                }
+            }
+        }
         let BlockTableInput {
             para_idx,
             ctrl_idx,
@@ -1534,7 +1604,11 @@ impl TypesetEngine {
         // 단을 여는 완전한 TAC 표도 저장 프레임이며, 재조판/분할 원점과 섞지 않는다.
         let source_host_origin = (st.col_count == 1
             && (st.profile.hwpx_stored_layout() || st.profile.hwp5_stored_pagination_layout())
-            && !st.vpos_ladder_dirty
+            && (!st.vpos_ladder_dirty
+                || st.current_items.first().is_some_and(|item| {
+                    matches!(item, PageItem::FullParagraph { para_index }
+                        if st.stored_column_top_spacings.contains_key(para_index))
+                }))
             && !st.profile.session_edited())
         .then(|| {
             let first = match st.current_items.first()? {
@@ -1548,7 +1622,31 @@ impl TypesetEngine {
                     else {
                         return None;
                     };
-                    if !first_table.common.treat_as_char || first_para.line_segs.len() != 1 {
+                    let accepted_float_frame = st
+                        .paragraph_float_placements
+                        .get(&(*para_index, *control_index))
+                        .is_some_and(|placement| {
+                            placement.flow
+                                == crate::renderer::float_placement::ParagraphFloatFlow::Exclusion
+                                && paragraphs_all
+                                    .get(*para_index + 1)
+                                    .and_then(|next| next.line_segs.first())
+                                    .is_some_and(|next| {
+                                        let source_end = st.vpos_col_anchor
+                                            + hwpunit_to_px(next.vertical_pos, self.dpi);
+                                        (placement.occupied_bottom - source_end).abs()
+                                            <= self.dpi / 7200.0
+                                    })
+                        })
+                        && crate::renderer::layout::stored_first_margin_is_page_relative(
+                            first_para,
+                            paragraphs_all.get(*para_index + 1),
+                            styles,
+                            self.dpi,
+                        );
+                    if first_para.line_segs.len() != 1
+                        || (!first_table.common.treat_as_char && !accepted_float_frame)
+                    {
                         return None;
                     }
                     *para_index
@@ -1556,11 +1654,27 @@ impl TypesetEngine {
                 _ => return None,
             };
             let chain = paragraphs_all.get(first..=para_idx)?;
-            // 원점0은 추정 기본값이 아니라 실제 단 시작 줄의 저장 위치다.
-            if chain.first()?.line_segs.first()?.vertical_pos != 0
-                || st.current_items.iter().any(|item| {
-                    matches!(item, PageItem::PartialTable { .. } | PageItem::Shape { .. })
-                })
+            // A continuous saved ladder can start after a page break. Its
+            // certified column frame owns the retained first-line before-space;
+            // zero is only the special case of a page-relative source ladder.
+            let frame_origin = if let Some(frame) = st.stored_column_top_spacings.get(&first) {
+                frame.source_origin_hu
+            } else if chain.first()?.line_segs.first()?.vertical_pos == 0
+                || crate::renderer::layout::stored_first_margin_is_page_relative(
+                    chain.first()?,
+                    chain.get(1),
+                    styles,
+                    self.dpi,
+                )
+            {
+                0
+            } else {
+                return None;
+            };
+            if st
+                .current_items
+                .iter()
+                .any(|item| matches!(item, PageItem::PartialTable { .. } | PageItem::Shape { .. }))
             {
                 return None;
             }
@@ -1585,7 +1699,16 @@ impl TypesetEngine {
                     previous = Some((line.vertical_pos, line.column_start, host_index));
                 }
             }
-            Some(st.vpos_col_anchor + hwpunit_to_px(para.line_segs.first()?.vertical_pos, self.dpi))
+            Some(
+                st.vpos_col_anchor
+                    + hwpunit_to_px(
+                        para.line_segs
+                            .first()?
+                            .vertical_pos
+                            .checked_sub(frame_origin)?,
+                        self.dpi,
+                    ),
+            )
         })
         .flatten();
         // 글줄은 구성 결과와 저장 줄이 같을 때만 이 원점을 소비한다.
@@ -1773,6 +1896,24 @@ impl TypesetEngine {
                     },
                 )
             });
+        // Rows, caption and closing outer space must fit as one accepted frame.
+        // Keep the existing source anchor when present; a missing source plan
+        // uses sequential flow, rather than accepting the row declaration alone.
+        let captioned_frame = self.query_captioned_rowbreak_frame(
+            st,
+            para,
+            table,
+            ft.host_spacing.before,
+            ft.effective_height,
+            resolved_host_placement,
+        );
+        // Without an authenticated mid-column origin, the frame still rejects
+        // a row-only fit, but cannot replace paint's original anchor contract.
+        let resolved_host_placement = captioned_frame
+            .filter(|_| resolved_host_placement.is_some() || st.current_items.is_empty())
+            .or(resolved_host_placement);
+        let complete_caption_fits =
+            captioned_frame.is_none_or(|frame| frame.occupied_bottom <= available);
         // [#7390] 저장 RowBreak 개체의 선언 높이는 첫 물리 조각만 나타낼 수 있다.
         // 현재 흐름 위치에서 측정 행을 그렸을 때 종이 경계를 넘는다면
         // 그 선언값이 표 전체의 소유를 보장하지 않는다.
@@ -1813,6 +1954,14 @@ impl TypesetEngine {
         // 종이 아래 여백 허용을 여기까지 전달하면 분할할 두 행을 통째 수용한다.
         let whole_frame_budget = if closed_source_frame_placement.is_none()
             && source_text_origin.is_some()
+            // A text origin does not certify that common.height describes the
+            // whole table. It may describe an opening fragment. Only a saved
+            // object frame covering the actual measured rows can retain the
+            // legacy paper-margin budget; otherwise scan the body-sized cut.
+            && signed_hwpunit(table.common.height) > 0
+            && ft.effective_height
+                <= hwpunit_to_px(signed_hwpunit(table.common.height), self.dpi)
+                    + self.dpi / 7200.0
             && legacy_whole_fits
             && ft.table_footnotes.is_empty()
             && st.current_footnote_height <= 0.0
@@ -1854,7 +2003,31 @@ impl TypesetEngine {
                 // 종전 whole-fit 판정(흐름 전용 바깥 여백 아래 면제)이 그대로 결정한다.
                 .filter(|p| p.occupied_bottom <= whole_frame_budget)
         });
+        let resolved_host_placement = resolved_host_placement.or_else(|| {
+            crate::renderer::stored_empty_square_successor_strip(
+                para,
+                paragraphs_all.get(para_idx + 1),
+                st.layout.column_width_hu(),
+            )
+            .map(|_| {
+                let top = placement_para_start_height
+                    + hwpunit_to_px(signed_hwpunit(table.common.vertical_offset), self.dpi)
+                    + hwpunit_to_px(table.outer_margin_top as i32, self.dpi);
+                crate::renderer::float_placement::ParagraphFloatPlacement {
+                    flow: crate::renderer::float_placement::ParagraphFloatFlow::StoredSquareWrap,
+                    anchor_y: placement_para_start_height,
+                    stored_host_origin: None,
+                    stored_successor_line_origin: None,
+                    table_left: None,
+                    table_top: top,
+                    occupied_bottom: top
+                        + ft.effective_height
+                        + hwpunit_to_px(table.outer_margin_bottom as i32, self.dpi),
+                }
+            })
+        });
         if !painted_rowbreak_exceeds_paper
+            && complete_caption_fits
             && resolved_host_placement.map_or(legacy_whole_fits, |p| {
                 p.occupied_bottom <= whole_frame_budget
             })

@@ -1860,7 +1860,15 @@ impl DocumentCore {
 
         // 1단계 — 고칠 자리를 live IR 에서 정한다. 유닛 캐시가 live 셀 포인터로 메모이즈
         // 돼 있으므로 스냅숏 포인터를 캐시에 넣지 않는다.
-        let mut plans: Vec<(usize, usize, usize, usize, Vec<(usize, usize)>)> = Vec::new();
+        struct FrameWriteback {
+            section: usize,
+            paragraph: usize,
+            control: usize,
+            cell: usize,
+            resets: Vec<(usize, usize)>,
+            preserved_frames: Vec<((usize, usize), (usize, usize))>,
+        }
+        let mut plans = Vec::new();
         for (section_idx, section) in self.document.sections.iter().enumerate() {
             let Some(pagination) = self.pagination.get(section_idx) else {
                 continue;
@@ -1938,6 +1946,33 @@ impl DocumentCore {
                         let anchors =
                             self.layout_engine
                                 .cell_unit_line_anchors(cell, table, &self.styles);
+                        if std::env::var_os("RHWP_DIAG_WRITEBACK").is_some() {
+                            let normalized_table = self
+                                .section_render_paragraphs(section_idx)
+                                .get(para_idx)
+                                .and_then(|p| p.controls.get(control_idx))
+                                .and_then(|c| {
+                                    if let Control::Table(t) = c {
+                                        Some(t)
+                                    } else {
+                                        None
+                                    }
+                                });
+                            if let Some(t) = normalized_table {
+                                if let Some(normalized_cell) = t.cells.get(cell_idx) {
+                                    let normalized_anchors = self
+                                        .layout_engine
+                                        .cell_unit_line_anchors(normalized_cell, t, &self.styles);
+                                    eprintln!("WRITEBACK_UNITS section={section_idx} para={para_idx} control={control_idx} cell={cell_idx} live_paras={} render_paras={} live_units={} render_units={} anchors_equal={} cuts={units:?}", cell.paragraphs.len(), normalized_cell.paragraphs.len(), anchors.len(), normalized_anchors.len(), anchors == normalized_anchors);
+                                    for &unit in &units {
+                                        let lo = unit.saturating_sub(1);
+                                        let hi = (unit + 2).min(anchors.len());
+                                        eprintln!("WRITEBACK_CUT cell={cell_idx} cut={unit} live={:?} render={:?}", anchors.get(lo..hi), normalized_anchors.get(lo..hi));
+                                    }
+                                }
+                            }
+                        }
+                        let mut preserved_frames = Vec::new();
                         let mut resets: Vec<(usize, usize)> = Vec::with_capacity(units.len());
                         for unit in units.iter() {
                             match anchors.get(*unit) {
@@ -1965,15 +2000,52 @@ impl DocumentCore {
                                 // 뒤 줄을 대신 적으면 그 구조를 통째로 앞 쪽에 넣으라는 거짓이
                                 // 되므로 이 경계는 **쓰지 않는다** — 읽는 쪽이 제 용량 컷을
                                 // 쓰게 두는 것이 편집 직후 배치와 같다.
-                                Some(CellUnitLineAnchor::InsideAnOpenLine) | None => {}
+                                Some(CellUnitLineAnchor::InsideAnOpenLine) => {
+                                    let preceding =
+                                        anchors[..*unit].iter().rev().find_map(|a| match a {
+                                            CellUnitLineAnchor::Opens(p, l) => Some((*p, *l)),
+                                            _ => None,
+                                        });
+                                    let following = anchors[*unit..].iter().find_map(|a| match a {
+                                        CellUnitLineAnchor::Opens(p, l) => Some((*p, *l)),
+                                        _ => None,
+                                    });
+                                    if let (Some(start), Some(end)) = (preceding, following) {
+                                        // A recursive cut has no host line at its physical
+                                        // start. Preserve the successor's source rewind;
+                                        // erasing it also changes the nested frame's extent.
+                                        if start < end {
+                                            preserved_frames.push((start, end));
+                                        }
+                                    }
+                                }
+                                None => {}
                             }
                         }
+                        preserved_frames.extend(
+                            self.layout_engine
+                                .cell_deferred_picture_source_frames(cell, table, &self.styles)
+                                .into_iter()
+                                .map(|(start, end)| ((start, 0), (end, 0))),
+                        );
+                        resets.retain(|line| {
+                            !preserved_frames
+                                .iter()
+                                .any(|(start, end)| start <= line && line <= end)
+                        });
                         resets.sort_unstable();
                         resets.dedup();
                         if resets.is_empty() {
                             continue;
                         }
-                        plans.push((section_idx, para_idx, control_idx, cell_idx, resets));
+                        plans.push(FrameWriteback {
+                            section: section_idx,
+                            paragraph: para_idx,
+                            control: control_idx,
+                            cell: cell_idx,
+                            resets,
+                            preserved_frames,
+                        });
                     }
                 }
             }
@@ -1985,7 +2057,15 @@ impl DocumentCore {
         // 나르고(조판의 `vpos_gap_before` 등이 읽는다), 촘촘한 사다리로 덮으면 그 신호가
         // 사라져 읽는 쪽이 더 채운다(실측: 문단 2276 편집에서 103쪽이 11낱말 더 먹었다).
         // 그래서 줄 사이 **원래 간격을 그대로 이어 붙이고**, 되감김만 실제 컷 자리로 옮긴다.
-        for (section_idx, para_idx, control_idx, cell_idx, resets) in plans {
+        for FrameWriteback {
+            section: section_idx,
+            paragraph: para_idx,
+            control: control_idx,
+            cell: cell_idx,
+            resets,
+            preserved_frames,
+        } in plans
+        {
             let Some(Control::Table(table)) = snapshot
                 .sections
                 .get_mut(section_idx)
@@ -2006,7 +2086,12 @@ impl DocumentCore {
                     let next = match previous {
                         None => stored,
                         Some((previous_stored, previous_new, previous_occupied)) => {
-                            if resets.contains(&(cell_para_idx, line_idx)) {
+                            if resets.contains(&(cell_para_idx, line_idx))
+                                || (preserved_frames
+                                    .iter()
+                                    .any(|(_, end)| *end == (cell_para_idx, line_idx))
+                                    && stored < previous_stored)
+                            {
                                 // 조각 시작 — 원래도 여기서 되감겼으면 그 원점을 그대로 쓰고,
                                 // 아니면 셀-로컬 원점 0 을 쓴다(이 문서의 조각 원점 관행).
                                 if stored < previous_stored {

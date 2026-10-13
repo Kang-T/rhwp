@@ -483,6 +483,9 @@ impl TypesetEngine {
                         0,
                         &[],
                         false,
+                    ) || crate::renderer::float_placement::empty_host_cellbreak_fragment_repeats_outer_margin(
+                        st.profile.hwpx_stored_layout() || self.profile.get().hwp5_stored_pagination_layout(),
+                        para, table,
                     )) {
                         let top_margin = hwpunit_to_px(table.outer_margin_top as i32, self.dpi);
                         fragment.table_top += top_margin;
@@ -537,8 +540,8 @@ impl TypesetEngine {
                 ft.host_spacing.before,
                 false,
                 ft.strict_following_plain_text_fit,
-                crate::renderer::float_placement::native_empty_host_cellbreak_fragment_repeats_outer_margin(
-                    self.profile.get().hwp5_stored_pagination_layout(),
+                crate::renderer::float_placement::empty_host_cellbreak_fragment_repeats_outer_margin(
+                    self.profile.get().hwp5_stored_pagination_layout() || self.profile.get().hwpx_stored_layout(),
                     para,
                     table,
                 ),
@@ -1216,6 +1219,22 @@ impl TypesetEngine {
                         - st.current_bottom_fixed_exclusion
                 }),
             source_next_positive_rewind: next_rewinds_after_table && !next_starts_new_page,
+            source_terminal_suffix_start: (st.profile.hwp5_stored_pagination_layout()
+                || st.profile.hwpx_stored_layout())
+            .then(|| {
+                if st.profile.session_edited()
+                    || !std::ptr::eq(table, row_geometry_table)
+                    || self.render_normalization.table_text_reflowed(table)
+                {
+                    return None;
+                }
+                crate::renderer::float_placement::stored_table_terminal_suffix_start(
+                    para,
+                    paragraphs_all.get(para_idx + 1)?,
+                    table,
+                )
+            })
+            .flatten(),
             first_fragment_saved_offset: {
                 let column = st.inline_flow_column();
                 source_single_cell_first_placement
