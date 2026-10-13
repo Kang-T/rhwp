@@ -3656,6 +3656,7 @@ mod border_rendering;
 mod fill_background;
 mod fixed_textbox_flow;
 mod note_reference;
+mod hidden_paragraph_marker;
 mod paragraph_layout;
 mod picture_footnote;
 mod shape_layout;
@@ -10963,25 +10964,21 @@ impl LayoutEngine {
                     // 저장 anchor부터 다음 계산 본문을 재개해 표 위 gap을 먼저 채운다.
                     y_offset = anchor_y;
                 }
-                // 빈 줄 감추기: 높이 0 처리된 문단은 문단부호만 렌더링하고 y_offset 변경 없음
+                // 조판에서 흡수한 빈 문단은 확정된 흐름 원점에 편집용 부호만 남긴다.
                 if self.hidden_empty_paras.borrow().contains(para_index) {
-                    // 문단부호는 렌더링 (클리핑 바깥에 표시)
                     if let Some(comp) = composed.get(*para_index) {
                         if let Some(para) = paragraphs.get(*para_index) {
                             para_start_y.insert(*para_index, y_offset);
-                            self.layout_paragraph(
+                            self.layout_hidden_paragraph_marker(
                                 tree,
                                 col_node,
                                 para,
-                                Some(comp),
+                                comp,
                                 styles,
                                 col_area,
                                 y_offset,
                                 page_content.section_index,
                                 *para_index,
-                                multi_col_width,
-                                Some(bin_data_content),
-                                ctx.wrap_anchors.get(para_index),
                             );
                         }
                     }

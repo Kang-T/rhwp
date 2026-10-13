@@ -793,9 +793,11 @@ ignored `output/pr-review/planet6897-followup-20261011/`의
 각 고정 바이너리로 `layout-anomaly --types Table --json` 실행한 결과 C34는0건,
 C37·C38은1건이다. 63쪽(0-based62), 구역1 문단5의 빈 글줄이 용지 하단을113.32px
 벗어난다. 현재 trace는 앞 표의 흐름 끝653.7px 뒤853.7px에53.33px 글줄 상자를
-만든다. 후속 `dump-pages` 대조에서 문단5는 숨김 문단이 아니라 독립 재측정 높이가
-318.67px인 `fullParagraph`임을 확인했다(숨김 항목은 문단4다). 숨김 표시만 고치는
-방안은 기각하며, 실제 예약 높이와 단독 재측정 높이를 동일시하지 않는다. 구역1의
+만든다. 후속 `dump-pages`의 `fullParagraph`와 추가 숨김 항목만으로 문단5가 숨김
+문단이 아니라고 추정했으나, 실제 배치 경로의 C40 진단은 `hidden=true`,
+`inline=None`을 확인했다. `dump-pages`는 이미 항목에 있는 문단을 추가 숨김 목록에서
+제외하므로 그 목록의 문단4만으로 문단5의 상태를 판단할 수 없다. 문단5의318.67px는
+독립 재측정 높이이며 실제 예약 높이와 동일시하지 않는다. 구역1의
 `hide_empty_line` 설정은 꺼져 있으므로 원본의 빈 줄 감춤 옵션에 따른 정상 출력으로
 단정하지 않는다. 독립 Print·현재63쪽 review는 실루엣58.02443%이며 표의 수직 차이도
 남아 있다. 기존 #7743 등록을 이 새 회귀 제거 또는 시각 통과의 근거로 사용하지 않는다.
@@ -828,3 +830,85 @@ SHA 일치와 실제 fresh WASM 실행을 확인하기 전에는 WASM 완료로 
 `c38-native-normal-controls-before-after-png-parity.json`). 전체415쪽 TSV 산출은 진행 중이다.
 fresh WASM 실제 재생·실패23건 처리·시각 전쪽 통과·PR/CI/merge는 미완료다.
 기존 기대값이나baseline은 바꾸지 않았다.
+
+
+### C40 — 실제 숨김 소속 확인과 고정 upstream 대조
+
+C40 진단 전용 빌드(`CARGO_BUILD_JOBS=8`, 공용 `target/pr-review`, dev profile)는
+종료0이다. 추가 로그를 포함한 고정 바이너리 SHA-256은
+`0422158c2e64e5b4f3687caa41b32bddcec7e5f3a3cc304542e53eeef73522e9`이다.
+동일 교육과정 원본의 `export-render-tree -p62 --compat 2022` 실행에서 실제
+`layout_column_item`은 `PARA_OWNERSHIP sec=1 pi=5 hidden=true inline=None`을 남겼다.
+C39의 숨김 여부 추정을 위 본문에서 바로잡았다. 진단 로그 9줄은 제품 코드에서 제거했다.
+
+보정 후보는 `hidden_empty_paras → FullParagraph 배치 → 편집용 문단부호` 경로를
+일치시킨다. 조판이 흡수한 빈 문단에 일반 `layout_paragraph`를 다시 호출하지 않고,
+`layout_hidden_paragraph_marker`가 확정된 `y_offset`, 원본 글자모양·문단 스타일과
+문자 오프셋·소속을 소비한다. 부호는 편집 전용 노드이며 인쇄의 본문 점유를 만들지
+않는다. 페이지 좌표 clamp, 진단기 제외 규칙, baseline·기대값 변경은 추가하지 않았다.
+숨김으로 등록되지 않은 정상 빈 문단의 저장 줄·앞뒤 간격 배치는 기존 경로를 사용한다.
+새 helper는1000줄 이하이며, 후보의 포맷·Clippy·Native 빌드와 수정 후 실행 증거를
+확인하기 전에는 이 후보를 검증 완료나 시각 개선 완료로 판정하지 않는다.
+
+고정 upstream 기준은 `22317614b03722e95349a1d3d71c86923363c6f5`이다.
+clean sparse worktree에서 같은 공용 target과 jobs8로 Native Skia CLI를 빌드했다.
+첫 실행은 CLI의 `include_str!` 대상 문서가 sparse 목록에 없어101로 끝났으며,
+동일 commit의 `mydocs/manual`·`mydocs/tech`를 materialize한 재실행은0이다.
+원본·기준 PDF·테스트의 base Git blob과 현재 파일 바이트를 대조한
+`issue5884` 전2쪽 Native 결과는 base p2=41.54451%, C38 p2=65.59852%다.
+현재 fresh WASM도 p2=65.59852%이며 모두 전체 쪽수2/2이다. base에서 이미 미달한
+입력임은 입증했지만, 현재의 표 외곽·그림 위치 차이와 별도 회귀 여부는 계속 검토한다.
+독립 Print의 `예1)/예2)` 제목은1쪽에 있고2쪽에는 계산식·그림이 이어진다.
+기존2쪽 제목 assertion을 아직 변경하거나 제거하지 않았으며, 닫힌 #5884·#6708을
+열린 미해결 이슈의 근거로 대체하지 않는다.
+
+C39 fresh web build는 실제 종료0이며, 루트 pkg와 Studio public의 JS·WASM SHA-256이
+각각 일치했다. C38 code head `c6eece6487a22673da386132d2e14dc3b8f7f3b5`에서
+컴파일한 이 package의 실제 WASM 대조6문서·51쪽을 완료했다.
+정상 대조군5문서·49쪽은 전쪽90% 이상·쪽수 일치이며, `issue5884`2쪽 중2쪽은
+위 점수로 미달이다. 이 결과는 C40 새 코드의 검증이나 원래54문서 전체 완료가 아니다.
+- `issue5884-original`: 2쪽, 최저65.59852%, 종료1.
+- `picture-original-4-page`: 4쪽, 최저99.27611%, 종료0.
+- `picture-band-original`: 2쪽, 최저92.75255%, 종료0.
+- `valid_orientation-nested-mixed-cell`: 8쪽, 최저96.81300%, 종료0.
+- `valid_generated-nested-mixed-cell`: 8쪽, 최저96.81300%, 종료0.
+- `k-water-middle-dot-control`: 27쪽, 최저94.12523%, 종료0.
+
+로컬 증거는 ignored `output/pr-review/planet6897-followup-20261011/`의
+`c40-paragraph-state-p63.log`, `c40-pinned-base-build-result.json`,
+`c40-issue5884-base-current-comparison.json`,
+`c40-fresh-wasm-completed-summary.json`에 보존한다. 후보 최초 Clippy는
+포맷 도구의 종료를 확인하기 전에 시작된 실행이므로 중단(-15)했고 통과로 세지 않는다.
+포맷 종료0과 활성 Cargo/Rust 프로세스 부재를 확인한 뒤,
+`c40-hidden-marker-r2-build-results.json`의 포맷 검사 → Native Clippy →
+Native 빌드를 순차로 재실행했다. 실행 중 단계는 종료 결과를 수집한 뒤 갱신한다.
+
+
+C40 보정 후보의 재실행은 포맷 검사0, Native Clippy0, Native Skia 포함
+`release-test` CLI/lib 빌드0으로 끝났다. 빌드 시간은7분45초이며 세 단계는 순차
+실행했다. 이 후보의 같은 원본 `layout-anomaly --types Table --json`은 전체415쪽,
+`offCanvasCount=0`을 반환했다(C38은1). 이 결과는 off-canvas 축의 수정 후 진단이며,
+남아 있는 표 overflow5건·text overlap7건 또는 전쪽 시각 미달의 해소가 아니다.
+63쪽 문단5의 글줄·런은 실제 흐름 원점653.7px에 생성됐으며 문단 소속5·원본
+글자모양 높이를 보존했다. 이 관측 좌표를 회귀 기대값으로 복사하지 않았다.
+
+같은 글꼴 공급·2022 세대·96dpi·인쇄 프로필로63쪽 SVG를 다시 내보내고 동일한
+정본 raster transport로 PNG를 생성했다. C38의 해당 쪽 PNG와 SHA-256이 같아,
+이번 편집용 부호 보정이 인쇄 잉크를 바꾸지 않았음을 확인했다. SVG CLI는
+`--embed-fonts=full`을 받으므로 잘못 분리한 `--embed-fonts full`의 종료2는 실패로
+보존했고, 올바른 인자로 재실행한 export·raster는 모두0이다.
+`c40-hidden-marker-check/commands.json`·`comparison.json`·`tree/`에 실행과
+수정 후 소속을 보존했다. 직접 비교 PNG는 `c40-hidden-marker-direct-review/`다.
+새 회귀·baseline·기대값은 변경하지 않았다. C40 새 source의 fresh WASM,
+workspace/WASM Clippy와 전체 회귀는 아직 완료되지 않았으며 C38 결과로 대신하지 않는다.
+
+
+C39 재개 실행도 최종 종료했다. 같은 C38 export의 전체415쪽 실루엣 TSV를
+측정했고 누락0·Native/Print 전체 쪽수415/415를 확인했다. 그러나 **90% 미만232쪽,
+최저263쪽5.57154%**로 `re_review_required`다. 재개 래퍼 종료0은 측정 완료이며
+시각 gate 통과가 아니다. 입력·SVG·PNG 해시로 같은 C38 산출물의 원래160쪽과
+나머지255쪽을 확인했다. 표/문단의 내용 대응을 미달 쪽에서 직접 읽고 고정 upstream과
+대조한 뒤 원인 보정을 계속한다. 대표5쪽이나49쪽 정상 대조군의 통과로 이 전쪽 실패를
+상쇄하지 않는다. C40의 off-canvas0과63쪽 인쇄 동일성도 이 미달을 해소하지 않는다.
+증거는 `c39-native-resume-result.json`과
+`c38-native-pr7701-original-full-curriculum/pr7701-original-full-curriculum/silhouette.tsv`다.

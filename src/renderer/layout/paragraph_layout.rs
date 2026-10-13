@@ -902,7 +902,7 @@ fn list_marker_geometry_for(
     }
 }
 
-fn paragraph_active_text_style(
+pub(super) fn paragraph_active_text_style(
     styles: &ResolvedStyleSet,
     para: Option<&Paragraph>,
     char_offset: usize,
