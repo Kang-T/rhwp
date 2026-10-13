@@ -17,7 +17,7 @@ last_verified: 2026-10-13
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
 | 현재 production 보정 | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — 저장 전체 행 프레임의 선택 글줄 정렬 보정; 재검증 중 |
-| 현재 Native/fresh 재검증 code head | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — Native/fresh 영향 16쪽 재검증 중; 최종 전쪽 비교는 미완료 |
+| 현재 Native/fresh 재검증 code head | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — Native/fresh 영향16쪽 통과(최저93.16816%·미달/누락0), OLE/SO10개 양쪽 통과, CGMP fresh48쪽 통과; 최종 전쪽/전체회귀는 미완료 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
 | 이 PR의 실제 계약 실행 | 수정 전 7f04c 소스의 전체 nextest에서 2/2 PASS, FAIL 0, 미관측 0; 현재 b4ff8c 소스 재실행은 남음 |
 | 현재 통합 완료 판정 | **머지 보류** — 새 base/보정 head의 최종 전체 회귀·lint·필수 시각/backend 검증 진행 중 |
@@ -26,7 +26,7 @@ last_verified: 2026-10-13
 이 PR의 입력·호출 경로·계약 함수와 미검증 범위는 아래 개별 항목을 따른다. v447 계약 PASS와
 후속 #157 보정의 전2쪽 Native/fresh 통과는 각각 해당 SHA·입력 범위의 결과이며, 이 PR의
 편집 저장본 전체나 최종 통합 검증의 통과로 바꾸지 않는다. 아래 이전 진행 문단은 당시 관측이다.
-현재 적용 SHA·진행 권한·완료 여부는 이 절을 우선한다. 현재 공통 보정과 순차 검증의 실행 결과는 [진행191](semanticist21_20261008_integrated_review.md#진행-갱신191--가맹사업-native-경계-정합과-최종-전쪽-검증-준비-2026-10-13)에 연결한다. 모든 필수 검증 완료 후 최상단 판정을
+현재 적용 SHA·진행 권한·완료 여부는 이 절을 우선한다. 현재 공통 보정과 순차 검증의 실행 결과는 [최신 PR 준비](semanticist21_20261008_integrated_review.md#진행-갱신204--원pr-상태-재확인과-통합-pr-본문-준비-2026-10-13)에 연결한다. 모든 필수 검증 완료 후 최상단 판정을
 **메인터너 보정 후 승인**으로 갱신한다.
 
 이 PR의 검증 함수별 원문 로그 연결은 ignored
