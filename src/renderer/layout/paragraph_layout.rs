@@ -3060,6 +3060,127 @@ impl LayoutEngine {
         }
     }
 
+    /// Horizontal pen for a control on a valid saved line. Alignment uses the
+    /// complete line (text on both sides and all objects), then advances only
+    /// through the ordered prefix. Whole and continued cells use this result
+    /// when their text compositor did not emit the inline object itself.
+    pub(crate) fn stored_inline_control_pen(
+        &self,
+        para: &Paragraph,
+        composed: &ComposedParagraph,
+        control_index: usize,
+        styles: &ResolvedStyleSet,
+        area: &LayoutRect,
+    ) -> Option<f64> {
+        if para.stored_text_partition_is_dirty()
+            || para.cell_format_vpos_dirty
+            || super::super::para_has_no_stored_line_segs(para)
+        {
+            return None;
+        }
+        // Preserve the original PARA_TEXT axis. Projecting controls onto
+        // visible characters collapses distinct objects in the same text gap
+        // and can put a later-line object back after the preceding picture.
+        let owners = crate::renderer::float_placement::stored_control_line_indices(para)?;
+        let owner = *owners.get(control_index)?;
+        let line = composed.lines.get(owner)?;
+        let positions = para.control_text_positions();
+        let position = *positions.get(control_index)?;
+        let mut remaining = position.checked_sub(line.char_start)?;
+        let mut prefix_width = 0.0;
+        let mut occupied_width = 0.0;
+        for run in &line.runs {
+            let style = run.text_style(styles);
+            let text = effective_text_for_metrics(run);
+            let prefix: String = text.chars().take(remaining).collect();
+            remaining = remaining.saturating_sub(prefix.chars().count());
+            prefix_width += estimate_text_width(&prefix, &style);
+            occupied_width += estimate_text_width(&text, &style);
+        }
+        let mut last_inline_object_pos = None;
+        for (index, control) in para.controls.iter().enumerate() {
+            if owners.get(index).copied() != Some(owner) {
+                continue;
+            }
+            let width = match control {
+                Control::Table(table) if table.common.treat_as_char => {
+                    hwpunit_to_px(table.common.width as i32, self.dpi)
+                        * self.render_table_width_scale(table)
+                        + hwpunit_to_px(
+                            i32::from(table.outer_margin_left)
+                                + i32::from(table.outer_margin_right),
+                            self.dpi,
+                        )
+                }
+                Control::Picture(picture) if picture.common.treat_as_char => {
+                    hwpunit_to_px(picture.common.width as i32, self.dpi)
+                        + hwpunit_to_px(
+                            i32::from(picture.common.margin.left)
+                                + i32::from(picture.common.margin.right),
+                            self.dpi,
+                        )
+                }
+                Control::Shape(shape) if shape.common().treat_as_char => {
+                    let common = shape.common();
+                    hwpunit_to_px(common.width as i32, self.dpi)
+                        + hwpunit_to_px(
+                            i32::from(common.margin.left) + i32::from(common.margin.right),
+                            self.dpi,
+                        )
+                }
+                Control::Equation(equation) => hwpunit_to_px(
+                    crate::renderer::equation::flow_width_hwp(equation) as i32,
+                    self.dpi,
+                ),
+                _ => continue,
+            };
+            occupied_width += width;
+            last_inline_object_pos =
+                Some(last_inline_object_pos.unwrap_or(0).max(positions[index]));
+            if index < control_index {
+                prefix_width += width;
+            }
+        }
+        let style = styles.para_styles.get(para.para_shape_id as usize)?;
+        // The ordinary text path excludes terminal alignment space, while
+        // preserving space before the last object and the cursor advance.
+        occupied_width -= trailing_space_width_after_last_inline_object(
+            line,
+            last_inline_object_pos,
+            styles,
+            style.alignment == Alignment::Center,
+        );
+        let indent = if owner == 0 { style.indent } else { 0.0 };
+        let styled_left = (style.margin_left + indent).max(0.0);
+        let stored = para.line_segs.get(owner)?;
+        // A complete natural saved line owns its horizontal region. Paragraph
+        // hanging indent is a reflow input, not a replacement for that region.
+        let stored_region = (stored.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY == 0
+            && stored.column_start >= 0
+            && stored.segment_width > 0
+            && stored
+                .column_start
+                .saturating_add(stored.segment_width)
+                .saturating_add(super::super::px_to_hwpunit(style.margin_right, self.dpi))
+                .abs_diff(super::super::px_to_hwpunit(area.width, self.dpi))
+                <= 1)
+            .then_some((
+                hwpunit_to_px(stored.column_start, self.dpi),
+                hwpunit_to_px(stored.segment_width, self.dpi),
+            ));
+        let (left_margin, width) = stored_region.unwrap_or((
+            styled_left,
+            (area.width - styled_left - style.margin_right).max(0.0),
+        ));
+        let free_width = (width - occupied_width).max(0.0);
+        let alignment = match style.alignment {
+            Alignment::Center | Alignment::Distribute => free_width / 2.0,
+            Alignment::Right => free_width,
+            _ => 0.0,
+        };
+        Some(area.x + left_margin + alignment + prefix_width)
+    }
+
     pub(crate) fn layout_inline_table_paragraph(
         &self,
         tree: &mut PageLayoutContext,

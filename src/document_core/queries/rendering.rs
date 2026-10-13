@@ -4803,7 +4803,9 @@ impl DocumentCore {
                     page_count: self.page_count(),
                 };
             };
-            let Some(paragraph) = section.paragraphs.get(paragraph_index) else {
+            // Continue in the same normalized IR used by begin/measurement.
+            let paragraphs = self.section_render_paragraphs(pending.descriptor.section_index);
+            let Some(paragraph) = paragraphs.get(paragraph_index) else {
                 return DeferredPaginationStepResult {
                     state: DeferredPaginationJobState::Stale,
                     revision,
@@ -4837,7 +4839,7 @@ impl DocumentCore {
                 .step_resumable_table_pagination(
                     &mut pending.renderer_job,
                     paragraph,
-                    &section.paragraphs,
+                    paragraphs,
                     table,
                     measured_table,
                     &self.styles,
@@ -4864,7 +4866,7 @@ impl DocumentCore {
                 ))
                 .finish_resumable_table_pagination(
                     pending.renderer_job,
-                    &section.paragraphs,
+                    self.section_render_paragraphs(section_index),
                     section_index,
                 )
             else {
@@ -9248,6 +9250,7 @@ mod tests {
             inline_placements: Default::default(),
             inline_flow_plans: Default::default(),
             stored_paragraph_flow_ends: Default::default(),
+            stored_column_top_spacings: Default::default(),
             paragraph_float_placements: Default::default(),
             float_pushed_line_spacings: Default::default(),
         };

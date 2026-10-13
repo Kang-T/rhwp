@@ -26,6 +26,8 @@ pub(in crate::renderer::typeset) struct RowBlockQuery<'a> {
     pub(in crate::renderer::typeset) cut_row_h: &'a [f64],
     pub(in crate::renderer::typeset) rowspan_touched: &'a [bool],
     pub(in crate::renderer::typeset) cs: f64,
+    pub(in crate::renderer::typeset) straddle_page_bands:
+        &'a [crate::renderer::pagination::StraddleCellCarry],
 }
 
 pub(in crate::renderer::typeset) struct RowBlockCandidate {
@@ -49,6 +51,7 @@ impl RowBlockQuery<'_> {
             cut_row_h,
             rowspan_touched,
             cs,
+            ..
         } = *self;
         // rowspan 보호 블록 — 블록 전체를 분할 없이 한 단위로.
         let (b_start, b_end, _) = mt.row_block_for(r);

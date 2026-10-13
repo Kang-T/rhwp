@@ -2335,6 +2335,78 @@ pub(crate) fn empty_host_square_table_left_strip(
     (left_width > 0 && left_width < column_width_hu).then_some((0, left_width))
 }
 
+/// A full-width empty anchor does not itself describe the usable side lane.
+/// Authenticate the successor against the object's complete outer width and
+/// its vertical band before exposing the saved strip to composition and paint.
+pub(crate) fn stored_empty_square_successor_strip(
+    host: &crate::model::paragraph::Paragraph,
+    next: Option<&crate::model::paragraph::Paragraph>,
+    column_width_hu: i32,
+) -> Option<(i32, i32)> {
+    use crate::model::{
+        control::Control,
+        paragraph::LineSeg,
+        shape::{HorzAlign, HorzRelTo, TextWrap, VertAlign, VertRelTo},
+    };
+    let [Control::Table(table)] = host.controls.as_slice() else {
+        return None;
+    };
+    let [anchor] = host.line_segs.as_slice() else {
+        return None;
+    };
+    let next = next?;
+    let first = next.line_segs.first()?;
+    if table.common.treat_as_char
+        || table.common.text_wrap != TextWrap::Square
+        || table.common.vert_rel_to != VertRelTo::Para
+        || table.common.vert_align != VertAlign::Top
+        || table.common.horz_align != HorzAlign::Left
+        || !matches!(
+            table.common.horz_rel_to,
+            HorzRelTo::Para | HorzRelTo::Column
+        )
+        || !host.text.trim().is_empty()
+        || !next.controls.is_empty()
+        || host.stored_text_partition_is_dirty()
+        || next.stored_text_partition_is_dirty()
+        || host.cell_format_vpos_dirty
+        || next.cell_format_vpos_dirty
+        || anchor.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || first.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0
+        || anchor.column_start != 0
+        || anchor.segment_width <= 0
+        || anchor.segment_width > column_width_hu
+        || first.segment_width <= 0
+    {
+        return None;
+    }
+    let object_right =
+        crate::renderer::float_placement::signed_hwpunit(table.common.horizontal_offset)
+            .checked_add(i32::try_from(table.common.width).ok()?)?
+            .checked_add(i32::from(table.outer_margin_left))?
+            .checked_add(i32::from(table.outer_margin_right))?;
+    let top = anchor
+        .vertical_pos
+        .checked_add(crate::renderer::float_placement::signed_hwpunit(
+            table.common.vertical_offset,
+        ))?
+        .checked_add(i32::from(table.outer_margin_top))?;
+    let bottom = top
+        .checked_add(i32::try_from(table.common.height).ok()?)?
+        .checked_add(i32::from(table.outer_margin_bottom))?;
+    (object_right > 0
+        && object_right < column_width_hu
+        && first.column_start == object_right
+        && first.column_start.checked_add(first.segment_width) == Some(anchor.segment_width)
+        && first.vertical_pos >= anchor.vertical_pos
+        && first.vertical_pos < bottom
+        && first
+            .vertical_pos
+            .checked_add(first.line_height)
+            .is_some_and(|end| end > top))
+    .then_some((first.column_start, first.segment_width))
+}
+
 /// 저장 LINE_SEG 가 하나도 없고 가시 글자가 있는 문단인지. 저장 줄이 없으면 host 글자의
 /// 띠·높이 증거가 없어 표 기하로 판단해야 한다(`no_lineseg_square_table_host_band`).
 pub(crate) fn is_no_lineseg_visible_text_host(para: &crate::model::paragraph::Paragraph) -> bool {

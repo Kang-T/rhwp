@@ -200,6 +200,7 @@ pub(super) fn reconcile_tac_height(
     para: &Paragraph,
     next_para: Option<&Paragraph>,
     fmt: &FormattedParagraph,
+    styles: &ResolvedStyleSet,
     measured_tables: &[MeasuredTable],
     tac_count: usize,
     height_before: f64,
@@ -218,6 +219,7 @@ pub(super) fn reconcile_tac_height(
         para,
         next_para,
         fmt,
+        styles,
         measured_tables,
         tac_count,
         height_before,
@@ -319,7 +321,8 @@ pub(super) fn place_table_host_shape(
     if flow.needs_advance(st.table_host_shape_page(), || st.available_height()) {
         st.advance_column_or_new_page();
     }
-    st.commit_table_host_shape(para_idx, ctrl_idx, flow);
+    let accepted_frame = flow.accepted_shape_frame(ctrl, st.current_height);
+    st.commit_table_host_shape(para_idx, ctrl_idx, flow, accepted_frame);
     st.register_side_wrap_picture(para_idx, ctrl_idx, para, Some(para_start_height), styles);
 }
 
@@ -501,7 +504,7 @@ pub(super) fn try_place_stored_tac_paragraph(
         // 원본 저장 줄의 좌표축은 이미 확립돼 있다. 합성 줄의 확정 끝만
         // lazy 원점으로 역산하며, 실제 저장 표 뒤 사다리는 유지한다.
         if rebase_line_origin {
-            st.commit_deferred_table_anchor(para_idx);
+            st.commit_deferred_table_anchor(para_idx, paragraphs);
             st.record_vpos_lazy_origin(lazy_origin);
             st.mark_vpos_ladder_dirty();
         }
@@ -538,7 +541,7 @@ pub(super) fn try_place_stored_tac_paragraph(
         st.commit_stored_tac_control(para_idx, placement);
     }
     if plan.source_origin.is_some() {
-        st.commit_deferred_table_anchor(para_idx);
+        st.commit_deferred_table_anchor(para_idx, paragraphs);
         st.record_vpos_page_origin(plan.source_origin);
         st.record_vpos_origin_provenance(true);
         st.record_vpos_lazy_origin(None);

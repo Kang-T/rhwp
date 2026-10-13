@@ -539,6 +539,10 @@ pub struct ColumnContent {
     /// 저장 사다리의 기준을 수용할 때 확정한 문단 끝(단 상대 좌표).
     /// 배치는 이후의 cursor 기준으로 같은 사다리를 다시 투영하지 않는다.
     pub stored_paragraph_flow_ends: std::collections::HashMap<usize, f64>,
+    /// 저장 첫 줄의 앞 간격 중 쪽/단 상단에서도 유지할 것으로 확정한 몫.
+    /// fit/예약의 문단 메트릭을 그대로 배치에 전달하며 누적 vpos를 재해석하지 않는다.
+    pub stored_column_top_spacings:
+        std::collections::HashMap<usize, crate::renderer::float_placement::StoredColumnTopSpacing>,
     /// 문단 텍스트 앞/뒤 관계로 확정한 자리차지 표 배치(단 상대 좌표).
     pub paragraph_float_placements:
         std::collections::HashMap<(usize, usize), super::float_placement::ParagraphFloatPlacement>,
@@ -650,6 +654,17 @@ pub struct WrapAnchorRef {
     pub band_y_range: Option<(f64, f64)>,
 }
 
+/// A spanning cell carries accepted content independently of page-end blank space.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StraddleCellCarry {
+    pub cell_index: usize,
+    pub physical_height: f64,
+    /// First unconsumed unit at the fragment's incoming boundary.
+    pub next_unit: Option<usize>,
+    /// Accepted window for this PageItem; cleared when advancing the cursor.
+    pub fragment_cut: Option<(usize, usize)>,
+}
+
 /// 페이지에 배치되는 개별 항목
 #[derive(Debug, Clone)]
 pub enum PageItem {
@@ -726,6 +741,7 @@ pub enum PageItem {
         /// [#7531] 쪽을 넘어온 걸침 칸의 끝 행에서 앞 쪽 빈 띠만큼 덜 높이 `(행, px)`.
         /// 조판 scan 이 같은 값으로 행을 쟀으므로 그리기도 이 값을 그대로 적용한다.
         straddle_row_relief: Vec<(usize, f64)>,
+        straddle_page_bands: Vec<crate::renderer::pagination::StraddleCellCarry>,
     },
     /// 그리기 개체
     Shape {
@@ -928,6 +944,7 @@ impl PageItem {
                 end_row_height_override,
                 start_row_height_override,
                 straddle_row_relief,
+                straddle_page_bands,
             } => PageItem::PartialTable {
                 para_index: adjust(*para_index),
                 control_index: *control_index,
@@ -942,6 +959,7 @@ impl PageItem {
                 end_row_height_override: *end_row_height_override,
                 start_row_height_override: *start_row_height_override,
                 straddle_row_relief: straddle_row_relief.clone(),
+                straddle_page_bands: straddle_page_bands.clone(),
             },
             PageItem::Shape {
                 para_index,
@@ -1115,6 +1133,11 @@ impl PaginationResult {
                             .collect(),
                         stored_paragraph_flow_ends: cc
                             .stored_paragraph_flow_ends
+                            .iter()
+                            .map(|(&pi, &end)| ((pi as i64 + offset as i64).max(0) as usize, end))
+                            .collect(),
+                        stored_column_top_spacings: cc
+                            .stored_column_top_spacings
                             .iter()
                             .map(|(&pi, &end)| ((pi as i64 + offset as i64).max(0) as usize, end))
                             .collect(),

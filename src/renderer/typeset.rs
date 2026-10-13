@@ -3080,6 +3080,7 @@ fn saved_line_range_fits_body_tail(
     start_line: usize,
     end_line: usize,
     body_height_px: f64,
+    page_vpos_base: i32,
     dpi: f64,
 ) -> bool {
     if start_line >= end_line || end_line > para.line_segs.len() {
@@ -3094,7 +3095,9 @@ fn saved_line_range_fits_body_tail(
         if prev_vpos.is_some_and(|prev| seg.vertical_pos < prev) {
             return false;
         }
-        let bottom_px = hwpunit_to_px(seg.vertical_pos.saturating_add(seg.line_height), dpi);
+        let Some((_, bottom_px)) = line_seg_visible_bounds_px(seg, page_vpos_base, dpi) else {
+            return false;
+        };
         if bottom_px > body_height_px + 0.5 {
             return false;
         }
@@ -4459,6 +4462,15 @@ impl TypesetEngine {
                 prefix_carried_separately = true;
             }
             st.advance_column_or_new_page();
+            // A bare object row without saved LineSeg uses the formatted
+            // table band. Its old-column paragraph-before band is not part
+            // of the new column's object box: paint starts this row at the
+            // column top and retains only the table's own outer top margin.
+            // Stored rows and visible text prefixes have their own origins.
+            if para.line_segs.is_empty() && !para_has_non_whitespace_text(para) {
+                let outer_top = hwpunit_to_px(table.outer_margin_top as i32, self.dpi);
+                table_height -= ft.host_spacing.before - outer_top;
+            }
             // 이전 단의 그림은 새 단을 점유하지 않는다. 이미 확정한 다른 표의 metadata는
             // flush가 전 단에 보존하고 이 표는 새 단의 기존 배치 정책으로 시작한다.
             side_wrap_placement = None;
@@ -4973,6 +4985,10 @@ impl TypesetEngine {
         } else if let Some(placement) = st
             .paragraph_float_placements
             .get(&(para_idx, ctrl_idx))
+            .filter(|placement| {
+                placement.flow
+                    != crate::renderer::float_placement::ParagraphFloatFlow::StoredSquareWrap
+            })
             .copied()
         {
             // 빈 저장 호스트도 닫힌 원본 프레임을 소유할 수 있다.
@@ -5109,7 +5125,13 @@ impl TypesetEngine {
             } else if hangul_flowed_beside_table {
                 let band_top = st.current_height + pre_height;
                 st.align_flow_to(band_top + stored_host_line_px.unwrap_or(0.0));
-                st.register_square_band(band_top, band_top + table_total_height);
+                let frame = st.paragraph_float_placements.get(&(para_idx, ctrl_idx));
+                st.register_square_band(
+                    // Absorbed source offsets are relative to the host's
+                    // line origin, not the displaced object's physical top.
+                    band_top,
+                    frame.map_or(band_top + table_total_height, |frame| frame.occupied_bottom),
+                );
             } else if let Some(extras_hu) = empty_host_physical_extras_hu {
                 st.advance_flow_by(
                     pre_height + table_total_height + hwpunit_to_px(extras_hu as i32, self.dpi),
@@ -5314,7 +5336,15 @@ impl TypesetEngine {
         // TAC 표: trailing line_spacing 복원 (Paginator place_table_fits:777-783 동일)
         // has_post_text는 tac_table_count와 무관하게 텍스트 줄 존재 여부만 확인
         let is_tac = self.is_effective_tac_table(para, table, fmt);
-        if is_tac && !has_post_text {
+        // Multi-line TAC flow already includes this line's outgoing spacing
+        // in every nonterminal table_height. Restoring the paragraph's tail
+        // after each table reserves the same spacing a second time and shifts
+        // the intervening floating object away from its accepted line frame.
+        let has_following_tac_table = para.controls.iter().skip(ctrl_idx + 1).any(|control| {
+            matches!(control, Control::Table(next) if self.is_effective_tac_table(para, next, fmt))
+        });
+        let restore_terminal_tac_spacing = is_tac && !has_post_text && !has_following_tac_table;
+        if restore_terminal_tac_spacing {
             st.advance_flow_by(fmt.total_height - fmt.height_for_fit);
         }
         // [#2243 진단] 배치 종료 시 누적 — 동작 불변.
@@ -5323,7 +5353,7 @@ impl TypesetEngine {
                 "DIAG_TAC_END pi={} cur_h={:.1} trailing_fired={} has_post_text={} delta={:.1}",
                 para_idx,
                 st.current_height,
-                is_tac && !has_post_text,
+                restore_terminal_tac_spacing,
                 has_post_text,
                 fmt.total_height - fmt.height_for_fit,
             );
@@ -5594,13 +5624,10 @@ impl TypesetEngine {
         })
     }
 
-    /// 표의 세로 오프셋 추출 (Paginator와 동일).
-    ///
-    /// `raw_ctrl_data` 의 첫 4바이트는 `attr` 비트 플래그이고 `vertical_offset` 은
-    /// 다음 4바이트 (`raw_ctrl_data[4..8]`) 이지만, IR 의 `common.vertical_offset` 가
-    /// 파서가 채운 권위 있는 값이므로 이를 직접 사용한다 (#178).
+    /// 표의 흐름 오프셋. 원본 common 값과 캡션을 포함한 점유 상자의 계약을
+    /// paint와 같은 producer로 해석한다. 원본 IR은 변경하지 않는다.
     fn get_table_vertical_offset(table: &crate::model::table::Table) -> u32 {
-        table.common.vertical_offset as u32
+        crate::renderer::float_placement::captioned_table_flow_vertical_offset_hu(table) as u32
     }
 }
 
@@ -6781,6 +6808,7 @@ mod tests {
             host_placement: None,
             empty_opening_row_frame: None,
             source_text_first_frame_height: None,
+            source_terminal_suffix_start: None,
             source_single_cell_row_frames: None,
             host_frame: (0, 0, 0.0_f64.to_bits()),
             row_count: 3,
@@ -6899,6 +6927,7 @@ mod tests {
                 inline_placements: Default::default(),
                 inline_flow_plans: Default::default(),
                 stored_paragraph_flow_ends: Default::default(),
+                stored_column_top_spacings: Default::default(),
                 paragraph_float_placements: Default::default(),
                 float_pushed_line_spacings: Default::default(),
             }],
@@ -7002,6 +7031,7 @@ mod tests {
                 end_row_height_override: None,
                 start_row_height_override: None,
                 straddle_row_relief: Vec::new(),
+                straddle_page_bands: Vec::new(),
             }]),
             page_with_items(vec![PageItem::PartialTable {
                 para_index: 7,
@@ -7017,6 +7047,7 @@ mod tests {
                 end_row_height_override: None,
                 start_row_height_override: None,
                 straddle_row_relief: Vec::new(),
+                straddle_page_bands: Vec::new(),
             }]),
         ];
 
