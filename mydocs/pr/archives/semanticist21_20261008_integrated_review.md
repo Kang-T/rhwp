@@ -9,10 +9,10 @@ last_verified: 2026-10-14
 
 ## 현재 판정
 
-**승인 — 메인터너 보정 후 승인.** 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)의 code candidate `0d59e7f73cc366897891329a21d353458db7776e`에서 승인된 로컬 검증·전쪽 Native/fresh 및 exact-head GitHub CI를 완료했다. 원 PR별17개 판정을 승인으로 갱신하고 이미 병합된#7612 기록을 보존했다. 문서-only trailing head CI·mergeability 확인 후 자동 승인된 merge·후속처리를 진행한다. 현재 merge/close 완료로 기록하지 않는다.
+**통합 완료 — 메인터너 보정 후 승인.** 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)는 `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`로 병합됐으며 `upstream/devel` 포함을 확인했다. code/trailing head의 CI와 최종 정책 status가 성공한 뒤 exact-head merge했다. 개별18개 기록을 보존했고 후속 issue·원 PR 처리와 안전 정리는 아래 통합 merge 기록의 범위로 진행한다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행238): #5877 CI 회귀의 최종 로컬 검증 완료. 생산 `6cbebc7457ea8899c3949e48ed1255d43f40bcb2` / base `22317614b03722e95349a1d3d71c86923363c6f5`. [원문 TSV180개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/1d7a7fe25f0960cb43496b28bed1965a68e282cf)를 압축 없이 게시하고 API로 원문 바이트를 재확인했다. 이전191/178/978 결과는 당시 소스의 역사 실행이다.
+- 최신 단계(진행240): #7882 merge `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`의 devel 포함 및 최종 정책 감사3 성공 확인. 이전 로컬 단계(진행238): #5877 CI 회귀의 최종 로컬 검증 완료. 생산 `6cbebc7457ea8899c3949e48ed1255d43f40bcb2` / base `22317614b03722e95349a1d3d71c86923363c6f5`. [원문 TSV180개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/1d7a7fe25f0960cb43496b28bed1965a68e282cf)를 압축 없이 게시하고 API로 원문 바이트를 재확인했다. 이전191/178/978 결과는 당시 소스의 역사 실행이다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -22,12 +22,12 @@ last_verified: 2026-10-14
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
 - 최초 contributor 누적 diff(역사 후보):47 source/test 파일, 5421 추가 / 823 삭제. contributor 원 commit은 `cherry-pick -x`로 보존. merge commit 제외, #7615 중복 의존 commit 4개는 재적용하지 않음.
 - draft 제외: #7559, #7572, #7573, #7588, #7589, #7598.
-- 통합 PR #7882는 생성·push 완료 상태다. 이번 CI 회귀 보정은 로컬 검증을 완료했으며 새 head push·CI·merge·원 PR 후속처리는 아래 최신 단계를 따른다.
+- 통합 PR #7882는 `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`로 병합 완료. 후속 문서·issue·원 PR 처리·안전 정리는 아래 최신 기록을 따른다.
 
 
 ## PR별 검토 문서
 
-사용자 지시에 따라 원 PR 번호별 검토 문서18개를 유지한다. 아래 각 문서의 현재 판정·검증 범위가 정식 PR별 기록이고, 이 파일은 누적 보정 이력이다. #7612의 기존 병합 review는 보존하며 나머지17개는 최종 검증 진행 상태로 작성했다.
+사용자 지시에 따라 원 PR 번호별 검토 문서18개를 유지한다. 아래 각 문서의 현재 판정·검증 범위가 정식 PR별 기록이고, 이 파일은 누적 보정 이력이다. #7612의 기존 병합 review는 보존하며 나머지17개는 메인터너 보정 후 승인 및 통합 merge 근거를 반영했다.
 
 [#7566](pr_7566_review.md), [#7612](pr_7612_review.md), [#7613](pr_7613_review.md), [#7614](pr_7614_review.md), [#7615](pr_7615_review.md), [#7616](pr_7616_review.md), [#7638](pr_7638_review.md), [#7641](pr_7641_review.md), [#7647](pr_7647_review.md), [#7648](pr_7648_review.md), [#7652](pr_7652_review.md), [#7653](pr_7653_review.md), [#7654](pr_7654_review.md), [#7655](pr_7655_review.md), [#7656](pr_7656_review.md), [#7657](pr_7657_review.md), [#7658](pr_7658_review.md), [#7659](pr_7659_review.md)
 
@@ -5635,3 +5635,14 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 ## 진행 갱신239 — 정확한 code head CI 성공과 개별 승인·오늘할일 trailing 기록 (2026-10-14)
 
 통합 PR#7882의 `0d59e7f73cc366897891329a21d353458db7776e` 실제 CI를 모두 확인했다: [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38475033894) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38475033796) · [CI](https://github.com/edwardkim/rhwp/actions/runs/38475033776) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38475033750) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38475033733). code head에 대한 결과가 성공한 뒤 원PR17개를 **승인 — 메인터너 보정 후 승인**으로 갱신하고#7612의 기존 병합·명시 예외를 보존했다. 현재 적용39개의 조상 관계와 실제 focused 원 계약78/78 PASS를 재확인해 각 문서에 원/보정 SHA·자기 계약·원문 입력/Print 범위·후속 댓글 계획을 연결했다. 오늘할일은 현재 날짜 파일에 이 PR 항목만 추가하며 최종 merge-tree에서 최신 base의 기존 기록과 신규 기록 보존을 검증한다. 같은 PR의 문서-only trailing commit이고 통합번호용 별도 review 문서를 만들지 않았다. 최신 trailing head 검사와 merge SHA·devel·issue/원 PR 후속처리는 다음 단계다.
+
+
+## 진행 갱신240 — 통합 merge 확정값의 후속 기록 (2026-10-14)
+
+## 통합 merge 확인 — 2026-10-14
+
+통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)는 merge `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`로 실제 병합됐으며 `upstream/devel` 포함을 확인했다. code candidate `0d59e7f73cc366897891329a21d353458db7776e`의 전체 CI, 문서-only trailing head `34cc7ddefa246ecb7780c748dc7eb449bde89e6b`의 [CI](https://github.com/edwardkim/rhwp/actions/runs/38478418053)·CodeQL·Render Diff·Adapter·Proptest 및 [정책 감사3](https://github.com/edwardkim/rhwp/actions/runs/38478674616)를 확인했다. 최종 `CI Impact Policy=success`, `MERGEABLE/CLEAN`, 모든 최신 head check 성공/정상 skipped 상태에서 exact-head merge했다. API의 완료 step 메타데이터 지연으로 첫 정책 감사가 실패/대기했으며 실제 step이 모두 종료된 뒤 Controller만 재실행했다. 검사를 완화하거나 전체 로컬 회귀를 반복하지 않았다.
+
+195 집중 PASS·180 Native/fresh TSV·1040쪽/backend의 범위와 독립 입력/Print·생산 SHA는 이전 최종 검증에 유지한다. 이번 후속 기록은 확정 merge SHA만 보완하며 source/test/fixture/workflow·시각 결과는 바꾸지 않는다. 이미 제출된 오늘할일은 반복 갱신하지 않는다.
+
+후속 범위는 CGMP 하위 [#7764](https://github.com/edwardkim/rhwp/issues/7764)의 완료 증거와 원 PR별 contributor comment/supersede 처리다. 원 PR 16개는 머지 후 원격 head 재확인 뒤 처리한다. #7612의 기존 merge는 보존하고 #7615의 초기 수용 이후 변경과 후속6개는 제외한 상태로 유지한다. 대표 #7445 및 Refs #7759/#7807/#4514는 전체 해결로 닫지 않는다. 실행 결과는 원 PR·해당 이슈의 실제 comment에 남기며 이 문단을 미실행 close의 증거로 사용하지 않는다.

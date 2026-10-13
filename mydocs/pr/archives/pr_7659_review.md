@@ -9,7 +9,7 @@ last_verified: 2026-10-14
 
 ## 최종 판정
 
-**승인 — 메인터너 보정 후 승인.** 초기 수용 범위의 원 기여와 분리된 보정이 포함된 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)의 정확한 code candidate `0d59e7f73cc366897891329a21d353458db7776e`를 검증했다. 로컬 집중195개·원 PR의 계약3/3 PASS, 필수 lint/정책, 전쪽 Native/fresh WASM 및 변경 영역 판독을 완료했고 동일 PR/code head의 GitHub Actions도 성공했다. 원 contributor head를 직접 merge 대상으로 바꾸지 않으며, 문서-only trailing head CI·최신 mergeability 확인 뒤 이 통합 PR을 병합한다.
+**승인 — 메인터너 보정 후 승인.** 초기 수용 범위가 통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882), merge `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`로 실제 병합됐고 `upstream/devel` 포함을 확인했다. 정확한 code/trailing head CI와 최종 정책 status 성공 후 통합했으며 원 PR별 검증·원 기여/메인터너 보정 근거는 아래 기록을 따른다.
 
 ## 현재 개별 검토 상태 — 2026-10-14
 
@@ -21,7 +21,7 @@ last_verified: 2026-10-14
 | 전체 원 PR 집중/중요 문서 검사 | 195 PASS·누락/예상 밖0. 전체10,267 PASS는 이전 ddf17f864 소스의 역사 실행이며 현재 전체 로컬 재수행으로 세지 않음 |
 | Native/fresh WASM | 180 TSV·1040쪽/backend에서90% 미만·누락·쪽수 불일치0. 중요 문서 최저값 하락0; 산재 표 HWP/HWPX52쪽 복구. 원 PR의 실제 입력 범위는 아래 개별 표와 TSV manifest를 따름 |
 | 최종 source CI | [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38475033894) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38475033796) · [CI](https://github.com/edwardkim/rhwp/actions/runs/38475033776) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38475033750) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38475033733) — 동일 PR/head의 실제 실행 결과. 진행 중·취소·이전 source CI를 대신 사용하지 않음 |
-| 현재 판정과 남은 merge 조건 | **승인 — 메인터너 보정 후 승인**. 문서-only trailing head 검사 및 latest mergeability 확인 뒤 자동 승인된 merge·후속처리 |
+| 통합 완료 | **승인 — 메인터너 보정 후 승인**. #7882 merge `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`의 devel 포함과 최종 정책/CI 성공 확인; 원 PR close는 별도 후속 범위 판단을 따름 |
 
 이 절이 현재 판정이다. 아래 역사 기록의 당시 머지 보류·미검증·옛 base/SHA는 현재 상태로 적용하지 않는다. [최종 로컬 증거 진행238](semanticist21_20261008_integrated_review.md#진행-갱신238--5877-ci-회귀-보정의-최종-로컬-검증-2026-10-14)와 [원문 TSV180개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/1d7a7fe25f0960cb43496b28bed1965a68e282cf)를 연결한다. 조판·입력·Print·관계 검사의 구체적 의미와 미검증 범위는 원 PR별 항목 및 원문 manifest에 유지한다.
 
@@ -182,3 +182,12 @@ HWP 각주 입력1쪽88.40005%(Native/fresh)와 이름이 각주인 스타일이
 - 후속 댓글에 사용할 이 PR의 대표는 `current-04-6b4f6a375029` p1다. Native 95.47491% /fresh 95.47491% 및 전체2쪽 범위를 구분한다.
 - merge SHA로 고정할 실제 asset은 `mydocs/pr/assets/semanticist21-20261008/original-current-proof-v453/current-04-6b4f6a375029-native-p001-review.png`(SHA-256 `00e1ac05af071dc34710c822f0035aa91dccdc1ebaa6e07e2b55b6b461857992`) 및 `mydocs/pr/assets/semanticist21-20261008/original-current-proof-v453/current-04-6b4f6a375029-fresh-p001-review.png`(SHA-256 `ea5565f7b313051f3a744c6cd6339af97677ae9fd98ce011bd9f9b358919a33a`)이며 두 이미지를 실제 Markdown으로 표시한다. 입력/독립 Print SHA·현재 재출력과 RGBA 동일성·원문 TSV를 함께 연결한다.
 - 초기 수용 head와 원격 상태가 바뀌지 않았음을 재확인하고, 해당 범위가 통합된 원 PR은 #7882를 링크한 supersede 설명 뒤 close한다. 후속6개는 변경하지 않는다.
+
+
+## 통합 merge 확인 — 2026-10-14
+
+통합 PR [#7882](https://github.com/edwardkim/rhwp/pull/7882)는 merge `86a3c88fc89de9a2306a10bdda9a31023f0e24a5`로 실제 병합됐으며 `upstream/devel` 포함을 확인했다. code candidate `0d59e7f73cc366897891329a21d353458db7776e`의 전체 CI, 문서-only trailing head `34cc7ddefa246ecb7780c748dc7eb449bde89e6b`의 [CI](https://github.com/edwardkim/rhwp/actions/runs/38478418053)·CodeQL·Render Diff·Adapter·Proptest 및 [정책 감사3](https://github.com/edwardkim/rhwp/actions/runs/38478674616)를 확인했다. 최종 `CI Impact Policy=success`, `MERGEABLE/CLEAN`, 모든 최신 head check 성공/정상 skipped 상태에서 exact-head merge했다. API의 완료 step 메타데이터 지연으로 첫 정책 감사가 실패/대기했으며 실제 step이 모두 종료된 뒤 Controller만 재실행했다. 검사를 완화하거나 전체 로컬 회귀를 반복하지 않았다.
+
+195 집중 PASS·180 Native/fresh TSV·1040쪽/backend의 범위와 독립 입력/Print·생산 SHA는 이전 최종 검증에 유지한다. 이번 후속 기록은 확정 merge SHA만 보완하며 source/test/fixture/workflow·시각 결과는 바꾸지 않는다. 이미 제출된 오늘할일은 반복 갱신하지 않는다.
+
+후속 범위는 CGMP 하위 [#7764](https://github.com/edwardkim/rhwp/issues/7764)의 완료 증거와 원 PR별 contributor comment/supersede 처리다. 원 PR 16개는 머지 후 원격 head 재확인 뒤 처리한다. #7612의 기존 merge는 보존하고 #7615의 초기 수용 이후 변경과 후속6개는 제외한 상태로 유지한다. 대표 #7445 및 Refs #7759/#7807/#4514는 전체 해결로 닫지 않는다. 실행 결과는 원 PR·해당 이슈의 실제 comment에 남기며 이 문단을 미실행 close의 증거로 사용하지 않는다.
