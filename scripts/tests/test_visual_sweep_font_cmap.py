@@ -77,7 +77,7 @@ class EmbeddedFontCmapCacheTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             svg = Path(directory) / "font.svg"
             def inspect(encoded):
-                svg.write_text(f'<svg><style>@font-face{{font-family:Fixture;src:url(data:font/ttf;base64,{encoded})}}</style></svg>')
+                svg.write_text(f'<svg><style>@font-face{{font-family:Fixture;src:url(data:font/ttf;base64,{encoded})}}</style></svg>', encoding='utf-8')
                 return sweep.inspect_svg_embedded_fonts(svg)[0]
             valid = inspect(wrapped)
             self.assertEqual(valid['status'], 'passed')

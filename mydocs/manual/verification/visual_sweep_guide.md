@@ -371,6 +371,19 @@ Sweep은 Native/WASM의 선택 SVG를 캡처하거나 resume checkpoint를 재�
 캡처 전에 실패한다. 입력 문서에 필요한 face가 실제로 공급되는지와 대표 PNG의 글꼴 표시를
 직접 확인해야 한다. 한글 두부가 있어도 실루엣 점수만으로 gate가 통과할 수 있다.
 
+### Chrome 캡처 재사용
+
+Native/fresh WASM의 여러 쪽을 웹 글꼴로 캡처할 때는 문서당 Chrome을 한 번 실행한다.
+각 쪽은 새 문서 탭에서 같은 배율·글꼴 준비·누락 bold 복구 조건으로 캡처하고 곧 닫는다.
+검증용 탭을 쌓아두지 않으며, 쪽별 완료 기록을 받아 기존 분석·checkpoint를 계속 저장한다.
+실행 종료나 중단 시 이 실행의 Chrome과 임시 profile을 정리한다.
+
+직접 캡처는 `node scripts/rasterize-svg-webfonts.mjs --batch-json <JSON파일>`을 사용한다.
+JSON은 `[{"input":"원본.svg","output":"출력.png","zoom":1}, ...]` 목록이며 완료 순서대로
+JSONL을 출력한다. 일반 단일 `--input`/`--output` 명령도 사용할 수 있다. Sweep의 배치 기록은
+`analysis/raster_batch.jsonl`과 `raster_batch.stderr.log`에 남는다. 글꼴 바이너리는 저장소의
+공용 `output/pr-review/font-raster-cache`에서 SHA-256을 확인해 재사용한다.
+
 ## 필수 도구
 
 스크립트는 실행 시작 시 다음 CLI가 `PATH`에 있는지 확인한다.

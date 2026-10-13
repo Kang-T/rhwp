@@ -5461,3 +5461,12 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 - 관련 Python117개 PASS(27.495초), 최종 focused8개 PASS다. 실제205,024,100바이트 SVG의 기존9.953초·보정 cold9.349초·반복3.735초를 구분한다. 단일 쪽의 cold 측정을 다쪽 HWP 전체 단축으로 확대하지 않는다.
 - 같은 가맹사업 HWP의142쪽 SVG와920개 글꼴 항목을 모두 다시 검사해 기존 보고서와 정확히 일치했다. 기존 export 완료 표식→글꼴 보고서 파일시각 구간은1275.065초, 보정 검사 실측은590.064초다. 글꼴 구간 절감은685.002초(53.72%)이며 변경 후 전체 export·PNG·TSV 총시간의 실측과 구분한다. 증거는 `v453/font-optimization-comparison.json`, `embedded-font-optimized-whole-result.json`, 두 테스트 로그다.
 - 생산 Rust·WASM 패키지와 승인된 source guard는 그대로다. 전체 Rust10,267개를 재실행하지 않았다. 이미 진행 중인 fresh142쪽 실행은 기존 checker의 통과 보고서로 PNG 비교를 계속하며 중단하거나 SVG를 재생성하지 않았다. 전쪽 fresh와 정식 관계5개·마지막 lint/정책은 아직 완료 전이다.
+
+## 진행223 — 가맹사업 전쪽 완료와 Chrome 재사용·Windows 검증
+
+- 현재 가맹사업 전142쪽 Native/fresh는 모두 최저68쪽93.16816%, 미달/누락0, 독립 Print 쪽수142/142다. 전142쪽 RGBA가 같으며 60/68/118쪽 양쪽 review6개를 직접 열어 셀/본문 소속·내용 보존·중첩 시작/끝과 후속 상자를 대조했다. 68쪽의 인용문 밑줄/획 표현 차이는 남는다. [최종 전쪽 대표 증적](../assets/semanticist21-20261008/franchise-whole-dual-current-proof-v453/README.md)에 입력·PDF·명령·판독을 연결했다.
+- SVG의 내장 글꼴을 같은 바이트의 공용 파일로 먼저 바꾸고 규칙을 탐색하도록 순서를 보정했다. 실제1/68/118쪽의 전후 PNG와 글꼴 메타데이터가 같고 총63.55→21.77초다. 진행 중이던 전쪽 실행은63쪽 완료 뒤 새 Node 호출부터 적용했고 SVG를 다시 만들지 않았다. 최종 전142쪽 Native/fresh 동일성이 확인됐다.
+- 후속 다쪽 캡처는 문서당 Chrome 하나를 재사용한다. 시작의 빈 탭을 사용하고 각 쪽 캡처 뒤 탭을 닫아 다음 쪽을 연다. 쪽 완료 JSON과 기존 분석/checkpoint 순서는 유지한다. 실제4입력 비교는 같은 browser PID·최대1탭·완료 뒤0탭·브라우저 종료 및 PNG/글꼴 기록 동일을 확인했고23.38초였다. 처리 순서 보정 후의 개별 호출30.47초와 구분하며, 문서 전체 실행시간으로 확대하지 않는다. 기존 전142쪽 실행의 Python은 이 배치 경로를 사용하지 않았다.
+- Python117개·Node7개는 통과했고 새 프로토콜/실제 Chrome 계약4개와 실제 Python bridge2쪽도 통과했다. Snap Chrome이 `/tmp` 입력을 읽지 못한 환경 실패는 저장소 아래 TMPDIR로 재실행해 해소했다. Windows 중단 시 강제 terminate가 정리 코드를 건너뛰는 문제는 stdin 종료 요청으로 보정했다. wrapper 제거에는 force를 지원하는 rmSync를 사용한다.
+- `win10-ted`의 Windows/Python3.12.10/Node24.19.0/설치 Chrome에서 글꼴8개·캡처2개·프로토콜2개가 통과했다. 한글/공백 경로와 실제 중단 종료143, Chrome 종료·임시 profile/HTML 제거·최대1탭을 확인했다. Unicode 공백 입력 테스트에는 UTF-8을 명시해 cp949 실패를 고쳤다. 기본 Windows 저장소는 변경하지 않았고 별도 probe만 사용 후 원격에서 삭제했다. Linux 후속 글꼴8개·계약4개·Node7개도 통과했다. 증거는 v453의 raster-cross-platform 로그, windows-raster-contract-tests.log, windows-raster-probe-result.log 및 source/probe 해시 원장이다.
+- 생산 Rust/WASM은 ddf17f864와 동일하다. 이미 통과한 전체10,267개는 반복하지 않는다. 전쪽 선행 조건이 충족됐으므로 다음 단계에서 새 관계4개와 기존 #6718 관계1개를 정식 등록하고 해당 focused 검사 및 필수 lint/정책을 마무리한다. 개별17개 최종 승인과 원격 PR 게시/통합은 그 종료 결과 뒤에 진행한다.

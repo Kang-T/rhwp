@@ -367,6 +367,15 @@ def svg_raster_command(
     ]
 
 
+def rasterized_sources(root, sources, png_dir, zoom, rasterizer):
+    try:
+        from scripts.visual_sweep_raster import rasterized_sources as capture
+    except ModuleNotFoundError:
+        from visual_sweep_raster import rasterized_sources as capture
+    return capture(root, sources, png_dir, zoom, rasterizer, run,
+                   svg_raster_command, write_json_atomic)
+
+
 def load_note_shape(root: Path, hwp: Path, rhwp_bin: str, out_path: Path) -> dict[str, object]:
     proc = run([rhwp_bin, "dump-note-shape", str(hwp)], cwd=root)
     out_path.write_text(proc.stdout, encoding="utf-8")
@@ -1608,13 +1617,10 @@ def render_target(
             all_svg_paths, all_tree_paths, all_pdf_pngs, selected_pages
         )
         pairs = []
-        for page, svg_path, _, pdf_path in sources:
-            png = rhwp_png_dir / f"rhwp_{page:03d}.png"
-            run(
-                svg_raster_command(root, svg_path, png, dpi / 96.0, svg_rasterizer),
-                cwd=root, verbose=False,
-            )
-            pairs.append((page, png, pdf_path))
+        for page, _, _, pdf_path in rasterized_sources(
+            root, sources, rhwp_png_dir, dpi / 96.0, svg_rasterizer
+        ):
+            pairs.append((page, rhwp_png_dir / f"rhwp_{page:03d}.png", pdf_path))
         manifest = write_silhouette_tsv(pairs, base, target.key, document_counts=document_counts)
         manifest["provenance"] = provenance
         manifest["exported_svg_pages"] = len(all_svg_paths)
@@ -1677,18 +1683,14 @@ def render_target(
 
     svg_zoom = dpi / 96.0
     completed = valid_page_manifests(base)
-    for page, svg_path, tree_path, pdf_path in source_pages:
-        if page in completed:
-            print(f"resume: p{page:03d} checkpoint를 재사용합니다.", flush=True)
-            continue
+    for page in completed:
+        print(f"resume: p{page:03d} checkpoint를 재사용합니다.", flush=True)
+    pending = [source for source in source_pages if source[0] not in completed]
+    # 단위 없는 SVG 크기는 CSS px(96dpi)다. 같은 확대율로 쪽마다 캡처·checkpoint한다.
+    for page, svg_path, tree_path, pdf_path in rasterized_sources(
+        root, pending, rhwp_png_dir, svg_zoom, svg_rasterizer
+    ):
         png = rhwp_png_dir / f"rhwp_{page:03d}.png"
-        # export-svg의 단위 없는 width/height는 CSS px(96dpi)다. 웹 글꼴 브라우저와
-        # rsvg-convert 모두 PDF 목표 DPI에 맞춰 같은 확대율을 적용한다.
-        run(
-            svg_raster_command(root, svg_path, png, svg_zoom, svg_rasterizer),
-            cwd=root,
-            verbose=False,
-        )
         capture_label = f"{target.key} (WASM)" if wasm_pkg is not None else target.key
         compare_pages = make_compares([png], [pdf_path], compare_dir, capture_label)
         if len(compare_pages) != 1:
