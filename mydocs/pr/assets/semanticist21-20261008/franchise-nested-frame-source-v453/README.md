@@ -8,7 +8,7 @@ Native CLI SHA-256 `bcf415c03b79c2e37627d558628136ca05e356e7cd0b54b0980426a9c292
 16쪽은직전b4의통과/판독RGBA와동일하며118쪽은이전정상7f의RGBA와동일하다.
 전142쪽새render tree도직전b4와118쪽만다르고이전7f와72쪽만다르다.
 글자획·자간·불릿크기·괘선래스터차이는남는다.
-fresh/전쪽이미지/회귀/lint/Canvas/CI의완료로확대하지않는다.
+fresh 경계17쪽도 아래와 같이 확인했다. 전쪽 이미지/회귀/lint/CI 완료로 확대하지 않는다.
 
 ## 구현과 소비
 
@@ -41,3 +41,20 @@ native-boundary/franchise5966/아래,판독은native-boundary-direct-reading.jso
 - `native-p118-review.png` — `3dbbfb769234b90ffebde86970dbadbe6e76efb3b3ff74e44c032b026da8ed48`
 - `native-p118-overlay.png` — `1413247c532d009c745b02d75960a6f913c3923ecee13533ada1585374a90176`
 - `native-p118-table-zoom.png` — `e1e3b38c35b1da8204c1f884dc8f2ed07f36683a6ec22ac4d95cf11d7a6a2477`
+
+## 현재 fresh 경계
+
+동일 생산 소스의 fresh17쪽 exit0·1517.642초/source guard=true, 최저68쪽93.16816%, 미달/누락0.
+전체 문서의 쪽수142/142이며 선택17쪽 모두 현재 Native RGBA와 같다.
+72쪽99.95995%,118쪽99.99852%. 현재 두 review와 같은 좌표 확대를 직접 열어
+72쪽 개선/118쪽 중첩 표 세 줄 복구·셀 소유/외곽/각주 및 뒤 내용을 확인했다.
+글자획·불릿 및 괘선 래스터 차이는 남는다.
+WASM SHA-256 `4299eb204ec8283d75446b61f2183d3c4f3cd41acc0acabfd7be7dc065f01ae0`.
+ignored v453/fresh-boundary-plan/result/current-proof/direct-reading에 명령/해시/실제 점수/판독을 고정했다.
+
+- `fresh-p072-review.png` — `c3e3ca3dc5cce4f14d4b56e95dfe560167569d163a52f2f22191209da249ba2d`
+- `fresh-p072-overlay.png` — `fda6399bf348072e93febc9f5f6ad9c4373dfe7e711324ade419bfb35d149f30`
+- `fresh-p072-table-zoom.png` — `5bc572392922b4f00c9e44428a7f3d9697def77d660b8e018f1be3f594e034fb`
+- `fresh-p118-review.png` — `fffe7db9ea2402d4f54aba6abef8a7ad1538971b1b84d805ce5ec5739840aec2`
+- `fresh-p118-overlay.png` — `5e42cdb406d74fac000fe33c26bebd16c9a824d01c07ee65111a476697089b2e`
+- `fresh-p118-table-zoom.png` — `2972898870b1380bcea91633eca02252826d1501f8070736ca650ca6a327be7e`

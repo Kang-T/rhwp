@@ -17,7 +17,7 @@ last_verified: 2026-10-13
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
 | 현재 production 보정 | `ddf17f86476293b114b6236bfa6cf1ebc9d9d474` — 원본 전체 행/중첩 셀의 프레임 출처와 정렬 높이 계약 분리 |
-| 현재 Native/fresh 재검증 code head | ddf17f864 Native 경계17·CGMP48·KPS77쪽 통과/대표 직접 판독. fresh 빌드exit0·pkg/public 해시 일치. 가맹사업 fresh17·전쪽·관련 회귀/lint·Canvas는 미완료 |
+| 현재 Native/fresh 재검증 code head | ddf17f864 Native/fresh 경계17쪽·초기 PR24쌍/27쪽 통과와 직접 판독. Native 직접 문서4종·actual Canvas24/25 통과, 필수 lint/정책8단계exit0. 전142쪽/전체 nextest·후속 게이트는 진행 중 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
 | 이 PR의 실제 계약 실행 | 직전 b4ff8c 전체 nextest에서 8/8 PASS, FAIL/SKIP/미관측0; 현재 검사 source SHA 동일 확인 |
 | 현재 통합 완료 판정 | **머지 보류** — 직전 b4ff8c의 전체10267개/원PR78계약·Skia/doc는 PASS였으나, 전142쪽 직접 대조에서118쪽 정렬 회귀 확인. 새 보정 소스의 검증 필요 |
