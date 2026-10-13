@@ -20,7 +20,7 @@ impl LayoutEngine {
         self.row_cut_plain_paragraph_contract(table, row, start_cut, end_cut, styles, true)
     }
 
-    /// 완결한 문단이 있는 컷은 이웃 셀의 문단 유지 지시도 함께 확인한다.
+    /// 수용한 글줄의 컷은 이웃 셀의 실제 문단 유지 지시를 함께 확인한다.
     /// 내부 컷에는 실제 widow/orphan·keep_lines, 문단 끝에는 keep_with_next를 적용한다.
     pub(crate) fn row_cut_respects_plain_paragraph_keeps(
         &self,
@@ -54,7 +54,7 @@ impl LayoutEngine {
         {
             return false;
         }
-        let mut has_boundary = false;
+        let mut has_kept_cut = false;
         for (index, cell_index) in Self::row_cut_cell_order(table, row).into_iter().enumerate() {
             let cell = &table.cells[cell_index];
             let units = self.cell_units(cell, table, styles);
@@ -105,8 +105,10 @@ impl LayoutEngine {
             {
                 return false;
             }
-            has_boundary |= complete;
+            // 문단 유지 지시가 없는 내부 컷도 유효한 글줄 경계다.
+            // 엄격한 완결 문단 질의는 위에서 내부 컷을 이미 제외했다.
+            has_kept_cut = true;
         }
-        has_boundary
+        has_kept_cut
     }
 }

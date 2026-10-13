@@ -1095,7 +1095,7 @@ impl TypesetEngine {
                 && layout_engine
                     .row_plain_restart_capacity_cut(table, r, styles)
                     .is_some_and(|cut| cut == res.end_cut);
-            // 완결 문단이 있는 컷은 이웃 셀의 실제 문단 유지 지시도 확인한다.
+            // 수용한 글줄 컷은 이웃 셀의 실제 문단 유지 지시를 확인한다.
             // 컷 유닛의 소유로 판정하고, 아래 실제 표시 높이·예산 검사는 유지한다.
             let plain_paragraph_keep_contract = layout_engine
                 .row_cut_respects_plain_paragraph_keeps(

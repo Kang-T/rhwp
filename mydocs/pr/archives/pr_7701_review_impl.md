@@ -750,3 +750,23 @@ false다. 독립 Print는 `건강한 생활을 위한 고른`을166쪽, `영양�
 현재 계약은 유효한 문단 내부 컷이어도 완결 문단 이웃이 없으면 false라25px 휴리스틱으로
 첫 줄을 이월한다. 근거는 `c38-before-source-row127-keep-probe-result.json/log`,
 `c38-row127-independent-print-page-ownership.json`이다. 진단 복사본은 원본 통과 증거가 아니다.
+
+### C38 평문 글줄 컷의 실제 문단 유지 지시 — 검증 중
+
+127행의 독립 Print는 한 문단을166·167쪽에 나누며 원본의 실제 문단 유지 속성은 모두
+false다. C38은 평문 줄 컷의25px 휴리스틱 면제에 완결 문단 이웃이 꼭 있어야 한다는
+가정을 제거한다. 계속되는 셀들이 실제 양수 유닛을 전진하며 같은 문단의 연속 줄을
+나누고 keep_lines·widow_orphan가 없으면 해당 계약을 만족한다. 문단 끝의
+keep_with_next·원본 저장 정보 인증·블록/개체/편집/재조판 제외와 실제 내용·패딩·물리
+예산 검사도 유지한다. 엄격한 완결 문단 질의의 의미는 바꾸지 않는다. 예산과확정상자/
+그리기는같은 컷 계약·물리 원장을 소비한다. `c38-actual-plain-paragraph-keeps-plan.json`에
+규칙·실제 호출 경로·반례와 선행5쪽/전쪽 검증 계획을 남겼다. C38 출력은 미검증이다.
+
+C38 Native Clippy·Skia CLI·WASM Clippy와 원본5쪽 진단은 terminal exit0이다(시각 gate exit1).
+쪽수415/415로 돌아왔지만 내용/쪽 소유 전체의 정답을 의미하지 않는다.
+155=98.64085,160=88.36471,162=98.44969,163=99.24603,167=99.99838%다.
+167쪽 직접 review에서 두 번째 줄의 이어받기, 아래 행·표 외곽과 뒤 내용의 위치가
+Print와 맞음을 확인했다.160쪽 미달은 남는다. `c38-native-page-band-diagnostic-results.json`,
+`c38-wasm-clippy-result.json`과 원본5쪽 TSV/direct-review에 증거를 남겼다.
+전체415쪽의 새Native TSV와49쪽 정상 대조는 실행 중이다. 전쪽 통과·fresh WASM 실제
+재생·최종 회귀·PR/CI/merge는 미완료다. 기존 기대값이나baseline은 바꾸지 않았다.
