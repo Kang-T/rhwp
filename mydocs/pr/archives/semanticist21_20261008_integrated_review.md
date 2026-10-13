@@ -5646,3 +5646,26 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 195 집중 PASS·180 Native/fresh TSV·1040쪽/backend의 범위와 독립 입력/Print·생산 SHA는 이전 최종 검증에 유지한다. 이번 후속 기록은 확정 merge SHA만 보완하며 source/test/fixture/workflow·시각 결과는 바꾸지 않는다. 이미 제출된 오늘할일은 반복 갱신하지 않는다.
 
 후속 범위는 CGMP 하위 [#7764](https://github.com/edwardkim/rhwp/issues/7764)의 완료 증거와 원 PR별 contributor comment/supersede 처리다. 원 PR 16개는 머지 후 원격 head 재확인 뒤 처리한다. #7612의 기존 merge는 보존하고 #7615의 초기 수용 이후 변경과 후속6개는 제외한 상태로 유지한다. 대표 #7445 및 Refs #7759/#7807/#4514는 전체 해결로 닫지 않는다. 실행 결과는 원 PR·해당 이슈의 실제 comment에 남기며 이 문단을 미실행 close의 증거로 사용하지 않는다.
+
+
+## 진행 갱신241 — 요청한 두 표 파일의 추가 영문 주석 한글화 (2026-10-14)
+
+통합·원 PR 후속처리의 최종 점검에서 보정 과정에 추가된 영문 주석17줄을 발견했다. 사용자께서 지정한 `src/renderer/typeset/table/continuation/fragment/emit.rs`와 `src/renderer/layout/table_partial.rs`의 일반 `//` 설명만 한글로 바꾼다. 코드 줄과 전체 줄 수를 그대로 유지하며, 변경 전후 비주석 원문 바이트 동일성을 확인한다. 함수·조건·저장 정보·테스트·fixture 및 출력 계약을 바꾸지 않는 주석 한글화이므로 새 조판 개선이나 시각 재출력으로 주장하지 않는다. 이 변경 범위의 Visual Sweep·회귀 신규 추가는 비해당이다. 프로젝트의 Rust source 변경 필수 lint 묶음은 같은 공용 target/jobs8로 순차 수행하고, 현재 전체 로컬 회귀를 반복하지 않는다. 결과와 별도 주석 PR의 정확한 head CI는 아래에 기록한다. 기존 두 파일의 줄 수를 늘리거나 이 언어 수정에 기능 분할·리팩토링을 섞지 않는다.
+
+
+### 주석 보완의 실제 로컬 검증
+
+정책 base `07e7e813d06d3f8031e86eb7c27233b829964907`, 공용 `target/pr-review`, Cargo jobs8. 구현 코드/줄 수 동일성은 포맷 뒤 다시 확인했다. 아래 필수 명령은 모두 exit0이며, source-side cfg(test) 변경은 없으므로 추가 unit-tier 검사는 비해당이다. 파생 suite/manifest는 PR에 포함하지 않는다.
+
+| 실제 단계 | 결과/초 |
+| --- | --- |
+| `prepare` | exit0 / 2.912 |
+| `fmt` | exit0 / 31.177 |
+| `fmt-check` | exit0 / 27.815 |
+| `clippy-native` | exit0 / 105.519 |
+| `clippy-wasm` | exit0 / 87.232 |
+| `build-workspace` | exit0 / 114.054 |
+| `clippy-all-targets` | exit0 / 117.909 |
+| `manifest` | exit0 / 2.784 |
+
+원 통합 PR #7882 및 문서 후속 #7887, #7764 완료 증거·원 PR16개 종료/17개 댓글과 전용 branch/worktree 정리는 실제 확인한 기존 완료 범위다. 이번 주석 보완 PR의 GitHub CI·merge는 이후 별도로 확인하며, 기존 CI나 시각 자료를 새 실행으로 주장하지 않는다.
