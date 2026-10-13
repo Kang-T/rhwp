@@ -1095,10 +1095,10 @@ impl TypesetEngine {
                 && layout_engine
                     .row_plain_restart_capacity_cut(table, r, styles)
                     .is_some_and(|cut| cut == res.end_cut);
-            // 완결한 독립 문단 사이의 컷은 문단 내부 고아 줄이 아니다.
+            // 완결 문단이 있는 컷은 이웃 셀의 실제 문단 유지 지시도 확인한다.
             // 컷 유닛의 소유로 판정하고, 아래 실제 표시 높이·예산 검사는 유지한다.
-            let complete_plain_paragraph_keep = layout_engine
-                .row_cut_completes_unlinked_plain_paragraphs(
+            let plain_paragraph_keep_contract = layout_engine
+                .row_cut_respects_plain_paragraph_keeps(
                     table,
                     r,
                     row_start_cut,
@@ -1140,7 +1140,7 @@ impl TypesetEngine {
                     single_line_cell && multi_line_cell
                 }
                 && row_total <= (st.layout.body_area.height - header_overhead).max(0.0)
-                && !complete_plain_paragraph_keep
+                && !plain_paragraph_keep_contract
                 && !cellbreak_complete_unit_keep
                 && !stored_plain_reset_boundary_keep
                 && !landscape_boundary_band_keep
@@ -1169,7 +1169,7 @@ impl TypesetEngine {
             if r > cursor_row
                 && (defer_single_unit_row_start
                     || (!cellbreak_complete_unit_keep
-                        && !complete_plain_paragraph_keep
+                        && !plain_paragraph_keep_contract
                         && !stored_page_reset_keep
                         && !stored_plain_reset_boundary_keep
                         && !landscape_boundary_band_keep

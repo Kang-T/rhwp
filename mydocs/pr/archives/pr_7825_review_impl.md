@@ -212,3 +212,13 @@ source unit tier base 비교는 모두 exit0이다. `relational-final-lint-resul
 `trailing-separator-clippy-fix-focused.log`(1/1),
 `trailing-separator-clippy-fix-manifest-3.log`(고정 base `bfa28a77`, exit 0),
 `current-small-native-results-467.json`이다. generated suite/manifest는 제출하지 않았다.
+
+## 2026-10-14 원 PR head 변동 감사
+
+GitHub에서 이 PR은 OPEN이며 최신 source head는 `9bbcd5935a19d3a4402cb89c8bef40eed423b1f3`다.
+통합 브랜치의 기존 적용 범위에 새 체리픽을 추가하지 않았다. 원격 head에는 다른 PR의
+merge와 후속 보정도 포함돼 있으므로 두 tree의 전체 차이를 이 PR 고유 변경으로 보지 않는다.
+기존 통합 source의 테스트·시각 결과를 최신 원 PR head의 검증으로 보고하지 않는다.
+읽기 전용 fetch ref와 commit 목록은 ignored
+`output/pr-review/planet6897-followup-20261011/c37-source-pr-remote-head-drift.json`에 보존한다.
+현재 통합 branch의 수용 판정·PR·CI·merge는 미완료다.

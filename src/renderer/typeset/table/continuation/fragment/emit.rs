@@ -1125,11 +1125,11 @@ impl TypesetEngine {
                 .max(0.0);
             (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
         };
-        // 원본 병합 셀은 완결 행·독립 문단 경계의 쪽 끝 물리 띠도 소유한다.
-        // 문단 내부 컷을 넓히지 않고, 실제 수용한 상자에서 그리기 유닛을 선택한다.
-        let complete_paragraph_cut = split_end_limit > 0.0
+        // 원본 병합 셀은 실제 문단 유지 지시를 만족한 컷의 쪽 끝 물리 띠도 소유한다.
+        // 이웃 셀에 문단 내부 컷이 있어도 내용 컷을 넓히지 않고 빈 상자를 함께 센다.
+        let plain_paragraph_cut = split_end_limit > 0.0
             && end_row > cursor_row
-            && layout_engine.row_cut_completes_unlinked_plain_paragraphs(
+            && layout_engine.row_cut_respects_plain_paragraph_keeps(
                 row_geometry_table,
                 end_row - 1,
                 if end_row - 1 == cursor_row {
@@ -1140,7 +1140,7 @@ impl TypesetEngine {
                 &split_end_cut,
                 styles,
             );
-        if (split_end_limit == 0.0 || complete_paragraph_cut)
+        if (split_end_limit == 0.0 || plain_paragraph_cut)
             && split_block_start.is_none()
             && end_row > cursor_row
             && table_footnotes.is_empty()
@@ -1163,7 +1163,7 @@ impl TypesetEngine {
                         .map(|(_, height)| height)
                 })
                 .unwrap_or_else(|| {
-                    if complete_paragraph_cut {
+                    if plain_paragraph_cut {
                         // 컷 뒤의 내용을 담은 전체 행 높이는 앞 조각의 물리 상자가 아니다.
                         layout_engine.row_cut_content_height(
                             row_geometry_table,
@@ -1200,7 +1200,16 @@ impl TypesetEngine {
                 styles,
             )
         } else {
-            straddle_page_bands.clone()
+            // 블록 컷은 위의 일반 행 상자를 수용하지 않았다. 이전 합을 새 물리
+            // 점유로 오인하지 않도록 내용 컷만 보존하고 상자 원장은 무효화한다.
+            straddle_page_bands
+                .iter()
+                .cloned()
+                .map(|mut carry| {
+                    carry.accepted_physical_height = None;
+                    carry
+                })
+                .collect()
         };
 
         // 중간 또는 내용이 완전히 소비된 최종 컷 조각 배치

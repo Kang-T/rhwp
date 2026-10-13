@@ -679,6 +679,8 @@ pub struct WrapAnchorRef {
 pub struct StraddleCellCarry {
     pub cell_index: usize,
     pub physical_height: f64,
+    /// 앞 조각들이 실제 수용한 셀 상자 높이의 합. 물리 상자를 알 수 없는 경로는 None.
+    pub accepted_physical_height: Option<f64>,
     /// First unconsumed unit at the fragment's incoming boundary.
     pub next_unit: Option<usize>,
     /// Accepted window for this PageItem; cleared when advancing the cursor.

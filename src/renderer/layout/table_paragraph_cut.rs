@@ -17,6 +17,31 @@ impl LayoutEngine {
         end_cut: &[usize],
         styles: &ResolvedStyleSet,
     ) -> bool {
+        self.row_cut_plain_paragraph_contract(table, row, start_cut, end_cut, styles, true)
+    }
+
+    /// 완결한 문단이 있는 컷은 이웃 셀의 문단 유지 지시도 함께 확인한다.
+    /// 내부 컷에는 실제 widow/orphan·keep_lines, 문단 끝에는 keep_with_next를 적용한다.
+    pub(crate) fn row_cut_respects_plain_paragraph_keeps(
+        &self,
+        table: &Table,
+        row: usize,
+        start_cut: &[usize],
+        end_cut: &[usize],
+        styles: &ResolvedStyleSet,
+    ) -> bool {
+        self.row_cut_plain_paragraph_contract(table, row, start_cut, end_cut, styles, false)
+    }
+
+    fn row_cut_plain_paragraph_contract(
+        &self,
+        table: &Table,
+        row: usize,
+        start_cut: &[usize],
+        end_cut: &[usize],
+        styles: &ResolvedStyleSet,
+        require_complete_paragraphs: bool,
+    ) -> bool {
         let profile = self.profile.get();
         if !(profile.hwp5_stored_pagination_layout() || profile.hwpx_stored_layout())
             || profile.session_edited()
@@ -52,7 +77,10 @@ impl LayoutEngine {
             }
             let closing = &units[end - 1];
             let following = &units[end];
-            if !closing.closes_before_next_paragraph(following) {
+            let complete = closing.closes_before_next_paragraph(following);
+            if !complete
+                && (require_complete_paragraphs || !closing.continues_same_paragraph(following))
+            {
                 return false;
             }
             let Some(paragraph) = cell.paragraphs.get(closing.para_idx) else {
@@ -66,14 +94,18 @@ impl LayoutEngine {
                     .line_segs
                     .iter()
                     .any(|line| line.tag & LineSeg::TAG_IMPLEMENTATION_PROPERTY != 0)
-                || !styles
-                    .para_styles
-                    .get(paragraph.para_shape_id as usize)
-                    .is_some_and(|style| !style.keep_with_next)
             {
                 return false;
             }
-            has_boundary = true;
+            let Some(style) = styles.para_styles.get(paragraph.para_shape_id as usize) else {
+                return false;
+            };
+            if (complete && style.keep_with_next)
+                || (!complete && (style.keep_lines || style.widow_orphan))
+            {
+                return false;
+            }
+            has_boundary |= complete;
         }
         has_boundary
     }

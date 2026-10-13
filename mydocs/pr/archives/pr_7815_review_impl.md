@@ -447,3 +447,13 @@ Vite403은 환경 실패로 분리했다. 동일 패키지를 허용된 pkg 하�
 이 단계의 새 변경은 브라우저 검사·실행 alias·증적·검토 기록이다. Native/Rust·Studio
 제품 코드와 기존 회귀 기대값은 변경하지 않았다. 위 source SHA의 실제 결과를 새 Rust
 빌드로 보고하지 않으며, 최종 production 수정 뒤 영향을 받는 검증은 다시 진행한다.
+
+## 2026-10-14 원 PR head 변동 감사
+
+GitHub에서 이 PR은 OPEN이며 최신 source head는 `6a59bad9e9d762db336aba7e0614085ee39ffb54`다.
+통합 브랜치의 기존 적용 범위에 새 체리픽을 추가하지 않았다. 원격 head에는 다른 PR의
+merge와 후속 보정도 포함돼 있으므로 두 tree의 전체 차이를 이 PR 고유 변경으로 보지 않는다.
+기존 통합 source의 테스트·시각 결과를 최신 원 PR head의 검증으로 보고하지 않는다.
+읽기 전용 fetch ref와 commit 목록은 ignored
+`output/pr-review/planet6897-followup-20261011/c37-source-pr-remote-head-drift.json`에 보존한다.
+현재 통합 branch의 수용 판정·PR·CI·merge는 미완료다.

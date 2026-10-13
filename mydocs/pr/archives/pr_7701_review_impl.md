@@ -679,3 +679,74 @@ C34 실제 상자 합은2408.4px이다. 현재 relief는 원래 측정 행 합�
 accepted unit 선택/paint/다음 요구 높이에 전달하는 계획을
 `c35-actual-accepted-span-height-plan.json`에 기록했다. 구현·실행 검증 전인 후보이며
 단일 문서 수치로 규칙을 만들거나 미달7쪽을 정상 회귀 기준으로 고정하지 않는다.
+
+### C35 실제 수용한 걸침 칸 상자의 누적 — 검증 중
+
+C34를65f44e948에 커밋했다. Native84쪽/fresh WASM3쪽의 compiled patch와 이 커밋의
+해당 source blob SHA가 일치한다(`c34-committed-source-provenance.json`).
+C35는 문서ID·고정 위치/수치를 분기로 사용하지 않는다. 기존 accepted_straddle_fragment_units가
+실제 paint와 같은 ordinary_rowbreak_fragment_heights에서 선택한 상자 높이를
+StraddleCellCarry의 accepted_physical_height에 누적한다. 블록 컷 등 실제 상자를
+소유하지 않은 경로에서는 원장을 None으로 두고 기존 보수적인 계산을 유지한다.
+
+다음 요구는 이 실제 누적 상자와 현재 조각의 이미 보정한 행을 소비한다. 부분 시작
+행은 실제 컷/override와 같은 helper로 잰 상자를 유지한다. 뒤쪽 온전한 끝 행의
+조정은 스캔 예산과 paint가 같은 값을 소비하며, 남은 요구가 더 크면 스캔에서 먼저
+예약한다. 단일행 선언/내용 최소값과 비병합 원인의 여유 공간은 보존한다.
+이는 source2412.6px/Print2412.0653px와 Native2408.4px의 독립 비교에서 마련한
+일반 수용 원장 보정이며 결과는 아직 미검증이다. 같은 원본/Print와 기존 음성·정상
+문서로 실제 컷·내용 보존·표 뒤 내용까지 재검증한다. 전쪽90% 선행 조건 전이므로
+신규 회귀/기대값/baseline은 추가·갱신하지 않았다.
+
+C35 Native Clippy/CLI는 terminal exit0이다. 원본5쪽은155=98.64085, 160=88.36471, 162=88.68601, 163=77.57573, 167=73.04143%다.
+415/415쪽을 유지했고160쪽은82.52568→88.36471%로 개선됐으나 계속 보류다.
+신규 회귀/baseline 변경은 하지 않았다. C35의 전쪽·fresh WASM·최종 회귀 gate는 미완료다.
+
+### C36 닫는 문장부호의 어절 꼬리와 이웃 셀 문단 유지 — 검증 중
+
+원본 pi14 row87col8 paragraph2는 저장2줄 `…포` / `함)`이지만 같은 현재 프레임은
+원문 그대로1줄(폭310.0, 셀 내부327.9467)에 수용한다. 독립 Print162쪽도1줄이다.
+진단용 line_segs-clear 복사본은 원본 파일 보정/시각 통과로 사용하지 않는다.
+기존 어절 꼬리 판정은 마지막 줄 전체를 한글 음절로만 제한해 닫는 괄호를 놓쳤다.
+기존 줄 머리 금칙 분류를 재사용해 어절 뒤 문장부호를 판정에서만 분리하고, 프레임은
+원문 전체를 소비한다. 명시적 개행·쪽/단 경계·편집/합성 정보의 기존 제외를 유지한다.
+
+원본 row90col9 라벨은 한 문단2줄이며 widow_orphan/keep_lines/keep_with_next 모두false다.
+완결한 독립 문단이 있는 컷에서 이웃 셀의 내부 컷은 해당 셀의 실제 문단 유지 지시로
+판정한다. 모든 셀이 내부 컷뿐인 경우 기존 최소 수용 규칙을 유지한다. 실제 높이·패딩·
+예산 검사는 그대로다. C35의 실제 상자 원장이 있는 일반 컷은 이 내부 시작에서도
+소비하고, 부분 첫 행은 컷/override의 상자를 유지한다. 블록/불명 원장은 보수적 경로다.
+`c36-before-word-tail-and-keeps-probe-result.json`, 원본 스타일/줄 로그와
+`c36-closing-tail-and-keeps-plan.json`에 근거·반례·검증 순서를 남겼다. C36 출력은 미검증이다.
+
+C36 Native Clippy·Skia CLI 빌드와 원본5쪽 진단은 terminal exit0이다(시각 gate 자체는 exit1).
+쪽수는415→416으로 늘어 기준415쪽과 다르며, 211쪽에 구역10 표의 추가 조각이 생겼다.
+155=98.64085,160=88.36471,162=97.58473,163=99.24603,167=73.04143%다.
+162·163·167쪽의 직접 review를 읽었다. 162쪽 문단 컷/신문 제작 한 줄은 개선됐지만
+표 하단 물리 띠가 빠진다. 167쪽의 앞·뒤 행 위치 차이도 남는다. 전쪽 통과·회귀 완료는 아니다.
+증적: `c36-native-page-band-build-results.json`, `c36-pr7701-dump-pages.json`,
+`c36-native-pr7701-accepted-span-155-167/` 아래 TSV·direct-review.
+
+### C37 혼합 문단 컷의 쪽 끝 물리 띠 — 검증 중
+
+행 스캔은 실제 keep 지시를 만족한 독립 문단 컷을 허용하지만, 쪽 끝 띠 수용은 모든 이웃이
+문단 끝일 때만 허용했다. 162쪽의 한 이웃 셀은 widow/orphan·keep_lines가 없는 문단 내부
+컷이라 스캔이 수용한 상자 뒤의 빈 물리 띠를 원장이 빠뜨렸다. C37은 동일한
+`row_cut_respects_plain_paragraph_keeps`를 확정 배치에서도 소비한다. 일반 셀의 시작/끝
+내용 컷은 보존하고, 병합 셀의 실제 상자만 같은 예산 경계까지 닫는다. 블록/각주/편집 표와
+문단 유지 지시가 있는 내부 컷은 기존 제한을 유지한다. 전쪽·fresh WASM 검증은 미완료다.
+근거·반례와 생산→스캔→확정 상자→이어받기 소비 경로:
+`c37-mixed-cut-page-band-plan.json`. 최종 회귀 기대값/baseline은 갱신하지 않았다.
+
+C37 Native Clippy·Skia CLI와 원본5쪽 실행은 terminal exit0이다(시각 gate exit1).
+155=98.64085,160=88.36471,162=98.44969,163=99.24603,167=73.04143%다.
+162쪽의 직접 review에서 하단 빈 띠가 독립 Print 위치까지 이어짐을 확인했다.
+쪽수416/415와160·167쪽 미달은 남는다. `c37-native-page-band-diagnostic-results.json`,
+`c37-pr7701-dump-pages.json`와 해당5쪽 TSV/direct-review에 실제 결과를 보존했다.
+원본415쪽 전체 gate·fresh WASM·최종 회귀는 미완료이며 기대값/baseline은 바꾸지 않았다.
+
+다음 진단은127행이다. 원본의 모든 평문 셀에서 widow_orphan·keep_with_next·keep_lines가
+false다. 독립 Print는 `건강한 생활을 위한 고른`을166쪽, `영양소의 섭취`를167쪽에 놓는다.
+현재 계약은 유효한 문단 내부 컷이어도 완결 문단 이웃이 없으면 false라25px 휴리스틱으로
+첫 줄을 이월한다. 근거는 `c38-before-source-row127-keep-probe-result.json/log`,
+`c38-row127-independent-print-page-ownership.json`이다. 진단 복사본은 원본 통과 증거가 아니다.

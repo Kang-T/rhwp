@@ -43,10 +43,18 @@ pub(super) fn can_rejoin_stored_word_tail(
         chars.len(),
     );
     let is_syllable = |c: char| ('가'..='힣').contains(&c);
+    // 어절 뒤의 닫는 괄호 등 줄 머리 금칙 문자는 같은 토큰의 꼬리다.
+    // 새 줄에 내려온 어절 조각을 판정할 때 그 문장부호만 분리해 보되,
+    // 실제 프레임 재조판에는 원문 전체를 그대로 전달한다.
+    let tail_end = chars[start.min(chars.len())..]
+        .iter()
+        .rposition(|&ch| !line_breaking::is_line_start_forbidden(ch))
+        .map_or(start, |last| start + last + 1);
     if start == 0
         || start >= chars.len()
+        || tail_end <= start
         || !is_syllable(chars[start - 1])
-        || !chars[start..].iter().copied().all(is_syllable)
+        || !chars[start..tail_end].iter().copied().all(is_syllable)
     {
         return false;
     }

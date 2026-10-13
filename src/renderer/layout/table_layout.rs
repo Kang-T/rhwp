@@ -1859,6 +1859,12 @@ impl CellUnit {
             && following.vis_start == 0
     }
 
+    pub(super) fn continues_same_paragraph(&self, following: &Self) -> bool {
+        self.vis_start < self.vis_end
+            && self.para_idx == following.para_idx
+            && self.vis_end == following.vis_start
+    }
+
     /// 문단의 표 존재와 현재 유닛의 표 소유를 구분한다.
     pub(super) fn owns_table_in_paragraph(&self, para: &Paragraph) -> bool {
         if self.nested_row.is_some() || self.mixed_nested_fragment {
@@ -24721,6 +24727,11 @@ impl LayoutEngine {
                 Some(crate::renderer::pagination::StraddleCellCarry {
                     cell_index: index,
                     physical_height: previous.map_or(0.0, |carry| carry.physical_height),
+                    accepted_physical_height: match previous {
+                        Some(carry) => carry.accepted_physical_height.map(|before| before + height),
+                        None if cell_row >= start_row => Some(height),
+                        None => None,
+                    },
                     next_unit: previous.and_then(|carry| carry.next_unit),
                     fragment_cut: Some((su, eu.min(self.cell_units(cell, table, styles).len()))),
                 })
@@ -25030,8 +25041,8 @@ impl LayoutEngine {
             .reduce(f64::max)
     }
 
-    /// [#7531] 쪽을 넘은 걸침 칸이 앞 조각에서 차지한 쪽 끝 빈 띠만큼 이어받는 조각의
-    /// 걸침 끝 행 높이에서 덜어낼 양 `(행, px)`.
+    /// 앞 조각의 실제 걸침 칸 상자를 소비한 뒤 끝 행에서 덜어낼 양 `(행, px)`.
+    /// 음수이면 남은 요구를 그리기 전에 스캔 예산에도 추가 예약한다.
     ///
     /// 측정기는 걸침 칸의 부족분(칸 요구 − 걸친 행 합)을 걸침의 마지막 행에 몰아 둔다.
     /// 칸이 쪽을 넘으면 한/글은 앞 쪽 마지막 행 상자를 본문 바닥까지 늘리고, 그 띠도 칸
@@ -25039,16 +25050,19 @@ impl LayoutEngine {
     /// 칸 `(8,1)` rs=10 선언 636.1 ↔ 정본 147쪽 행 8~16 상자 580.7 + 148쪽 행 17 53.8,
     /// rhwp 는 행 17 에 부족분 18.5 를 더해 72.9).
     ///
-    /// `carried_bands` 는 칸 색인별로 앞 조각들이 행 경계에서 끝나며 남긴 띠의 합이다.
-    /// 이어받는 조각의 첫 행에서 끝나는 걸침 칸이 모두 앞 조각에서 시작했고 띠를 가진
-    /// 경우에만, 그 칸이 끝 행에 남긴 부족분 안에서 덜어낸다. 행의 `row_span==1` 칸
+    /// `carried_bands` 는 내용 컷과 실제 수용 상자 합·빈 띠를 칸 색인별로 전달한다.
+    /// 실제 상자 원장이 있으면 그 합과 이 조각의 보정된 행을 소비한다. 원장이 없는
+    /// 기존 경로는 측정 행 합과 빈 띠를 사용한다. 행의 `row_span==1` 칸
     /// 선언·내용 높이 아래로는 줄이지 않는다. 조판 scan 과 `table_partial` 그리기가 같은
     /// 값을 쓰도록 결과는 조각 항목에 실어 넘긴다.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn straddle_page_band_relief(
         &self,
         table: &crate::model::table::Table,
         row_heights: &[f64],
         cursor_row: usize,
+        start_cut: &[usize],
+        start_row_height_override: Option<f64>,
         carried_bands: &[crate::renderer::pagination::StraddleCellCarry],
         styles: &ResolvedStyleSet,
     ) -> Vec<(usize, f64)> {
@@ -25062,7 +25076,33 @@ impl LayoutEngine {
         }
         let cell_spacing = hwpunit_to_px(table.cell_spacing as i32, self.dpi);
         let mut relief = Vec::new();
+        // 시작 부분 행도 실제 그리기와 같은 상자로 잰다. 뒤의 끝 행은 이 상자와
+        // 앞서 보정한 온전한 행을 소비하며 원래 측정 높이를 다시 합산하지 않는다.
+        let mut planned = if !start_cut.is_empty() || start_row_height_override.is_some() {
+            self.ordinary_rowbreak_fragment_heights(
+                table,
+                row_heights,
+                cursor_row,
+                (cursor_row + 1).min(row_heights.len()),
+                start_cut,
+                &[],
+                true,
+                start_row_height_override,
+                None,
+                &[],
+                carried_bands,
+                true,
+                styles,
+            )
+        } else {
+            row_heights.to_vec()
+        };
         for row in cursor_row..row_heights.len() {
+            // 부분 시작 행은 컷/override의 상자를 유지한다. 뒤 행 요구에도 그
+            // 실제 상자를 사용하므로 호출자에서 제거할 보정을 여기에 선반영하지 않는다.
+            if row == cursor_row && (!start_cut.is_empty() || start_row_height_override.is_some()) {
+                continue;
+            }
             // 이 행에서 끝나는 걸침 칸마다 끝 행에 요구하는 높이를 다시 잰다. 앞 조각에서
             // 시작한 칸은 앞 쪽 띠를 이미 차지했으므로 그만큼 덜 요구한다. 이 조각에서
             // 시작한 칸은 종전 요구를 그대로 둔다.
@@ -25070,6 +25110,7 @@ impl LayoutEngine {
             let mut original = 0.0f64;
             let mut any_crossing = false;
             let mut any_ending = false;
+            let mut has_actual_owner = false;
             for (index, cell) in table.cells.iter().enumerate() {
                 if cell.row_span <= 1 || cell.row as usize + cell.row_span as usize != row + 1 {
                     continue;
@@ -25086,16 +25127,26 @@ impl LayoutEngine {
                     declared.max(self.cell_cut_visible_height(cell, table, styles, 0, units));
                 let others: f64 = row_heights[start..row].iter().sum::<f64>()
                     + cell_spacing * (row - start) as f64;
+                let previous = carried_bands.iter().find(|carry| carry.cell_index == index);
+                let accepted = previous.and_then(|carry| carry.accepted_physical_height);
                 let band = if start < cursor_row {
-                    carried_bands
-                        .iter()
-                        .find(|carry| carry.cell_index == index)
-                        .map_or(0.0, |carry| carry.physical_height)
+                    previous.map_or(0.0, |carry| carry.physical_height)
                 } else {
                     0.0
                 };
-                any_crossing |= band > 0.5;
-                demand = demand.max(required - others - band);
+                let actual_others = planned[start.max(cursor_row)..row].iter().sum::<f64>()
+                    + cell_spacing * (row - start.max(cursor_row)) as f64;
+                let remaining = if let Some(before) = accepted {
+                    has_actual_owner = true;
+                    any_crossing |= before > 0.5;
+                    required - before - actual_others
+                } else if start >= cursor_row {
+                    required - actual_others
+                } else {
+                    any_crossing |= band > 0.5;
+                    required - others - band
+                };
+                demand = demand.max(remaining);
                 original = original.max(required - others);
             }
             if !any_ending || !any_crossing {
@@ -25117,13 +25168,19 @@ impl LayoutEngine {
             let amount = (row_heights[row].min(natural.max(original))) - natural.max(demand);
             if amount > 0.5 {
                 relief.push((row, amount));
+                planned[row] = (row_heights[row] - amount).max(0.0);
+            } else if has_actual_owner && demand > row_heights[row] + 0.5 {
+                // 실제 앞 상자가 작았다면 남은 선언 공간도 스캔 예산에 먼저 예약한다.
+                // 음수 덜기는 같은 값을 소비하는 그리기에도 필요한 증가분을 전달한다.
+                relief.push((row, row_heights[row] - demand));
+                planned[row] = demand;
             }
         }
         relief
     }
 
-    /// [#7531] 행 경계에서 끝난 조각이 남긴 쪽 끝 빈 띠를, 그 경계를 넘는 걸침 칸마다
-    /// 누적한다. 경계를 다 지난 칸은 버린다. 행 안 분할로 끝난 조각은 띠를 더하지 않는다.
+    /// 수용한 조각의 쪽 끝 빈 띠를 경계를 넘는 걸침 칸마다 누적한다.
+    /// 내용 컷과 실제 상자 원장도 보존하고, 경계를 다 지난 칸은 버린다.
     pub(crate) fn straddle_page_bands_after_fragment(
         table: &crate::model::table::Table,
         carried_bands: &[crate::renderer::pagination::StraddleCellCarry],
@@ -25158,6 +25215,8 @@ impl LayoutEngine {
                 crate::renderer::pagination::StraddleCellCarry {
                     cell_index: index,
                     physical_height: before + band.max(0.0),
+                    accepted_physical_height: accepted
+                        .and_then(|carry| carry.accepted_physical_height),
                     next_unit: accepted.and_then(|carry| {
                         carry.fragment_cut.map(|(_, end)| end).or(carry.next_unit)
                     }),

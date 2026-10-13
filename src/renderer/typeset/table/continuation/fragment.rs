@@ -164,6 +164,13 @@ impl TypesetEngine {
                     &continuation.start_cut,
                     source.styles,
                 );
+        // 실제 수용 상자 원장이 있는 일반 컷은 문단 내부 시작도 같은 상자를 소비한다.
+        // 원장이 끊긴 블록 경로는 기존 완결 문단/온전한 시작의 판정을 유지한다.
+        let has_actual_span_ledger = !continuation.straddle_page_bands.is_empty()
+            && continuation
+                .straddle_page_bands
+                .iter()
+                .all(|carry| carry.accepted_physical_height.is_some());
         // 이 계획은 앞 조각의 실제 상자와 빈 띠를 이미 차감한 공통 결과다.
         // 기존 별도 띠 차감을 다시 적용하면 예약과 paint의 행 높이가 달라진다.
         let physical_rows = self.stored_fragment_row_plan(st, prepared, continuation, source);
@@ -171,7 +178,8 @@ impl TypesetEngine {
             || continuation.start_cut_is_block
             || ((!continuation.start_cut.is_empty()
                 || continuation.start_row_height_override.is_some())
-                && !starts_after_complete_paragraph)
+                && !starts_after_complete_paragraph
+                && !has_actual_span_ledger)
         {
             Vec::new()
         } else {
@@ -179,10 +187,14 @@ impl TypesetEngine {
                 source.row_geometry_table,
                 &source.measured_table.row_heights,
                 continuation.row,
+                &start_cut,
+                continuation.start_row_height_override,
                 &continuation.straddle_page_bands,
                 source.styles,
             );
-            if starts_after_complete_paragraph {
+            if !continuation.start_cut.is_empty()
+                || continuation.start_row_height_override.is_some()
+            {
                 relief.retain(|(row, _)| *row > continuation.row);
             }
             relief
