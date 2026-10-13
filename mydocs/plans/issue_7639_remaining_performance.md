@@ -127,3 +127,14 @@ phase5 Docker build는 성공했고 실제 Chrome의 WASM SHA는 `03e7e558007c93
 
 
 Chrome 154를 명시한 최종 fresh WASM 전쪽 Sweep도 `svg=161, tree=161, pdf=162`로 종료했다. Native와 WASM 모두 누락 쪽을 제외하거나 빈 쪽을 합성해 TSV gate를 통과시키지 않았다. `oracle/native-sweep.log`, `oracle/wasm-full-sweep.log`, 각각의 `run_manifest.json`과 WASM `manifest.json`에 전쪽 출력·실행 실패를 기록했다. `phase6/build-provenance.json`의 production 해시와 실제 Studio artifact가 일치한다. 검증 완료 소스는 성능 보정 local commit으로 보존하며 시각 게이트 해결 전 원격에 제출하지 않는다.
+
+
+## 최신 devel 병합과 통합본 재검증 (2026-10-14)
+
+사용자는 원격 변경 확인 뒤 “PR 생성 전 머지 후 진행합니다”라고 지시했다. 기본 작업공간의 clean한 로컬 devel은 `22317614b`에서 `07e7e813d06d3f8031e86eb7c27233b829964907`로 fast-forward했다. 같은 원격 SHA를 현재 성능 branch에 merge했고 commit은 `5eb992843`이다. 원격 push나 PR 생성은 수행하지 않았다.
+
+충돌은 `src/renderer/typeset/table/block/prepare.rs`의 한 구간이다. 원격의 `remember_stored_frame_rows(row_geometry_table, &mt.row_heights)`를 유지하고, 그 앞에 불변 geometry/host Table의 행 색인 guard 두 개를 함께 둔다. 저장 프레임 계획은 원격의 측정 높이에서 생산되어 후속 행 컷 소비 경로가 읽고, 성능 색인은 같은 불변 Table의 원본 셀 순서·안정적 열 정렬·raw 높이만 재사용한다. 성능 색인이 원격의 저장 프레임 높이를 덮어쓰거나 다시 계산하지 않는다. 나머지 겹친 다섯 파일은 자동 병합된 diff를 원격 base와 대조했다.
+
+기존 Studio 생성 JS는 경로 한정 stash로 먼저 보존했고 merge 뒤 적용했다. 새로운 root pkg/public은 통합 source에서 Docker의 locked wrapper로 재생성한다. 이 생성 JS와 ignored 산출물은 source commit에 섞지 않는다. `devel-merge-20261014/merge-provenance.json`에 기존/새 base, 양쪽 parent와 stash SHA를 보존했다.
+
+통합본 TypeScript 검사와 Studio 전체 검사 **1,840 통과·실패 0·skip 2**는 완료했다. Native·Docker WASM 재빌드, 새 base를 고정한 Rust lint·회귀, 실제 브라우저 및 독립 Print 전쪽 확인은 진행 중이다. 이전 source의 완료 결과를 이 통합본의 결과로 대신하지 않는다. 증적은 ignored `output/pr-review/issue7639-perf-20261013/devel-merge-20261014/`에 둔다.
