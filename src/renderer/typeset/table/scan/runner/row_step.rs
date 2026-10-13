@@ -61,6 +61,7 @@ impl TypesetEngine {
         let BlockTableRowScan {
             source_frame_band,
             mut consumed,
+            mut accepted_end_row_box,
             mut end_row,
             mut split_block_start,
             mut split_end_cut,
@@ -1467,9 +1468,19 @@ impl TypesetEngine {
                 }
             }
         }
+        // 높이를 다시 추정하지 않고 이번 일반 행이 실제 수용한 증분을 보존한다.
+        // 다음 행을 이월한 경우에는 앞서 수용한 행의 결과를 그대로 유지한다.
+        if end_row > scan_start_row {
+            accepted_end_row_box = (split_end_cut.is_empty() && split_block_start.is_none())
+                .then_some((
+                    end_row - 1,
+                    (consumed - consumed_before_row - cs_before).max(0.0),
+                ));
+        }
         let scan = BlockTableRowScan {
             source_frame_band,
             consumed,
+            accepted_end_row_box,
             end_row,
             split_block_start,
             split_end_cut,

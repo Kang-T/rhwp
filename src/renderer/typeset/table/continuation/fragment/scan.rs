@@ -88,6 +88,7 @@ impl TypesetEngine {
                 return BlockTableRowScan {
                     source_frame_band: 0.0,
                     consumed: height,
+                    accepted_end_row_box: None,
                     end_row: 1,
                     split_block_start: None,
                     split_end_cut: if opening {
@@ -109,6 +110,7 @@ impl TypesetEngine {
                     return BlockTableRowScan {
                         source_frame_band: 0.0,
                         consumed: frame.opening_height,
+                        accepted_end_row_box: None,
                         end_row: 1,
                         split_block_start: None,
                         split_end_cut: vec![0],
@@ -134,6 +136,7 @@ impl TypesetEngine {
                     return BlockTableRowScan {
                         source_frame_band: 0.0,
                         consumed: opening,
+                        accepted_end_row_box: None,
                         end_row: 1,
                         split_block_start: None,
                         split_end_cut: cut,
@@ -151,6 +154,7 @@ impl TypesetEngine {
                     return BlockTableRowScan {
                         source_frame_band: 0.0,
                         consumed: 0.0,
+                        accepted_end_row_box: None,
                         end_row: cursor_row,
                         split_block_start: None,
                         split_end_cut: Vec::new(),
@@ -227,6 +231,7 @@ impl TypesetEngine {
                 BlockTableRowScan {
                     source_frame_band: 0.0,
                     consumed: 0.0,
+                    accepted_end_row_box: None,
                     end_row: cursor_row,
                     split_block_start: None,
                     split_end_cut: Vec::new(),
@@ -304,6 +309,7 @@ impl TypesetEngine {
         let BlockTableRowScan {
             mut source_frame_band,
             mut consumed,
+            mut accepted_end_row_box,
             mut end_row,
             mut split_block_start,
             mut split_end_cut,
@@ -498,6 +504,7 @@ impl TypesetEngine {
                         split_end_cut = refit.split_end_cut;
                         split_end_limit = refit.split_end_limit;
                         end_row_height_override = refit.end_row_height_override;
+                        accepted_end_row_box = refit.accepted_end_row_box;
                         if end_row <= cursor_row {
                             end_row = cursor_row + 1;
                         }
@@ -561,6 +568,7 @@ impl TypesetEngine {
                     return BlockTableRowScan {
                         source_frame_band: 0.0,
                         consumed: 0.0,
+                        accepted_end_row_box: None,
                         end_row: cursor_row,
                         split_block_start: None,
                         split_end_cut: Vec::new(),
@@ -587,6 +595,7 @@ impl TypesetEngine {
                     split_end_cut = refit.split_end_cut;
                     split_end_limit = refit.split_end_limit;
                     end_row_height_override = refit.end_row_height_override;
+                    accepted_end_row_box = refit.accepted_end_row_box;
                 }
             }
         }
@@ -778,6 +787,7 @@ impl TypesetEngine {
         BlockTableRowScan {
             source_frame_band,
             consumed,
+            accepted_end_row_box,
             end_row,
             split_block_start,
             split_end_cut,

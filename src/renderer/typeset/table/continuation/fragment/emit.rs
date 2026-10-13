@@ -70,6 +70,7 @@ impl TypesetEngine {
         let BlockTableRowScan {
             source_frame_band,
             consumed,
+            accepted_end_row_box,
             mut end_row,
             split_block_start,
             split_end_cut,
@@ -1112,10 +1113,22 @@ impl TypesetEngine {
             0.0
         };
 
-        // 완료 행 경계를 가로지르는 원본 병합 셀은 끝 물리 쪽의 띠도
-        // 소유한다. 수용한 조각의 원점으로 예약하고, 실제 그리기에 쓰는
-        // 동일하게 확장된 행 상자에서 그 셀의 유닛을 선택한다.
-        let accepted_straddle_end_band = if split_end_limit == 0.0
+        // 쪽 끝 빈 띠는 실제 물리 경계와 수용한 조각 상자의 차이다.
+        // 원본 프레임이 이미 예약한 띠는 그리기 높이에 다시 더하지 않는다.
+        let unreserved_page_end_band = if split_block_start.is_some() {
+            0.0
+        } else if let Some(frame_rows) = budget.reflow_frame_avail_for_rows {
+            // 물리 경계에는 아래 바깥여백과 실제 각주 공간이 이미 반영돼 있다.
+            (frame_rows + header_overhead - partial_height).max(0.0)
+        } else {
+            let outer_bottom = (hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
+                - fragment_outer_bottom_overhead)
+                .max(0.0);
+            (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
+        };
+        // 완전한 행 경계를 가로지르는 원본 병합 셀은 쪽 끝 물리 띠도 소유한다.
+        // 실제 수용한 행 상자를 먼저 늘리고, 동일한 상자에서 그리기 유닛을 선택한다.
+        if split_end_limit == 0.0
             && split_block_start.is_none()
             && end_row > cursor_row
             && table_footnotes.is_empty()
@@ -1127,21 +1140,18 @@ impl TypesetEngine {
             && row_geometry_table.cells.iter().any(|cell| {
                 usize::from(cell.row) < end_row
                     && end_row < usize::from(cell.row) + usize::from(cell.row_span)
-            }) {
-            let outer_bottom = (hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
-                - fragment_outer_bottom_overhead)
-                .max(0.0);
-            let band = (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0);
-            if band > 0.0 {
-                let last_row = end_row - 1;
-                let last_height = end_row_height_override.unwrap_or(cut_row_h[last_row]);
-                end_row_height_override = Some(last_height + band);
-                partial_height += band;
-            }
-            band
-        } else {
-            0.0
-        };
+            })
+            && unreserved_page_end_band > 0.0
+        {
+            let last_row = end_row - 1;
+            let last_height = end_row_height_override
+                .or_else(|| accepted_end_row_box
+                    .filter(|(row, _)| *row == last_row)
+                    .map(|(_, height)| height))
+                .unwrap_or(cut_row_h[last_row]);
+            end_row_height_override = Some(last_height + unreserved_page_end_band);
+            partial_height += unreserved_page_end_band;
+        }
 
         let accepted_straddle_cells = if !start_cut_is_block && split_block_start.is_none() {
             layout_engine.accepted_straddle_fragment_units(
@@ -1161,6 +1171,7 @@ impl TypesetEngine {
         } else {
             straddle_page_bands.clone()
         };
+
         // 중간 또는 내용이 완전히 소비된 최종 컷 fragment 배치
         let complete_physical_end_cut = split_block_start.is_none()
             && split_end_limit > 0.0
@@ -1748,23 +1759,12 @@ impl TypesetEngine {
             // 늘리지 않는다. 다음 스캔이 이 컷에서 실제 수용할 유닛을 선택한다.
             (tail > 0.5 && tail_band_continues).then_some(tail)
         }));
-        // [#7531] 행 경계에서 끝난 조각의 쪽 끝 빈 띠는 그 경계를 넘는 걸침 칸이 차지한다.
-        // 행 안에서 끊긴 조각도 남은 물리 공간은 같은 띠다(끝 행이 쪽을 채우면 0).
+        // 이미 예약한 띠와 이번 조각의 미예약 띠를 각각 한 번만 이어받는다.
+        // 미예약 띠는 실제 행 상자를 늘리기 전에 계산해 예약과 paint가 공유한다.
         let page_end_band = if split_block_start.is_some() {
             0.0
-        } else if let Some(frame_rows) = budget.reflow_frame_avail_for_rows {
-            // 물리 경계에는 이미 아래 바깥여백과 실제 각주 공간이 예약돼 있다.
-            // 흐름의 안전 예산은 여러 행에 걸친 셀이 소유한 빈 공간과 다르며,
-            // 여백을 이중으로 차감하지 않는다.
-            (frame_rows + header_overhead - partial_height).max(0.0)
         } else {
-            // 한/글은 쪽 끝 행 상자를 본문 바닥에서 표 바깥 아래 여백을 뺀 자리까지 늘린다.
-            let outer_bottom = (hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
-                - fragment_outer_bottom_overhead)
-                .max(0.0);
-            source_frame_band.max(reserved_straddle_end_band)
-                + accepted_straddle_end_band
-                + (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
+            source_frame_band.max(reserved_straddle_end_band) + unreserved_page_end_band
         };
         continuation.straddle_page_bands =
             crate::renderer::layout::LayoutEngine::straddle_page_bands_after_fragment(
