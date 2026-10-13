@@ -5082,3 +5082,24 @@ SO 검증 범위는 첫쪽이며 #7807 전체46쪽 해결로 확대하지 않는
 fresh 경계 직접 판독 통과 뒤 Native 가맹사업 전142쪽과 fresh CGMP 전48쪽
 검증 프로세스가 실제 시작됐음을 확인했다. 전체 nextest는 Cargo/Rust 컴파일 중이다.
 전쪽·정식 관계형 회귀·backend/Canvas·원격CI는 완료 전이며 개별17개 HOLD를 유지한다.
+
+## 진행 갱신202 — 원본 보존과 정식 회귀 초안의 사전 대조 (2026-10-13)
+
+사용자가 열거한 시험지/HML59개는 실제 파일이 존재하고 현재HEAD blob과 동일하다.
+원본 보존 감사의 경로·SHA는 v452의 `deferred-exam-original-preservation-audit.json`에
+보존한다. 이는 활성 회귀의 제외 판정과 별개의 원본 보존 확인이다. 기존 공용
+corpus_scope/deferred_exam_scope/exam_fixtures 및 이관 목록은 유지한다. 후속 사용자
+지시로 추가한 SO-SUEOP HWP/HWPX 첫쪽 정식 검사는 원본59개 목록과 구분한다.
+
+보존된 출력에 정식 초안과 같은 가운데 정렬 관계를 사전 적용했다. 원본 첫 저장
+앞 띠를 잃던557표의55쪽0/1행·57쪽4행 양열6개는7749d 출력FAIL/현재b4ff8c
+PASS다. 첫 원본 문단을 소유하지 않는57쪽3행1열은 전후PASS다.719표79쪽
+마지막 행의 선택 줄 관계는 c1747 전후에 오른쪽FAIL→PASS·왼쪽PASS→PASS다.
+이 진단은 독립 원본 메트릭 dump의Center/LineSeg와 실제 tree SHA를 연결하며
+`stored-frame-draft-before-after-relations.json`에 보존한다. 72쪽의7f04c→b4ff8c
+FAIL→PASS 진단과 함께 정식 검사 검출 범위를 확인하는 자료이며, 정식 Rust 실행을
+대신하지 않는다. ignored 초안의 원본 절대 경로·출력 이름 선택·nonce/Drop 정리도
+보완했다. 원본 전142쪽 양쪽 시각 선행 조건 전에는 활성 검사로 등록하지 않는다.
+
+전체 nextest는 컴파일 이후10267개 실행에 들어갔으며 최종 summary/exit 대기다.
+Native 가맹사업 전쪽과 fresh CGMP 전쪽도 실제 실행 중이다. 개별17개는 계속HOLD다.
