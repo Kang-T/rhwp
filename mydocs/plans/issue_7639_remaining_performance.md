@@ -138,3 +138,16 @@ Chrome 154를 명시한 최종 fresh WASM 전쪽 Sweep도 `svg=161, tree=161, pd
 기존 Studio 생성 JS는 경로 한정 stash로 먼저 보존했고 merge 뒤 적용했다. 새로운 root pkg/public은 통합 source에서 Docker의 locked wrapper로 재생성한다. 이 생성 JS와 ignored 산출물은 source commit에 섞지 않는다. `devel-merge-20261014/merge-provenance.json`에 기존/새 base, 양쪽 parent와 stash SHA를 보존했다.
 
 통합본 TypeScript 검사와 Studio 전체 검사 **1,840 통과·실패 0·skip 2**는 완료했다. Native·Docker WASM 재빌드, 새 base를 고정한 Rust lint·회귀, 실제 브라우저 및 독립 Print 전쪽 확인은 진행 중이다. 이전 source의 완료 결과를 이 통합본의 결과로 대신하지 않는다. 증적은 ignored `output/pr-review/issue7639-perf-20261013/devel-merge-20261014/`에 둔다.
+
+
+## 통합본의 출력 보존과 제출 예외 승인
+
+통합 소스 `5eb992843`의 Native와 Docker WASM 빌드는 성공했다. root pkg/public의 WASM SHA-256은 `2615f003fe0c05bcfac7642dc9c8e19a4981a22eee34d0315649b24a0f7bd90a`, JS SHA-256은 `f377c6be818c64ffd20752e29271000ff5053ea8c7c984f65abb8fe74f17eddd`이며 실제 Chrome 응답도 같은 WASM이었다. 전체 161쪽 Native SVG는 기존 `22317614b` 출력과 바이트가 같고, 실제 Canvas 161쪽의 raw RGBA도 병합 전 `517b6a3b7`과 같다. `svg-parity.json`, `canvas-parity.json` 및 `browser/` 원문에 연결한다.
+
+통합본 첫 표 안 캐럿 클릭은 71ms, 실제 휠 최대 RAF 간격은 93.6ms(100ms 초과 0회)였다. 셀 경계 page API는 기존 전체 API의 동일 쪽 필터와 같은 소유·순서·좌표를 반환했다. 실제 file input → 행 삽입 → Undo/Redo → 문서 교체도 통과했다. 첫 표시 helper는 14.724초였고 호스트 검증 컴파일과 겹쳐 실행되었으므로 이전의 한가한 환경 수치와 같은 조건의 반복 측정이라고 보고하지 않는다.
+
+새 Native/fresh WASM 전쪽 Sweep은 모두 `svg=161, tree=161, pdf=162`로 종료했으며 전체 TSV는 완성되지 않았다. 메인터너는 이 결과를 확인한 뒤 2026-10-14에 **“성능 보정 범위의 시각 게이트 예외 수용”**을 명시했다. 자동 gate는 `re_review_required`인 채 보존하며, 성능 보정 제출에 한한 사용자 예외를 별도로 기록한다. 한컴 전쪽 조판 일치나 기존 쪽수 차이 해결은 주장하지 않는다. 허용치·baseline·기존 검사 기대값은 변경하지 않는다.
+
+대표 1쪽을 추가 산출해 Native/fresh WASM review와 standalone overlay를 직접 열었다. 두 경로의 2px 실루엣 보조값은 각각 99.74962%, 엄격 픽셀 일치는 94.01578%였다. 표 행·열과 본문의 소속은 같고 획·얇은 괘선의 raster 차이가 보인다. 도구 라벨과 수치는 정상 판독된다. 대표 한 쪽의 수치를 전체 162쪽 통과로 확대하지 않는다. 원본 입력은 기존 tracked sample이며 SHA-256 `47de1ce82472050a4c5f33ccab2a3eac2c7e55d0e2a688febd085f0b4c8320ca`로 HEAD 바이트와 같다. 새 기준 Print PDF는 다른 tracked PDF와 해시가 달라 덮어쓰지 않고 [한컴 2020 Print](../working/assets/issue7639/hancom-2020-print.pdf)에 검증에 쓴 바이트 그대로 보존한다. Native/WASM 대표 PNG와 실제 Studio PNG도 같은 assets 디렉터리에 보존한다.
+
+세 Clippy·workspace build·새 base의 manifest/unit-tier 검사와 focused 검사 12건은 통과했다. 전체 Rust와 Native Skia는 실행 중이다. 이 단계에는 GitHub push·PR 생성·이슈 종료를 수행하지 않았다.
