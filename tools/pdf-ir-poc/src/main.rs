@@ -2,13 +2,18 @@ use std::{env, fs, path::Path};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().collect();
-    if args.len() != 3 && !(args.len() == 4 && args[3] == "--painted-rules") {
+    if args.len() != 3
+        && !(args.len() == 4 && matches!(args[3].as_str(), "--painted-rules" | "--tables"))
+    {
         return Err(
-            "usage: rhwp-pdf-oxide-poc INPUT.pdf OUTPUT_DIRECTORY [--painted-rules]".into(),
+            "usage: rhwp-pdf-oxide-poc INPUT.pdf OUTPUT_DIRECTORY [--painted-rules|--tables]"
+                .into(),
         );
     }
     let bytes = fs::read(&args[1])?;
-    let compiled = if args.len() == 4 {
+    let compiled = if args.get(3).is_some_and(|mode| mode == "--tables") {
+        rhwp_pdf_oxide_poc::compile_page_tables(&bytes, 0)?
+    } else if args.len() == 4 {
         rhwp_pdf_oxide_poc::compile_page_painted_rules(&bytes, 0)?
     } else {
         rhwp_pdf_oxide_poc::compile_page(&bytes, 0)?

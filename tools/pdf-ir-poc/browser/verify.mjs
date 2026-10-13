@@ -59,10 +59,10 @@ try {
   });
   assert.match(invalid,/PDF byte buffers/);
   result.invalidInputRejected=invalid;
-  for (const [name,paintedRules] of [["text",false],["table",false],["table",true]]) {
-    const label=paintedRules?"table-painted":name;
+  for (const [name,paintedRules,tables] of [["text",false,false],["table",false,false],["table",true,false],["table",true,true]]) {
+    const label=tables?"table-structured":paintedRules?"table-painted":name;
     result.stage=label;
-    const evidence = await page.evaluate(({name,paintedRules})=>window.runPdf(name,paintedRules),{name,paintedRules});
+    const evidence = await page.evaluate(({name,paintedRules,tables})=>window.runPdf(name,paintedRules,tables),{name,paintedRules,tables});
     const native = JSON.parse(await fs.readFile(path.join(artifacts,label+"-page/report.json"),"utf8"));
     assert.deepEqual(evidence.report,native,"Native/WASM IR reports differ");
     const detection=evidence.report.extraction.tableDetection;
@@ -91,7 +91,7 @@ try {
     assert.equal(detection.tables.length,name==="table"?1:0);
     const ir=evidence.report.documentIr.paragraphs[0].controls;
     const irTables=ir.filter(c=>c.Table).map(c=>c.Table);
-    assert.equal(irTables.length,0);
+    assert.equal(irTables.length,tables?1:0);
     if (name==="table") {
       assert.equal(detection.tables[0].rows,5);
       assert.equal(detection.tables[0].columns,3);
@@ -99,21 +99,27 @@ try {
       assert.deepEqual(detection.ambiguousContent,[]);
       const cell=detection.tables[0].cells.find(c=>c.row===2 && c.column===2);
       assert.deepEqual(cell.imageIndices,[0,1]);
-      assert.equal(evidence.report.lowering.semanticTables,0);
+      assert.equal(evidence.report.lowering.semanticTables,tables?1:0);
       assert.equal(evidence.report.lowering.straightRules,paintedRules?0:14);
-      assert.equal(evidence.report.lowering.paintedRuleRectangles,paintedRules?14:0);
-      assert.equal(evidence.report.lowering.textBoxes,95);
-      const pictures=ir.filter(c=>c.Picture).map(c=>c.Picture);
+      assert.equal(evidence.report.lowering.paintedRuleRectangles,paintedRules && !tables?14:0);
+      assert.equal(evidence.report.lowering.textBoxes,tables?1:95);
+      if(tables) {
+        assert.equal(irTables[0].cells.length,15);
+        assert.deepEqual([irTables[0].row_count,irTables[0].col_count],[5,3]);
+        assert.deepEqual(evidence.report.lowering.deferredTables,[]);
+      }
+      const pictures=tables ? irTables[0].cells.find(c=>c.row===2 && c.col===2).paragraphs.flatMap(p=>p.controls).filter(c=>c.Picture).map(c=>c.Picture)
+        :ir.filter(c=>c.Picture).map(c=>c.Picture);
       assert.equal(pictures.length,2);
       for(const pic of pictures) {
-        assert.equal(pic.common.treat_as_char,false);
+        assert.equal(pic.common.treat_as_char,tables);
         assert.deepEqual(pic.border_x,[0,0,pic.common.width,0]);
         assert.deepEqual(pic.border_y,[pic.common.width,pic.common.height,0,pic.common.height]);
         assert.deepEqual([pic.crop.right,pic.crop.bottom],pic.img_dim);
       }
     }
     assert.equal(evidence.pageCount,1);
-    assert.equal(evidence.report.lowering.explicitZeroTextMargins,name==="table"?95:3);
+    assert.equal(evidence.report.lowering.explicitZeroTextMargins,tables?1:name==="table"?95:3);
     assert.equal(evidence.report.lowering.singleLineParagraphs,"SQUEEZE");
     assert.ok(evidence.inkPixels>100);
     assert.equal(evidence.images,name==="table"?2:0);

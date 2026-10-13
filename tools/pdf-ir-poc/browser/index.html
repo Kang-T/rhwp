@@ -27,16 +27,16 @@
     pending.clear();
   }
   worker.onerror = (error) => failWorker(error.message);
-  window.compileBuffer = (bytes, paintedRules=false) => new Promise((resolve, reject) => {
+  window.compileBuffer = (bytes, paintedRules=false,tables=false) => new Promise((resolve, reject) => {
     if (fatal) { reject(new Error(fatal)); return; }
     const id = ++nextId;
     const timer = setTimeout(()=>{ pending.delete(id); reject(new Error("POC worker response timed out")); },15000);
     pending.set(id, { resolve, reject, timer });
-    worker.postMessage({ id, bytes, paintedRules }, [bytes]);
+    worker.postMessage({ id, bytes, paintedRules,tables }, [bytes]);
   });
-  window.runPdf = async (name, paintedRules=false) => {
+  window.runPdf = async (name, paintedRules=false,tables=false) => {
     const response = await fetch(`/pdf/${name}.pdf`);
-    const result = await window.compileBuffer(await response.arrayBuffer(),paintedRules);
+    const result = await window.compileBuffer(await response.arrayBuffer(),paintedRules,tables);
     const xml = new DOMParser().parseFromString(result.svg, "image/svg+xml");
     const dimensions = xml.documentElement.getAttribute("viewBox").split(/\s+/).map(Number);
     const canvas = document.getElementById("page");

@@ -1,6 +1,7 @@
 pub mod hwpx_compatibility;
 mod lowering;
 pub mod recognition;
+mod structured_lowering;
 pub mod table_detection;
 
 use pdf_oxide::{elements::PathContent, extractors::PdfImage, layout::TextSpan, PdfDocument};
@@ -95,20 +96,29 @@ pub fn inspect_page(bytes: &[u8], page: usize) -> Result<Value, String> {
 }
 
 pub fn compile_page(bytes: &[u8], page: usize) -> Result<Compilation, String> {
-    compile_with_rules(bytes, page, false)
+    compile_with_rules(bytes, page, false, false)
 }
 
 pub fn compile_page_painted_rules(bytes: &[u8], page: usize) -> Result<Compilation, String> {
-    compile_with_rules(bytes, page, true)
+    compile_with_rules(bytes, page, true, false)
+}
+
+pub fn compile_page_tables(bytes: &[u8], page: usize) -> Result<Compilation, String> {
+    compile_with_rules(bytes, page, true, true)
 }
 
 fn compile_with_rules(
     bytes: &[u8],
     page: usize,
     painted_rules: bool,
+    tables: bool,
 ) -> Result<Compilation, String> {
     let extracted = extract(bytes, page)?;
-    let (document, mut lowering_report) = lowering::lower(&extracted, painted_rules)?;
+    let (document, mut lowering_report) = if tables {
+        structured_lowering::lower(&extracted)?
+    } else {
+        lowering::lower(&extracted, painted_rules)?
+    };
     let serialized = rhwp::serializer::serialize_hwpx(&document).map_err(|e| e.to_string())?;
     let (hwpx, margins) = hwpx_compatibility::explicit_zero_text_margins(&serialized)?;
     lowering_report["explicitZeroTextMargins"] = json!(margins);
@@ -118,6 +128,7 @@ fn compile_with_rules(
             "sectionDef":document.sections[0].section_def,
             "paragraphs":document.sections[0].paragraphs,
             "charShapes":document.doc_info.char_shapes,
+            "paraShapes":document.doc_info.para_shapes,
             "fonts":document.doc_info.font_faces
         }
     });
@@ -164,6 +175,16 @@ mod browser {
     ) -> Result<PdfCompilation, JsValue> {
         let compiled =
             super::compile_page_painted_rules(bytes, page).map_err(|e| JsValue::from_str(&e))?;
+        Ok(PdfCompilation {
+            hwpx: compiled.hwpx,
+            report: compiled.report.to_string(),
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn compile_pdf_page_tables(bytes: &[u8], page: usize) -> Result<PdfCompilation, JsValue> {
+        let compiled =
+            super::compile_page_tables(bytes, page).map_err(|e| JsValue::from_str(&e))?;
         Ok(PdfCompilation {
             hwpx: compiled.hwpx,
             report: compiled.report.to_string(),

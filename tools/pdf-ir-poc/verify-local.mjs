@@ -26,12 +26,15 @@ try {
   const shared=["--release","--offline","--locked","--manifest-path",path.join(root,"Cargo.toml"),"--target-dir",path.join(repo,"target/pr-review")];
   run("fmt","cargo",["+1.93.1","fmt","--manifest-path",path.join(root,"Cargo.toml"),"--","--check"]);
   run("contracts","cargo",["+1.93.1","test",...shared,"--tests"],{RHWP_POC_REPO:repo});
+  run("native-clippy","cargo",["+1.93.1","clippy",...shared,"--all-targets","--no-deps","--","-D","warnings"]);
+  run("wasm-clippy","cargo",["+1.93.1","clippy",...shared,"--lib","--target","wasm32-unknown-unknown","--no-deps","--","-D","warnings"]);
   const inputs={text:"pdf/re-align-center-hancom-hwp-2020.pdf",table:"pdf/issue5875/nested_table_text_caption-2020.pdf"};
   run("upstream-detection-probe","cargo",["+1.93.1","run",...shared,"--example","table_probe","--",path.join(repo,inputs.table)]);
   for (const [name,input] of Object.entries(inputs)) {
     run(`${name}-native`,"cargo",["+1.93.1","run",...shared,"--",path.join(repo,input),path.join(output,name+"-page")]);
   }
   run("table-painted-native","cargo",["+1.93.1","run",...shared,"--",path.join(repo,inputs.table),path.join(output,"table-painted-page"),"--painted-rules"]);
+  run("table-structured-native","cargo",["+1.93.1","run",...shared,"--",path.join(repo,inputs.table),path.join(output,"table-structured-page"),"--tables"]);
   run("wasm-build","cargo",["+1.93.1","build",...shared,"--lib","--target","wasm32-unknown-unknown"]);
   run("wasm-bindgen",bindgen,[path.join(repo,"target/pr-review/wasm32-unknown-unknown/release/rhwp_pdf_oxide_poc.wasm"),"--target","web","--out-dir",path.join(output,"browser/pkg")]);
   run("browser",process.execPath,[path.join(root,"browser/verify.mjs"),repo,path.join(output,"browser/evidence")]);
@@ -50,12 +53,13 @@ try {
   }
   const wasm=await fs.readFile(path.join(output,"browser/pkg/rhwp_pdf_oxide_poc_bg.wasm"));
   await fs.writeFile(path.join(evidence,"manifest.json"),JSON.stringify({
-    sourceSha, rustToolchain:"1.93.1",pdfOxide:"0.3.78",officeOxide:"0.1.9",
+    sourceSha,sourceTreeDirty:execFileSync("git",["status","--porcelain","--untracked-files=normal"],{cwd:repo,encoding:"utf8"}).trim().length>0,
+    rustToolchain:"1.93.1",pdfOxide:"0.3.78",officeOxide:"0.1.9",
     inputHashes:await Promise.all(Object.entries(inputs).map(async([name,input])=>({name,input,sha256:sha(await fs.readFile(path.join(repo,input)))}))),
     wasmBytes:wasm.length,wasmGzipBytes:gzipSync(wasm).length,wasmSha256:sha(wasm),
-    pocSources:await Promise.all(["Cargo.toml","Cargo.lock","src/lib.rs","src/lowering.rs","src/hwpx_compatibility.rs","src/main.rs","tests/contracts.rs","browser/verify.mjs"].map(async file=>({file,sha256:sha(await fs.readFile(path.join(root,file)))}))),
+    pocSources:await Promise.all(["Cargo.toml","Cargo.lock","src/lib.rs","src/lowering.rs","src/structured_lowering.rs","src/hwpx_compatibility.rs","src/main.rs","tests/contracts.rs","tests/structured.rs","browser/verify.mjs"].map(async file=>({file,sha256:sha(await fs.readFile(path.join(root,file)))}))),
     comparisons,hancomCompatibility:"unverified-awaiting-maintainer-retest",
-    limits:"selected first pages only; positional IR retained; not production/visual acceptance"
+    limits:"selected first pages only; optional inferred Table IR; new structured output requires Hancom verification"
   },null,2));
 } finally {
   await fs.writeFile(path.join(evidence,"commands.json"),JSON.stringify(commands,null,2));
