@@ -2066,6 +2066,8 @@ impl LayoutEngine {
                 && end_row.checked_sub(1).is_some_and(|last_row| {
                     cell_row <= last_row && last_row < cell_row + cell.row_span as usize
                 });
+            let selected_frame_owns_alignment =
+                closing_source_frame_owns_alignment || full_width_frame_owns_alignment;
             let declared_opening_content_height = (!is_continuation)
                 .then(|| self.declared_nested_opening_cut_height(table, start_cut, end_cut, styles))
                 .flatten()
@@ -2074,7 +2076,7 @@ impl LayoutEngine {
                 // 인증한 프레임은 원본 잉크 경계에서 끝난다. 첫 빈 띠와 문단 사이 빈 띠도
                 // 내용에 속하며, 보이는 줄 전진량만 합산할 때 빠져도 소유를 보존한다.
                 height
-            } else if closing_source_frame_owns_alignment {
+            } else if selected_frame_owns_alignment {
                 // 수용한 종료 프레임은 선택한 가시 줄을 정렬한다. 다음 쪽으로
                 // 전진하는 마지막 줄간격·문단 뒤 간격을 정렬 높이로 다시 얹지 않는다.
                 total_content_height
@@ -2096,10 +2098,6 @@ impl LayoutEngine {
                         self.cell_cut_visible_height(cell, table, styles, start, end)
                     })
                     .unwrap_or(total_content_height)
-            } else if full_width_frame_owns_alignment {
-                // 실제로 그리는 컷을 정렬할 때 마지막 줄의 전진량은 제외한다.
-                // 수용 공간 계상은 이 전진량을 물리 공간으로 소유하지만, 조각 하단의 잉크는 아니다.
-                total_content_height
             } else if center_saved_spanning_cell == Some(cell_idx)
                 || (cut_frame_owns_alignment
                     && self.row_uses_reflow_physical_frame(table, cell_row))
