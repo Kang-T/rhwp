@@ -42,7 +42,12 @@ impl<'a> CellCutFrame<'a> {
 
     fn header_height(&self, end: usize) -> f64 {
         if end > self.start {
-            self.engine.nested_continuation_header_height(self.cell, self.units, self.start, self.styles)
+            self.engine.nested_continuation_header_height(
+                self.cell,
+                self.units,
+                self.start,
+                self.styles,
+            )
         } else {
             0.0
         }

@@ -83,7 +83,10 @@ pub(crate) fn stored_first_margin_is_page_relative(
         && (hwpunit_to_px(first_seg.vertical_pos, dpi) - first_before).abs() <= 0.5
         && {
             let gap = hwpunit_to_px(
-                next_seg.vertical_pos - last_seg.vertical_pos - last_seg.line_height - last_seg.line_spacing,
+                next_seg.vertical_pos
+                    - last_seg.vertical_pos
+                    - last_seg.line_height
+                    - last_seg.line_spacing,
                 dpi,
             );
             // 기존 0 앞간격 사다리와 뒤간격을 따로 저장한 사다리를 같은 원점에서 판정한다.

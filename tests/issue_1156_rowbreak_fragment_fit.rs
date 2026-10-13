@@ -122,22 +122,41 @@ fn kps_ai_page37_defers_overflowing_split_row_slice() {
         RenderNodeType::TableCell(c) if c.row == boundary)));
     // 두 조각은 원본의 모든 행을 보존하고 반복 머리행만 공유한다.
     let left_rows = |table: &RenderNode| {
-        table.children.iter().filter_map(|node| match &node.node_type {
-            RenderNodeType::TableCell(cell) if cell.col == 0 => Some(cell.row),
-            _ => None,
-        }).collect::<std::collections::BTreeSet<_>>()
+        table
+            .children
+            .iter()
+            .filter_map(|node| match &node.node_type {
+                RenderNodeType::TableCell(cell) if cell.col == 0 => Some(cell.row),
+                _ => None,
+            })
+            .collect::<std::collections::BTreeSet<_>>()
     };
     let rows = left_rows(first_table);
     let following = left_rows(next_table);
-    let headers = first_table.children.iter().filter_map(|node| match &node.node_type {
-        RenderNodeType::TableCell(cell)
-            if cell.col == 0 && compact(&subtree_text(node)) == "항목" => Some(cell.row),
-        _ => None,
-    }).collect::<std::collections::BTreeSet<_>>();
-    assert_eq!(rows.intersection(&following).copied().collect::<std::collections::BTreeSet<_>>(), headers,
-        "반복 머리행만 두 조각에 속한다");
-    assert_eq!(rows.union(&following).count(), usize::from(original.row_count),
-        "두 조각은 원본의 모든 행을 보존한다");
+    let headers = first_table
+        .children
+        .iter()
+        .filter_map(|node| match &node.node_type {
+            RenderNodeType::TableCell(cell)
+                if cell.col == 0 && compact(&subtree_text(node)) == "항목" =>
+            {
+                Some(cell.row)
+            }
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        rows.intersection(&following)
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>(),
+        headers,
+        "반복 머리행만 두 조각에 속한다"
+    );
+    assert_eq!(
+        rows.union(&following).count(),
+        usize::from(original.row_count),
+        "두 조각은 원본의 모든 행을 보존한다"
+    );
     for (tree, table) in [(&first, first_table), (&next, next_table)] {
         let mut nodes = Vec::new();
         walk(&tree.root, &mut nodes);

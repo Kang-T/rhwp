@@ -123,7 +123,8 @@ impl LayoutEngine {
         end_cut: usize,
         styles: &ResolvedStyleSet,
     ) -> f64 {
-        if !self.native_first_line_restart_cut_closes_frame(table, cell, units, start_cut, end_cut) {
+        if !self.native_first_line_restart_cut_closes_frame(table, cell, units, start_cut, end_cut)
+        {
             return 0.0;
         }
         let closing = &units[0];

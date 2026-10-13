@@ -2407,23 +2407,6 @@ pub(crate) fn stored_single_cell_closing_frame_height(
     }
 }
 
-/// 첫 원본 프레임과 뒤 빈 문단이 두 조각의 본체·여백을 정확히 잇는 경우의 본체 높이.
-/// 임의의 마지막 viewport 원점은 closing_frame_bottom이 별도로 소유한다.
-pub(crate) fn stored_single_cell_closing_frame_height(
-    host: &Paragraph,
-    successor: &Paragraph,
-    table: &Table,
-    dpi: f64,
-) -> Option<f64> {
-    stored_single_cell_closing_frame_bottom(host, successor, table, dpi)?;
-    let [cell] = table.cells.as_slice() else { return None; };
-    let remaining = cell.height.checked_sub(table.common.height)?;
-    let next = successor.line_segs.first()?;
-    let outer = i64::from(table.outer_margin_top) + i64::from(table.outer_margin_bottom);
-    (i64::from(next.vertical_pos) == i64::from(remaining) + outer)
-        .then(|| hwpunit_to_px(remaining as i32, dpi))
-}
-
 /// 다음 빈 문단이 누적 저장 원점과 개체 프레임의 끝을 정확히 잇는 경우,
 /// 선언 높이를 첫 RowBreak 조각의 물리 높이로 반환한다.
 pub(crate) fn stored_cumulative_rowbreak_opening_frame_height(

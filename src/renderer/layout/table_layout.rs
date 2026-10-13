@@ -5314,40 +5314,43 @@ impl LayoutEngine {
                                 .table_text_reflowed(table),
                             relaxed_pad,
                         );
-                    let line_req =
-                        if let Some(height) = self.stored_plain_closed_cell_height(cell, table) {
-                            height
-                        } else if let Some(end) = stored_frame_end {
-                            end
-                        } else if relaxed_pad && Self::cell_has_stored_line_segs(cell) {
-                            let decl_h = if cell.height < 0x8000_0000 {
-                                hwpunit_to_px(cell.height as i32, self.dpi)
-                            } else {
-                                f64::MAX
-                            };
-                            // 온전한 저장 프레임 안에 실효 여백으로 글줄이 들어가면
-                            // 비활성 셀 여백으로 그 프레임을 재성장시키지 않는다.
-                            // 최소 높이·쪽 분할 프레임의 기존 성장 계약은 별도다.
-                            let effective_pad_v = hwpunit_to_px(
-                                cell.effective_vertical_padding_hu(&table.padding),
-                                self.dpi,
-                            );
-                            let raw_pad_v = if suppress_unused_padding
-                                || (closed_inline_frame && line_based + effective_pad_v <= decl_h)
-                            {
-                                effective_pad_v
-                            } else {
-                                hwpunit_to_px(cell.padding.top as i32, self.dpi)
-                                    + hwpunit_to_px(cell.padding.bottom as i32, self.dpi)
-                            };
-                            let pad_v = (pad_top + pad_bottom).max(raw_pad_v);
-                            self.stored_plain_cell_content_minimum(cell, line_based, effective_pad_v)
-                                .unwrap_or_else(|| crate::renderer::float_placement::stored_text_cell_required_height(
-                                    line_based, decl_h, pad_v,
-                                ))
+                    let line_req = if let Some(height) =
+                        self.stored_plain_closed_cell_height(cell, table)
+                    {
+                        height
+                    } else if let Some(end) = stored_frame_end {
+                        end
+                    } else if relaxed_pad && Self::cell_has_stored_line_segs(cell) {
+                        let decl_h = if cell.height < 0x8000_0000 {
+                            hwpunit_to_px(cell.height as i32, self.dpi)
                         } else {
-                            line_based + pad_top + pad_bottom
+                            f64::MAX
                         };
+                        // 온전한 저장 프레임 안에 실효 여백으로 글줄이 들어가면
+                        // 비활성 셀 여백으로 그 프레임을 재성장시키지 않는다.
+                        // 최소 높이·쪽 분할 프레임의 기존 성장 계약은 별도다.
+                        let effective_pad_v = hwpunit_to_px(
+                            cell.effective_vertical_padding_hu(&table.padding),
+                            self.dpi,
+                        );
+                        let raw_pad_v = if suppress_unused_padding
+                            || (closed_inline_frame && line_based + effective_pad_v <= decl_h)
+                        {
+                            effective_pad_v
+                        } else {
+                            hwpunit_to_px(cell.padding.top as i32, self.dpi)
+                                + hwpunit_to_px(cell.padding.bottom as i32, self.dpi)
+                        };
+                        let pad_v = (pad_top + pad_bottom).max(raw_pad_v);
+                        self.stored_plain_cell_content_minimum(cell, line_based, effective_pad_v)
+                            .unwrap_or_else(|| {
+                                crate::renderer::float_placement::stored_text_cell_required_height(
+                                    line_based, decl_h, pad_v,
+                                )
+                            })
+                    } else {
+                        line_based + pad_top + pad_bottom
+                    };
                     let object_req = if object_based > 0.0 {
                         object_based + pad_top + pad_bottom
                     } else {
@@ -5497,9 +5500,11 @@ impl LayoutEngine {
                         hwpunit_to_px(cell.effective_vertical_padding_hu(&table.padding), self.dpi);
                     let pad_v = (pad_top + pad_bottom).max(raw_pad_v);
                     self.stored_plain_cell_content_minimum(cell, line_based, raw_pad_v)
-                        .unwrap_or_else(|| crate::renderer::float_placement::stored_text_cell_required_height(
-                            line_based, decl_h, pad_v,
-                        ))
+                        .unwrap_or_else(|| {
+                            crate::renderer::float_placement::stored_text_cell_required_height(
+                                line_based, decl_h, pad_v,
+                            )
+                        })
                 } else {
                     line_based + pad_top + pad_bottom
                 };
@@ -6380,7 +6385,10 @@ impl LayoutEngine {
                 // Paragraph-relative objects use the paragraph box, not its
                 // first-line (possibly hanging) indent or the whole cell box.
                 let (area_x, area_w) = if table.common.horz_rel_to == HorzRelTo::Para {
-                    (area_x + host_margin_left, (area_w - host_margin_left - host_margin_right).max(0.0))
+                    (
+                        area_x + host_margin_left,
+                        (area_w - host_margin_left - host_margin_right).max(0.0),
+                    )
                 } else {
                     (area_x, area_w)
                 };
@@ -13806,7 +13814,8 @@ impl LayoutEngine {
             };
             let Some(frame) = self.stored_nested_float_placement(
                 table,
-                cell, index - 1,
+                cell,
+                index - 1,
                 child,
                 0,
                 hwpunit_to_px(last.vertical_pos, self.dpi),
@@ -15138,12 +15147,7 @@ impl LayoutEngine {
                         matches!(control, Control::Table(_))
                             .then(|| {
                                 self.stored_nested_float_placement(
-                                    table,
-                                    cell, pi,
-                                    nt,
-                                    ci,
-                                    0.0,
-                                    styles,
+                                    table, cell, pi, nt, ci, 0.0, styles,
                                 )
                             })
                             .flatten()
@@ -15274,7 +15278,8 @@ impl LayoutEngine {
                                 (row_is_auto_height
                                     || driver_is_nested_table_rows
                                     || row_has_joint_source_boundary
-                                    || row_has_plain_source_boundary || row_has_stored_in_paragraph_cut)
+                                    || row_has_plain_source_boundary
+                                    || row_has_stored_in_paragraph_cut)
                                     && !row_has_crossing_span
                                     && row_units[*driver_index].len() > 1
                             }) {
@@ -24682,6 +24687,7 @@ impl LayoutEngine {
                     r,
                     start_row,
                     start_cut,
+                    false,
                     start_row_height_override,
                     resolved_row_heights,
                     straddle_page_bands,
@@ -24773,8 +24779,10 @@ impl LayoutEngine {
                     start_row,
                     end_row,
                     start_cut,
+                    false,
                     start_row_height_override,
-                    end_cut.is_empty(),
+                    end_cut,
+                    false,
                     height,
                     resolved_row_heights,
                     carried,
@@ -25000,21 +25008,23 @@ impl LayoutEngine {
                         })
                         .flatten()
                 });
-            owner.unwrap_or_else(|| {
-            let accepted_height = (consumed_end - prior_h).max(0.0);
-            // Rebase the budget at the actual accepted content cursor. A saved reset
-            // can snap that cursor backward; original physical rows no longer give
-            // the height of the units beginning here.
-            let units = self.cell_units(cell, table, styles);
-            let mut fit = su.min(units.len());
-            while fit < units.len()
-                && self.cell_cut_visible_height(cell, table, styles, su, fit + 1)
-                    <= accepted_height + 0.1
-            {
-                fit += 1;
-            }
-            self.snap_units_to_stored_cell_reset(cell, table, styles, su, fit)
-            }).max(su)
+            owner
+                .unwrap_or_else(|| {
+                    let accepted_height = (consumed_end - prior_h).max(0.0);
+                    // Rebase the budget at the actual accepted content cursor. A saved reset
+                    // can snap that cursor backward; original physical rows no longer give
+                    // the height of the units beginning here.
+                    let units = self.cell_units(cell, table, styles);
+                    let mut fit = su.min(units.len());
+                    while fit < units.len()
+                        && self.cell_cut_visible_height(cell, table, styles, su, fit + 1)
+                            <= accepted_height + 0.1
+                    {
+                        fit += 1;
+                    }
+                    self.snap_units_to_stored_cell_reset(cell, table, styles, su, fit)
+                })
+                .max(su)
         } else {
             usize::MAX
         };

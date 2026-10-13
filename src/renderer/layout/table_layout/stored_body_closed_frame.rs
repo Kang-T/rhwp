@@ -130,6 +130,7 @@ impl LayoutEngine {
                 false,
                 physical,
                 row_heights,
+                &[],
                 styles,
             );
             let units = self.cell_units(cell, table, styles);

@@ -5478,3 +5478,20 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 - 첫 prepare 뒤 fmt가 새 source의 바이트 수를 바꿔 suite 배정이 달라졌고 첫 focused 실행은0 tests/exit4였다. 이를 통과로 세지 않고 fmt 후 prepare를 다시 실행해 실제4/1개를 확인했다. nextest가 `CARGO_BIN_EXE_rhwp`를 자체 주입하므로 부모 환경의 historical CLI가 적용되지 않았던 시도도 before 검출 증거에서 제외했다. 최종 before4개는 같은 정식 binary를 직접 실행해 실제 결함을 검출했다.
 - 원PR17개는 아직 OPEN이고 #7612는 이미 MERGED, 후속6개는 그대로 미적용이다. 원본 TSV176개는 원 바이트·SHA·범위·독립Print를 대조해 로컬 제출 payload를 준비했다. 경계17쪽은 완료된 silhouette manifest의 명시적 쪽 범위를 쓰며 기존 capture manifest의 incomplete 상태와 구분한다. 아직 gist/PR을 게시하지 않았다.
 - 실제 원격 `upstream/devel`이552f5228d에서22317614b03722e95349a1d3d71c86923363c6f5로 전진했다. #7877의 표 분할·저장 원점/흐름 소유 및 #7639 성능 변경106파일을 확인했다. 현재 최종 통합 preview는22파일72충돌이며 공유 helper·height 소비 경로가 겹친다. 이 단계의 code/test를 커밋한 뒤 실제 rebase를 수행한다. source SHA가 바뀐 결과에는 이전 전체/시각 완료를 그대로 적용하지 않으며 영향 경계·원 PR 입력의 Native/fresh와 필수 lint/정책을 새 head에서 확인한다. 통과한 이전 전체10,267개는 보존하고 불필요하게 반복하지 않는다.
+
+## 진행225 — #7877 리베이스 완료와 우선 회귀 대조
+
+- 실제 변경된 base `22317614b03722e95349a1d3d71c86923363c6f5` 위의 rebase228단계를 완료했다. 완료 head는 `110e4749e1dd3ac3b312510b5bcb9588a2a7106d`이고, 이전 head는 `backup/semanticist21-pre-223176-20261013`으로 보존했다. 각 충돌의 원래 commit·경로·해결 근거는 `v453/upstream-223176-rebase-resolutions.jsonl`에 기록했다.
+- upstream의 typed `StraddleCellCarry`·물리 예산·후속 저장 원점·중첩 종료 띠 소유를 유지하면서 현재 보정의 원본 행 상자·RowCut 인덱스·OLE 호스트 원점·정렬 출처를 함께 전달한다. compile에서 확인한 중복 임시 helper와 overlay의 새 carry 인자 누락을 수정했다. 이 변경의 현재 PASS를 아직 선언하지 않는다.
+- 사용자 지시에 따라 #7877에서 변경한 integration10파일45개를 가장 먼저 실행한다. source 물리 예산 검사1개도 별도로 확인한다. 다른 전체 회귀를 먼저 반복하지 않는다. current/source 입력 SHA와 원격 #7877 metadata, 실행 명령·결과는 `output/pr-review/semanticist21-20261008/upstream-7877-rebase-v454/`에 보존한다.
+- #6972의 같은 높이 합성 검사는 삭제되지 않았으며 기존 메인터너 보정에서 `ambiguous_same_height_lines_keep_raw_control_slot_ownership`으로 이름과 기대값이 바뀌었다. 원시 확장 제어의8유닛 소속을 보존하는 계약이며, upstream의 글자 위치 projection 기대값과 의미가 다름을 명시한다. 다른44개 함수 이름은 그대로 보존되어 있다.
+- #7877이 giant-overfill 진단 양성 fixture를 정상 검증된 `issue2004_cell_image_stack.hwpx`로 교체한7개 검사는 유지했다. 과거 giant 입력의 검사 제외 기록을 이 정상 대체 fixture의 삭제 근거로 쓰지 않는다. 원본 시험지 파일과 범위 밖 검사는 보존한다.
+- 새 source의 우선 회귀·Native/fresh 시각 대조·lint와 원격 CI가 남아 있다. v453의10,267 PASS 및 이전 시각 증적은 이전 source의 역사 기록이며 새 통합 head의 통과 증거로 승격하지 않는다.
+
+## 진행226 — #7877 우선 회귀46개 완료
+
+- #7877에서 변경한 integration10파일45개를 현재 소스에서 실행해 **45 PASS/0 FAIL**을 확인했다. 각 실제 실행 함수와 inventory를 대조해45/45개 일치·누락0을 확인했다. 기존 물리 예산 source 검사 `test_advance_row_cut_rowbreak_true_tail_obeys_physical_budget`도 별도로 **1 PASS**였다. 대상46개는 SKIP0이며, nextest의 다른 함수 필터/기존 ignore 수를 이 대상의 생략으로 세지 않는다.
+- integration compile은8분50초, 검사 실행은3.509초였다. source1개의 warm 검사 실행은0.052초였다. 처음 JSON 집계에 필터 밖 ignore5개가 포함되어집계 assertion이 실패했고, 실제 PASS/FAIL 이벤트와 대상 함수의 정확한 목록으로 수정해 확인했다. 해당 집계 오류로 Rust 검사를 반복하지 않았다.
+- 다음 빌드부터 사용자 지시대로 `CARGO_BUILD_JOBS=8`을 사용한다. 실제 진단 시 사용가능 메모리 약12GiB, active swap-in/out0, I/O wait0–1%여서 메모리·디스크 압박은 확인되지 않았다. 마지막 source libtest의 `lto cgu.00` 작업이 관측됐다. `lto=false`에도 local Thin LTO가 수행되므로 jobs 증가만으로 이 단일 crate의 마지막 최적화 구간을 단축한다고 주장하지 않는다. 현재 프로필·toolchain은 변경하지 않았다.
+- 입력/PDF208개 항목·고유205파일 모두 기존 입력 SHA 및 현재 commit 바이트와 일치했다. 원PR17개의 기능 commit39개는 새 head의 조상이며37개는 stable patch-id가 같고2개는 upstream 변경 문맥 차이를 별도 range-diff로 보존했다. 후속6개는 적용하지 않았다.
+- 완료 증거는 `v454/pr7877-priority-result.json`, `pr7877-priority-nextest.log`, `pr7877-source-budget-nextest.log`, `current-input-pdf-audit.json`, `original-application-rebased-audit.json`이다. #7877 회귀 우선 검사는 완료됐고, 현재 source의 나머지 focused/Native·fresh WASM·필수 lint·원격 CI는 계속 진행한다. 전체10,267개를 다시 실행한 결과로 보고하지 않는다.

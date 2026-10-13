@@ -1370,7 +1370,8 @@ impl LayoutEngine {
             });
             // 저장 텍스트 병합 셀의 마지막 조각은 남은 소유 유닛을 최종 물리 셀 상자 안에서 정렬한다.
             // 연속된 원본 줄 위치도 포함하며, 선택한 컷을 아래 줄 구성과 실제 그리기에 재사용한다.
-            let stored_restart_span_frame_owns_alignment = !is_in_split_row && cell_end_row <= render_range_end
+            let stored_restart_span_frame_owns_alignment = !is_in_split_row
+                && cell_end_row <= render_range_end
                 && straddle_cut_units.is_some_and(|(start, end)| {
                     let units = self.cell_units(cell, table, styles);
                     start > 0
@@ -1402,13 +1403,19 @@ impl LayoutEngine {
                     .saved_nested_single_cell_frame_height(table, start_cut, end_cut, styles)
                     .is_some();
             let plain_cut_frame_owns_alignment = end_row_source_frame_candidate
-                && self.stored_plain_cut_frame_minimum(
-                    table,
-                    cell_row,
-                    if cell_row == start_row { start_cut } else { &[] },
-                    end_cut,
-                    styles,
-                ).is_some();
+                && self
+                    .stored_plain_cut_frame_minimum(
+                        table,
+                        cell_row,
+                        if cell_row == start_row {
+                            start_cut
+                        } else {
+                            &[]
+                        },
+                        end_cut,
+                        styles,
+                    )
+                    .is_some();
             let cut_frame_owns_alignment = is_continuation
                 && start_row_height_override.is_some()
                 && cell_row == start_row
@@ -1514,17 +1521,19 @@ impl LayoutEngine {
                 && !is_block_split
                 && !start_cut_is_block
                 && end_row_height_override.is_some();
-            let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment || is_rowbreak_straddle
-                && cell.row_span > 1
-                && cell.vertical_align != crate::model::table::VerticalAlign::Top
-                && straddle_cut_units.is_some_and(|(start, end)| {
-                    self.stored_plain_spanning_frame_owns_alignment(cell, table, start, end, styles)
-                        || (start > 0
+            let stored_span_frame_owns_alignment = stored_restart_span_frame_owns_alignment
+                || is_rowbreak_straddle
+                    && cell.row_span > 1
+                    && cell.vertical_align != crate::model::table::VerticalAlign::Top
+                    && straddle_cut_units.is_some_and(|(start, end)| {
+                        self.stored_plain_spanning_frame_owns_alignment(
+                            cell, table, start, end, styles,
+                        ) || (start > 0
                             && end >= self.cell_units(cell, table, styles).len()
                             && straddle_page_bands.iter().any(|carry| {
                                 carry.cell_index == cell_idx && carry.physical_height > 0.0
                             }))
-                });
+                    });
             // The descendant source row owns its closing blank band. The
             // enclosing cursor forwards that physical space without moving
             // the whole child into the parent's vertical alignment band.
@@ -1575,23 +1584,25 @@ impl LayoutEngine {
                         start > 0 && end >= self.cell_units(cell, table, styles).len()
                     });
             let frame_owns_alignment = !descendant_owns_closing_band
-                && (ordinary_source_frame_owns_alignment || closing_source_frame_owns_alignment || complete_plain_suffix_frame
+                && (ordinary_source_frame_owns_alignment
+                    || closing_source_frame_owns_alignment
+                    || complete_plain_suffix_frame
                     || heading_frame_owns_alignment
-                || self
-                    .stored_nested_text_frame_for_cut(
-                        table,
-                        start_cut,
-                        end_cut,
-                        start_cut_is_block,
-                        is_block_split,
-                    )
-                    .is_some()
-                || full_width_row_frame_owns_alignment
-                || plain_cut_frame_owns_alignment
-                || nested_single_cell_frame_owns_alignment
-                || cut_frame_owns_alignment
-                || stored_span_frame_owns_alignment
-                || original_restart_span_owns_alignment);
+                    || self
+                        .stored_nested_text_frame_for_cut(
+                            table,
+                            start_cut,
+                            end_cut,
+                            start_cut_is_block,
+                            is_block_split,
+                        )
+                        .is_some()
+                    || full_width_row_frame_owns_alignment
+                    || plain_cut_frame_owns_alignment
+                    || nested_single_cell_frame_owns_alignment
+                    || cut_frame_owns_alignment
+                    || stored_span_frame_owns_alignment
+                    || original_restart_span_owns_alignment);
             let saved_frame_needs_alignment =
                 (align_saved_opening_frame && cell_row + 1 == end_row || frame_owns_alignment)
                     && cell.vertical_align != crate::model::table::VerticalAlign::Top;
@@ -2850,9 +2861,9 @@ impl LayoutEngine {
                     && !table_host_has_stored_origin
                     && owns_paragraph_entry
                 {
-                            // 이 경로는 layout_composed_paragraph를 거치지 않는다.
-                            // 셀 측정과 같은 문단 앞 간격을 첫 개체 줄 앞에서 한 번
-                            // 소비한다. 저장 줄 원점에는 이 간격이 이미 포함돼 있다.
+                    // 이 경로는 layout_composed_paragraph를 거치지 않는다.
+                    // 셀 측정과 같은 문단 앞 간격을 첫 개체 줄 앞에서 한 번
+                    // 소비한다. 저장 줄 원점에는 이 간격이 이미 포함돼 있다.
                     para_y += crate::renderer::cell_paragraph_spacing_before(
                         para,
                         cp_idx,
