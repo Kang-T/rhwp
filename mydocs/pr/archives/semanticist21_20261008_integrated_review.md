@@ -4989,3 +4989,38 @@ FAIL / 수정 후 PASS이며 오른쪽 대조군은 전후 PASS다. 실제 rende
 각 PR의 실제 계약 수와 현재 b4ff8c 재검증을 구분해 기록했다. Native 영향 16쪽 비교와
 공용 wrapper의 fresh package 빌드는 실행 중이며 전쪽·최종 회귀·Skia·doc·Canvas·
 원격 CI는 현재 소스로 아직 완료되지 않았다. 승인 및 원격 PR/merge는 수행하지 않았다.
+
+## 진행 갱신197 — Native 영향 쪽 통과와 디스크 실패 복구 (2026-10-13)
+
+현재 b4ff8c 소스의 Native 영향 16쪽 비교는 exit0·1103.805초다. 최저68쪽
+93.16816%, 미달·누락0, source guard=true다. 72쪽은96.90530%에서99.95995%로
+개선됐다. 새72쪽 review와 동일 좌표 확대 비교를 직접 열어 첫 두 문단의 글줄·기준선,
+오른쪽 분류명·행 구분선·셀 외곽을 확인했다. 나머지15쪽의 새RGBA와 render tree는
+이미 판독한7f04c 출력과 동일하다. 현재 Native 자산은
+[`franchise-full-width-selected-lines-v452`](../assets/semanticist21-20261008/franchise-full-width-selected-lines-v452/README.md)에 보존한다.
+
+공용 root wrapper의 fresh package 빌드는 exit0·1502.211초다. root/pkg와
+Studio/public의 WASM 및 JS 해시가 각각 동일하다. WASM SHA-256은
+`94fe70f13609c5a006b8e9044463fac7ae96fe5fe03ae33bc0c0153b19f7867c`다.
+upstream/devel을 fetch했으며552f5228d와 동일해서 리베이스하지 않았다.
+
+이후 Native 전쪽 SVG와 fresh 경계의 글꼴 정책 SVG를 병행해 실제ENOSPC가 발생했다.
+이 운영 오류는 검증 성공으로 처리하지 않는다. Native/fresh 및 Rust 드라이버의 초기
+실패 로그와 부분 JSON은 v452에 보존했다. 초기 Rust의 fmt·Native/WASM Clippy·
+workspace build는 통과했고 all-target Clippy는 임시 파일 생성 실패였다. 이 실행을
+전체lint 또는 회귀 통과로 확대하지 않는다. Studio 재검증 준비도 ENOSPC로 실패해
+미실행이며 이전 source 결과로 대신하지 않는다.
+
+terminal 확인 뒤 실패한 중간SVG272개21,768,288,046bytes를 제거했다.
+별도로 현재 출력과 열린 파일을 제외하고, 해당 쪽PNG와TSV가 존재하는 구 증적의
+중복SVG531개12,661,724,517bytes를 제거해33GB를 확보했다. 원본·독립Print·
+PNG·TSV·render tree·로그·immutable CLI·공급 글꼴·공용target은 보존한다.
+앞서 정리한 종료v451 중복219개와v450 경계18개도 각각 별도ledger에 기록했다.
+
+검증 결과 JSON은 원자적으로 게시하도록 ignored 드라이버를 고쳤다. 대용량 출력은
+순서를 조정하고 완료된SVG는 PNG/TSV 확인 뒤 정리한다. 필요한K-water24쪽 SVG만
+Canvas 검사 때까지 보존한다. 이미 검증한 package를 다시 빌드하지 않고 동일 CLI/
+package/input/source guard로 fresh 경계와 실패한 Rust 게이트를 재시도 중이다.
+Native 전쪽·fresh 전쪽·관계형 회귀 등록·최종 backend/UI·원격CI는 아직 완료 전이다.
+개별17개는 **머지 보류**이며 모두 해결·검증된 뒤에만 **메인터너 보정 후 승인**으로
+바꾸고 승인된 PR/merge/후속처리를 이어간다.
