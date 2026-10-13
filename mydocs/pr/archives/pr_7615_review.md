@@ -9,7 +9,7 @@ last_verified: 2026-10-13
 
 ## 최종 판정
 
-**머지 보류 — 118쪽 회귀 보정과 Native 확인 완료; 새 fresh·전쪽·최종 게이트 검증 진행 중.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
+**머지 보류 — 118쪽 회귀 보정과 현재 전체 Rust 회귀 통과. 남은 Skia/doc·가맹사업 fresh 전쪽·정식 관계 검사 완료 후 승인.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
 
 ## 현재 개별 검토 상태 — 2026-10-13
 
@@ -17,10 +17,10 @@ last_verified: 2026-10-13
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
 | 현재 production 보정 | `ddf17f86476293b114b6236bfa6cf1ebc9d9d474` — 원본 전체 행/중첩 셀의 프레임 출처와 정렬 높이 계약 분리 |
-| 현재 Native/fresh 재검증 code head | ddf17f864 Native/fresh 경계17쪽·초기 PR24쌍/27쪽 통과와 직접 판독. Native 직접 문서4종·actual Canvas24/25 통과, 필수 lint/정책8단계exit0. 전142쪽/전체 nextest·후속 게이트는 진행 중 |
+| 현재 Native/fresh 재검증 code head | ddf17f864 경계17쪽, 원PR24쌍27쪽 및 초기48입력52쪽 양쪽 전쪽·직접 판독 통과. 직접 문서5종 Native 전쪽 통과, CGMP/KPS/K-water/#157 fresh 전쪽 통과. actual Canvas/Studio 소비 검사와 lint/정책8단계 exit0 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
-| 이 PR의 실제 계약 실행 | 직전 b4ff8c 전체 nextest에서 33/33 PASS, FAIL/SKIP/미관측0; 현재 검사 source SHA 동일 확인 |
-| 현재 통합 완료 판정 | **머지 보류** — 직전 b4ff8c의 전체10267개/원PR78계약·Skia/doc는 PASS였으나, 전142쪽 직접 대조에서118쪽 정렬 회귀 확인. 새 보정 소스의 검증 필요 |
+| 이 PR의 실제 계약 실행 | 현재 ddf17f864 전체 nextest에서 33/33 PASS, FAIL/SKIP/미관측0; `v453/original-pr-contract-results.json`에 함수·로그·소스 SHA 연결 |
+| 현재 통합 완료 판정 | **머지 보류** — 현재 전체 nextest10,267 PASS·45 SKIP·0 FAIL, Skia lib4,041 PASS·12 IGNORE. 디스크 확장 후 남은11~13단계와 가맹사업 fresh142쪽 재개; 정식 관계 회귀 등록·최종 관련 게이트 대기 |
 | 원격 진행 권한 | 작업지시자의 자동 승인: 모든 필수 테스트·시각 검증 완료 후 통합 PR 생성 → 최신 head CI 확인 → 머지 → 후속 처리 |
 
 이 PR의 입력·호출 경로·계약 함수와 미검증 범위는 아래 개별 항목을 따른다. v447 계약 PASS와
