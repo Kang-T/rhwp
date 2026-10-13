@@ -5198,3 +5198,20 @@ matched5/link6및2020/2022건수2/2가남아있었다. 기존pairs목록과문�
 종료된Native/fresh영향16쪽중복SVG32개4,711,622,430bytes를fd/PNG/TSV확인과
 SHA ledger뒤삭제했다. 원본/Print/PNG/TSV/tree/immutableCLI/package/공용target은
 보존한다.현재가맹사업Native전쪽캡처와freshK-water및나머지필수검증을계속한다.
+
+## 진행 갱신208 — K-water fresh 전27쪽 판독 및 최신 대표 PNG (2026-10-13)
+
+현재 b4ff8c/94fe70 K-water fresh 전27쪽은 exit0, 최저3쪽96.87092%,
+미달·누락0, 원본/Print27/27이다. 3·24·10쪽의 현재 review.png와 24쪽
+동일 좌표 2배 확대를 직접 대조했다. 문단 시작·목록·이어받기 표 외곽·
+중첩 표의 행/내용 순서·뒤 끝 표시는 보존된다. 글자 획·자간·괘선 래스터
+차이는 남는다. 이전7f fresh와 26쪽 RGBA 동일, 10쪽 한 픽셀의 회색
+1단계 차이만 있고 전27쪽 render tree는 동일하다. 현재 Native/Canvas는
+아직 대기 중이므로 양쪽 완료로 확대하지 않는다.
+
+현재 KPS42/68쪽 및 K-water3/24/10쪽 fresh review/overlay·24쪽 확대를
+각 `mydocs/pr/assets/semanticist21-20261008/kps-current-proof-v452/`,
+`kwater-current-proof-v452/`에 보존했다. 각 README의 입력/Print/소스/
+패키지·PNG 해시, v452 direct-reading/provenance와 전쪽 TSV를 연결한다.
+Python/JSON 보정은94bb1cf70에 고정했고 관련137개 PASS·전체 도구442개
+PASS다. Rust source guard는 그대로이며 전체10267개 검증을 재시작하지 않았다.
