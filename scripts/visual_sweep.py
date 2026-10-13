@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import html as html_lib
 import importlib.util
@@ -674,42 +673,25 @@ def inspect_svg_embedded_fonts(svg_path: Path) -> list[dict[str, object]]:
     cmap이 없는 PDF용 부분 글꼴은 글리프가 있어도 SVG 텍스트를 표시할 수 없다.
     이 검사는 실제 글꼴 선택이나 모든 글자의 표시를 입증하지 않는다.
     local()/외부 URL 글꼴은 검사 대상이 아니며 PNG 직접 판독은 계속 필요하다."""
+    try:
+        from scripts.visual_sweep_font_cmap import embedded_font_rules, inspect_embedded_font_rule
+    except ModuleNotFoundError:
+        # 저장소 루트에서 CLI로 직접 실행할 때의 scripts 검색 경로.
+        from visual_sweep_font_cmap import embedded_font_rules, inspect_embedded_font_rule
+
     records: list[dict[str, object]] = []
     svg = svg_path.read_text(encoding="utf-8")
-    for rule in re.findall(r"@font-face\s*\{[^{}]*\}", svg, re.IGNORECASE):
-        family = re.search(r"font-family\s*:\s*([^;}]+)", rule, re.IGNORECASE)
-        name = family.group(1).strip().strip("\"'") if family else "(unknown)"
-        for data_url in re.findall(r"url\(\s*[\"']?(data:[^\"')]+)", rule, re.IGNORECASE):
-            record: dict[str, object] = {"family": name}
-            try:
-                try:
-                    from scripts.visual_sweep_font_cmap import embedded_font_unicode_count
-                except ModuleNotFoundError:
-                    # 저장소 루트에서 CLI로 직접 실행할 때의 scripts 검색 경로.
-                    from visual_sweep_font_cmap import embedded_font_unicode_count
-
-                header, payload = data_url.split(",", 1)
-                if not header.lower().endswith(";base64"):
-                    raise ValueError("base64 font data URI가 아님")
-                # str.split도 Unicode 공백을 제거하며 대형 base64의 정규식 순회를 줄인다.
-                data = base64.b64decode("".join(payload.split()), validate=True)
-                # 실패한 cmap도 기존 보고서처럼 실제 글꼴 해시를 남긴다.
-                record["sha256"] = hashlib.sha256(data).hexdigest()
-                digest, count = embedded_font_unicode_count(data)
-                record["sha256"] = digest
-                record["unicode_mapping_count"] = count
-                record["status"] = "passed"
-            except ImportError:
-                record.update(status="failed", reason="임베딩 폰트 검사를 위해 fonttools 설치 필요")
-            except Exception as error:
-                # FontTools는 손상된 SFNT/WOFF마다 다른 예외를 사용한다.
-                record.update(status="failed", reason=str(error))
-            records.append(record)
+    for rule in embedded_font_rules(svg):
+        records.extend(inspect_embedded_font_rule(rule))
     return records
 
 
 def check_sweep_embedded_fonts(svg_paths: list[Path], report_path: Path) -> None:
-    pages = [{"svg": str(path), "fonts": inspect_svg_embedded_fonts(path)} for path in svg_paths]
+    pages = []
+    for index, path in enumerate(svg_paths, 1):
+        pages.append({"svg": str(path), "fonts": inspect_svg_embedded_fonts(path)})
+        if index == 1 or index % 10 == 0 or index == len(svg_paths):
+            print(f"Embedded font check pages: {index}/{len(svg_paths)}", flush=True)
     failures = [
         f"{Path(page['svg']).name}: {font['family']}: {font['reason']}"
         for page in pages for font in page["fonts"] if font["status"] == "failed"

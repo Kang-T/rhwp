@@ -2,6 +2,8 @@
 
 import io
 import base64
+import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,9 +38,11 @@ def font_bytes(characters: str, remove_cmap: bool = False) -> bytes:
 class EmbeddedFontCmapCacheTests(unittest.TestCase):
     def setUp(self):
         cmap._UNICODE_COUNTS.clear()
+        cmap._RULE_RECORDS.clear()
 
     def tearDown(self):
         cmap._UNICODE_COUNTS.clear()
+        cmap._RULE_RECORDS.clear()
 
     def test_identical_font_bytes_are_parsed_once(self):
         data = font_bytes("AB")
@@ -79,6 +83,70 @@ class EmbeddedFontCmapCacheTests(unittest.TestCase):
             self.assertEqual(valid['status'], 'passed')
             self.assertEqual(valid['unicode_mapping_count'], 2)
             self.assertEqual(inspect(wrapped + '@')['status'], 'failed')
+
+    def rule(self, data, family="Fixture"):
+        payload = base64.b64encode(data).decode("ascii")
+        return f'@font-face{{font-family:{family};src:url(data:font/ttf;base64,{payload})}}'
+
+    def test_identical_rules_across_pages_decode_once_and_keep_each_report(self):
+        rule = self.rule(font_bytes("AB"))
+        with tempfile.TemporaryDirectory() as directory:
+            pages = [Path(directory) / f'page_{number}.svg' for number in (1, 2)]
+            for number, page in enumerate(pages):
+                page.write_text(f'<svg><style>{rule}{rule}</style><text>{number}</text></svg>')
+            report = Path(directory) / 'report.json'
+            with patch.object(cmap.base64, 'b64decode', wraps=base64.b64decode) as decode:
+                sweep.check_sweep_embedded_fonts(pages, report)
+            self.assertEqual(decode.call_count, 1)
+            record = json.loads(report.read_text())
+            self.assertEqual(record['embedded_font_count'], 4)
+            self.assertEqual([len(page['fonts']) for page in record['pages']], [2, 2])
+            self.assertEqual(record['pages'][0]['fonts'], record['pages'][1]['fonts'])
+
+    def test_cached_family_does_not_hide_changed_payload_header_or_alias(self):
+        original = self.rule(font_bytes("A"))
+        first = cmap.inspect_embedded_font_rule(original)[0]
+        changed = cmap.inspect_embedded_font_rule(self.rule(font_bytes("AB")))[0]
+        self.assertNotEqual(first['sha256'], changed['sha256'])
+        self.assertEqual(changed['unicode_mapping_count'], 2)
+        alias = cmap.inspect_embedded_font_rule(original.replace('Fixture', 'Alias'))[0]
+        self.assertEqual(alias['family'], 'Alias')
+        invalid_header = cmap.inspect_embedded_font_rule(original.replace(';base64', ''))[0]
+        self.assertEqual(invalid_header['status'], 'failed')
+        for invalid in (font_bytes("A", remove_cmap=True), b'not a font'):
+            broken = self.rule(invalid)
+            with patch.object(cmap.base64, 'b64decode', wraps=base64.b64decode) as decode:
+                for _ in range(2):
+                    result = cmap.inspect_embedded_font_rule(broken)[0]
+                    self.assertEqual(result['status'], 'failed')
+                    self.assertIn('sha256', result)
+            self.assertEqual(decode.call_count, 2)
+
+    def test_rule_cache_is_bounded_and_reports_cannot_mutate_it(self):
+        rule = self.rule(font_bytes("A"))
+        result = cmap.inspect_embedded_font_rule(rule)
+        result[0]['status'] = 'failed'
+        self.assertEqual(cmap.inspect_embedded_font_rule(rule)[0]['status'], 'passed')
+        with patch.object(cmap, '_CACHE_LIMIT', 2):
+            for family in ('One', 'Two', 'Three'):
+                cmap.inspect_embedded_font_rule(self.rule(font_bytes("A"), family))
+        self.assertEqual(len(cmap._RULE_RECORDS), 2)
+
+    def test_rule_scanner_preserves_case_whitespace_nested_and_unclosed_rules(self):
+        rule = self.rule(font_bytes("A"))
+        cases = [
+            rule * 2,
+            rule.replace('@font-face{', '@FONT-FACE\n\t\u2003{'),
+            '@font-face{broken {' + rule + '}}' + rule,
+            '@font-face{unclosed',
+            '@font-face{}@font-face{bad{} ' + rule + '}tail',
+            '<svg><style>' + rule + '</style><text>' + rule + '</text></svg>',
+            '@font-faceX{}' + rule,
+        ]
+        for svg in cases:
+            with self.subTest(svg=svg[:80]):
+                expected = re.findall(r'@font-face\s*\{[^{}]*\}', svg, re.IGNORECASE)
+                self.assertEqual(list(cmap.embedded_font_rules(svg)), expected)
 
 
 if __name__ == "__main__":
