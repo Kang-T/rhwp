@@ -7,6 +7,57 @@ use crate::renderer::hwpunit_to_px;
 use super::{CellUnit, LayoutEngine, ResolvedStyleSet};
 
 impl LayoutEngine {
+    /// 온전한 행 경계의 수용 상자가 이미 소유한 빈 하단 띠다.
+    /// 내용·안여백·앞 조각의 띠를 반영한 자연 행 높이와 비교하므로
+    /// 병합 셀의 남은 내용이나 패딩을 빈 공간으로 다시 차감하지 않는다.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn reserved_straddle_end_band(
+        &self,
+        table: &Table,
+        resolved_row_heights: &[f64],
+        start_row: usize,
+        end_row: usize,
+        start_cut: &[usize],
+        is_continuation: bool,
+        start_row_height_override: Option<f64>,
+        end_row_height_override: Option<f64>,
+        straddle_row_relief: &[(usize, f64)],
+        carried: &[crate::renderer::pagination::StraddleCellCarry],
+        styles: &ResolvedStyleSet,
+    ) -> f64 {
+        let Some(accepted) = end_row_height_override else {
+            return 0.0;
+        };
+        let Some(last) = end_row.checked_sub(1).filter(|last| *last >= start_row) else {
+            return 0.0;
+        };
+        if !table.cells.iter().any(|cell| {
+            usize::from(cell.row) < end_row
+                && end_row < usize::from(cell.row) + usize::from(cell.row_span)
+        }) {
+            return 0.0;
+        }
+        // 배치와 같은 행 소유 결과에서 마지막 상자 확장만 제외한다.
+        let natural = self.ordinary_rowbreak_fragment_heights(
+            table,
+            resolved_row_heights,
+            start_row,
+            end_row,
+            start_cut,
+            &[],
+            is_continuation,
+            start_row_height_override,
+            None,
+            straddle_row_relief,
+            carried,
+            true,
+            styles,
+        );
+        natural
+            .get(last)
+            .map_or(0.0, |height| (accepted - height).max(0.0))
+    }
+
     /// Physical prefix at a RowCut, measured from this spanning owner's origin.
     pub(in crate::renderer::layout) fn rowbreak_cut_prefix_height(
         &self,

@@ -1084,6 +1084,30 @@ impl TypesetEngine {
             end_row_height_override,
         );
 
+        // 스캔이 마지막 행 상자에 이미 예약한 빈 띠도 이어받기 장부에 싣는다.
+        // 아래에서 새로 확장하는 띠와 구분해 같은 물리 공간을 두 번 더하지 않는다.
+        let reserved_straddle_end_band = if split_end_limit == 0.0
+            && split_end_cut.is_empty()
+            && split_block_start.is_none()
+            && !start_cut_is_block
+        {
+            layout_engine.reserved_straddle_end_band(
+                row_geometry_table,
+                &mt.row_heights,
+                cursor_row,
+                end_row,
+                start_cut,
+                is_continuation,
+                start_row_height_override,
+                end_row_height_override,
+                straddle_row_relief,
+                straddle_page_bands,
+                styles,
+            )
+        } else {
+            0.0
+        };
+
         // A source rowspan crossing a complete row boundary owns the closing
         // physical page band too. Reserve it using the accepted fragment origin,
         // then select its units from the same extended row box that paint uses.
@@ -1698,7 +1722,7 @@ impl TypesetEngine {
             let outer_bottom = (hwpunit_to_px(i32::from(table.outer_margin_bottom), self.dpi)
                 - fragment_outer_bottom_overhead)
                 .max(0.0);
-            source_frame_band
+            source_frame_band.max(reserved_straddle_end_band)
                 + accepted_straddle_end_band
                 + (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
         };

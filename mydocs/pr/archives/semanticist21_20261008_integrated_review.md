@@ -9,7 +9,7 @@ last_verified: 2026-10-14
 
 ## 현재 판정
 
-**로컬 검증 완료 — 통합 PR 제출 후 정확한 head의 GitHub CI를 확인한다.** 현재 조판 생산 소스는 `6995bc5d35b14f598e03cf0f5cc99bd957a42843`, 정책 base는 `22317614b03722e95349a1d3d71c86923363c6f5`이다. 원 PR·#7877·중요 문서의 집중 회귀146개, 필수 lint·정책, Native/fresh WASM174 TSV·770쪽/backend와 변경 영역 판독을 통과했다. 이전 전체10,267 PASS는 당시 ddf17f864 소스의 기록이며 현재 전체 실행으로 바꾸어 보고하지 않는다. 사용자의 전체 로컬 재실행 생략 지시에 따라 관련 검증을 실행했고, 통합 PR의 정확한 code head CI 성공 후 원 PR별17개 판정을 **승인 — 메인터너 보정 후 승인**으로 확정하는 trailing 기록을 같은 PR에 포함한다.
+**CI 회귀 재보정 검증 중 — 통합 PR #7882의 새 head 검증 후 다시 push한다.** 원격 `edd8dc49eb9d945af08ea31801e5a9f430abea06`의 Archive B에서 산재 표 HWP/HWPX 쪽수52→54, Archive C에서59043 겹침4→6을 확인했다. 산재 표는 이미 수용한 마지막 행의 빈 띠를 이어받기 장부에서 누락한 구현을 보정해 두 형식 모두52쪽으로 복구했다. 현재 Native/fresh WASM·관련 회귀·필수 lint는 재검증 중이다. #7445/#7778의59043 원본은 현재 고정 base/current 모두25쪽48.36347%·동일 PNG이므로 사용자 지침에 따라 활성 겹침 원장 참조/기준선1행만 이관하고 원본/PDF/다른 의미 검사를 보존한다. 기존146 PASS·174 TSV/770쪽 및 전체10,267 PASS는 각각 당시 source에 귀속하며 이번 수정의 최종 결과로 재사용하지 않는다. exact-head CI 성공 뒤 원PR별 승인 trailing 기록·merge·후속처리를 진행한다.
 
 - 브랜치: `review/semanticist21-20261008`
 - 최신 단계(진행232): 승인된 모든 로컬 검증 및 전쪽 비교 완료. 리베이스 전 대비762쪽 동일·8쪽 개선·하락0. 759쪽 PNG의 전체 RGBA가 같고 나머지11쪽의 변경 부위는 직접 판독 또는 현재 Native/fresh 동일성으로 연결했다. TSV 원문174개를 압축 없이 게시·원문 바이트 재조회 확인했고 현재 대표 review/overlay24개를 추가했다. 코드 head CI가 녹색이면 같은 통합 PR에 개별18개 검토·오늘할일을 최종 보완한다. 통합 PR 별도 번호용 review 문서는 만들지 않는다.
@@ -5572,3 +5572,14 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 - 변경은 e2e 계약·새 모형 helper2개와 이 기록이다. Rust1395개 생산 소스와 실제 CanvasKit renderer 바이트가 같아 이전146 PASS·lint·WASM·174 TSV/770쪽 및 직접 판독은 같은 범위로 유지한다. 전체 Rust 또는 전쪽 재출력을 반복하지 않았다. 실패 원문·로컬 before/after·진단 결과는 ignored `v456/render-diff-contract-fix-result.json`과 각 로그에 보존한다.
 
 사용자의 개선 후 remote push 지시에 따라 새 test code candidate를 같은 PR에 제출한다. 새 head의 전체 원격 CI 성공 뒤 개별17개 승인·오늘할일을 같은 PR의 trailing docs-only commit으로 반영한다. 첫 candidate의 실패를 무시하거나 진행 중 CI를 완료로 표시하지 않는다.
+
+
+## 진행 갱신234 — CI Archive B/C 재현과 빈 띠 소유 보정 (2026-10-14)
+
+- 실제 실패 run38430133271/head edd8dc49e: Archive B oracle partition10/14의 `samples/table_scattered_header_rowbreak.hwp` 및 `samples/task1716/table_scattered_header_rowbreak.hwpx`가 기준52쪽 대비54쪽. Archive C text-overlap partition8의 `issue1921/59043_regulatory_analysis.hwp`는4→6건이다. 이전 ddf 전체 로그의 같은 세 검사 PASS를 확인했고, 최신146선별에 이 원장 검사가 없었다는 검증 공백을 기록한다.
+- 고정 base223176 바이너리 및 리베이스 전 보존 바이너리는52쪽, 리베이스 직후 d9befb303와6995bc5d3는54쪽이다. 첫 차이는3쪽 pi6 최종 예약626.373→632.587px, 뒤 pi9 내용 예산34.493→28.307px로 두 번째 글줄이 밀리는 경계다.
+- 첫 패딩 인증 후보는 dev 빌드 후54/54로 실패해 해당 변경을 원복했다. 실제 GDB 소비 추적으로 pi6/23..61의 마지막 행 상자에 이미 예약한 빈 띠19.493px가 빠지고 새 확장1.333px만 다음 조각에 전달됨을 확인했다.
+- `stored_span_content::reserved_straddle_end_band`는 배치의 `ordinary_rowbreak_fragment_heights`에서 마지막 상자 override만 제외한 자연 높이를 얻고, 실제 수용 상자의 차이를 빈 띠로 생산한다. `emit_table_fragment`는 같은 하단의 source_frame_band와 겹치는 몫을 한 번만 합치고 새 확장은 따로 더해 다음 걸침 셀 장부에 전달한다. 문서ID·px 핀·허용치·52쪽 기준선 변경이 없다.
+- 보정 dev 빌드는exit0/1분17초이며 HWP/HWPX 모두52쪽이다. 이 쪽수 복구만으로 시각·회귀·lint 완료를 주장하지 않는다. 관련 원장 모든partition, 기존 집중·정상 대조군 및 전쪽 Native/fresh 검증은 다음 단계다. 로컬 전체10,267 재실행은 사용자 지침에 따라 생략하고 새 PR head의 전체 GitHub CI를 확인한다.
+- #7778 현재 OPEN/대표#7445 연결과 같은 원본 SHA da9f9c98…/Print fade38ba…를 API로 재조회했다. 같은 font/profile/DPI의 base223176/current edd25쪽은48.36347%이고 PNG 바이트 동일,37/37쪽이다. 영문 칼럼 줄바꿈과 아래쪽 내용 소속 차이를 직접 판독했다. 정상 golden이 아닌 이관 부정 증거를 [59043 증거](../assets/issue7445/ci-regression-20261014/README.md)에 보존한다. 현재4→6 로그도 보존하며 기준값을6으로 늘리지 않는다.
+- ignored `output/pr-review/semanticist21-20261008/ci-regression-rebase-v458/`에 실제 job 로그, base/current 바이너리·입력 해시, 첫 실패 후보, GDB 예약/전달, 독립 PDF review/overlay 및 추가 검증 결과를 남긴다. 아직 새 remote push·CI 성공·개별 승인·merge·issue 종료는 수행하지 않았다.

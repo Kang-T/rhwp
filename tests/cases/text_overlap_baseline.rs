@@ -232,6 +232,8 @@ const DEDICATED_SLOW_FIXTURES: &[&str] = &["issue2063_huge_cellbreak_table.hwp"]
 /// 각 증가/시각 근거는 #7445 증적과 corpus_scope_restore_validation.json에 연결한다.
 /// 개별 정상 회귀와 다른 원장에서는 계속 검사하며 원문은 samples에 유지한다.
 const DEFERRED_TEXT_OVERLAP_FIXTURES: &[&str] = &[
+    // #7445/#7778: 고정 base223176의25쪽48.36347%. 원본·Print와 별도 의미 검사는 보존한다.
+    "issue1921/59043_regulatory_analysis.hwp",
     // #7445: base74f9b71b1과 동일 원문의 새 Print PDF 전22쪽 최저49.86890%.
     // 실패한 목차2쪽은98.09696%; 사용자 지정 문서 최저값 기준으로 이관.
     "pic-in-head-01.hwp",
