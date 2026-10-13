@@ -768,5 +768,63 @@ C38 Native Clippy·Skia CLI·WASM Clippy와 원본5쪽 진단은 terminal exit0�
 167쪽 직접 review에서 두 번째 줄의 이어받기, 아래 행·표 외곽과 뒤 내용의 위치가
 Print와 맞음을 확인했다.160쪽 미달은 남는다. `c38-native-page-band-diagnostic-results.json`,
 `c38-wasm-clippy-result.json`과 원본5쪽 TSV/direct-review에 증거를 남겼다.
-전체415쪽의 새Native TSV와49쪽 정상 대조는 실행 중이다. 전쪽 통과·fresh WASM 실제
-재생·최종 회귀·PR/CI/merge는 미완료다. 기존 기대값이나baseline은 바꾸지 않았다.
+
+### C39 중단된 전수 검증의 실행 범위 복구
+
+검증 source는 `c6eece6487a22673da386132d2e14dc3b8f7f3b5`, 고정 base는
+`22317614b03722e95349a1d3d71c86923363c6f5`다. 원래 Nextest 실행은 두 번째
+종료 신호로 중단됐다. 8,726건 PASS와 21건 assertion FAIL은 종료가 확인된 결과이며,
+12건 SIGTERM과 1,483건 미실행은 제품 결함 판정에 포함하지 않았다. 같은 source의
+Nextest inventory와 원래 로그를 대조해 정확히 1,495건을 선택하고, 실행 전 filtered
+inventory의 집합 일치를 검증했다. 이어서 실행한 결과는 1,493건 PASS·2건 FAIL이다.
+합산은 중복 없이 **10,242건 실행, 10,219건 PASS·23건 FAIL**이며 전체 통과가 아니다.
+ignored `output/pr-review/planet6897-followup-20261011/`의
+`c39-nextest-resume-selection.json`, `c39-nextest-resume.log`,
+`c39-combined-nextest-coverage.json`에 선택·명령·실패 목록을 보존했다.
+
+원본 415쪽 Native 실행도 종료 신호 이후 살아 있는 프로세스가 없었다. 원래 SVG·tree·PDF
+래스터는 각 415쪽이며 완성된 Native PNG 160개는 파일 검사와 원래 SVG/PNG 해시로
+검증했다. 같은 고정 C38 바이너리·원본·Print·96dpi·2022 조판 세대·인쇄 프로필의 산출물만
+재사용하고, 남은 255쪽을 생성해 같은 정본 실루엣 계산으로 전쪽 TSV를 만드는 진단을
+재개했다. 별도 예전 코드의 PNG를 현재 결과로 섞지 않는다. 원래 160쪽 중 첫 100쪽의
+선행 TSV는 최저35.79121%·41쪽 미달이며, 전쪽 검증이나 승인으로 확대하지 않는다.
+
+전수 회귀가 새로 검출한 교육과정 off-canvas 1건은 실제 보정 회귀다. 같은 원본을
+각 고정 바이너리로 `layout-anomaly --types Table --json` 실행한 결과 C34는0건,
+C37·C38은1건이다. 63쪽(0-based62), 구역1 문단5의 빈 글줄이 용지 하단을113.32px
+벗어난다. 현재 trace는 앞 표의 흐름 끝653.7px 뒤853.7px에53.33px 글줄 상자를
+만든다. 후속 `dump-pages` 대조에서 문단5는 숨김 문단이 아니라 독립 재측정 높이가
+318.67px인 `fullParagraph`임을 확인했다(숨김 항목은 문단4다). 숨김 표시만 고치는
+방안은 기각하며, 실제 예약 높이와 단독 재측정 높이를 동일시하지 않는다. 구역1의
+`hide_empty_line` 설정은 꺼져 있으므로 원본의 빈 줄 감춤 옵션에 따른 정상 출력으로
+단정하지 않는다. 독립 Print·현재63쪽 review는 실루엣58.02443%이며 표의 수직 차이도
+남아 있다. 기존 #7743 등록을 이 새 회귀 제거 또는 시각 통과의 근거로 사용하지 않는다.
+
+추가 scan trace는63쪽의 종료 표 조각(`startRow29/endRow44/startCut[1,1,1]`)에
+488.09px를 예약하고, 종료 간격37.11px를 더해525.20px를 소비했음을 확인했다.
+paint의 행 합도488.1px이다. `dump-pages`의 문단5 높이318.67px는 해당 문단을
+독립 재측정한 값이며 이를 전체 usedHeight에서 빼서 표 예약을206.53px로 추정하면
+안 된다. 표 높이 불일치로 단정했던 가설을 기각하고, 뒤 문단의 fit·소비·최종 원점
+경로를 추적한다. 감춤 옵션이 꺼진 실제 저장 빈 문단의 줄 상자·앞뒤 간격은 점유와
+표시를 구분해 검사하며, 빈 문자열이라는 이유로 출력을 없애지 않는다.
+감지기의 공차·baseline·검사 범위는 완화하지 않았다.
+`c39-offcanvas-stage-triage.json`, `c39-current-curriculum-anomaly.json`,
+`c39-curriculum-p63-trace.log`, `c39-curriculum-source-info.txt`,
+`c39-curriculum-p63-page-items.json`,
+`c39-curriculum-p63-span-trace.log`,
+`c39-curriculum-outside-page-direct-review/review/review_063.png`에 증거가 있다.
+구현 보정·수정 뒤 해당 경계 검사와 Native/fresh WASM 재검증은 아직 미완료다.
+
+같은 소스의 Studio/npm editor 단위 검사는 `npm test`로1,836건 모두 통과했다.
+`npx tsc --noEmit`도 terminal exit0이다. 명령·범위는 `c39-studio-unit-result.json`,
+실행 로그는 `c39-studio-unit.log`·`c39-studio-typecheck.log`다. Rust/WASM 변경의
+브라우저 검증을 대신하지 않는다. 루트의 `scripts/wasm-pack-locked.sh --target web
+--out-dir pkg`는 공용 `target/pr-review`·빌드 잡8개로 별도 실행 중이며,
+`c39-fresh-web-build.log`에 컴파일과 최적화 로그를 보존한다. 패키지·Studio public
+SHA 일치와 실제 fresh WASM 실행을 확인하기 전에는 WASM 완료로 기록하지 않는다.
+49쪽 Native 정상 대조는 완료됐다. 문서별 최저값은4쪽 그림99.27611%, 2쪽 그림 띠
+92.75255%, 두 정상 생성본 각8쪽96.813%, K-water27쪽94.12523%이며 쪽수 일치·미달0쪽이다.
+현재 재생성한49개 PNG는 C34와 바이트가 같았다(`c38-native-normal-controls-summary.json`,
+`c38-native-normal-controls-before-after-png-parity.json`). 전체415쪽 TSV 산출은 진행 중이다.
+fresh WASM 실제 재생·실패23건 처리·시각 전쪽 통과·PR/CI/merge는 미완료다.
+기존 기대값이나baseline은 바꾸지 않았다.
