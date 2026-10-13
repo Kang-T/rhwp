@@ -9,10 +9,10 @@ last_verified: 2026-10-14
 
 ## 현재 판정
 
-**CI 회귀 재보정 검증 중 — 통합 PR #7882의 새 head 검증 후 다시 push한다.** 원격 `edd8dc49eb9d945af08ea31801e5a9f430abea06`의 Archive B에서 산재 표 HWP/HWPX 쪽수52→54, Archive C에서59043 겹침4→6을 확인했다. 산재 표는 이미 수용한 마지막 행의 빈 띠를 이어받기 장부에서 누락한 구현을 보정해 두 형식 모두52쪽으로 복구했다. 현재 Native/fresh WASM·관련 회귀·필수 lint는 재검증 중이다. #7445/#7778의59043 원본은 현재 고정 base/current 모두25쪽48.36347%·동일 PNG이므로 사용자 지침에 따라 활성 겹침 원장 참조/기준선1행만 이관하고 원본/PDF/다른 의미 검사를 보존한다. 기존146 PASS·174 TSV/770쪽 및 전체10,267 PASS는 각각 당시 source에 귀속하며 이번 수정의 최종 결과로 재사용하지 않는다. exact-head CI 성공 뒤 원PR별 승인 trailing 기록·merge·후속처리를 진행한다.
+**로컬 검증 완료 — 새 exact-head CI 확인 전까지 merge를 보류한다.** 생산 소스 `9591883177d902ed3e2fa239fe047f602c05c7d3`에서 산재 표 HWP/HWPX52→54쪽 회귀를 구현 보정으로52쪽에 복구했다. 관련191개 회귀(초기 PR 계약78개·oracle16분할·overlap16분할 포함), 필수 세 Clippy·workspace build·정책 및 새 WASM package가 통과했다. Native/fresh WASM178 TSV·978쪽/backend는 미달·누락·독립 Print 쪽수 불일치0이다. 현재 보정 영역을 직접 판독하고 중요한 문서의 이전 출력과 대조했다. 전체10,267은 이전 source의 역사 결과이며 사용자 지시에 따라 로컬 전체를 재수행하지 않았다. 원격 새 code head의 CI 성공 뒤 개별17개 판정을 **승인 — 메인터너 보정 후 승인**으로 갱신하고 같은 PR의 trailing 기록·merge·후속처리를 진행한다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행232): 승인된 모든 로컬 검증 및 전쪽 비교 완료. 리베이스 전 대비762쪽 동일·8쪽 개선·하락0. 759쪽 PNG의 전체 RGBA가 같고 나머지11쪽의 변경 부위는 직접 판독 또는 현재 Native/fresh 동일성으로 연결했다. TSV 원문174개를 압축 없이 게시·원문 바이트 재조회 확인했고 현재 대표 review/overlay24개를 추가했다. 코드 head CI가 녹색이면 같은 통합 PR에 개별18개 검토·오늘할일을 최종 보완한다. 통합 PR 별도 번호용 review 문서는 만들지 않는다.
+- 최신 단계(진행236): CI 회귀 보정의 로컬 검증 완료. 현재 base `22317614b03722e95349a1d3d71c86923363c6f5`, 생산 소스 `9591883177d902ed3e2fa239fe047f602c05c7d3`. [원문 TSV178개](https://gist.github.com/jangster77/1efd96731b845480bc1b8f38344d6d6e/b2596295b382ff4585bf28ed40efe6a3ab568cba)는 압축 없이 게시하고 API로 원문 바이트를 다시 확인했다. 이전 진행232의146/174/770 결과는 당시 기록이다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -22,7 +22,7 @@ last_verified: 2026-10-14
 - 최초 검토 head: `8a9f87300a47293d644f8b862906c989adf34f84` (새 source 적용 전 역사 결과)
 - 최초 contributor 누적 diff(역사 후보):47 source/test 파일, 5421 추가 / 823 삭제. contributor 원 commit은 `cherry-pick -x`로 보존. merge commit 제외, #7615 중복 의존 commit 4개는 재적용하지 않음.
 - draft 제외: #7559, #7572, #7573, #7588, #7589, #7598.
-- 통합 PR 생성/push/merge/원 PR close/후속 처리: 아직 미수행. 실패 gate를 통과한 것으로 보고하거나 일부 PR만으로 scope를 줄이지 않음.
+- 통합 PR #7882는 생성·push 완료 상태다. 이번 CI 회귀 보정은 로컬 검증을 완료했으며 새 head push·CI·merge·원 PR 후속처리는 아래 최신 단계를 따른다.
 
 
 ## PR별 검토 문서
@@ -5592,3 +5592,18 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 - `fragment.rs`에서 유효한 공통 물리 행 계획을 먼저 생산하고, 그 결과가 있으면 별도 기존 띠 차감을 적용하지 않는다. 계획이 없는 경로는 기존 차감을 유지한다. 생산 계획 → source.measured_table/fragment_row_heights → 선택과 emit/paint의 연결을 공유하며 문서별 조건을 추가하지 않았다.
 - dev 빌드exit0/55.59초. 새로운 HWPX3쪽 render tree의 해당 행36.7 및 표 외곽649.3은 독립 기준에 대응하는 고정 base223176의 같은 영역과 같으며, 실패 후보의29.1/641.8에서 복구됐다. 이는 구조 진단이다. 전쪽 Native/fresh 일치율·직접 PNG 판독·관련 회귀·필수 lint는 별도 실행 결과로 판정한다.
 - 새 증거는 ignored `output/pr-review/semanticist21-20261008/shared-row-plan-v459/`에 생산 소스/바이너리 해시와 함께 보존한다. 전체 로컬 회귀를 반복하지 않고 기존 집중 검사에 oracle/text-overlap의 모든 파티션과 관련 정상 경계를 보완한다. 최종 원격 head의 전체 CI는 다시 확인한다.
+
+
+## 진행 갱신236 — CI 회귀 보정의 최종 로컬 검증 (2026-10-14)
+
+- 생산 `9591883177d902ed3e2fa239fe047f602c05c7d3` / base `22317614b03722e95349a1d3d71c86923363c6f5`. 수용한 행의 빈 띠 보존(78bc05873)과 물리 행 계획에 대한 중복 relief 차감 제거(959188317)를 검증했다. 문서 ID·고정 px 예외나52쪽 기대값 완화는 없다.
+- `cargo nextest` 공용 `target/pr-review`, jobs8, release-test 집중191개 PASS·6 slow·9043 filter skipped·303.367초. 초기 PR 계약78/78·oracle16분할·overlap16분할 모두 포함한다. 첫 실행은 libtest-json-plus 환경 설정 오류로 테스트 시작 전에 종료했으며 소스 실패로 세지 않는다. 재실행 로그와 각 계약 함수·source hash를 v459에 연결한다. 로컬 전체10,267은 재실행하지 않았다.
+- 새 package를 실제 소비한 공개 WASM API6종은 모두 exit0이다. 이 결과는 당시 소스의 Studio/Canvas E2E 기록과 구분한다.
+- fmt·Native/WASM/workspace-all-targets Clippy, workspace build, manifest/unit-tier 정책(base SHA 명시), fresh package·Studio byte 일치 모두 PASS. 최종 Rust/test 바이트는 이후 asset/docs commit에도 동일성을 유지한다.
+- Native/fresh WASM178 TSV·978쪽/backend(각489쪽): 모든 선택 범위90% 이상, 누락0, 독립 PDF 쪽수 일치. 산재 표 HWP/HWPX각52쪽은 양 backend 최저37쪽92.60853%·3쪽99.88979%. 3/4/7/37/42/46쪽의 행 종료·이어받기·외곽·뒤 제목/표·내용 보존을 직접 판독 또는 같은 현재 Native raster의 RGBA 동일성으로 확인했다.
+- CGMP48쪽 최저47쪽93.64014%, KPS77쪽42쪽90.85010%, K-water27쪽3쪽96.87092%, #1572쪽1쪽99.74326%, 가맹사업142쪽68쪽93.16816%. 초기48입력52쪽·편집24입력27쪽·OLE/SO10개도 양 backend 선택 범위에서 통과한다. SO-SUEOP는1쪽 회귀 범위이며46쪽 전체 개선으로 확대하지 않는다.
+- 현재 Native 가맹사업142쪽·CGMP48쪽·#1572쪽은 이전 판독 raster와 전체RGBA 동일하다. KPS22쪽의 작은 raster 차이는 독립 PDF/전후 확대 crop과 동일 render-tree로 판독했고 K-water3/10/14쪽의1/1/2픽셀 차이도 배치 변화가 아니다. fresh CGMP2쪽의1픽셀 차이는 확대 crop에서 같은 글자 위치·획으로 판독했고 K-water3/10쪽의2/1픽셀 차이도 raster 차이로 구분했다. 중요 문서 fresh 최저값 하락0 및 가맹사업142쪽 전체 Native/이전 fresh RGBA 동일성을 확인했다. fresh 결과와 중요 문서 점수 비교는 `important-fresh-current-comparison.json`, 원 PR 대표 현재/이전 raster 연결은 `original-representative-current-replay.json`을 따른다. 이전 source 이미지를 새 캡처로 가장하지 않는다.
+- 가맹사업 fresh의 Native 글꼴 CSS 생산을 같은 소스의 공용 target release-test CLI로 전환했다. 원 dev CLI를 보존하고 source proof 및 전체 p3 render-tree 동일성을 확인했다. 실제 WASM 본문은 새 package로 재생성하며 Native 본문을 대신 사용하지 않는다. 중단한 dev font-policy 시도·로그는 역사 기록으로 보존한다.
+- 초기 입력 aggregate는 독립 문서 병렬 처리로 전환하기 위해 SIGINT로 중단했다. 완료된 현재 소스38개 TSV/PNG는 보존하고 미완료44개(나머지 초기10·편집24·OLE6·SO4)는 독립 출력에서 문서4개·문서당 페이지 작업자1개로 실제 실행했다. 중단한 aggregate의 exit-2와 개별 완료 문서 및 새 coordinator exit0을 구분한다. 실제 캡처 경로를 보존한 동일 hardlink를 정식 group 경로에 연결했고 source/pkg/입력/Print·쪽수·최저값을 각 문서에서 검증했다. `document-parallel-plan.json`/`document-parallel-results.json`에 실제 명령·관측·소요 시간을 보존한다.
+- 59043은 현재 base/current25쪽48.36347%·동일 PNG이고 같은 원본/증상#7778(#7445 하위)이 이미 등록돼 있어 겹침 원장의 활성 참조/기준선1행만 이관했다. 원본/PDF와 다른 의미 검사는 보존하며4→6허용치 완화는 없다. #7778을 해결로 닫지 않는다.
+- 증적은 ignored `output/pr-review/semanticist21-20261008/shared-row-plan-v459/`의 source/입력/Print/font/pkg hash·실행 명령·TSV·로그·직접 판독 JSON 및 committed `ci-correction-v459`의 HWP/HWPX Native/fresh review·overlay8개다. 완료 SVG는 압축하지 않고 삭제했다. 새 exact-head CI는 push 후 확인하며 failed edd8dc49 또는 이전 green 결과로 대신하지 않는다.
