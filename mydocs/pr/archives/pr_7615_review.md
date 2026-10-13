@@ -9,7 +9,7 @@ last_verified: 2026-10-13
 
 ## 최종 판정
 
-**머지 보류 — 118쪽 정렬 회귀 확인; 메인터너 보정과 새 소스 검증 진행 중.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
+**머지 보류 — 118쪽 회귀 보정과 Native 확인 완료; 새 fresh·전쪽·최종 게이트 검증 진행 중.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
 
 ## 현재 개별 검토 상태 — 2026-10-13
 
@@ -17,7 +17,7 @@ last_verified: 2026-10-13
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
 | 현재 production 보정 | `ddf17f86476293b114b6236bfa6cf1ebc9d9d474` — 원본 전체 행/중첩 셀의 프레임 출처와 정렬 높이 계약 분리 |
-| 현재 Native/fresh 재검증 code head | ddf17f864 Native17쪽 통과(최저93.16816%,72쪽99.95995%,118쪽99.99852%)·현재 직접 판독. 전142쪽 tree118복구/72개선 보존. 새 fresh·전쪽·관련 회귀/lint·Canvas는 미완료 |
+| 현재 Native/fresh 재검증 code head | ddf17f864 Native 경계17·CGMP48·KPS77쪽 통과/대표 직접 판독. fresh 빌드exit0·pkg/public 해시 일치. 가맹사업 fresh17·전쪽·관련 회귀/lint·Canvas는 미완료 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
 | 이 PR의 실제 계약 실행 | 직전 b4ff8c 전체 nextest에서 33/33 PASS, FAIL/SKIP/미관측0; 현재 검사 source SHA 동일 확인 |
 | 현재 통합 완료 판정 | **머지 보류** — 직전 b4ff8c의 전체10267개/원PR78계약·Skia/doc는 PASS였으나, 전142쪽 직접 대조에서118쪽 정렬 회귀 확인. 새 보정 소스의 검증 필요 |
@@ -35,7 +35,7 @@ last_verified: 2026-10-13
 메인터너의 공통 표 프레임 보정·새 base 비교·양 backend 증거는
 [누적 기록의 진행173](semanticist21_20261008_integrated_review.md#진행-갱신173--157-양-backend-선행-조건과-정식-회귀-검출-2026-10-13)에 연결한다.
 
-### 최신 검증 구분
+### 이전 검증 기록 — b4ff8c
 
 현재 production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`의 전체 nextest는 **10267 PASS·45 SKIP·exit0**이다. 이 PR 계약 **33/33 PASS**와 동일 검사 source를 v452 `original-pr-contract-results.json`에서 확인했다. Native Skia3종과 doc는 완료했으며, 최종 전쪽·Canvas와 새 정식 관계 회귀 검증은 아직 남아 **머지 보류**를 유지한다. 아래7f04c 결과는 수정 전 역사 기록이다.
 

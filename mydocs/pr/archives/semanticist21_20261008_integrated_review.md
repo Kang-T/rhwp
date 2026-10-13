@@ -12,7 +12,7 @@ last_verified: 2026-10-13
 **머지 보류 — 118쪽 정렬 회귀 확인; 메인터너 보정과 새 소스 검증 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 직전 b4ff8c의 전체 nextest/Skia/doc는 통과했지만 전142쪽의 직접 대조에서118쪽 중첩 표 정렬 회귀를 확인했다. 프레임 출처 보정과 새 Native/fresh·회귀·lint·Canvas의 검증이 필요하다. 과거 실패 기록을 현재 실패로 표시하지 않는다. 해당 필수 완료 후 개별17개를 메인터너 보정 후 승인으로 바꾸고 통합한다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행215): production `ddf17f86476293b114b6236bfa6cf1ebc9d9d474`의 프레임 출처 분리 보정이다. Native build/fmt·경계17쪽 비교가 통과했고(최저93.16816%,72쪽99.95995%,118쪽99.99852%) 현재 review와 확대를 직접 확인했다. 전142쪽 새 tree에서118쪽 복구/72쪽 개선을 보존했다. 새 fresh·전쪽 이미지·관련 회귀/필수lint·Canvas·최신head CI는 검증 전이다. 직전b4의10267PASS·Skia/doc·원PR/시각 결과는 해당 바이트의 역사 근거로 보존한다. upstream/devel fetch는552f5228d로 같아 rebase하지 않았다.
+- 최신 단계(진행216): production `ddf17f86476293b114b6236bfa6cf1ebc9d9d474`의 프레임 출처 분리 보정이다. Native 경계17·CGMP48·KPS77쪽 통과와 현재 대표 판독을 확인했다. 새 fresh 빌드exit0·pkg/Studio public 해시 일치. 관계 회귀 초안4개는 각각 수정 전 assertion FAIL/새 소스PASS를 확인했고 전142쪽 양쪽 시각 선행 조건 전에는 비활성 상태다. fresh 경계/전쪽·최종 회귀/lint·Canvas·최신head CI는 완료 전이다. 직전b4의10267PASS·Skia/doc·원PR/시각 결과는 해당 바이트의 역사 근거다. base552f5228d이며 최신 fetch에서 변경이 없었다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
@@ -5333,3 +5333,34 @@ direct-reading/prior-pixel-comparison이다.현재대표PNG와구현/소비연�
 새fresh빌드는Native경계/판독완료뒤공용target·루트wrapper로진행하도록준비했다.
 새 fresh/전쪽/관련회귀/필수lint/Canvas/CI는미완료다. upstream/devel fetch는
 552f5228d로동일해사용자지시에따라rebase하지않았다.
+
+## 진행 갱신216 — fresh 빌드·Native125쪽 확인과 관계 회귀 초안 검출 (2026-10-13)
+
+ddf17f864의 root wrapper fresh 빌드는 exit0·1342.306초/source guard=true다.
+공용 target/pr-review와 공용 wasm-opt cache를 사용했고 pkg/Studio public의 JS/WASM 해시가 각각 같다.
+WASM SHA-256은 `4299eb204ec8283d75446b61f2183d3c4f3cd41acc0acabfd7be7dc065f01ae0`,
+JS는 `691e4fd480cf4e04f9e599ca7c7a4802ad87b2c141fba93bf94111f4144dcb3b`다.
+빌드/환경/패키지 증거는 v453/fresh-package-result.json이다.
+
+현재 Native CGMP48/48쪽 최저47쪽93.64014%, KPS77/77쪽 최저42쪽90.85010%로
+각각 exit0·미달/누락0이다. 현재 CGMP47/KPS42·68 review를 독립 Print와 직접 열어
+외곽·본문 줄바꿈·항목 순서·뒤내용·서명칸을 확인했다. 글자 획/굵기·미세 자간 차이는 남는다.
+대표 PNG6개는 `mydocs/pr/assets/semanticist21-20261008/small-native-current-proof-v453/`에 보존했다.
+
+정식 등록 전 관계 회귀 초안4개를 같은 원본의 고정 CLI에서 실제 실행했다.
+새 소스4PASS, 원본 앞 띠/반복 프레임/전체 행/중첩 셀의 각 보정 전 바이너리에서
+해당 검사1개씩 실제 assertion FAIL(각 exit101)이다. 빌드/환경 오류가 아닌 정렬 관계 실패를
+`draft-formal-before-after-results.json`과 원문 로그에 보존한다. 기대값은 원본 Center/LineSeg,
+내용 순서와 독립 Print에 따른 셀·문단 소속이다. 현재 구현 helper의 높이나 절대 위치를 핀하지 않는다.
+이 초안은 ignored 디렉터리에만 있으며 전142쪽 Native/fresh 시각 선행 조건 뒤 정식 등록한다.
+
+사용자의 Python-only 검증 지시에 따라94bb1cf70의 Python/JSON 보정은 관련137개 PASS로
+끝냈으며 그 때문에 전체 Rust를 다시 시작하지 않았다. 이후 실제 Rust 소스 ddf17f864가 바뀌어
+새 경계·전쪽 검증이 필요하다. 새 정식 검사를 등록한 뒤 같은 최종 소스의 필수 Rust 검증을 한 번 실행한다.
+현재 가맹사업 fresh17쪽, K-water Native전쪽 및 초기 PR24쌍 Native/fresh가 실제 실행 중이다.
+가맹사업 Native전142쪽은 fresh 경계 직접 판독과 여유20GiB 뒤 진행하고 fresh전142쪽은
+Native 전쪽/중간 SVG 정리 뒤 진행하도록 대기 작업을 준비했다. actual Canvas도 현재 Native 글꼴/
+fresh package 준비 뒤 실행한다. 새 전체 통과·승인·PR 생성·merge 완료로 보고하지 않는다.
+
+종료/Native 판독 완료된17개 SVG1,871,818,314bytes만 열린fd/해시 ledger 확인 뒤 제거했다.
+입력·독립 Print·PNG·TSV·tree·공용 target·패키지는 보존한다.
