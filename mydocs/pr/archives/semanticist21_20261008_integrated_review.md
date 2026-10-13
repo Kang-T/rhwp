@@ -5261,3 +5261,25 @@ PID·명령을 확인한 뒤 종료했으며 렌더링 실행을 중단·중복�
 `original-edited-zooms/provenance.json`이다. 대표review/overlay/확대및24입력/Print
 해시표는`mydocs/pr/assets/semanticist21-20261008/original-current-proof-v452/`에
 보존했다. 다른직접문서전쪽·실제Canvas·정식관계회귀의미완료로는확대하지않는다.
+
+## 진행 갱신212 — 전142쪽 완료 후 118쪽 실제 정렬 회귀 확인 (2026-10-13)
+
+b4ff8c Native전142쪽은exit0·5599.170초,최저68쪽93.16816%,미달/누락0·
+142/142다.전쪽새RGBA와7f출력을대조하니140쪽은동일하고72/118쪽이달랐다.
+72쪽은96.90530%→99.95995%이나118쪽은99.99852%→96.18473%다.
+현재/이전118쪽review를같은Print와직접열어하단중첩표3줄의5.4px하향이동을
+확인했다.외곽/내용순서는동일하다.점수90이상이나현재실제배치회귀이므로수용하지않는다.
+
+Debug실제호출에서둘다cell_was_split/full-width/ordinary=true,closing=false다.
+full-width owner가원본전체행과중첩1×1원본프레임의다른인증결과를합쳐선택
+줄높이를같이소비시킨것이원인이다.원본전체행과중첩셀의인증결과를분리해
+각높이계약을유지하고특정문서/좌표조건을추가하지않는다.새수정과검증은다음단계다.
+
+v452의완료된Rust13단계/원PR24쌍등은b4바이트에대한실행사실로보존한다.
+추가대형Native/fresh와Canvas대기는정확한소유root/자식PID를확인해중단했다.
+`superseded-p118-correction-process-ledger.json`에기록하며실행오류를제품실패로세지않는다.
+현재118쪽회귀PNG·GDB/트리/점수/입력근거를
+`mydocs/pr/assets/semanticist21-20261008/franchise-p118-alignment-regression-v452/`와
+ignoredv452에보존한다.종료NativeSVG141개14,267,740,082bytes,완료된원PR
+SVG81개2,389,651,075bytes를ledger/열린fd/PNG/TSV확인후삭제했다.
+원본/Print/PNG/TSV/tree/immutableCLI/WASM/공용target은보존한다.
