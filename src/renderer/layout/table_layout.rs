@@ -2378,8 +2378,9 @@ fn stored_text_paragraphs_share_vpos_frame(
     })
 }
 
-/// A rewind between unchanged control-free line boxes in an original cell stream.
-/// An empty paragraph can own a real stored line and close a physical frame.
+/// 원본 셀의 변경되지 않은 글줄 사이에서 확인한 물리 프레임 되감김.
+/// 빈 문단도 저장 줄 상자를 소유하며 실제 프레임을 닫을 수 있다.
+/// 양수 문단 원점 재시작만으로는 물리 경계를 확정하지 않는다.
 fn stored_plain_text_paragraph_frame_reset(
     previous: &crate::model::paragraph::Paragraph,
     next: &crate::model::paragraph::Paragraph,
@@ -2405,6 +2406,9 @@ fn stored_plain_text_paragraph_frame_reset(
                     && before.vertical_pos > 0
                     && after.vertical_pos >= 0
                     && after.vertical_pos < before.vertical_pos
+                    && (after.vertical_pos == 0
+                        || after.is_first_line_of_page()
+                        || after.is_first_line_of_column())
                     && styles
                         .para_styles
                         .get(next.para_shape_id as usize)
@@ -13962,6 +13966,12 @@ impl LayoutEngine {
             if before_origin_frame_break {
                 return cur.vertical_pos < prev.vertical_pos;
             }
+            // 원본의 쪽·단 시작 표지는 양수 원점에서도 물리 경계를 명시한다.
+            if cur.vertical_pos < prev.vertical_pos
+                && (cur.is_first_line_of_page() || cur.is_first_line_of_column())
+            {
+                return true;
+            }
             if direct_hwpx_stored_frame_cell {
                 // 선언 object frame이 없는 synthetic 표의 vpos reset은 물리 쪽
                 // 경계를 증명하지 못한다. 실제 저장 표는 선언 높이가 있으므로
@@ -14698,6 +14708,10 @@ impl LayoutEngine {
                             cur_seg.vertical_pos >= 0
                             && prev_end > 0
                             && cur_seg.vertical_pos < prev_end
+                            // 양수 문단 원점의 감소는 국소 좌표 재시작일 수 있다.
+                            // 강제 컷은 그리기와 같은 원본 프레임 인증을 사용한다.
+                            && (cur_seg.vertical_pos == 0
+                                || is_stored_frame_rewind(prev_seg, cur_seg))
                             // [#5585] 앞 줄 **바닥**보다 앞서는 것만으로는 리셋이 아니다.
                             // 줄 전진량이 줄 높이보다 작은 문단(겹치는 줄 상자)에서는 평범한
                             // 한 걸음도 이 조건을 만족한다 — 148738070 실측: p2 vpos 9800
