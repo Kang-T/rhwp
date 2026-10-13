@@ -5470,3 +5470,11 @@ K-water HWPX27쪽과 #157 두쪽의 Native/fresh 전쪽 비교는 모두 exit0·
 - Python117개·Node7개는 통과했고 새 프로토콜/실제 Chrome 계약4개와 실제 Python bridge2쪽도 통과했다. Snap Chrome이 `/tmp` 입력을 읽지 못한 환경 실패는 저장소 아래 TMPDIR로 재실행해 해소했다. Windows 중단 시 강제 terminate가 정리 코드를 건너뛰는 문제는 stdin 종료 요청으로 보정했다. wrapper 제거에는 force를 지원하는 rmSync를 사용한다.
 - `win10-ted`의 Windows/Python3.12.10/Node24.19.0/설치 Chrome에서 글꼴8개·캡처2개·프로토콜2개가 통과했다. 한글/공백 경로와 실제 중단 종료143, Chrome 종료·임시 profile/HTML 제거·최대1탭을 확인했다. Unicode 공백 입력 테스트에는 UTF-8을 명시해 cp949 실패를 고쳤다. 기본 Windows 저장소는 변경하지 않았고 별도 probe만 사용 후 원격에서 삭제했다. Linux 후속 글꼴8개·계약4개·Node7개도 통과했다. 증거는 v453의 raster-cross-platform 로그, windows-raster-contract-tests.log, windows-raster-probe-result.log 및 source/probe 해시 원장이다.
 - 생산 Rust/WASM은 ddf17f864와 동일하다. 이미 통과한 전체10,267개는 반복하지 않는다. 전쪽 선행 조건이 충족됐으므로 다음 단계에서 새 관계4개와 기존 #6718 관계1개를 정식 등록하고 해당 focused 검사 및 필수 lint/정책을 마무리한다. 개별17개 최종 승인과 원격 PR 게시/통합은 그 종료 결과 뒤에 진행한다.
+
+## 진행224 — 관계 회귀 정식 실행과 실제 base 전진
+
+- 전142쪽 Native/fresh 최저93.16816%·쪽수 일치·직접 판독 뒤 `tests/cases/stored_partial_frame_alignment.rs`의 관계4개와 기존 `issue_6718_zero_rewind_in_split_paragraph.rs`의 본문/셀 소유·내용 순서·포함 검사1개를 정식 등록했다. 실제 nextest는4 PASS와1 PASS였다. 기존 검사의8px 공차를 제거했으며 내용이 비어 포함 검사를 통과하는 상황도 막는다.
+- 새 정식4개는 같은 컴파일된 test binary와 각 보정 전 CLI를 사용해 모두 해당 assertion에서 FAIL(exit101)했다. CLI와 test binary 해시 및 정확한 함수·로그는 `v453/formal-relations-final-result.json`에 연결한다. #6718 변경1개는 현재 PASS 증거이며 새 결함의 before FAIL이라고 주장하지 않는다.
+- 첫 prepare 뒤 fmt가 새 source의 바이트 수를 바꿔 suite 배정이 달라졌고 첫 focused 실행은0 tests/exit4였다. 이를 통과로 세지 않고 fmt 후 prepare를 다시 실행해 실제4/1개를 확인했다. nextest가 `CARGO_BIN_EXE_rhwp`를 자체 주입하므로 부모 환경의 historical CLI가 적용되지 않았던 시도도 before 검출 증거에서 제외했다. 최종 before4개는 같은 정식 binary를 직접 실행해 실제 결함을 검출했다.
+- 원PR17개는 아직 OPEN이고 #7612는 이미 MERGED, 후속6개는 그대로 미적용이다. 원본 TSV176개는 원 바이트·SHA·범위·독립Print를 대조해 로컬 제출 payload를 준비했다. 경계17쪽은 완료된 silhouette manifest의 명시적 쪽 범위를 쓰며 기존 capture manifest의 incomplete 상태와 구분한다. 아직 gist/PR을 게시하지 않았다.
+- 실제 원격 `upstream/devel`이552f5228d에서22317614b03722e95349a1d3d71c86923363c6f5로 전진했다. #7877의 표 분할·저장 원점/흐름 소유 및 #7639 성능 변경106파일을 확인했다. 현재 최종 통합 preview는22파일72충돌이며 공유 helper·height 소비 경로가 겹친다. 이 단계의 code/test를 커밋한 뒤 실제 rebase를 수행한다. source SHA가 바뀐 결과에는 이전 전체/시각 완료를 그대로 적용하지 않으며 영향 경계·원 PR 입력의 Native/fresh와 필수 lint/정책을 새 head에서 확인한다. 통과한 이전 전체10,267개는 보존하고 불필요하게 반복하지 않는다.
