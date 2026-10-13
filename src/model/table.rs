@@ -710,12 +710,15 @@ impl Table {
         if col_count == 0 || self.common.width == 0 {
             return invalid;
         }
-        for row in 0..self.row_count {
-            let mut cells = self
-                .cells
-                .iter()
-                .filter(|cell| cell.row == row && cell.row_span == 1)
-                .collect::<Vec<_>>();
+        // 같은 행의 선언만 비교한다. 전체 셀을 행마다 다시 검색하지 않고,
+        // 불변 입력을 한 번 모아 원래의 안정적 열 순서로 소비한다.
+        let mut by_row = std::collections::BTreeMap::<u16, Vec<&Cell>>::new();
+        for cell in &self.cells {
+            if cell.row < self.row_count && cell.row_span == 1 {
+                by_row.entry(cell.row).or_default().push(cell);
+            }
+        }
+        for (row, mut cells) in by_row {
             cells.sort_by_key(|cell| cell.col);
             let mut next_col = 0usize;
             let mut total = 0u64;

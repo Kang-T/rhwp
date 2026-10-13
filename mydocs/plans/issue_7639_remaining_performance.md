@@ -96,3 +96,34 @@ phase5 Docker build는 성공했고 실제 Chrome의 WASM SHA는 `03e7e558007c93
 전체 161쪽 Canvas raw RGBA SHA-256은 TS 보정 전과 모두 동일하다. 현재 쪽 0·80·130·마지막 쪽의 페이지 조회 결과는 기존 전체 조회를 같은 pageIndex로 필터한 결과와 모델 인덱스·rowspan·좌표·순서 모두 같았다. 존재하지 않는 표는 빈 배열, 범위 밖 페이지는 오류였다. `page-query-canvas-parity.json`, `page-query-contract.json`, `click-page-query.json`과 phase5 source/build provenance로 연결한다. 원본 모델 인덱스 0인 반복 제목 셀을 포함한 분할 조각도 그대로 유지한다.
 
 실제 CDP 마우스 휠은 스크롤 위치를 전진·복귀시켰지만, 미방문 쪽 이동은 최대 1.157초·RAF 1.102초가 남았다. paint 최댓값은 13.7ms였고 `getCanvasPageLayerTree`의 cold build가 최대 405.5ms였다. 이를 완료로 보고하지 않는다. 별도 Native 프로브에서 원본의 5,277행·52,694셀에 대한 `invalid_declared_width_rows`만 335.6–375.9ms를 사용했다. 행마다 모든 셀을 다시 검색하는 순수 선언 검사이므로, 다음 단계에서 규칙·정렬·오류 판정은 유지하고 탐색을 개선한다. 이 단계는 아직 전체 Rust 회귀·Native Skia·독립 Print 시각 게이트를 완료하지 않았으며 원격 반영하지 않는다.
+
+
+## 선언 너비 탐색과 최종 상호작용 관측
+
+`Table::declared_width_rows_exceeding`은 단일행 셀을 원본 행별로 한 번 모은 뒤 기존 안정적 열 정렬과 완결성·허용 오차·정수 합산을 그대로 적용한다. 선언 영역 밖의 행·세로 병합·빈 행·겹친 열·0 span의 판정은 바꾸지 않는다. 이 결과를 소비하는 `compute_column_widths` / `LayoutEngine::resolve_column_widths`와 최종 partial/whole table 격자는 그대로 둔다. cache 수명이나 문서 ID 조건을 추가하지 않는다.
+
+같은 공개 원본의 순수 너비 검사 5회는 335.6–375.9ms → 3.07–3.57ms였으며 invalid 행 집합은 동일했다. 새 source query 계약 2건은 허용 오차의 경계, 불완전·중복 열, 병합 열, 영역 밖 행, 세로 병합과 희소 행을 확인한다. 조판 위치·쪽수·golden을 고정하는 검사가 아니다. 수정 전의 같은 질의와 성능을 비교한 것이며 기존 코드의 의미 오류를 검출했다는 주장으로 바꾸지 않는다.
+
+최종 Docker WASM SHA는 `c3934165ae0e58e3207acf00a354a376579536c30bb487dc876d040363869256`이며 실제 Chrome 응답, root pkg/public 일치를 확인했다. 같은 첫 표 클릭은 74ms(이후 표 안 클릭 60ms), 페이지 경계 조회는 0.5ms였다. 실제 CDP 마우스 휠 최대 RAF 간격은 직전 보정본 593.4ms → 93.7ms이고 100ms 초과가 없었다. 미방문 쪽 이동은 고정 200ms 대기와 두 RAF를 포함한 최대 1.157초 → 320.4ms, cold layer tree 최댓값은 405.5ms → 74ms였다. 한 번의 스크롤 측정이며 모든 장치의 상한을 뜻하지 않는다.
+
+첫 표시 첫 측정은 Native 컴파일과 겹친 구간에서 19.648초(load 14.747초)였다. 컴파일 종료 후 재측정은 10.617초(load 5.981초, view 4.366초)다. JIT·메모리·실행 부하를 분리 측정하지 않았으므로 차이의 원인을 단정하지 않는다. 이 helper는 메뉴·대화상자 전체 시간을 포함하지 않는다. 메인터너는 준비된 7796 탭의 실제 마우스 휠·캐럿 클릭을 확인하고 **“지연이 개선되었습니다”**라고 판정했다. 이를 독립 Print의 시각 판정으로 해석하지 않는다.
+
+최종 161쪽 Native SVG 파일 집합과 바이트, WASM Canvas raw RGBA 해시는 모두 변경 전과 같다. 페이지 조회는 기존 전체 조회를 같은 페이지로 필터한 배열과 같으며, 전체 조회도 47.090초 → 7.429초였다(후속 호출 순서에 따른 cache 상태가 있어 일반 상한으로 쓰지 않는다). `phase6/svg-parity.json`, `browser/scroll/row-width-canvas-parity.json`, `page-query-contract-row-width.json`, `click-row-width.json`, `real-wheel-row-width.json`, `cold-row-width.json`에 연결한다.
+
+`hwp_table_test.hwp`에서 실제 file input 열기 → `executeOperation(snapshot)` 행 삽입 → `performUndo` → `performRedo` → file input 문서 교체를 실행했다. 모델 행수 4 → 5 → 4 → 5 → 4와 모델 셀 소속, 새 셀 보존을 확인했고 교체 후 UI bbox 캐시·표 참조·undo history는 초기화됐다. 실제 키보드 Ctrl+Z / IME를 검증했다는 의미는 아니다. 첫 background tab은 초기화 대기에서 timeout하여 실행 증거로 세지 않았고 foreground 재실행을 사용했다. 로그와 원문은 `cache-state-background-timeout.log`, `cache-state.json`에 보존했다.
+
+새 integration source가 처음에는 파생 suite에 없는 상태여서 최초 fmt 적용이 그 파일을 놓쳤다. prepare 후 포맷을 보정했고, 그 바이트 변경으로 달라진 파생 배정을 다시 준비하여 fmt와 manifest를 함께 통과시켰다. 첫 실패 로그를 보존하며 generated suite·manifest는 source PR에 포함하지 않는다. production Rust/TS 해시는 재빌드·전쪽 출력 검사 때와 그대로다. 포맷 변화는 새 source query 검사 한 파일에 한정되므로 같은 Docker WASM을 재사용한다. 최종 세 Clippy·workspace build·정책 검사는 통과했고 전체 Rust/Native Skia 결과는 이어서 기록한다.
+
+
+## 전체 검증과 남은 제출 조건
+
+2026-10-14까지 같은 production source hash에서 전체 nextest는 **10,223건 통과·실패 0·skip 45**였다. compile 포함 1,403.9초, 실행 493.1초였으며 호스트 16 CPU / 31GiB 메모리와 다른 작업을 고려해 Cargo build jobs 2, test threads 4를 사용했다. Native Skia lib는 root 3,864건과 내부 crate 15·165·2건, 합계 **4,046건 통과·ignored 12**였다. placeholder 2건과 direct PDF 4건도 모두 통과했다. `phase6/validation-regenerated.json`과 각 로그를 보존한다. fmt·세 Clippy·workspace build·manifest 및 unit-tier base 비교, TypeScript·Studio 전체 검사도 통과했다. 앞서 실패한 fmt·manifest는 원본 형식 보정과 파생 재준비로 해결했으며 허용치·golden·검사 조건을 완화하지 않았다.
+
+새 독립 정답지를 같은 원본에서 다시 생성했다. 현재 입력은 `hancom-office-2018` / `10.0.0.14727` 저장본이므로 MCP engine 2020을 명시했다. job `c660225b-da83-4358-b658-18296e0c36d8`의 결과는 한컴 `11.0.0.9136`, `pdf_print_method=0`, `pdf_output_mode=hancom2020_pdf_driver_one_up`, `input_preprocess=none`, font scope verified였다. 새 PDF도 **162쪽**이며 SHA-256은 `32ecd01c0e82abb5d89b42edf29465f252d922ef78f98cd23a13edfd0b524ddf`다. ignored `oracle/pdf/issue2063_huge_cellbreak_table-2020.pdf`와 start/status/download 원문(접속 정보 제외)에 보존했다.
+
+현재 Native는 Windows Fonts의 실제 함초롬바탕·돋움/돋움체·HY견명조 등을 공급해도 161쪽이었다. 전쪽 silhouette 실행은 `svg=161, tree=161, pdf=162`에서 중단됐고 TSV가 완성되지 않았다. 처음 WASM 실행은 Linux Chrome 경로 미지정으로 실행하지 못했으며 실제 설치된 Chrome 154 경로를 명시해 다시 전쪽 실행했다. 선택 1..161의 추가 진단은 페이지마다 전체 문서를 다시 조판하는 비용이 있고 162쪽 누락을 해결하지 못하므로 본 에이전트 소유 실행만 중지했다. 공통 161쪽 비교를 원문 전쪽의 통과로 바꾸어 보고하지 않는다.
+
+따라서 본 단계의 **성능 보정과 변경 전후 출력 보존은 충족**, 전체 Rust/Skia/lint는 충족이며, **독립 Print 전쪽의 시각 게이트는 쪽수 불일치·TSV 미완성으로 미충족/미검증**이다. 메인터너의 “지연이 개선되었습니다”는 성능 판정이다. 신규 PR 생성·push·merge·이슈 종료를 진행하지 않는다. 현재 worktree와 ignored output의 소스·WASM·검증 자료를 유지하며, 공용 target과 원래 devel 7700 서버는 변경·삭제하지 않는다.
+
+
+Chrome 154를 명시한 최종 fresh WASM 전쪽 Sweep도 `svg=161, tree=161, pdf=162`로 종료했다. Native와 WASM 모두 누락 쪽을 제외하거나 빈 쪽을 합성해 TSV gate를 통과시키지 않았다. `oracle/native-sweep.log`, `oracle/wasm-full-sweep.log`, 각각의 `run_manifest.json`과 WASM `manifest.json`에 전쪽 출력·실행 실패를 기록했다. `phase6/build-provenance.json`의 production 해시와 실제 Studio artifact가 일치한다. 검증 완료 소스는 성능 보정 local commit으로 보존하며 시각 게이트 해결 전 원격에 제출하지 않는다.
