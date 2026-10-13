@@ -446,3 +446,10 @@ Native Clippy·빌드는 jobs6·공용target에서 exit0이다. 원본147쪽은
 리베이스 전 출력과 테스트는 최종 결과로 재사용하지 않는다.
 새 base/head의 Native 경계 출력부터 재검증하며 전체 fresh WASM·회귀·lint·PR은
 아직 완료되지 않았다. 새 회귀 검사나 baseline 완화는 추가하지 않았다.
+
+
+C29 첫 Native Clippy는E0057로 실패했다. upstream이 `is_stored_frame_rewind`에
+추가한 현재 문단·원본 줄 색인을 C28의 새 호출 한 곳에 전달하지 못한 리베이스
+보정 오류였다. 현재 문단 첫 줄을 비교하는 호출에 `(pi, 0)`을 전달했다.
+첫 실패 로그와 결과 JSON을 보존하고 C29r2에서 수정 head를 다시 검증한다.
+새 base22317614b 대비 integration manifest와 source unit-tier 정책 검사는 각각exit0이다.
