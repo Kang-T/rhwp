@@ -5583,3 +5583,12 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 - 보정 dev 빌드는exit0/1분17초이며 HWP/HWPX 모두52쪽이다. 이 쪽수 복구만으로 시각·회귀·lint 완료를 주장하지 않는다. 관련 원장 모든partition, 기존 집중·정상 대조군 및 전쪽 Native/fresh 검증은 다음 단계다. 로컬 전체10,267 재실행은 사용자 지침에 따라 생략하고 새 PR head의 전체 GitHub CI를 확인한다.
 - #7778 현재 OPEN/대표#7445 연결과 같은 원본 SHA da9f9c98…/Print fade38ba…를 API로 재조회했다. 같은 font/profile/DPI의 base223176/current edd25쪽은48.36347%이고 PNG 바이트 동일,37/37쪽이다. 영문 칼럼 줄바꿈과 아래쪽 내용 소속 차이를 직접 판독했다. 정상 golden이 아닌 이관 부정 증거를 [59043 증거](../assets/issue7445/ci-regression-20261014/README.md)에 보존한다. 현재4→6 로그도 보존하며 기준값을6으로 늘리지 않는다.
 - ignored `output/pr-review/semanticist21-20261008/ci-regression-rebase-v458/`에 실제 job 로그, base/current 바이너리·입력 해시, 첫 실패 후보, GDB 예약/전달, 독립 PDF review/overlay 및 추가 검증 결과를 남긴다. 아직 새 remote push·CI 성공·개별 승인·merge·issue 종료는 수행하지 않았다.
+
+
+## 진행 갱신235 — 물리 행 계획의 이중 차감 제거 (2026-10-14)
+
+- 진행234 후보는 두 형식52쪽을 복구했지만 Native 전쪽 HWPX의3/7/42/46쪽이90% 미만이었다. 해당 후보의 실제 로그·TSV를 v458에 보존하고 승인·push하지 않았다. Native 실패 확인으로 그 후보의 fresh WASM 빌드만 중단했다.
+- 실제 배치 소비를 다시 추적했다. `stored_fragment_row_plan`이 앞 조각의 수용 상자를 반영해 종료 행을 이미36.667로 계산한 뒤, 별도로 만든 기존 `straddle_row_relief`가 paint에서7.546을 다시 빼29.120으로 만들었다. 선택은 원래44.213에서 같은 차감을 한36.667을 사용하므로 예약과 배치가 달랐다. 이 수치는 진단 관측값이며 회귀 기준의 px 핀으로 추가하지 않는다.
+- `fragment.rs`에서 유효한 공통 물리 행 계획을 먼저 생산하고, 그 결과가 있으면 별도 기존 띠 차감을 적용하지 않는다. 계획이 없는 경로는 기존 차감을 유지한다. 생산 계획 → source.measured_table/fragment_row_heights → 선택과 emit/paint의 연결을 공유하며 문서별 조건을 추가하지 않았다.
+- dev 빌드exit0/55.59초. 새로운 HWPX3쪽 render tree의 해당 행36.7 및 표 외곽649.3은 독립 기준에 대응하는 고정 base223176의 같은 영역과 같으며, 실패 후보의29.1/641.8에서 복구됐다. 이는 구조 진단이다. 전쪽 Native/fresh 일치율·직접 PNG 판독·관련 회귀·필수 lint는 별도 실행 결과로 판정한다.
+- 새 증거는 ignored `output/pr-review/semanticist21-20261008/shared-row-plan-v459/`에 생산 소스/바이너리 해시와 함께 보존한다. 전체 로컬 회귀를 반복하지 않고 기존 집중 검사에 oracle/text-overlap의 모든 파티션과 관련 정상 경계를 보완한다. 최종 원격 head의 전체 CI는 다시 확인한다.

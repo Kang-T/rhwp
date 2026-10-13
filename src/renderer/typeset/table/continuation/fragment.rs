@@ -149,7 +149,11 @@ impl TypesetEngine {
                 source.styles,
             )
         };
-        let straddle_row_relief = if continuation.start_cut_is_block
+        // 이 계획은 앞 조각의 실제 상자와 빈 띠를 이미 차감한 공통 결과다.
+        // 기존 별도 띠 차감을 다시 적용하면 예약과 paint의 행 높이가 달라진다.
+        let physical_rows = self.stored_fragment_row_plan(st, prepared, continuation, source);
+        let straddle_row_relief = if physical_rows.is_some()
+            || continuation.start_cut_is_block
             || !continuation.start_cut.is_empty()
             || continuation.start_row_height_override.is_some()
         {
@@ -194,7 +198,6 @@ impl TypesetEngine {
             stored_fragment_closes_body: continuation.stored_fragment_closes_body,
             start_cut,
         };
-        let physical_rows = self.stored_fragment_row_plan(st, prepared, continuation, source);
         let fragment_measurement = physical_rows.as_ref().map(|rows| {
             let mut measured = source.measured_table.clone();
             measured.row_heights.clone_from(rows);
