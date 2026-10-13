@@ -16,10 +16,10 @@ last_verified: 2026-10-13
 | 항목 | 확인 결과 |
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
-| 현재 production 보정 | `7f04c48cd395086ed59c08565f343d3f9e1b013d` — 저장 앞 띠·종료 프레임 정렬 보정 |
-| 현재 Native/fresh 재검증 code head | `7f04c48cd395086ed59c08565f343d3f9e1b013d` — Native 경계 확인, 전쪽/fresh 최종 검증 중 |
+| 현재 production 보정 | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — 저장 전체 행 프레임의 선택 글줄 정렬 보정; 재검증 중 |
+| 현재 Native/fresh 재검증 code head | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — Native/fresh 영향 16쪽 재검증 중; 최종 전쪽 비교는 미완료 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
-| 이 PR의 실제 계약 실행 | c771d233e 전체 nextest에서 1/1 PASS, FAIL 0, 미관측 0; 최신 `7f04c48cd` 재실행은 남음 |
+| 이 PR의 실제 계약 실행 | 수정 전 7f04c 소스의 전체 nextest에서 1/1 PASS, FAIL 0, 미관측 0; 현재 b4ff8c 소스 재실행은 남음 |
 | 현재 통합 완료 판정 | **머지 보류** — 새 base/보정 head의 최종 전체 회귀·lint·필수 시각/backend 검증 진행 중 |
 | 원격 진행 권한 | 작업지시자의 자동 승인: 모든 필수 테스트·시각 검증 완료 후 통합 PR 생성 → 최신 head CI 확인 → 머지 → 후속 처리 |
 
@@ -34,6 +34,10 @@ last_verified: 2026-10-13
 리베이스 적용 대조는 `regression-root-cause-batch-v448/individual-pr-current-application-audit.json`이다.
 메인터너의 공통 표 프레임 보정·새 base 비교·양 backend 증거는
 [누적 기록의 진행173](semanticist21_20261008_integrated_review.md#진행-갱신173--157-양-backend-선행-조건과-정식-회귀-검출-2026-10-13)에 연결한다.
+
+### 최신 검증 구분
+
+수정 전 production `7f04c48cd395086ed59c08565f343d3f9e1b013d`의 전체 회귀에서 이 PR 계약 1/1개가 PASS했다. 현재 production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`는 72쪽 배치 차이를 보정한 새 소스이며, 이전 PASS를 현재 소스의 검증으로 대신하지 않는다. Native/fresh 영향 쪽·최종 회귀 및 필수 게이트 완료 전 판정은 **머지 보류**다. 근거와 소비 경로는 [누적 기록의 진행 갱신195](semanticist21_20261008_integrated_review.md#진행-갱신195--전-회귀-통과와-72쪽-정렬-높이-소비-경로-보정-2026-10-13)에 연결한다.
 
 ## 접수 정보
 
