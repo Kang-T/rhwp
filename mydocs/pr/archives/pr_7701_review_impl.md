@@ -345,3 +345,28 @@ Native Clippy·빌드는 각각exit0, jobs6·공용target을 사용했다.
 `c25-emit-korean-comments-audit.json`, `c25-pr7701-budget-diagnostic.log` 및
 `c25-native-pr7701-leading-147-149/pr7701-leading-147-149/direct-review/review/`다.
 최종 fresh WASM·전체 회귀·lint 및 전쪽 검증은 보정 완료 뒤 수행한다.
+
+### C26 병합 행의 저장 쪽 경계에서 끝 간격을 공통 소비
+
+`stored_page_reset_cut_trailing_trim`의 병합 셀 주변 행 일괄 제외를 제거했다.
+기존 주석과 달리 `row_block_content_height`와 `cell_cut_visible_height`도
+`native_saved_reset_cut_trailing_trim`을 소비하고, per-row paint는 같은
+`row_cut_content_height`와 수용한 끝 행 높이를 사용한다. 중첩 표의 국소 되감김,
+편집·재조판 및 저장 정보 유효성 제외는 유지했다. 문서별 수치 분기는 추가하지 않았다.
+
+원본40행 셀의 원점200→0HU, 줄높이1000HU, 줄간격300HU와 패딩141HU×2를
+직접 읽었다. 첫 프레임의 내용16px와 패딩3.76px는 C25의 내용 예산16.827px 안에
+들어간다. 실제 출력에서149쪽의 ‘재해·재난의 원인’과 첫 줄,150쪽의 남은 ‘기’를
+확인했으며40행 제목은150쪽에 중복 출력되지 않는다.149쪽99.33573%,
+150쪽93.20865%이고147쪽94.82317%,148쪽97.47476%다.
+
+Native 대조군49쪽은 C25와 PNG가 모두 동일하다. 기존 반례17544911은3쪽 모두
+동일하며1376496은4쪽42.88337%→43.82035%,3·5쪽은 동일하다.
+Native Clippy·빌드는 jobs6·공용target에서 각각exit0이다.
+증거는 `c26-native-stored-reset-summary.json`, `c26-original-row40-output-ownership.json`,
+원본147–150쪽 `direct-review/review/`와 `c26-page-band-native-candidate/provenance.json`이다.
+
+전체는 여전히416/415쪽이다. 원본 구역5의 중학교 표(문단11)가146–156쪽으로
+이어지지만 Print의 고등학교 표는156쪽에서 시작한다. 마지막 구간166–168쪽은
+72.05152%,64.35064%,23.43152%로 미달한다. 쪽수·후반부 소속 차이와147쪽 물리
+상자 차이는 계속 보정해야 한다. 정식 회귀 추가·기대값 변경·PR 승인은 하지 않았다.

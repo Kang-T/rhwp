@@ -17436,13 +17436,8 @@ impl LayoutEngine {
                 .nested_table_ptrs
                 .borrow()
                 .contains(&(table as *const crate::model::table::Table as usize))
-            // 걸침 칸 블록에 든 행은 블록 조각 그리기가 따로 높이를 정한다. 그 경로는 이
-            // 간격 트림을 소비하지 않아 예약과 그리기가 갈린다(1376496 3쪽 +22.8px).
-            || table.cells.iter().any(|owner| {
-                owner.row_span > 1
-                    && owner.row <= cell.row
-                    && cell.row < owner.row + owner.row_span
-            })
+            // 걸침 칸 블록도 row_block_content_height와 cell_cut_visible_height에서
+            // 같은 저장 컷의 끝 간격을 제외한다. 병합 셀 존재만으로 제외하지 않는다.
             || end_cut <= start_cut
             || end_cut >= units.len()
         {
