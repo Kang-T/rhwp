@@ -5,12 +5,21 @@ import hashlib
 import io
 import re
 from collections.abc import Iterator
+from pathlib import Path
 
 # 원본 바이트는 저장하지 않는다. 새 바이트는 매번 해시를 계산해 별도로 검사한다.
 _UNICODE_COUNTS: dict[str, int] = {}
 _CACHE_LIMIT = 128
 _RULE_RECORDS: dict[str, tuple[dict[str, object], ...]] = {}
 _RULE_START = re.compile(r"@font-face\s*\{", re.IGNORECASE)
+
+
+def inspect_svg_embedded_fonts(svg_path: Path) -> list[dict[str, object]]:
+    """쪽 경로만 작업자에게 전달하고 기존 글꼴 보고서의 바이트 검사를 유지한다."""
+    records = []
+    for rule in embedded_font_rules(svg_path.read_text(encoding="utf-8")):
+        records.extend(inspect_embedded_font_rule(rule))
+    return records
 
 
 def embedded_font_rules(svg: str) -> Iterator[str]:

@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 
-def rasterized_sources(root, sources, png_dir, zoom, rasterizer, run, command, write_json):
+def rasterized_sources(root, sources, png_dir, zoom, rasterizer, run, command, write_json, workers=1):
     """완료 PNG를 하나씩 반환한다. 각 쪽의 분석·checkpoint는 호출자가 수행한다."""
     if rasterizer == "rsvg" or len(sources) <= 1:
         for source in sources:
@@ -23,7 +23,7 @@ def rasterized_sources(root, sources, png_dir, zoom, rasterizer, run, command, w
     job_path.parent.mkdir(parents=True, exist_ok=True)
     write_json(job_path, jobs)
     argv = ["node", str(root / "scripts/rasterize-svg-webfonts.mjs"),
-            "--batch-json", str(job_path)]
+            "--batch-json", str(job_path), "--workers", str(workers)]
     with (job_path.parent / "raster_batch.stderr.log").open("w", encoding="utf-8") as errors:
         process = subprocess.Popen(argv, cwd=root, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=errors,

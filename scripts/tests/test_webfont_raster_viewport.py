@@ -16,6 +16,44 @@ CHROME = os.environ.get("VISUAL_SWEEP_CHROME")
 
 @unittest.skipUnless(CHROME, "VISUAL_SWEEP_CHROME is required for browser raster checks")
 class WebfontRasterViewportTest(unittest.TestCase):
+    def test_parallel_pages_preserve_serial_pixels_order_and_browser_limits(self):
+        with tempfile.TemporaryDirectory(prefix="rhwp-raster-parallel-") as directory:
+            folder = Path(directory)
+            sources = []
+            for page in range(8):
+                source = folder / f'{page}.svg'
+                source.write_text(
+                    f'<svg xmlns="http://www.w3.org/2000/svg" width="{30 + page}" height="20">'
+                    f'<rect width="100%" height="100%" fill="rgb({page * 20},40,80)"/>'
+                    '<text x="2" y="14" font-size="8">AB</text></svg>')
+                sources.append(source)
+            images = {}
+            for workers in (1, 4):
+                jobs = [{'input': str(source), 'output': str(folder / f'{workers}-{page}.png'),
+                         'zoom': 1} for page, source in enumerate(sources)]
+                manifest = folder / f'jobs-{workers}.json'
+                manifest.write_text(json.dumps(jobs))
+                result = subprocess.run(
+                    ['node', str(ROOT / 'scripts/rasterize-svg-webfonts.mjs'),
+                     '--batch-json', str(manifest), '--chrome', CHROME, '--workers', str(workers)],
+                    cwd=ROOT, capture_output=True, text=True, timeout=90)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                records = [json.loads(line) for line in result.stdout.splitlines()]
+                self.assertEqual([r['input'] for r in records], list(map(str, sources)))
+                self.assertEqual(len({r['browserPid'] for r in records}), workers)
+                for record in records:
+                    self.assertEqual(record['openPageCount'], 1)
+                    self.assertEqual(record['pagesAfterCapture'], 0)
+                    with Image.open(record['output']) as image:
+                        pixel = (image.size, image.convert('RGBA').tobytes())
+                    if workers == 1:
+                        images[record['input']] = pixel
+                    else:
+                        self.assertEqual(pixel, images[record['input']])
+                self.assertFalse(list(folder.glob('.webfont-workers-*')))
+                self.assertFalse(list(folder.glob('.webfont-chrome-profile-*')))
+                self.assertFalse(list(folder.glob('*.html')))
+
     def test_batch_keeps_one_browser_one_tab_and_each_pages_pixels(self):
         with tempfile.TemporaryDirectory(prefix="rhwp-raster-batch-") as directory:
             folder = Path(directory)

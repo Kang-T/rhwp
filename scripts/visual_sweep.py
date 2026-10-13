@@ -23,6 +23,11 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
+try:
+    from scripts.visual_sweep_workers import ordered_page_map
+except ModuleNotFoundError:
+    from visual_sweep_workers import ordered_page_map
+
 
 LABEL_FONT_ENV = "RHWP_VISUAL_SWEEP_LABEL_FONT"
 LABEL_FONTCONFIG_FAMILIES = (
@@ -367,13 +372,13 @@ def svg_raster_command(
     ]
 
 
-def rasterized_sources(root, sources, png_dir, zoom, rasterizer):
+def rasterized_sources(root, sources, png_dir, zoom, rasterizer, workers=1):
     try:
         from scripts.visual_sweep_raster import rasterized_sources as capture
     except ModuleNotFoundError:
         from visual_sweep_raster import rasterized_sources as capture
     return capture(root, sources, png_dir, zoom, rasterizer, run,
-                   svg_raster_command, write_json_atomic)
+                   svg_raster_command, write_json_atomic, workers=workers)
 
 
 def load_note_shape(root: Path, hwp: Path, rhwp_bin: str, out_path: Path) -> dict[str, object]:
@@ -695,10 +700,16 @@ def inspect_svg_embedded_fonts(svg_path: Path) -> list[dict[str, object]]:
     return records
 
 
-def check_sweep_embedded_fonts(svg_paths: list[Path], report_path: Path) -> None:
+def check_sweep_embedded_fonts(svg_paths: list[Path], report_path: Path, *, workers: int = 1) -> None:
     pages = []
-    for index, path in enumerate(svg_paths, 1):
-        pages.append({"svg": str(path), "fonts": inspect_svg_embedded_fonts(path)})
+    inspector = inspect_svg_embedded_fonts
+    if workers > 1:
+        try:
+            from scripts.visual_sweep_font_cmap import inspect_svg_embedded_fonts as inspector
+        except ModuleNotFoundError:
+            from visual_sweep_font_cmap import inspect_svg_embedded_fonts as inspector
+    for index, (path, fonts) in enumerate(zip(svg_paths, ordered_page_map(inspector, svg_paths, workers)), 1):
+        pages.append({"svg": str(path), "fonts": fonts})
         if index == 1 or index % 10 == 0 or index == len(svg_paths):
             print(f"Embedded font check pages: {index}/{len(svg_paths)}", flush=True)
     failures = [
@@ -1493,6 +1504,7 @@ def render_target(
     font_mismatch_evidence: Path | None = None,
     silhouette_only: bool = False,
     compat: str = "2022",
+    page_workers: int = 4,
 ) -> dict[str, object]:
     print(f"== {target.key} ==", flush=True)
     if dpi <= 0:
@@ -1580,6 +1592,7 @@ def render_target(
         check_sweep_embedded_fonts(
             raster_paths_for_selected_pages(all_svg_paths, selected_pages),
             font_check_path,
+            workers=page_workers,
         )
         # 일부 쪽만 캡처해도 문서 전체 쪽수의 차이는 숨기지 않는다.
         failure_reason = "unavailable_document_page_counts"
@@ -1618,10 +1631,10 @@ def render_target(
         )
         pairs = []
         for page, _, _, pdf_path in rasterized_sources(
-            root, sources, rhwp_png_dir, dpi / 96.0, svg_rasterizer
+            root, sources, rhwp_png_dir, dpi / 96.0, svg_rasterizer, workers=page_workers
         ):
             pairs.append((page, rhwp_png_dir / f"rhwp_{page:03d}.png", pdf_path))
-        manifest = write_silhouette_tsv(pairs, base, target.key, document_counts=document_counts)
+        manifest = write_silhouette_tsv(pairs, base, target.key, document_counts=document_counts, workers=page_workers)
         manifest["provenance"] = provenance
         manifest["exported_svg_pages"] = len(all_svg_paths)
         manifest["exported_render_tree_pages"] = len(all_tree_paths)
@@ -1688,7 +1701,7 @@ def render_target(
     pending = [source for source in source_pages if source[0] not in completed]
     # 단위 없는 SVG 크기는 CSS px(96dpi)다. 같은 확대율로 쪽마다 캡처·checkpoint한다.
     for page, svg_path, tree_path, pdf_path in rasterized_sources(
-        root, pending, rhwp_png_dir, svg_zoom, svg_rasterizer
+        root, pending, rhwp_png_dir, svg_zoom, svg_rasterizer, workers=page_workers
     ):
         png = rhwp_png_dir / f"rhwp_{page:03d}.png"
         capture_label = f"{target.key} (WASM)" if wasm_pkg is not None else target.key
@@ -5341,9 +5354,23 @@ def document_page_counts(root: Path, pdf: Path, export_metadata: Path) -> dict[s
     return {"rhwp": rhwp_count, "pdf": pdf_count}
 
 
+def silhouette_pair_metrics(pair):
+    """이미지 경로만 작업자에게 전달하고 같은 지표·입력 해시를 계산한다."""
+    page, rhwp_path, pdf_path = pair
+    with Image.open(rhwp_path) as rhwp, Image.open(pdf_path) as pdf:
+        details = subpixel_tolerant_content_match_details(rhwp, pdf)
+    return page, details, {
+        "page": page,
+        "rhwp_png": str(rhwp_path),
+        "rhwp_sha256": hashlib.sha256(rhwp_path.read_bytes()).hexdigest(),
+        "pdf_png": str(pdf_path),
+        "pdf_sha256": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
+    }
+
+
 def write_silhouette_tsv(
     pairs: list[tuple[int, Path, Path]], out_dir: Path, key: str,
-    *, document_counts: dict[str, int] | None = None,
+    *, document_counts: dict[str, int] | None = None, workers: int = 1,
 ) -> dict[str, object]:
     """이미지 증적을 새로 만들지 않고 같은 2px 보조 지표와 입력 해시만 저장한다."""
     if not pairs:
@@ -5354,21 +5381,13 @@ def write_silhouette_tsv(
     inputs = []
     with tsv.open("w", encoding="utf-8") as stream:
         stream.write("page\ttolerant_content_match_percent\tbelow_90\tsilhouette_raw_match_percent\tsilhouette_boundary_reconciled_pixels\n")
-        for page, rhwp_path, pdf_path in pairs:
-            with Image.open(rhwp_path) as rhwp, Image.open(pdf_path) as pdf:
-                details = subpixel_tolerant_content_match_details(rhwp, pdf)
-                value = details["tolerant_content_match_percent"]
+        for page, details, inputs_for_page in ordered_page_map(silhouette_pair_metrics, pairs, workers):
+            value = details["tolerant_content_match_percent"]
             metrics.append({"page": page, **details})
             stream.write(f"{page}\t{value:.5f}\t{int(value < PR_REVIEW_MIN_TOLERANT_CONTENT_MATCH_PERCENT)}"
                          f"\t{details['silhouette_raw_match_percent']:.5f}"
                          f"\t{details['silhouette_boundary_reconciled_pixels']}\n")
-            inputs.append({
-                "page": page,
-                "rhwp_png": str(rhwp_path),
-                "rhwp_sha256": hashlib.sha256(rhwp_path.read_bytes()).hexdigest(),
-                "pdf_png": str(pdf_path),
-                "pdf_sha256": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
-            })
+            inputs.append(inputs_for_page)
     gate = pr_review_gate(metrics, font_mismatch_evidence=None, document_page_counts=document_counts)
     if gate["status"] == "passed":
         gate = {**gate, "status": "not_evaluated", "reason": "실루엣 보조값만 산출; 직접 시각·각주·본문 소유 검토 필요"}
@@ -5453,6 +5472,8 @@ def main() -> None:
         help="--silhouette-only에서 기존 raster 두 디렉터리를 비교합니다. 원문 재출력 없이 입력 해시를 기록합니다.",
     )
     parser.add_argument("--out", default="output/task1274")
+    parser.add_argument("--page-workers", type=int, default=4, metavar="N",
+                        help="내장 글꼴 검사·PNG 캡처·TSV 점수 계산의 쪽 작업자 수. 기본4, 1은 순차 실행. 각 캡처 작업자는 Chrome 하나와 탭 하나를 사용합니다.")
     parser.add_argument(
         "--rhwp-bin",
         default=DEFAULT_RHWP_BIN,
@@ -5529,6 +5550,8 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+    if args.page_workers < 1:
+        parser.error("--page-workers는 양의 정수여야 합니다.")
     if not 0 <= args.pixel_diff_threshold <= 255:
         raise SystemExit("--pixel-diff-threshold는 0 이상 255 이하로 지정해야 합니다.")
     selected_pages = parse_page_selection(args.page, args.pages)
@@ -5543,7 +5566,7 @@ def main() -> None:
         if args.target or args.hwp or args.pdf or args.file_target or args.wasm_pkg:
             parser.error("--png-pair와 원문 export 입력은 함께 사용하지 않습니다.")
         pairs = silhouette_png_pairs(*args.png_pair, selected_pages)
-        manifest = write_silhouette_tsv(pairs, Path(args.out), args.key or "png-pair")
+        manifest = write_silhouette_tsv(pairs, Path(args.out), args.key or "png-pair", workers=args.page_workers)
         if manifest["pr_review_gate"]["status"] == "re_review_required":
             raise SystemExit("실루엣 보조값 90% 미만: TSV를 확인하고 직접 검토하세요.")
         return
@@ -5588,6 +5611,7 @@ def main() -> None:
             font_mismatch_evidence=args.font_mismatch_evidence,
             silhouette_only=args.silhouette_only,
             compat=args.compat,
+            page_workers=args.page_workers,
         )
         gate = manifest.get("pr_review_gate")
         if isinstance(gate, dict) and gate.get("status") == "re_review_required":

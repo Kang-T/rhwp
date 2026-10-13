@@ -433,6 +433,19 @@ async function captureSvg({ input, output, zoom }, session) {
 
 async function main() {
   const jobs = rasterJobs(process.argv);
+  const workers = Number(optionValue(process.argv, '--workers') ?? '1');
+  if (!Number.isSafeInteger(workers) || workers < 1) {
+    throw new Error('--workers는 양의 정수여야 합니다.');
+  }
+  if (new Set(jobs.map(job => resolve(job.output))).size !== jobs.length) {
+    throw new Error('같은 PNG에 여러 캡처 작업을 배정할 수 없습니다.');
+  }
+  if (workers > 1 && jobs.length > 1) {
+    const { runParallelRasterJobs } = await import('./rasterize-svg-webfont-workers.mjs');
+    await runParallelRasterJobs(jobs, workers, fileURLToPath(import.meta.url),
+      findChrome(optionValue(process.argv, '--chrome')));
+    return;
+  }
   const session = {
     chrome: findChrome(optionValue(process.argv, '--chrome')),
     profileDir: resolve(dirname(resolve(jobs[0].output)), `.webfont-chrome-profile-${process.pid}`),
