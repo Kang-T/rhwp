@@ -2051,6 +2051,7 @@ fn test_tac_leading_width_block_table_full_line() {
         footnote_positions: Vec::new(),
         tab_extended: Vec::new(),
         horizontal_shaping: None,
+        frame_geometry: None,
     };
     let styles = ResolvedStyleSet {
         page_number_char_style_id: None,
@@ -2149,6 +2150,7 @@ fn test_tac_leading_width_inline_table_partial() {
         footnote_positions: Vec::new(),
         tab_extended: Vec::new(),
         horizontal_shaping: None,
+        frame_geometry: None,
     };
     let styles = ResolvedStyleSet {
         page_number_char_style_id: None,

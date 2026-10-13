@@ -3023,6 +3023,7 @@ impl HeightMeasurer {
                 // 비-TAC 마지막 줄은 이미 제외되므로 아래에서 다시 빼지 않는다.
                 let mut included_cell_last_trailing_ls = 0.0;
                 // 셀 내 문단들의 실제 높이 합산
+                let mut frame_paragraphs = None;
                 let text_height: f64 = if cell.text_direction != 0 {
                     // 세로쓰기: line_seg.segment_width가 열의 세로 길이
                     // 셀 높이 = 최대 segment_width
@@ -3061,6 +3062,11 @@ impl HeightMeasurer {
                                 self.is_native_hwp5,
                                 &self.single_line_overflow_cache,
                             );
+                            let frame_paragraph = comp.paragraph_with_frame_geometry(p);
+                            if let std::borrow::Cow::Owned(ref paragraph) = frame_paragraph {
+                                frame_paragraphs.get_or_insert_with(|| cell.paragraphs.clone())[pidx] = paragraph.clone();
+                            }
+                            let p = frame_paragraph.as_ref();
                             let reflow_nested_height = if cell.paragraphs.iter().all(
                                 crate::renderer::para_has_no_stored_line_segs,
                             ) && crate::renderer::float_placement::reflow_block_table_host_occupied_height(p, 0.0, 0.0).is_some() {
@@ -3321,6 +3327,13 @@ impl HeightMeasurer {
                         })
                         .sum()
                 };
+                // 뒤의 저장 extent·프레임 판정도 실제 구성한 줄 좌표를 소비한다.
+                let frame_cell = frame_paragraphs.map(|paragraphs| {
+                    let mut projected = cell.clone();
+                    projected.paragraphs = paragraphs;
+                    projected
+                });
+                let cell = frame_cell.as_ref().unwrap_or(cell);
                 let text_height = (self.is_native_hwp5 || self.hwpx_stored_layout)
                     .then(|| self.section_column_spacing_hu.get())
                     .flatten()

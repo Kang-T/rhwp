@@ -5657,6 +5657,8 @@ impl LayoutEngine {
             .zip(paragraphs.iter())
             .enumerate()
             .map(|(pidx, (comp, para))| {
+                let frame_paragraph = comp.paragraph_with_frame_geometry(para);
+                let para = frame_paragraph.as_ref();
                 self.calc_para_lines_height(
                     &comp.lines,
                     para,
@@ -14455,6 +14457,8 @@ impl LayoutEngine {
             let para_non_inline_h = para_top_and_bottom_h + para_other_non_inline_h;
             let comp =
                 self.compose_cell_unit_paragraph(p, cell.text_direction, inner_width, styles);
+            let frame_paragraph = comp.paragraph_with_frame_geometry(p);
+            let p = frame_paragraph.as_ref();
             let para_style = styles.para_styles.get(p.para_shape_id as usize);
             let is_empty_spacer_para = p.text.trim().is_empty() && p.controls.is_empty();
             // This source relation is certified from the two unchanged
@@ -26607,6 +26611,7 @@ mod row_cut_tests {
             footnote_positions: Vec::new(),
             tab_extended: Vec::new(),
             horizontal_shaping: None,
+            frame_geometry: None,
         }
     }
 

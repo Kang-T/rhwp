@@ -453,3 +453,94 @@ C29 첫 Native Clippy는E0057로 실패했다. upstream이 `is_stored_frame_rewi
 보정 오류였다. 현재 문단 첫 줄을 비교하는 호출에 `(pi, 0)`을 전달했다.
 첫 실패 로그와 결과 JSON을 보존하고 C29r2에서 수정 head를 다시 검증한다.
 새 base22317614b 대비 integration manifest와 source unit-tier 정책 검사는 각각exit0이다.
+
+
+### C30 원본 56행의 저장 어절 경계 진단
+
+독립 Print 151쪽은 56행 8열의 두 문단을 각각 한 줄로 출력한다. 원본의 두 번째 문단은
+마지막 어절 `시연하기`를 `시연하` / `기`로 저장했다. 동일 스타일·번호 마커·가용 폭의
+프레임은 해당 문단 전체를 한 줄로 수용한다. C30 후보는 실제 글줄을 두 줄로 출력했으나,
+HeightMeasurer의 `stored_extent`가 원본 마지막 줄 끝을 다시 읽어 행을 57.0933px로
+유지했다. 독립 Print 행 높이는 43.4976px이고 원본 선언 높이는 43.5333px이다.
+C30의 전체 416쪽과 Print 415쪽 차이는 그대로다. 글줄 개선만으로 완료로 판정하지 않았다.
+
+- 원본 SHA: `623b00d56beffc45d27c5bf23911bdc49d3a541ded8aecbb323d0716a2bc9f4e`
+- 독립 Print SHA: `bc16ee92640644307fd1ce92ab8ffe663088210caa7740bef620daaa0187e197`
+- 부모 code head: `e63316ad94466edc5779bb0e678832f9a05d28d9`
+- 증적: ignored `output/pr-review/planet6897-followup-20261011/` 아래
+  `c30-original-p151-render-tree/`, `c30-pr7701-dump-pages.json`,
+  `c29r2-native-vs-print-150-152-rule-comparison.json`, `c30-page-band-source.patch`.
+
+### C31 어절 재조판 결과의 측정·배치 전달 — 검증 중
+
+저장 자동 개행이 한글 어절을 나누었고 실제 같은 프레임이 더 적은 줄로 수용하는 경우,
+프레임의 `project_line_segs`와 `project_space_metrics`를 ComposedParagraph에 보존한다.
+원본 파일·원본 모델은 수정하지 않고, 원본 내용을 유지한 읽기용 문단 투영을 사용한다.
+다른 재조판 경로의 기존 좌표 소유권은 변경하지 않는다.
+
+| 실제 호출 경로 | 변경한 소비 위치 | 현재 상태 |
+| --- | --- | --- |
+| composer 저장 줄 Reflowed | 어절 경계를 합친 실제 프레임의 줄 좌표·공백 규칙 발행 | 구현 |
+| HeightMeasurer 일반 행 | 글줄 합산 후 `stored_extent`·닫힌 프레임 판정도 같은 투영 사용 | 구현 |
+| LayoutEngine 셀 유닛 | 합친 줄의 줄 높이·리셋·컷 경계를 같은 투영으로 계산 | 구현 |
+| 부분 표 배치 | 가시 문단의 그리기 좌표에 같은 투영 전달 | 구현 |
+| 일반 표 배치 및 다른 geometry 소비 경로 | 실제 코드와 추가 대조 | 미검증 |
+
+명시적 개행·쪽/단 경계·어울림 배제·수동 합성 줄은 합치지 않는다. 저장 원점이
+모델링되지 않은 HWP3 경로도 기존 보호 조건을 유지한다. 문서 ID나 목표 px 수치에
+따른 분기는 추가하지 않았다. 기존 내부 테스트 리터럴의 새 필드에는 `None`만
+추가했으며 기대값 변경·신규 회귀는 없다.
+
+C31 Native Clippy·CLI 빌드 및 pinned base `22317614b03722e95349a1d3d71c86923363c6f5`의
+manifest·unit-tier 정책 검사는 통과했다. 빌드 바이너리 SHA-256은
+`083aa1cbfe114e7f88c9bd7c08960fbaefcbfb82c3e238583b9fb0db23e07284`이다.
+
+원본 150–152쪽 Native TSV는 각각 **95.85299 / 99.99760 / 96.51888%**다.
+151쪽은 C29r2의 77.19551%에서 개선되었다. 새 render-tree는 56행 8열에
+`시연하기`가 포함된 완전한 두 글줄을 보존하며 셀 높이는 43.5px다. 실제 측정은
+57.0933→43.5333px, 66행은 꼬리 컷 없이 같은 조각에 완전히 수용된다.
+151쪽 review/overlay를 직접 읽어 해당 줄바꿈·행 괘선·마지막 행 보존을 확인했다.
+전체 쪽수는 **416 / Print 415**로 아직 불일치한다. 147–168쪽과 정상·음성 대조군을
+포함한 84쪽 Native 진단을 완료했으며 gate는 `re_review_required`를 유지한다.
+
+첫 dump harness의 잘못된 `--compat2022` 옵션은 실행 전 거부되었다. source 오류나
+결함 재현으로 세지 않으며 실패 로그를 보존했다. 정식 `--compat 2022`로 재실행한
+`c31r2-pr7701-dump-pages.json`의 terminal exit0과 새 시각 하네스 결과를 사용한다.
+C31 dirty source 스냅샷과 patch를 별도로 보존하며 이전 C30 결과를 재사용하지 않는다.
+빌드는 사용자 지시에 따라 `CARGO_BUILD_JOBS=8`, 공용 `target/pr-review`를 사용한다.
+실행 증적: `c31-native-page-band-build-results.json`, `c31-native-clippy.log`,
+`c31-native-build.log`, `c31-frame-word-tail-plan.json`,
+`c31-row56-shared-frame-diagnostic.json`, `c31-original-row56-rendered-line-ownership.json`,
+`c31-native-pr7701-frame-word-tail-150-152/pr7701-frame-word-tail-150-152/silhouette.tsv`,
+같은 폴더의 `direct-review/review/review_151.png`.
+
+전체 Native/fresh WASM TSV·쪽수 일치·직접 판독 및 최종 회귀 게이트는 미완료다.
+PR 생성·승인·merge 완료를 의미하지 않는다.
+
+
+C31 확대 Native 진단은 총 **84쪽**을 빠짐없이 완료했다. 교육과정 147–154쪽의
+최저값은 **95.85299%**, 155–168쪽은 14쪽 미달이며 전체 416/415쪽 차이가 남았다.
+그림·중첩·K-water 정상 대조군 **49쪽**은 모두 90% 이상·쪽수 일치다
+(그림 4쪽 99.27611%, 그림 띠 2쪽 92.75255%, 중첩 대조 8+8쪽 96.813%,
+K-water 27쪽 94.12523%). 이 값은 TSV 관측이며 전체 직접 판독이나 승인으로 승격하지 않는다.
+음성 대조 17544911·1376496의 미달 값은 C29r2와 동일하다. 추가 HWP3 sample13의
+3쪽은 최저 99.90361%, sample19의 2쪽은 최저48.79302%로, sample19는
+C29r2 바이너리의 동일 원본·Print 비교도 완료했다. 두 쪽의 값은 각각
+48.79302 /75.53185%로 C31과 동일하여 이번 보정의 신규 차이는 아니다.
+이는 upstream/devel 단독 비교가 아니므로 이관 근거로 사용하지 않는다.
+WASM 전용 Clippy도 terminal exit0이다. fresh WASM runtime을 실행한 것은 아니다.
+증적은 `c31-native-shared-frame-summary.json`, `c31full-native-page-band-diagnostic-results.json`,
+`c31-wasm-clippy-result.json` 및 각 case의 `silhouette.tsv`에 고정했다.
+
+남은 155쪽 직접 review는 첫 행의 문단 소속·뒤 괘선·마지막 셀 꼬리 차이를 확인했다.
+`c31r3-pr7701-budget-diagnostic.log`에서 101행은 내용 20px의 첫 문단 전체가 들어가는
+컷을 선택하지만 25px 고아 줄 최소 조건으로 기각된다. 원본 문단의
+`widow_orphan=false / keep_with_next=false / keep_lines=false`를 실제 source probe로
+확인했고 독립 Print는 해당 문단을 154쪽에서 끝내고 다음 문단을155쪽에서 재개한다.
+이후 보정은 완결한 독립 문단 경계와 문단 내부 고아 줄을 구분하고 실제 컷 높이·예산
+검사를 유지하는 방향이다. 계획은 ignored `c32-complete-paragraph-boundary-plan.json`에
+남겼으며 C31 결과로 후속 보정의 통과를 주장하지 않는다.
+
+보정 전 비교 증적: `c31-before-hwp3-sample19-result.json` 및
+`c31-before-hwp3-sample19/hwp3-sample19-before-c31/silhouette.tsv`.
+C31 `cargo fmt --all -- --check`도 terminal exit0이다.

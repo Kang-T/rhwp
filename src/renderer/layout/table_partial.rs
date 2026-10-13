@@ -2643,6 +2643,9 @@ impl LayoutEngine {
                     &self.single_line_overflow_cache,
                 );
 
+                let frame_paragraph = composed.paragraph_with_frame_geometry(para);
+                let para = frame_paragraph.as_ref();
+
                 let mut table_host_has_stored_origin = false;
                 let mut single_column_snap_spacing_before = false;
                 if let Some(origin) = single_column_flow

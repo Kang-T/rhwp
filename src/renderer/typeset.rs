@@ -6031,6 +6031,7 @@ mod tests {
             footnote_positions: Vec::new(),
             tab_extended: Vec::new(),
             horizontal_shaping: None,
+            frame_geometry: None,
         };
 
         // 조판(페이지네이션)이 이 줄에 예약하는 인라인 개체 높이.

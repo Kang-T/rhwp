@@ -18,6 +18,9 @@ use crate::model::shape::Caption;
 use crate::renderer::layout_frame::LayoutFrame;
 pub use crate::renderer::layout_frame::ParagraphBox;
 
+mod frame_geometry;
+mod stored_word_tail;
+
 /// 글자겹침(CharOverlap) 렌더링 정보
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct CharOverlapInfo {
@@ -145,6 +148,8 @@ pub struct ComposedParagraph {
     /// 탭 확장 데이터 (HWP tab_extended / HWPX 인라인 탭)
     /// ext[0]=width, ext[1]=leader/fill_type, ext[2]=tab_type
     pub tab_extended: Vec<[u16; 7]>,
+    /// 재조판 프레임이 발행한 줄 좌표와 공백 규칙. 원본 모델은 그대로 보존한다.
+    pub(crate) frame_geometry: Option<std::sync::Arc<frame_geometry::FrameGeometry>>,
     /// Q2-C에서 qualified된 dormant shaping 결과. D1은 수명만 composition
     /// owner로 넘기며 line breaking·layout·paint는 아직 이 값을 소비하지 않는다.
     pub(crate) horizontal_shaping:
@@ -523,6 +528,7 @@ fn compose_paragraph_scoped(
         footnote_positions,
         tab_extended: para.tab_extended.clone(),
         horizontal_shaping: None,
+        frame_geometry: None,
     };
 
     // CharOverlap 글자를 조합된 텍스트에 삽입
@@ -3100,36 +3106,16 @@ pub(crate) fn recompose_stored_lines_in_frame_with_known_square_band(
             .unwrap_or(0),
     );
     frame.kopub_justified_space = justified_kopub_picture;
-    // 새로 채운 줄이 짧아졌다는 이유만으로 정상 저장 분할을 무효화하지 않는다.
-    // 마지막 자동 줄바꿈 때문에 한글 어절의 나머지만 마지막 줄에 남고,
-    // 이 프레임에서 앞부분과 다시 합칠 수 있는 경우에만 보정한다.
-    // 완결된 마지막 어절이나 여러 어절은 저장된 경계를 유지한다.
-    let rejoinable_word_tail = justified_kopub_picture
-        && para.line_segs.len() > 1
-        && !para.text.contains('\n')
-        && !para.stored_text_partition_is_dirty()
-        && !frame.models_exclusions()
-        && {
-            let chars: Vec<_> = para.text.chars().collect();
-            let (start, _) = utf16_range_to_text_range(
-                &para.char_offsets,
-                para.line_seg_text_start(para.line_segs.len() - 1),
-                u32::MAX,
-                chars.len(),
-            );
-            let is_syllable = |c: char| ('\u{ac00}'..='\u{d7a3}').contains(&c);
-            start > 0
-                && start < chars.len()
-                && is_syllable(chars[start - 1])
-                && chars[start..].iter().copied().all(is_syllable)
-        }
-        && {
-            let mut probe = frame.clone();
-            let mut input = para.clone();
-            input.line_segs.clear();
-            line_breaking::layout_paragraph_in_frame(&input, &mut probe, styles, dpi)
-                .is_some_and(|rows| rows.len() < para.line_segs.len())
-        };
+    // 마지막 자동 줄바꿈이 나눈 어절은 현재 프레임의 실제 줄 구성으로 재검토한다.
+    // 글꼴 이름이 같은 재조판 규칙의 적용 범위를 정하지 않는다.
+    let rejoinable_word_tail = !legacy_hwp3_stored_geometry
+        && stored_word_tail::can_rejoin_stored_word_tail(
+            para,
+            &frame,
+            styles,
+            dpi,
+            justified_kopub_picture,
+        );
     let stale = rejoinable_word_tail
         || stored_rows_are_stale(composed, para, inner_width_px, styles)
         || line_breaking::remeasured_equation_start_row(para).is_some();
@@ -3173,6 +3159,13 @@ pub(crate) fn recompose_stored_lines_in_frame_with_known_square_band(
             }
             let mut reconciled = composed.clone();
             reconciled.lines = reflowed.lines;
+            if rejoinable_word_tail {
+                reconciled.frame_geometry =
+                    Some(std::sync::Arc::new(frame_geometry::FrameGeometry {
+                        line_segs: reflowed_para.line_segs,
+                        space_metrics: reflowed_para.layout_space_metrics,
+                    }));
+            }
             // Q2-D5-N1: source NO_LS has no usable width during the initial
             // composition handoff. The physical frame is the first owner that
             // knows the final intervals, so prepare Q2-C again only after that
