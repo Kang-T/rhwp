@@ -1309,6 +1309,36 @@ impl Table {
         heights
     }
 
+    /// 여러 행에 걸친 셀이 덮는 측정 행을 표시한다.
+    /// 원본의 반열린 span 구간을 시작/끝 이벤트로 보존하여 행마다
+    /// 전체 셀을 다시 순회하지 않는다. 선언 행 수와 조회 범위는 구분한다.
+    pub fn rows_touched_by_rowspans(&self, row_count: usize) -> Vec<bool> {
+        if row_count == 0 {
+            return Vec::new();
+        }
+        let mut events = vec![0i64; row_count];
+        for cell in &self.cells {
+            let start = usize::from(cell.row);
+            if cell.row_span <= 1 || start >= row_count {
+                continue;
+            }
+            let end = (start + usize::from(cell.row_span)).min(row_count);
+            events[start] += 1;
+            if end < row_count {
+                events[end] -= 1;
+            }
+        }
+        let mut active = 0i64;
+        events
+            .into_iter()
+            .take(row_count)
+            .map(|event| {
+                active += event;
+                active > 0
+            })
+            .collect()
+    }
+
     /// row_sizes를 행별 실제 셀 개수로 재계산한다.
     pub(crate) fn rebuild_row_sizes(&mut self) {
         self.row_sizes = (0..self.row_count)
