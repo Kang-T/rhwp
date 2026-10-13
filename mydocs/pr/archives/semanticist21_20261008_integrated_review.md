@@ -5103,3 +5103,20 @@ FAIL→PASS 진단과 함께 정식 검사 검출 범위를 확인하는 자료�
 
 전체 nextest는 컴파일 이후10267개 실행에 들어갔으며 최종 summary/exit 대기다.
 Native 가맹사업 전쪽과 fresh CGMP 전쪽도 실제 실행 중이다. 개별17개는 계속HOLD다.
+
+## 진행 갱신203 — 최신 CGMP fresh 전쪽 통과와 입력/Print 커밋 확인 (2026-10-13)
+
+b4ff8c/94fe70의 CGMP fresh 전48쪽은 exit0·1010.918초, 최저47쪽
+93.64014%, 미달·누락0·쪽수48/48·source guard=true다. 현재48쪽 RGBA는
+이전7f04c fresh와 동일하다. 새47쪽 review와 제목2배 확대를 직접 열어
+외곽·문단 시작·줄바꿈·내용을 확인했고 획/굵기/일부 자간 차이는 별도로 남긴다.
+[fresh 대표 PNG와 재현 범위](../assets/semanticist21-20261008/cgmp-current-proof-v452/README.md)를
+보존한다. 해당 TSV의not_evaluated를 자동 승인으로 바꾸지 않으며 현재 Native
+전쪽 재실행은 아직 대기 중이다. fresh KPS 전77쪽 비교가 이어서 실제 시작됐다.
+
+전쪽/원PR 편집 대조에 사용한 입력·독립Print58개도 실제 바이트가 현재HEAD와
+모두 일치하고 실행계획의 입력해시와 같다. 결과는 v452의
+`whole-original-input-head-proof.json`이다. 전체nextest 완료 후 원PR별 계약78개
+실제PASS를 추출하는 감사를 준비했다. 현재 전체회귀·전쪽·관계형 회귀·backend/
+Canvas·원격CI가 미완료이므로 개별17개는HOLD를 유지한다. 사용자의 PR 준비
+지시를 따라 최신 자산과 본문을 준비하고, 필수 통과 뒤에만 PR 생성·CI·merge한다.
