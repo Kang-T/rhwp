@@ -9,18 +9,18 @@ last_verified: 2026-10-13
 
 ## 최종 판정
 
-**머지 보류 — 전체 nextest·Skia·doc/원PR 계약 통과; 전쪽 시각·신규 관계 회귀·Canvas 미완료.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
+**머지 보류 — 118쪽 정렬 회귀 확인; 메인터너 보정과 새 소스 검증 진행 중.** 사용자 지시에 따라 원 PR 번호별로 작성한 검토 기록이며, 필요한 최종 검증·시각 증적 확인 뒤 판정을 갱신한다. 현재 원 PR 승인 또는 통합 PR 제출을 의미하지 않는다. 모든 필수 테스트·전쪽 Native/fresh 비교·직접 판독이 완료되고 실패/미달이 해결되면 사용자 지시에 따라 **메인터너 보정 후 승인**으로 갱신한다.
 
 ## 현재 개별 검토 상태 — 2026-10-13
 
 | 항목 | 확인 결과 |
 | --- | --- |
 | 작업 브랜치 / 고정 base | `review/semanticist21-20261008` / `552f5228d2dbfd6046c838f14241704f1bcb8a05` |
-| 현재 production 보정 | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — 저장 전체 행 프레임의 선택 글줄 정렬 보정; 재검증 중 |
-| 현재 Native/fresh 재검증 code head | `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b` — Native/fresh 영향16쪽 통과(최저93.16816%·미달/누락0), OLE/SO10개 양쪽 통과; CGMP fresh48쪽·KPS fresh77쪽·K-water fresh27쪽 통과. 전체 nextest10267개 PASS; Skia3종·doc 통과; Native 전쪽·신규 관계 회귀·Canvas는 미완료 |
+| 현재 production 보정 | v453 프레임 출처 분리 보정 — Native build exit0; 실제 source SHA는 v453/native-build-result.json. 직전 b4ff8c의118쪽 회귀를 복구하고72쪽 개선을 유지 |
+| 현재 Native/fresh 재검증 code head | v453 Native 전142쪽 tree 대조: 직전b4와118쪽만 다름·이전7f와72쪽만 다름. 실제 경계17쪽 PNG 비교 진행 중; fresh·필수회귀/lint·Canvas는 새 소스 검증 필요 |
 | 원 기여 적용 | 위 적용 표의 현재 SHA는 모두 HEAD의 조상이며 최초 적용 patch와 stable patch-id가 같다 |
-| 이 PR의 실제 계약 실행 | 현재 b4ff8c 전체 nextest에서 4/4 PASS, FAIL/SKIP/미관측0; 현재 검사 source SHA 동일 확인 |
-| 현재 통합 완료 판정 | **머지 보류** — 전체 nextest10267개/원PR78계약은 PASS; 전쪽 Native/fresh·신규 관계 회귀·Canvas 완료 대기 |
+| 이 PR의 실제 계약 실행 | 직전 b4ff8c 전체 nextest에서 4/4 PASS, FAIL/SKIP/미관측0; 현재 검사 source SHA 동일 확인 |
+| 현재 통합 완료 판정 | **머지 보류** — 직전 b4ff8c의 전체10267개/원PR78계약·Skia/doc는 PASS였으나, 전142쪽 직접 대조에서118쪽 정렬 회귀 확인. 새 보정 소스의 검증 필요 |
 | 원격 진행 권한 | 작업지시자의 자동 승인: 모든 필수 테스트·시각 검증 완료 후 통합 PR 생성 → 최신 head CI 확인 → 머지 → 후속 처리 |
 
 이 PR의 입력·호출 경로·계약 함수와 미검증 범위는 아래 개별 항목을 따른다. v447 계약 PASS와

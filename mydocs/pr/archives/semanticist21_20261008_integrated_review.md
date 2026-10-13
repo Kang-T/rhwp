@@ -9,7 +9,7 @@ last_verified: 2026-10-13
 
 ## 현재 판정
 
-**머지 보류 — 전체 nextest·Skia·doc/원PR 계약 통과; 전쪽 시각·신규 관계 회귀·Canvas 미완료.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 보류는 전체 nextest 실패가 아니라 전쪽 Native/fresh·정식 관계 회귀·Canvas의 미완료에 따른다. 과거 실패 기록을 현재 실패로 표시하지 않는다. 해당 필수 완료 후 개별17개를 메인터너 보정 후 승인으로 바꾸고 통합한다.
+**머지 보류 — 118쪽 정렬 회귀 확인; 메인터너 보정과 새 소스 검증 진행 중.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 직전 b4ff8c의 전체 nextest/Skia/doc는 통과했지만 전142쪽의 직접 대조에서118쪽 중첩 표 정렬 회귀를 확인했다. 프레임 출처 보정과 새 Native/fresh·회귀·lint·Canvas의 검증이 필요하다. 과거 실패 기록을 현재 실패로 표시하지 않는다. 해당 필수 완료 후 개별17개를 메인터너 보정 후 승인으로 바꾸고 통합한다.
 
 - 브랜치: `review/semanticist21-20261008`
 - 최신 단계(진행208): PR 준비 중이다. production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`, 검증 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 영향16쪽 Native/fresh 모두 통과(최저93.16816%,72쪽99.95995%), OLE/SO10개 양쪽 및 CGMP fresh48쪽(최저93.64014%)·KPS fresh77쪽(90.85010%)·K-water fresh27쪽(96.87092%)이 통과했다. 필수lint/Studio, 전체Rust10267PASS·45SKIP·exit0, 원PR78계약, Skia3종(lib4041PASS·12ignored, placeholder2PASS, 직접PDF4PASS)·doc8PASS·3ignored 및 도구442개도 통과했다. Native 전쪽·나머지 fresh·원PR 시각 대조·정식 관계 회귀 등록·Canvas·원격CI는 완료 전이다. 현재 완료와 역사 기록을 구분하고 개별17개HOLD를 유지한다.
@@ -5283,3 +5283,38 @@ v452의완료된Rust13단계/원PR24쌍등은b4바이트에대한실행사실로
 ignoredv452에보존한다.종료NativeSVG141개14,267,740,082bytes,완료된원PR
 SVG81개2,389,651,075bytes를ledger/열린fd/PNG/TSV확인후삭제했다.
 원본/Print/PNG/TSV/tree/immutableCLI/WASM/공용target은보존한다.
+
+## 진행 갱신213 — 프레임 출처 분리 보정 후보 구현과 Native 검증 시작 (2026-10-13)
+
+공통 마지막 행 컷 조건을 유지하고 원본 전체 행 인증과 중첩 단일 셀 인증을
+각각 생산한다. `frame_owns_alignment`는 두 출처를 모두 소비하므로 예약/물리
+상자/컷/원본 정렬 소유는 유지한다. `selected_frame_owns_alignment`는 원본
+전체 행/종료 프레임의 선택 줄 높이를 소비하고, 중첩 단일 셀은 기존 원본 유닛
+높이 소비로 이어진다. 서로 다른 인증을 같은 높이 계약으로 합친 가정을 제거했으며
+문서ID/셀개수/고정오프셋을 새 조건으로 넣지 않았다.
+
+Native 빌드 검증 당시 미커밋 `table_partial.rs` SHA-256은`d15dbc30b69549c03b6a2627f9fcd34791bd852ab6b11ad3aebb9a0ef34f4efd`다.
+fmt check exit0이고 공용target의 실제 Native build/전142쪽 트리 대조/경계17쪽
+Native 비교는v453에서실행중이다.118쪽과72쪽을동시에확인하며전쪽/
+fresh/회귀/최종lint의검증완료는아직주장하지않는다. v452의b4검증은역사
+바이트에대한증거로유지하고개별17개보류사유를실제118쪽회귀로정정했다.
+
+중단한v452의정책용/중간SVG218개7,665,141,771bytes를정확한root/종료PID/
+열린fd확인후삭제했고공간27.75GiB를확보했다. 기존b4 fresh web package는
+검증된JS/WASM해시를확인해v452/fresh-web-package-snapshot에바이트보존했다.
+이는새빌드/wasm-opt경로가아니며공용target/루트pkg빌드계약을유지한다.
+
+## 진행 갱신214 — 보정 Native 빌드와 전142쪽 실제 트리 대조 통과 (2026-10-13)
+
+v453 Native build는exit0·522.651초/source guard=true다. fmt check도exit0이다.
+현재source의전142쪽render tree를실제immutableCLI로내보내대조했다.
+직전b4와다른쪽은118쪽뿐이고,정상118쪽을가지던이전7f와다른쪽은
+개선한72쪽뿐이다.118쪽의세줄/중첩표/뒤내용은이전정상트리로복구됐으며
+72쪽개선과나머지140쪽은보존된다.트리동일성을실제Print/픽셀통과로대신하지않는다.
+
+Native sourceSHA/빌드명령/exit/기간/CLI해시는v453/native-build-result.json,
+전쪽관측은whole-franchise-before-after-tree-comparison.json이다.
+immutableCLI SHA-256은`bcf415c03b79c2e37627d558628136ca05e356e7cd0b54b0980426a9c292fd69`다.
+현재경계17쪽Native이미지/TSV검증은진행중이다.새freshWASM·전쪽/
+관련회귀/필수lint/Canvas/CI의검증완료는아직주장하지않는다.프레임분리보정
+코드와이관측을일반커밋으로함께고정하고다음검증을계속한다.

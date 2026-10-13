@@ -1382,34 +1382,33 @@ impl LayoutEngine {
                 && straddle_cut_units.is_some_and(|(_, end)| {
                     self.original_restart_span_cut_owns_alignment(table, cell, end, styles)
                 });
-            let full_width_frame_owns_alignment = end_row_height_override.is_some()
+            let end_row_source_frame_candidate = end_row_height_override.is_some()
                 && cell_row + 1 == end_row
                 && !end_cut.is_empty()
-                && !is_block_split
-                && (self
+                && !is_block_split;
+            // 원본 전체 행과 중첩 단일 셀은 물리 프레임을 인증하는 출처가 다르다.
+            // 정렬 소유는 둘 다 보존하되, 선택 줄 높이의 소비 근거를 합치지 않는다.
+            let full_width_row_frame_owns_alignment = end_row_source_frame_candidate
+                && self
                     .stored_full_width_row_declared_height(
                         table,
                         cell_row,
                         styles,
                         self.current_body_area.get().3,
                     )
-                    .is_some()
-                    || self
-                        .saved_nested_single_cell_frame_height(table, start_cut, end_cut, styles)
-                        .is_some()
-                    || self
-                        .stored_plain_cut_frame_minimum(
-                            table,
-                            cell_row,
-                            if cell_row == start_row {
-                                start_cut
-                            } else {
-                                &[]
-                            },
-                            end_cut,
-                            styles,
-                        )
-                        .is_some());
+                    .is_some();
+            let nested_single_cell_frame_owns_alignment = end_row_source_frame_candidate
+                && self
+                    .saved_nested_single_cell_frame_height(table, start_cut, end_cut, styles)
+                    .is_some();
+            let plain_cut_frame_owns_alignment = end_row_source_frame_candidate
+                && self.stored_plain_cut_frame_minimum(
+                    table,
+                    cell_row,
+                    if cell_row == start_row { start_cut } else { &[] },
+                    end_cut,
+                    styles,
+                ).is_some();
             let cut_frame_owns_alignment = is_continuation
                 && start_row_height_override.is_some()
                 && cell_row == start_row
@@ -1587,9 +1586,12 @@ impl LayoutEngine {
                         is_block_split,
                     )
                     .is_some()
-                    || full_width_frame_owns_alignment
-                    || cut_frame_owns_alignment
-                    || stored_span_frame_owns_alignment || original_restart_span_owns_alignment);
+                || full_width_row_frame_owns_alignment
+                || plain_cut_frame_owns_alignment
+                || nested_single_cell_frame_owns_alignment
+                || cut_frame_owns_alignment
+                || stored_span_frame_owns_alignment
+                || original_restart_span_owns_alignment);
             let saved_frame_needs_alignment =
                 (align_saved_opening_frame && cell_row + 1 == end_row || frame_owns_alignment)
                     && cell.vertical_align != crate::model::table::VerticalAlign::Top;
@@ -2067,7 +2069,7 @@ impl LayoutEngine {
                     cell_row <= last_row && last_row < cell_row + cell.row_span as usize
                 });
             let selected_frame_owns_alignment =
-                closing_source_frame_owns_alignment || full_width_frame_owns_alignment;
+                closing_source_frame_owns_alignment || full_width_row_frame_owns_alignment;
             let declared_opening_content_height = (!is_continuation)
                 .then(|| self.declared_nested_opening_cut_height(table, start_cut, end_cut, styles))
                 .flatten()
