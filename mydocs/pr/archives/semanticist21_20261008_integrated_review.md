@@ -2,7 +2,7 @@
 kind: review
 status: active
 canonical: mydocs/manual/pr_review_workflow.md
-last_verified: 2026-10-12
+last_verified: 2026-10-13
 ---
 
 # semanticist21 비 draft PR 통합 검토
@@ -12,7 +12,7 @@ last_verified: 2026-10-12
 **머지 보류 — 전체 nextest/원PR 계약 통과; 전쪽 시각·신규 관계 회귀·Skia/doc/Canvas 미완료.** 초기18개 비 draft PR의 고유41개 contributor commit을 누적 적용했다. 최초 검토의 미충족과 이후 보정 결과는 각각의 source SHA에 연결해 아래에 기록한다. 현재 보류는 전체 nextest 실패가 아니라 전쪽 Native/fresh·정식 관계 회귀·Native Skia/doc/Canvas의 미완료에 따른다. 과거 실패 기록을 현재 실패로 표시하지 않는다. 해당 필수 완료 후 개별17개를 메인터너 보정 후 승인으로 바꾸고 통합한다.
 
 - 브랜치: `review/semanticist21-20261008`
-- 최신 단계(진행205): PR 준비 중이다. production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`, 검증 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 영향16쪽 Native/fresh 모두 통과(최저93.16816%,72쪽99.95995%), OLE/SO10개 양쪽 및 CGMP fresh 전48쪽 통과(최저93.64014%)다. 필수lint/Studio도 통과했다. 현재 전체Rust10267PASS·45SKIP·exit0 및 원PR78계약PASS다. 직접 문서 전쪽·원PR 시각 대조·관계형 회귀 등록·backend/Canvas·원격CI는 완료 전이다. 이전 단계 결과와 현재 재실행을 구분하고 개별17개HOLD를 유지한다.
+- 최신 단계(진행208): PR 준비 중이다. production `b4ff8c81b5d986baf47bad9a3eee83cbd9d8367b`, 검증 base `552f5228d2dbfd6046c838f14241704f1bcb8a05`다. 영향16쪽 Native/fresh 모두 통과(최저93.16816%,72쪽99.95995%), OLE/SO10개 양쪽 및 CGMP fresh48쪽(최저93.64014%)·KPS fresh77쪽(90.85010%)·K-water fresh27쪽(96.87092%)이 통과했다. 필수lint/Studio, 전체Rust10267PASS·45SKIP·exit0, 원PR78계약, Skia lib4041PASS·12ignored 및 도구442개도 통과했다. Native 전쪽·나머지 fresh·원PR 시각 대조·정식 관계 회귀 등록·Skia placeholder/PDF/doc·Canvas·원격CI는 완료 전이다. 현재 완료와 역사 기록을 구분하고 개별17개HOLD를 유지한다.
 - 범위 정정(진행129): `table_giant_cell_overfill.hwpx`는 #7445 하위 #7812에서 다른 브랜치의 보정 대상으로 이관됐다. 현재 직접 보정·전쪽 통과 요구에서 제외한다. KPS·가맹사업의 기존 3실패와 승인된 CGMP 메인터너 범위는 계속 확인한다. 이후 사용자 자동 승인에 따라 모든 필수 검증 통과 후 PR·CI·merge·후속처리를 진행한다.
 - 통합 범위는 초기 18개다. 2026-10-10 사용자 지시에 따라 후속 #7661/#7662/#7663/#7670/#7671/#7673은 **현재 단계의 읽기 전용 코드 검토만** 수행한다. 이 6개와 #7615 최신 head에 들어간 #7662 의존 변경을 체리픽하지 않는다. 아래 진행78에 정확한 head와 검토 결과를 기록한다.
 - 과거 진행158의 통합 base: `bfa28a77a2714482f647ee6a7b9aa7f7876d8404`. 현재 base는 위 최신 단계의552f5228이며 이 문단은 당시 체크포인트 기록이다. 생산/test 소스는 `940ea1322617ccff5a7b47d6920ae96e94cfffad`로 커밋했고 Native v315/fresh v323의1111개 생산 소스 해시와 같다. 진행158의 변경은 잔여 API 쪽수 목록1행과 문서/시각 증적이다. 이후 증적 커밋은 생산 소스 변경으로 세지 않는다. 이전 `10282f63db5f671eca8554613342e20211a025ac` 검증은 진행137의역사 기록이며 현재 소스의 전쪽/전체 회귀 결과로 재사용하지 않는다.
