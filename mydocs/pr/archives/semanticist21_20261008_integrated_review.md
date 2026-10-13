@@ -5048,3 +5048,22 @@ HWPX97.78626%다. 각 Native/fresh의RGBA와 이미 판독한7f04c Native의RGBA
 현재fresh 경계의 글꼴 정책은 처리 중이며, 필요한K-water24쪽 SVG/Native27쪽
 완료를 기다리는 actual Canvas 검사도 준비했다. 전쪽·최종 회귀·관계형 회귀 등록과
 원격PR/CI/merge는 아직 완료되지 않았다.
+
+## 진행 갱신200 — fresh 영향16쪽 통과·직접 판독 완료 (2026-10-13)
+
+b4ff8c/94fe70 소스·package의 fresh 영향16쪽 비교는 exit0·1807.749초,
+source guard=true, 최저68쪽93.16816%, 미달·누락0이다. 현재 Native와 fresh의
+decoded RGBA16쪽 모두 동일하다. fresh72쪽 review와 독립 Print의 같은
+표 영역2배 확대를 직접 열어 선택 두 문단·오른쪽 분류명·기준선·행 구분선과
+외곽을 확인했다. 잔여 차이는 획/불릿 크기/래스터이며 배치 결함은 관측하지 않았다.
+render tree의 차이는 picture_footnote.rs의 usize sentinel159개64/32비트 차이이며
+좌표·텍스트·소유 관계는 같다. fresh 대표 review/overlay/zoom도 기존 v452 자산에
+추가했다. ignored `fresh-boundary-direct-reading.json`을 단계 통과로 게시해
+Native 전쪽과 fresh 전쪽 대기 작업을 이어간다. 대용량 가맹사업 Native/fresh의
+동시 중간 출력은 피하고 완료SVG 정리 뒤 fresh를 실행한다.
+
+SO-SUEOP4개 Native는 exit0, HWP1쪽99.79294%·HWPX1쪽99.95935%·
+일반 글꼴 대조군99.84371%·issue5821 99.75702%다. fresh4개는 아직 실행 중이다.
+전체 Rust는 실제 cargo-nextest/Rust 컴파일 프로세스가 실행 중이며 최종 통과 전이다.
+전쪽·관계형 회귀 등록·최종 backend/Canvas·원격CI 미완료를 승인으로 바꾸지 않는다.
+개별17개 HOLD와 승인된 원격 PR/merge/후속처리 순서는 유지한다.
