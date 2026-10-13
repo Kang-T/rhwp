@@ -912,3 +912,157 @@ C39 재개 실행도 최종 종료했다. 같은 C38 export의 전체415쪽 실�
 상쇄하지 않는다. C40의 off-canvas0과63쪽 인쇄 동일성도 이 미달을 해소하지 않는다.
 증거는 `c39-native-resume-result.json`과
 `c38-native-pr7701-original-full-curriculum/pr7701-original-full-curriculum/silhouette.tsv`다.
+
+
+### C41/C42 — 전쪽 대조의 구역 경계와 그림 소유 줄
+
+고정 upstream `22317614b03722e95349a1d3d71c86923363c6f5`의 `release-test`
+Native Skia CLI 빌드가 종료0으로 끝났고, 독립 원본·Print PDF가 해당 commit과 같은
+바이트임을 확인했다. 전쪽 Native export는418쪽이며 현재 C38은415쪽,
+Print는415쪽이다. 정본 전쪽 실행은 SVG/render tree418쪽과 Print415쪽의 불일치로 종료1이며
+통과가 아니다. 기존 export를 보존한 별도 진단에서418쪽을 모두 raster하고
+Print가 존재하는 원래 ordinal1..415쪽을 측정 중이다. 기준이 없는416..418쪽과
+전체 쪽수 불일치를 gate에 그대로 남기며 페이지 내용 재매핑은 하지 않는다. 같은 공용 target·jobs8을 재사용했고 base 바이너리를 고정한 뒤
+root 후보 빌드를 시작해 Cargo를 겹치지 않았다.
+
+현재 C38의 모든 구역 첫 쪽을 독립 Print의 제목 내용·용지 방향 전환과 대조했다.
+진단상 구역10의 다음 ‘민주시민교육’은 현재212쪽 / Print211쪽에서 시작하며,
+구역23 뒤의329쪽에서는 시작이 다시 같아진다. 전체 쪽수가 같은 결과도 동일한
+내용·용지 소속을 입증하지 못한다. 실제 Print263쪽은 ‘다문화교육’ 시작이며 현재는
+앞 표의 꼬리만 있는 가로 쪽이다. 텍스트 유사도는 대응 후보를 찾는 진단으로만
+사용했고 TSV 쪽을 재매핑하거나 낮은 점수를 보정하지 않았다.
+
+구역별 비교에서 구역1은 base65쪽→현재64쪽 / Print64쪽, 구역5는
+base49쪽→현재48쪽 / Print48쪽이다. 반면 구역10은 base와 현재 모두17쪽 /
+Print16쪽이고, 구역23은 base14쪽→현재13쪽 / Print14쪽이다. 전자는 기존
+미달의 보정 대상, 후자는 현재의 새 쪽 배치 차이로 분리해 원인 수정을 계속한다.
+기존 이슈나 전체415쪽이라는 값으로 구역23의 한 쪽 부족을 이관·면제하지 않는다.
+증거는 `c41-curriculum-section-alignment.json`,
+`c41-curriculum-section-page-count-comparison.json`,
+`c41-c38-curriculum-full-page-items.json`과 고정 base의 대응 dump다.
+
+별도로 C42 후보는 `issue5884` 원본·Print에서 확인한 TAC 그림의 세로 원점 차이를
+추적했다. 분할 셀 보완 경로는 `para_y_before_compose`를 그림 원점으로 쓰지만
+같은 소유 글줄은 문단 앞 간격을 반영한 뒤152.8px에 생성됐다(그림146.1px,
+Print156.3px). 그림 앞 간격을 새로 추측하지 않고 실제 생성된 소유 글줄을
+`control_line_seg_index → 같은 셀/구역/문단/줄 인덱스 → TextLine 원점 →
+그림 배치와 wrapped_tac_flow_bottom`에 연결한다. 같은 번호의 중첩 셀이나 다른
+줄을 좌표로 선택하지 않는다. 이번 조각에 해당 저장 줄이 없거나 저장 슬롯을
+판별하지 못하면 기존 보완 경로를 유지하며 그 경우까지 보정했다고 주장하지 않는다.
+다중 슬롯·폭 부족 줄바꿈과 기존4쪽/2쪽 그림 대조군을 다시 확인할 대상으로 둔다.
+C42 source 후보의 Native Skia 포함 `release-test` CLI/lib 빌드는 종료0(5분15초)이다.
+기대값·baseline·회귀 함수는 변경하지 않았다. 표 외곽·중첩 표 여백의 잔여 차이도
+계속 보정 대상이다.
+
+
+C42 최초 시각 실행에서 검토 도구가 기존 `RHWP_FONT_PATH`를 전달하지 않은 오류를
+확인했다. `굴림체` 선언에 실제 Noto Sans KR ExtraLight가 포함됐고 이전 정상 대조군의
+GulimChe Version5.03과 글꼴 바이트가 달랐다. 이 최초 실행의69.46297% 및 정상
+대조군 점수·PNG는 동일 조건 개선/무회귀 증거로 사용하지 않는다. 원본 결과를 보존하고
+`c42-r2-native-controls.log`에서6문서51쪽을 기존 글꼴로 재실행 중이다.
+1514개 공급 파일의 실제 SHA와 이전 run manifest를 대조했고, 각 재실행의
+font_supply 전체가 같은지 검사한다. 통과를 위해 글꼴 예외를 추가하지 않았다.
+
+재실행한 `issue5884`는 같은 원본·Print·글꼴에서1쪽91.13821%(기존과 동일),
+2쪽69.62394%(기존65.59852%)이며2/2쪽·누락0이다. 2쪽 PNG만 변했고
+실제 소유 글줄 원점152.8px을 그림도 소비한다. 아직90% 미만이므로 검사 변경이나
+완료 판정은 보류한다. 첫 정상 대조군 `picture-original-4-page`는 최저99.27611%,
+4/4쪽이고 이전4쪽 PNG 모두 바이트까지 같다. 나머지45쪽의 종료 결과는 별도 수집한다.
+`c42-picture-line-origin-native-candidate/provenance.json`의 바이너리·source SHA로
+현재 수정 후보를 고정했다. `upstream/devel` 재fetch는 같은22317614b이며 리베이스하지
+않았다. 파생 suite 준비와 fmt 검사, Native/WASM Clippy는 종료0이고 workspace
+빌드·Clippy·base manifest 검사는 순차 진행 중이다. 이전 코드의 full suite 결과를
+이번 코드의 통과로 승격하지 않는다.
+
+교과 교육과정 구역10의 끝 행을 C42 frozen CLI와 동일 글꼴로 진단했다.
+원본 row215/col7의8개 저장 문단과 실제 배치 글줄은 보존되며, 그 셀의 원본 유닛
+높이는7×20+16=156px이다. 하지만 paint 행 상자는170.4px이고 원본 선언은
+11996HU(약159.95px)다. row216을 수용하지 못한 실제 스캔 분기에서 남은 예산은
+10.5/12.3px, 요구 높이는19.8px였다. 이는 원인 추적 관측값이며 새로운 px 기대값이
+아니다. `c42-curriculum-row215-probe/provenance.json`·`selected-stderr.log`·
+`tree/render_tree_210.json`에 호출·글꼴·exit0·글줄 소속을 보존했다. 선언 높이로 clamp하거나
+한 쪽을 숨기지 않고 요구 높이 생산과 실제 행 상자의 차이를 계속 추적한다.
+
+
+C42의 fmt·Native/WASM/workspace Clippy·workspace build·고정 base manifest 검사와
+source unit-tier 검사는 모두 종료0이다. 그러나 lint 통과 후 실행한 실제 폭 부족 반례
+`issue6122` 원본6쪽에서 **새 배치 회귀**를 검출했다. 같은 Print 기반 기존 회귀의 관계를
+frozen C40/C42 CLI로 대조했으며, C40은 두 그림의 세로 순서·셀 포함·캡션 후행을
+모두 지키고 C42는 세로 순서와 캡션 후행이 실패했다. 두 번째 빈 안내 TextLine의 작은
+상자를 TAC 그림의 저장 점유 슬롯으로 취급한 가정이 잘못됐다. 이는 base 이관 대상이
+아니며 이번 구현을 고친다. 증거는 `c42-picture-width-wrap-countercheck/results.json`이다.
+새로운 회귀 함수나 px 기대값을 추가하지 않았다.
+
+후속 후보에서는 각 안내 줄 bbox를 최종 그림 원점으로 덮어쓰는 처리를 제거한다.
+실제 배치된 문단 첫 저장 글줄의 시작점만 공통 원점으로 재사용하고, 이후 그림 줄은
+기존 저장 LINE_SEG의 점유 간격으로 진행시킨다. 같은 결과를 그림 배치와 흐름 하단이
+소비하게 한다. 이로써 문단 앞 간격과 TAC 그림이 차지하는 줄의 물리 슬롯을 구분한다.
+첫 저장 줄이 이번 조각에 없으면 기존 경로를 유지한다. 검증 전 이 설계를 완료로
+판정하지 않으며, C42 코드의 기존 lint/시각 결과를 후속 코드에 적용하지 않는다.
+
+
+C42 fresh WASM 빌드는 실제 새 회귀가 입증된 후보를 계속 검증하지 않기 위해
+해당 실행의 자식 wasm-pack/Cargo/rustc만 식별해 중단했다. driver가 종료를 수집한
+결과는143(자식 SIGTERM을 wrapper가 종료 코드로 전달)이며 통과로 세지 않는다. `c42-fresh-wasm-build-cancellation.json`에
+대상 PID·명령·이유를 보존했고, 활성 Cargo/rustc 부재를 확인한 다음 source를 고쳤다.
+공용 target은 삭제하거나 초기화하지 않았다.
+
+C43 구현은 `rendered_picture_paragraph_origin`으로 첫 저장 줄의 문단 원점만
+재사용한다. 그림 fallback의 첫 y와 저장 vpos 차이의 기준을 이 원점으로 통일했고,
+뒤 안내 줄의 bbox를 그림 좌표로 복사하던 두 덮어쓰기는 제거했다. 원본 문단의
+첫 저장 줄이 이번 조각에 없으면 기존 문단 원점을 유지한다. 폭 부족 줄바꿈의
+실제 그림 하단과 `wrapped_tac_flow_bottom`은 같은 y를 소비한다. C43 포맷 검사와
+Native 방향 확인 빌드를 공용 `target/pr-review`, jobs8로 시작했으며 실제
+수정 후 반례·TSV 결과는 아직 수집하지 않았다. C42 lint 통과는 C43 검증이 아니다.
+
+
+C42 동일 글꼴 재검증은6문서51쪽 모두 산출을 마쳤다. 정상 대조군5문서49쪽은
+모두90% 이상·쪽수 일치이며 이전 Native PNG 전49쪽과 바이트까지 같다.
+`issue5884`는2쪽 중2쪽69.62394%로 미달이다. 별도 `issue6122` 반례의 새 회귀로
+C42 후보 자체가 기각됐으므로49쪽 통과를 PR 준비 완료나 C43 증거로 사용하지 않는다.
+정확한 최저값·쪽수·바이트 대조는 `c42-r2-native-completed-summary.json`에 보존했다.
+
+
+C43의 fmt·fmt-check·Native Skia `release-test` CLI/lib 빌드는 모두 종료0이며
+빌드 시간은8분이다. 수정 후 `issue6122`6쪽의 두 그림 수·세로 순서·셀 포함·
+캡션 후행이 모두 통과했고, 해당 쪽 트리는 C40 정상 관계 후보와 동일하다.
+추가로 C40/C43 frozen Native CLI의 원본 전12쪽 render tree가 모두 같음을
+대조했다(`c43-width-wrap-predecessor-whole-tree/provenance.json`). 이 사실은
+새 겹침 회귀의 수정 증거이며, 독립 Print와 전쪽 시각 일치의 증거가 아니다.
+실제 C43/Print 전12쪽 TSV는2·6·7·10·11·12쪽에서90% 미만이며
+전체12/12쪽·누락0, 최저2쪽31.37697%다. C40과 같은 기존 출력도 별도 보정 범위로
+남으며 해당 원본을 통과로 판정하거나 검사 기대값을 바꾸지 않는다. 고정 upstream
+전쪽 대조와 같은 원본의 열린 이슈 확인 없이는 이관 대상으로도 확정하지 않는다.
+
+C43 보정 code만 `85bc359c813f0fb410da92727b5ecc6b988485ec`에 일반 커밋했다.
+review 기록은 역할별 지침에 따라 별도 변경으로 유지했다. 빌드한3개 source 파일과
+커밋 blob의 SHA-256이 같고 부모가054935e5f임을 확인한
+`c43-committed-source-association.json`으로 후보와 커밋을 연결했다.
+C43의7문서63쪽 Native 검증과 최종 Rust lint는 계속 수집 중이며, fresh WASM·
+전체 Rust/Skia/Studio 최종 검증·원래54문서 범위의 완료를 아직 주장하지 않는다.
+
+
+사용자가 #7882 머지 후 최신 `upstream/devel`에 리베이스하고 검토를 계속하도록
+지시했다. 확인 시점의 #7882는 OPEN이며 아직 merge commit이 없다.
+`pr7882-rebase-wait-state.json`에 실제 원격 상태를 보존했다. 실행 중인 C43 Native와
+고정22317614b 기준 전쪽 raster의 종료 결과를 수집하고, 머지 확인 뒤 fetch한
+upstream의 포함 관계·base/head·충돌을 확인해 리베이스한다. 이 순서 앞에 새 source
+보정이나 fresh WASM 빌드를 추가하지 않는다. 기존 시각 실패와 미완료 전체 검증은
+리베이스 후 검토 범위로 유지한다. 오늘할일은 최종 review 묶음 작성 시 갱신한다.
+
+C43 Native 산출은7문서63쪽 모두 종료 결과를 수집했다. 정상 대조군5문서49쪽의
+최저값은 각각99.27611%·92.75255%·96.81300%·96.81300%·94.12523%이고,
+쪽수 일치·누락0·이전 Native PNG 전49쪽 바이트 일치를 확인했다. `issue5884`는
+2/2쪽·최저69.62394%이며 이전 PNG와 다른 쪽은2쪽이다. `issue6122`는12/12쪽·
+최저31.37697%·6쪽 미달이다. 이 문서의 이전 전쪽 PNG 대조는 자료가 없어
+미검증이며, 전12쪽 render tree 일치를 PNG 일치로 바꾸어 보고하지 않는다.
+원본·Print SHA, 페이지별 TSV, 미달 쪽, PNG 대조 범위는
+`c43-native-completed-summary.json`에 연결했다. 실루엣 전용 산출의
+`not_evaluated`는 승인 판정이 아니다.
+
+C43 파생 suite 준비·fmt-check·Native/WASM/workspace Clippy·workspace build·
+고정22317614b base manifest 검사는 순차 실행해 모두 종료0이다
+(`c43-rust-lint-results.json`). source unit-tier base 검사도 종료0이며
+`c43-rust-unit-tiers.log`에 보존했다. 이 결과는 source blob이 일치하는85bc359c8의
+검증 기록이다. #7882를 반영한 새 base/head의 검증으로 재사용하지 않는다.
+현재 code의 fresh WASM·전체 Rust/Skia/Studio와 원래54문서 범위는 아직 미완료다.
