@@ -4101,6 +4101,7 @@ impl HeightMeasurer {
                 let cell_inner_width = crate::renderer::composer::cell_inner_text_width(
                     cell_w_px, pad_left, pad_right, self.dpi,
                 );
+                let mut frame_paragraphs = None;
                 let text_height: f64 = if cell.text_direction != 0 {
                     // 세로쓰기: max(segment_width)
                     let mut max_h: f64 = 0.0;
@@ -4136,6 +4137,11 @@ impl HeightMeasurer {
                                 self.is_native_hwp5,
                                 &self.single_line_overflow_cache,
                             );
+                            let frame_paragraph = comp.paragraph_with_frame_geometry(p);
+                            if let std::borrow::Cow::Owned(ref paragraph) = frame_paragraph {
+                                frame_paragraphs.get_or_insert_with(|| cell.paragraphs.clone())[pidx] = paragraph.clone();
+                            }
+                            let p = frame_paragraph.as_ref();
                             let reflow_nested_height = if cell.paragraphs.iter().all(
                                 crate::renderer::para_has_no_stored_line_segs,
                             ) && crate::renderer::float_placement::reflow_block_table_host_occupied_height(p, 0.0, 0.0).is_some() {
@@ -4376,6 +4382,12 @@ impl HeightMeasurer {
                 };
                 // LINE_SEG의 line_height에 이미 셀 내 중첩 표 높이가 반영되어 있으므로
                 // controls_height를 별도로 더하면 이중 계산됨
+                let frame_cell = frame_paragraphs.map(|paragraphs| {
+                    let mut projected = cell.clone();
+                    projected.paragraphs = paragraphs;
+                    projected
+                });
+                let cell = frame_cell.as_ref().unwrap_or(cell);
                 // 단, 비-인라인 이미지/도형은 LINE_SEG에 미포함이므로 별도 합산
                 let non_inline_h = self.measure_non_inline_controls_height(cell, &table.padding);
                 let nested_bottom =

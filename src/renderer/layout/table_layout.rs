@@ -1852,6 +1852,13 @@ pub(super) struct CellUnit {
 }
 
 impl CellUnit {
+    /// 가시 줄을 닫고 바로 다음 문단의 첫 줄로 넘어가는 실제 유닛 경계.
+    pub(super) fn closes_before_next_paragraph(&self, following: &Self) -> bool {
+        self.vis_start < self.vis_end
+            && following.para_idx == self.para_idx + 1
+            && following.vis_start == 0
+    }
+
     /// 문단의 표 존재와 현재 유닛의 표 소유를 구분한다.
     pub(super) fn owns_table_in_paragraph(&self, para: &Paragraph) -> bool {
         if self.nested_row.is_some() || self.mixed_nested_fragment {

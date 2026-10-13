@@ -151,23 +151,41 @@ impl TypesetEngine {
                 source.styles,
             )
         };
+        // 완결한 독립 문단 뒤에서 시작해도 앞 조각의 쪽 끝 띠는 병합 셀 소유다.
+        // 시작 행의 부분 상자는 컷/override가 맡고, 뒤의 온전한 끝 행만 띠를 덜 센다.
+        let starts_after_complete_paragraph = !continuation.start_cut_is_block
+            && !continuation.start_cut.is_empty()
+            && prepared
+                .layout_engine
+                .row_cut_completes_unlinked_plain_paragraphs(
+                    source.row_geometry_table,
+                    continuation.row,
+                    &[],
+                    &continuation.start_cut,
+                    source.styles,
+                );
         // 이 계획은 앞 조각의 실제 상자와 빈 띠를 이미 차감한 공통 결과다.
         // 기존 별도 띠 차감을 다시 적용하면 예약과 paint의 행 높이가 달라진다.
         let physical_rows = self.stored_fragment_row_plan(st, prepared, continuation, source);
         let straddle_row_relief = if physical_rows.is_some()
             || continuation.start_cut_is_block
-            || !continuation.start_cut.is_empty()
-            || continuation.start_row_height_override.is_some()
+            || ((!continuation.start_cut.is_empty()
+                || continuation.start_row_height_override.is_some())
+                && !starts_after_complete_paragraph)
         {
             Vec::new()
         } else {
-            prepared.layout_engine.straddle_page_band_relief(
+            let mut relief = prepared.layout_engine.straddle_page_band_relief(
                 source.row_geometry_table,
                 &source.measured_table.row_heights,
                 continuation.row,
                 &continuation.straddle_page_bands,
                 source.styles,
-            )
+            );
+            if starts_after_complete_paragraph {
+                relief.retain(|(row, _)| *row > continuation.row);
+            }
+            relief
         };
         let relieve = |heights: &Vec<f64>| {
             let mut heights = heights.clone();

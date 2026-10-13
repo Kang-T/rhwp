@@ -3661,6 +3661,7 @@ mod picture_footnote;
 mod shape_layout;
 mod table_cell_content;
 pub(crate) mod table_layout;
+mod table_paragraph_cut;
 mod table_partial;
 mod table_rows;
 mod text_measurement;

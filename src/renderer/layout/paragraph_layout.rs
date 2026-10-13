@@ -5225,6 +5225,8 @@ impl LayoutEngine {
         vertical_spacing: Option<ParagraphVerticalSpacing>,
         stored_cell_content_origin: Option<f64>,
     ) -> f64 {
+        let frame_paragraph = para.map(|source| composed.paragraph_with_frame_geometry(source));
+        let para = frame_paragraph.as_deref();
         let mut y = y_start;
         let end = end_line.min(composed.lines.len());
         // [#4968 R4D-1] 한 문단의 모든 최종 emitted run이 같은 registry

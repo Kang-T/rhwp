@@ -1125,9 +1125,22 @@ impl TypesetEngine {
                 .max(0.0);
             (avail_for_rows + header_overhead - partial_height - outer_bottom).max(0.0)
         };
-        // 완전한 행 경계를 가로지르는 원본 병합 셀은 쪽 끝 물리 띠도 소유한다.
-        // 실제 수용한 행 상자를 먼저 늘리고, 동일한 상자에서 그리기 유닛을 선택한다.
-        if split_end_limit == 0.0
+        // 원본 병합 셀은 완결 행·독립 문단 경계의 쪽 끝 물리 띠도 소유한다.
+        // 문단 내부 컷을 넓히지 않고, 실제 수용한 상자에서 그리기 유닛을 선택한다.
+        let complete_paragraph_cut = split_end_limit > 0.0
+            && end_row > cursor_row
+            && layout_engine.row_cut_completes_unlinked_plain_paragraphs(
+                row_geometry_table,
+                end_row - 1,
+                if end_row - 1 == cursor_row {
+                    start_cut
+                } else {
+                    &[]
+                },
+                &split_end_cut,
+                styles,
+            );
+        if (split_end_limit == 0.0 || complete_paragraph_cut)
             && split_block_start.is_none()
             && end_row > cursor_row
             && table_footnotes.is_empty()
@@ -1149,7 +1162,24 @@ impl TypesetEngine {
                         .filter(|(row, _)| *row == last_row)
                         .map(|(_, height)| height)
                 })
-                .unwrap_or(cut_row_h[last_row]);
+                .unwrap_or_else(|| {
+                    if complete_paragraph_cut {
+                        // 컷 뒤의 내용을 담은 전체 행 높이는 앞 조각의 물리 상자가 아니다.
+                        layout_engine.row_cut_content_height(
+                            row_geometry_table,
+                            last_row,
+                            if last_row == cursor_row {
+                                start_cut
+                            } else {
+                                &[]
+                            },
+                            &split_end_cut,
+                            styles,
+                        )
+                    } else {
+                        cut_row_h[last_row]
+                    }
+                });
             end_row_height_override = Some(last_height + unreserved_page_end_band);
             partial_height += unreserved_page_end_band;
         }

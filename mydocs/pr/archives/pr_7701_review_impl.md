@@ -544,3 +544,138 @@ WASM 전용 Clippy도 terminal exit0이다. fresh WASM runtime을 실행한 것�
 보정 전 비교 증적: `c31-before-hwp3-sample19-result.json` 및
 `c31-before-hwp3-sample19/hwp3-sample19-before-c31/silhouette.tsv`.
 C31 `cargo fmt --all -- --check`도 terminal exit0이다.
+
+
+### C32 완결 문단 경계의 고아 줄 판정 — 검증 중
+
+C31 보정은 `f204f82ee`에 고정했다. C32는 용량으로 선택한 모든 진행 중 셀의 컷이
+완결한 독립 문단 뒤인지 실제 `CellUnit.para_idx / vis_start / vis_end`로 판정한다.
+다음 문단과 이어붙이도록 지정한 `keep_with_next`가 있거나 문단 내부에서 끊긴 경우,
+그림·중첩/합성/편집 입력이면 이 수용 근거를 사용하지 않는다. 완결 문단 사이의 컷에는
+문단 내부의 고아 줄이 없으므로 25px 휴리스틱에 의해 다시 기각하지 않는다.
+이 판단은 쪽 경계를 강제하지 않으며 기존 컷 높이·패딩·병합 셀 점유의 예산 검사를 유지한다.
+
+- 생산/소유: `LayoutEngine::cell_units`의 실제 줄·문단 소속.
+- 최소 높이 소비: `table_paragraph_cut.rs`의 `row_cut_completes_unlinked_plain_paragraphs`를
+  `row_step.rs`의 고아 줄/단일 유닛 이월 조건에 연결한다.
+- 물리 수용: 기존 `row_cut_content_height`와 실제 컷의 쪽 예산 비교를 그대로 사용한다.
+- 배치: 같은 end_cut을 fragment emit과 다음 cursor가 소비한다.
+- C31 좌표 전달 보완: 병합 셀 측정에서도 프레임 문단 투영을 읽고,
+  `layout_composed_paragraph_in_frame`의 공통 paint 진입점에도 전달한다.
+
+근거는 실제 원본·Print의 154→155쪽 문단 소속과 C31의 CUT_BASE/CUT_TRY 로그다.
+source probe의 `c31-source-row101-keep-probe.log`에 원본 줄·문단 속성이 있고,
+`c31-original-print-154-156-text.json`과 `c31-original-p155-quick-review/review/review_155.png`를
+대조했다. `c32-complete-paragraph-boundary-plan.json`에 반례·검증 순서를 기록했다.
+C32 Native Clippy·CLI 빌드를 jobs8·공용 target에서 시작했으며 아직 결과가 없다.
+C31 통과 범위를 C32 통과로 사용하지 않는다. 신규 회귀/기대값 변경은 보류 중이다.
+
+C32 첫 Native Clippy는 새 형제 모듈에서 `CellUnit.vis_start/vis_end`를 직접 읽어
+E0616으로 실패했다. 비공개 필드를 공개하지 않고 기존 타입에 읽기 전용
+`closes_before_next_paragraph` 판정을 두었다. 첫 실패 로그·스냅샷을 보존하고
+C32r2 소스 스냅샷으로 검증을 다시 실행한다. 실패를 통과 또는 결함 재현으로 세지 않는다.
+
+C32r2 Native Clippy와 CLI 빌드, pinned base의 manifest/unit-tier 정책 검사는
+terminal exit0이다. 새 바이너리의 원본 전체 쪽수는 **415 / Print 415**이고
+구역5는 **48 / Print 48**로 맞아졌다. 154쪽은 101행 첫 문단을 실제 컷
+`[1,1,1,1,1,1]`로 보존하고 155쪽은 그 컷 뒤에서 재개하여 113행 전체를 소비한다.
+이는 dump-pages의 내용 소속 증거이며 TSV·직접 판독·fresh WASM 전체 통과로
+승격하지 않는다. 증적: `c32r2-pr7701-dump-pages.json`,
+`c32r2-pr7701-budget-diagnostic.log`, `c32r2-native-page-band-build-results.json`.
+154–156쪽 Native 시각 검증을 새 바이너리로 진행 중이다.
+
+C32r2 154–156쪽 Native TSV와 직접 review를 완료했다. 각각
+**97.70266 /85.03073 /98.63198%**다. 전체 쪽수는 맞지만155쪽이90% 미만이므로
+`re_review_required`다. 155쪽은 앞 문단의 소속이 맞아졌으나 아래쪽 행 높이·괘선이
+Print보다 내려가 있다. 같은 source table11의 측정 행 높이는 C31과 동일하여
+쪽수 개선만으로 해당 높이 결함이 해결됐다고 판정하지 않는다.
+C32r2 WASM 전용 Clippy도 terminal exit0이다. 여전히 fresh WASM 출력,
+새 후보의 전체 원본 TSV·최종 회귀 gate는 미완료이며 PR/push는 하지 않았다.
+
+새 프레임의 줄 좌표는 전달하지만 생성된 줄의 TAG_IMPLEMENTATION_PROPERTY를
+예전 placeholder와 동일하게 읽는 줄 높이 보정이 남아 있는지 다음에 대조한다.
+실제 프레임이 산출한 LH/LS를 소비자가 다시 계산하거나 중복 가산하지 않는지
+HeightMeasurer 일반/병합·cell unit·공통 paint 경로에서 확인한다. 이는 코드 검토상
+후속 진단 후보이며155쪽 결함의 실행으로 확인된 원인으로 아직 승격하지 않는다.
+증적: `c32r2-native-pr7701-frame-word-tail-154-156/` 아래 TSV·direct-review,
+`c32r2-wasm-clippy-result.json`. 신규 회귀와 baseline은 추가/갱신하지 않았다.
+
+
+### C33 문단 컷의 실제 병합 상자와 쪽 끝 띠 — 검증 중
+
+C32r2의103–105행 구성에서 `frame_geometry=None`을 확인하여 생성 줄 메트릭 재계산
+가설을155쪽 차이의 원인으로 사용하지 않는다. 독립 PDF의 실제 괘선과 Native 셀 상자를
+같은96dpi 좌표계로 대조했다. 154쪽 `성교육` 병합 셀은 Native240.3→703.0,
+Print240.1907→715.7747이다. 155쪽105행은 Native70.3px / Print59.808px로 부풀었다.
+원본 span92–105의 선언59511HU와 단일행 선언합58718HU의 차793HU가105행의
+추가10.5733px와 일치한다. 이는 문단 컷에서 앞 조각의 실제 물리 상자가 쪽 끝 띠를
+담지 못하고 뒤쪽 선언 높이 제약에서 차이를 보충하는 경로다.
+
+기존 쪽 끝 띠 수용은 `split_end_limit==0`에만 적용했다. 실제 컷이 완결한 독립 문단
+경계인 경우에도 같은 물리 상자를 사용하도록 연결했다. 전체 행의 아직 소비하지 않은
+뒤 문단 높이는 앞 조각 상자로 사용하지 않으며, 실제 `row_cut_content_height`를 기초로
+남은 띠를 한 번 추가한다. 같은 end_row_height_override/partial_height를 배치와
+accepted_straddle_fragment_units가 소비하고 기존 page-end band 기록을 유지한다.
+내용 end_cut을 넓히거나 다음 문단을 앞 조각에서 소비하지 않는다.
+
+문단 내부 컷·중첩 블록 컷은 새 근거의 적용 대상이 아니며 기존 각주·편집·재조판 guard를
+유지한다. `c33-positive-paragraph-cut-band-plan.json`과 위 bounds/constraint/probe 증적을
+보존했다. 새 소스 스냅샷의 Native/시각 검증 전이며 전체 gate 통과로 판정하지 않는다.
+
+C33 Native Clippy/CLI는 terminal exit0이다. 원본154–156쪽의 새 출력을 확인했다.
+154쪽 병합 상자는240.3→716.2로 Print240.1907→715.7747에 근접했고
+Native 실루엣98.19%로 개선됐다. 155쪽은85.03073%로 변하지 않았다. 직접 review에서
+105행 이후 괘선이 여전히 내려가는 것을 확인했다. 쪽수는415/415이며 전체 gate는 보류다.
+
+### C34 문단 컷 이어받기의 물리 띠 소비 — 검증 중
+
+실제 소비 경로 `fragment.rs::step_block_table_fragment`는 start_cut이 있으면
+`straddle_page_band_relief` 결과를 전부 버렸다. C33이 앞 조각의 물리 상자를
+늘려 수용해도 뒤쪽 온전한 병합 끝 행105·113은 그 띠를 다시 요구했다.
+동일한 완결 독립 문단 경계 판정이 있는 경우만 기존 relief를 받아들이고
+부분 시작 행보다 뒤의 행에 한정한다. 시작 행의 내용 컷/override는 유지하며
+문단 내부·블록 컷과 편집/합성 입력에 적용하지 않는다. 원본 선언 높이를 줄이거나
+새 수치 예외를 추가하지 않으며 기존 helper의 단일행 선언·내용 최소값을 지킨다.
+계획·경로·반례는 ignored `c34-paragraph-continuation-band-plan.json`에 고정했다.
+C34 소스 검증 전이며 신규 회귀/기대값/전체 완료 판정은 보류한다.
+
+C34 Native Clippy·CLI 빌드는 terminal exit0이다. 원본154–156쪽의 Native TSV는
+98.18940 /98.64085 /98.61520%이며 쪽수415/415다. 155쪽 직접 review에서
+105행 이후 괘선·마지막 행과 표 아래 경계가 Print에 근접한 것을 확인했다.
+이는 앞 조각의 물리 띠와 뒤 끝 행의 높이 요구를 함께 소비한 관측이다.
+실루엣-only gate의 `not_evaluated`를 전체 승인으로 사용하지 않는다.
+영향147–168쪽과 정상49쪽·음성8쪽·HWP3 5쪽의 Native84쪽 대조, fresh WASM
+빌드를 진행한다. 전쪽 Native/fresh WASM 검증과 정식 회귀 복원은 아직 미완료다.
+증적: `c34-native-page-band-build-results.json`, `c34-pr7701-dump-pages.json`,
+`c34-native-pr7701-frame-word-tail-154-156/` 아래 TSV·direct-review.
+
+C34의147–168쪽 Native22쪽을 완료했고160·162–167쪽의7쪽은 아직90% 미만이다.
+같은 구역의 다음 표(pi14)로 범위를 좁혀 원본 선언/줄·Print 괘선을 대조한다.
+전체415쪽 결과나 신규 회귀 통과로 승격하지 않는다. Native 추가 대조와 fresh wrapper가
+SIGTERM(exit143)으로 중단된 것을 실제 process 종료로 확인했다. 완료된22쪽·음성3쪽은
+보존하고 미완료 case만 새 `c34r2full` 경로에서 재개했다. fresh wrapper 재실행은 exit0이며
+루트 pkg와 Studio public의 rhwp.js/rhwp_bg.wasm SHA가 일치한다. 동일 소스의 WASM
+Clippy exit0을 재사용했다. fresh WASM154–156쪽 runtime 비교는 진행 중이다.
+증적: `c34-validation-interruption.json`, `c34r2-fresh-web-build-results.json`,
+`c34-fresh-web-pkg/provenance.json`, `c35-source-table14-constraints-result.json`.
+보조3쪽 review의 정렬 오류 폴더 `c35-before-direct-review`는 무효로 표시했다.
+페이지 번호가 일치하도록 정렬·대조한 `c35r2-before-direct-review`와, 같은 번호가
+확인되는 `c34full`의 canonical direct-review만 판독 근거로 사용한다.
+
+C34 Native84쪽 추가 대조를 완료했다. 정상49쪽은 전쪽90% 이상·쪽수 일치이며
+최저92.75255%다. 기존 음성17544911은61.11277%,1376496은52.70201%로 여전히
+미달이다. HWP3 sample13은99.90361%, sample19는48.79302%이며 sample19의
+양쪽 값은 C31 이전과 동일하다. 이 값들을 upstream/devel의 이관 근거로 사용하지 않는다.
+fresh WASM154–156쪽은 Native와 동일한98.18940 /98.64085 /98.61520%이고
+산출 PNG SHA도 쪽별로 동일하다. Native에서 직접 판독한 같은 실물을 fresh WASM도
+출력했다는 증거이며, 전체415쪽·WASM 전쪽 통과를 주장하지 않는다.
+증적: `c34-native-and-fresh-wasm-summary.json`, `c34-native-fresh-wasm-png-parity.json`,
+`c34-wasm-pr7701-frame-word-tail-154-156/`의 TSV. 신규 회귀/기대값 변경은 보류 중이다.
+
+다음 보정 후보는 실제 수용한 병합 상자 높이의 누적 원장이다. pi14의 row1..60 병합
+칸 선언은180945HU(2412.6px), 독립 Print의5쪽 물리 상자 합은2412.0653px인데
+C34 실제 상자 합은2408.4px이다. 현재 relief는 원래 측정 행 합과 빈 띠를 사용하므로
+이미 덜어 배치한 앞 행의 실제 점유를 다시 소비하는지 대조한다. 같은 실제 상자를
+accepted unit 선택/paint/다음 요구 높이에 전달하는 계획을
+`c35-actual-accepted-span-height-plan.json`에 기록했다. 구현·실행 검증 전인 후보이며
+단일 문서 수치로 규칙을 만들거나 미달7쪽을 정상 회귀 기준으로 고정하지 않는다.
