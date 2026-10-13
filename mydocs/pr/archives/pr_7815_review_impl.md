@@ -374,3 +374,76 @@ HWP를 조회한 두 번째 오류는 보존했고, 실제 다쪽 원본의 로�
 `c20-middle-dot-paint-consumer-audit.json`,
 `c20-middle-dot-independent-print-glyph-records.json`,
 `c20-current-middle-dot-canvas-trace-attempt3-command.json`에 연결한다.
+
+## C22 fresh WASM 실제 Canvas 재생 — 2026-10-13
+
+실제 source `c9f0f521cbd2bdc9391e3e5931068a3315e372b5`를 root wrapper로
+optimized web package 빌드했다(exit0,18분40초). 고정 공용 target을 사용했으며
+`pkg`/Studio public/브라우저 최초 WASM 응답의 SHA 일치를 확인했다. Vite의 JS URL
+치환은 기록한 단일 치환으로 검증했다. source·정상4개 face의hash/OS2 descriptor와
+브라우저실제font loading을 보존한 진단2개는 모두exit0이고warning은없다.
+
+기존 curly_quote 원본1쪽을 같은 독립2020 Print로 현재 Native/fresh WASM 각각
+전1쪽 TSV 재산출했다. 두 경로는99.65006%,1/1쪽이다. 실제 Canvas API PNG의
+전1쪽은99.51551%이며,따옴표32개의fillText 가로배율은 모두1이다. 같은4배 확대
+영역을 직접 열어 따옴표·한글 및 앞뒤 간격,이어지는숫자/본문 기준선을 대조했다.
+큰 장평·기준선·간격 차이는 보이지 않으며 작은 raster 경계 차이는 남는다.
+이1쪽은가운뎃점을 포함하지 않아 B7 보정 증거로 대신하지 않는다.
+
+B7는 k-water 실제 원본27쪽의3쪽에서7개run을 추적했다. 이전 C20의
+fillText7/arc0 경로 대신 현재는fillText0/arc7이며 같은전진값을 보존한원형 경로다.
+직접 Canvas4-face 진단에는Palatino 프로그램이 포함되지 않아 문서 전체의 글리프
+일치를 주장하지 않는다. 이 실제 원본의전27쪽 Native/fresh WASM은별도 진행 중이며,
+전쪽·독립 Print·직접확대 판독 이후에만 관련회귀검사의 추가/변경과완료를 판정한다.
+#7702의넓은저장LineSeg/grid 축도 이가운뎃점진단만으로 종료하지 않는다.
+
+증적은 ignored `c22-fresh-web-pkg/provenance.json`,
+`c22-canvas-runtime-observations.json`, `c22-curly-quote-paired-results.json`,
+`c22-curly-quote-native-wasm-canvas-results.json`과각실행로그에 있다.
+현재 Native/fresh WASM은각 `c22-curly-quote-paired-{native,wasm}/curly-quote/`의
+TSV/manifest이고,실제 Canvas대표는 `c22-curly-quote-print-direct-canvas/review_001.png`,
+확대판독은 같은 경로의 `compare_001.png` 및 `enlargement-provenance.json`이다.
+기존C20점수와새C22실행을구분하며,9PR전체의시각게이트통과로 승격하지 않는다.
+
+## 가운뎃점 실물 전쪽 검증과 브라우저 회귀
+
+C22의 동일 원본 `samples/k-water-rfp.hwp`(SHA-256
+`1b4d1169c8e622b7365e9029ced513b13206f5939cf12024438c38d30253c2b4`)을
+독립 `pdf/k-water-rfp-hwp-2020.pdf`와 대조했다. 현재 Native와 fresh WASM은
+각각 전27쪽 산출·누락 없음·Print27쪽 일치, 최저24쪽94.12523%다.
+실제 점이 있는3쪽은 Native/fresh WASM96.92201%, 직접 Canvas96.94814%다.
+전쪽 TSV만의 `not_evaluated` 상태를 자동 승인으로 승격하지 않는다.
+
+실제 점7개의 소유 run에서 같은 영역을 골라 Canvas/Print를8배로 직접 열었다.
+원형 점의 중심·앞뒤 글자 간격은 같은 위치에 있고, 원의 raster 경계·글꼴 잉크에는
+작은 차이가 남는다.24쪽 대표도 직접 열었으며 마지막 표의 회색 바탕·외곽 하단이
+Print보다 짧은 차이는 별도 배치 검토로 남긴다. 가운뎃점 paint 수정은 이 표 상자의
+해결을 주장하지 않는다.9PR 전체 통합 판정과 #7702의 다른 저장 조판 축도 그대로 보류한다.
+
+[정식 브라우저 검사](../../../rhwp-studio/e2e/middle-dot-canvas-paint.test.mjs)는
+실제 WASM `renderPageToCanvas`를 호출한다. 원문 내용으로 대상 쪽을 찾고, 실제 점의
+전진·글줄 안에 원형 점 하나가 있는지, 대체 글리프 호출이 없는지, 앞뒤 내용·문단 소유·
+순서·쪽 소유가 보존되는지 검사한다. 절대 쪽 번호·px 위치·SVG 해시를 고정하지 않는다.
+Canvas 전용 실제 호출을 Native Rust helper 검사로 대체하지 않고 기존 Studio E2E
+경로에 두었다. `npm run e2e:middle-dot-canvas-paint`로 실행한다.
+
+동결 C20 `e2a525d36f2923918185f62610869e7c3068b9d0`의 패키지에서 exit1로
+fillText7/arc0을 검출했고, C22 `c9f0f521cbd2bdc9391e3e5931068a3315e372b5`의
+패키지에서는 exit0으로 fillText0/arc7과 내용 소유 보존을 확인했다. 첫 baseline 시도의
+Vite403은 환경 실패로 분리했다. 동일 패키지를 허용된 pkg 하위로 바이트 그대로 임시
+복사한 두 번째 실행만 수정 전 결함 증거이며 종료 확인 후 복사본만 정리했다.
+원 동결 패키지와 현재 root pkg·public 파일은 보존했다.
+
+원 로그·원본/패키지 SHA·전후 관측은 ignored `c23-middle-dot-formal-before-after-audit.json`,
+`c23-middle-dot-formal-before-r2.log`, `c23-middle-dot-formal-after-npm.log`,
+`c22-kwater-paired-{native,wasm}/`와 `c22-kwater-dot-three-backend-results.json`에 있다.
+최종 대표 증적은 다음 경로에 보존했다.
+
+- [Native review](../assets/planet6897_followup_20261011/c23-middle-dot-canvas/native-review-p003.png)
+- [fresh WASM review](../assets/planet6897_followup_20261011/c23-middle-dot-canvas/wasm-review-p003.png)
+- [Canvas review](../assets/planet6897_followup_20261011/c23-middle-dot-canvas/canvas-review-p003.png)
+- [독립 Print와 점7개 확대 비교](../assets/planet6897_followup_20261011/c23-middle-dot-canvas/canvas-print-owned-dots-enlarged-review.png)
+
+이 단계의 새 변경은 브라우저 검사·실행 alias·증적·검토 기록이다. Native/Rust·Studio
+제품 코드와 기존 회귀 기대값은 변경하지 않았다. 위 source SHA의 실제 결과를 새 Rust
+빌드로 보고하지 않으며, 최종 production 수정 뒤 영향을 받는 검증은 다시 진행한다.

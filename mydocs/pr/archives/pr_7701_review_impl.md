@@ -163,3 +163,95 @@ tag는 `0x60000`이다. 독립415쪽 Print의52쪽에는 첫 서울 조례 제�
 `c21-pr7701-independent-print-p052-p053-text.json`, `c21-pr7701-incoming-review-plan.json`에 있다.
 새 통합 head의 경계·쪽 소속·누락/중복·후속 내용, Native/fresh WASM 전쪽 TSV 및 직접 판독은
 아직 필요하다. 기존 #7743 이관과415쪽 신규 검사 철회는 유지하며 수용 판정은 보류한다.
+
+## C22 통합 head 경계 실행 — 2026-10-13
+
+실제 source `c9f0f521cbd2bdc9391e3e5931068a3315e372b5`에서 고정
+`target/pr-review`로 Native를 빌드하고, 같은 원본·독립 Print·compat2022·full font·96dpi의
+49–53·62–63쪽을 산출했다. 7쪽 모두 산출됐으나 50·51·53·62·63쪽은 각각
+55.33040·51.81060·67.39812·47.27359·44.11633%로 미달이다. 49·52쪽은
+91.93033·92.20262%다. 전체 쪽수도 Native417/Print415로 불일치하여
+`re_review_required`이며, 종료1을 실행 실패나 통과로 바꾸지 않는다.
+
+전체 `dump-pages` 실행exit0에서 구역1은64쪽으로 독립 Print64쪽과 맞고,
+구역5는49/48, 구역16은8/7로 각각1쪽이 남는다. 과거ab5112의418쪽보다1쪽 줄었으나, 새0→0 수정 전 동결C20(e2a525d)도 실제
+재출력에서417쪽이었다. 쪽수 감소를001222의 효과로 귀속하지 않는다.
+전체 개선 완료가 아니다. 원본 입력 SHA는
+`623b00d56beffc45d27c5bf23911bdc49d3a541ded8aecbb323d0716a2bc9f4e`,
+독립 PDF SHA는 `bc16ee92640644307fd1ce92ab8ffe663088210caa7740bef620daaa0187e197`다.
+
+실제 raster로 만든50·53쪽 compare/overlay/review를 직접 열었다. 50쪽은 표 상단
+내용의 시작과 행 높이가 다르고,53쪽은 앞쪽 행 경계·후속 본문 위치가 다르다.
+쪽 소속의 부분 개선과 기하 배치의 일치를 구분한다. Native 경계 실패 뒤 중단된
+자동 orchestration은 원 결과를 보존하고 같은 head의 fresh WASM 진단 빌드만 이어갔다.
+큰 전쪽 검증과 회귀 기대값 변경은 이 경계의 차이 확인 뒤 진행한다.
+
+원 명령·TSV·manifest는 ignored `c22-native-pr7701-zero-boundary.log`와
+`c22-native-pr7701-zero-boundary/pr7701-zero-boundary/`에, 실제 구역별 수는
+`c22-pr7701-section-page-localization.json`에 있다. 대표 직접 판독 이미지는 같은
+경계 폴더의 `direct-review/review_050.png`와 `review_053.png`다.
+Native/fresh WASM 전쪽·직접 확대 판독·관련 반례를 통과하기 전에는 수용하지 않는다.
+
+### 새 0→0 수정 전후 직접 비교와 별도 실제 회귀
+
+동결 C20 `e2a525d36f2923918185f62610869e7c3068b9d0`의 같은 원본·Print·글꼴로
+50·52·53쪽을 새로 산출했다. 이 동결 source는001222 전의 대조군이며 upstream base가 아니다.
+50쪽은55.33040%로 현재와 PNG까지 동일하고,52쪽은91.68712→92.20262%,
+53쪽은55.41235→67.39812%다. 두 source 모두417/415쪽이다.53쪽의 부분 개선을
+전쪽90% 통과나 쪽수 감소로 보고하지 않는다.
+
+최신 원 PR 본문은 외곽 위 여백 변경 `1f43a0422` 때문에148·149쪽 행27이 분할되어
+기존94.9·94.2%에서83.3·75.5%로 하락했다고 작성자가 명시한다. 현재 통합 source의
+실제 Native148·149쪽도83.07534·75.81202%이며, dump-pages에서148쪽 `17..28`,
+끝컷 `[1,1,1,2,2,1]`과149쪽 `27..40`, 같은 시작컷을 확인했다.148쪽 review를
+직접 열어 마지막「사이버 중독」내용의 앞/뒤 조각 소유와 표 하단 차이를 확인했다.
+이는 기존 피델리티 이슈 등록만으로 이관·승인할 수 있는 범위가 아니다.
+
+같은 source의 `RHWP_TABLE_DRIFT=1 RHWP_DIAG_SCAN=1 dump-pages ... --compat 2022 --json`
+진단은exit0이다. 구역5 문단11에서 이어받기17행의 host_before1.9, header57.1,
+행 가용580.4와 끝 행 부분 컷의 소비565.3/limit37.3이 기록된다. 계산값을 기대값으로
+재사용하지 않으며, 독립 Print의 완전한27행을 수용하도록 요구/예약/paint 경로를 검토한다.
+수정 전 동결 비교는 `c22-pr7701-before-current-zero-boundary-comparison.json`,
+별도 회귀는 `c22-native-pr7701-row27-regression.log`와 같은 경계 폴더의
+`direct-review/review_148.png`·`review_149.png`, 예약 진단은
+`c22-pr7701-section5-budget.log`에 보존했다. 기대값·baseline은 변경하지 않았다.
+
+### 같은 C22 fresh WASM 경계 완료
+
+고정 `target/pr-review`·root wrapper의 optimized fresh web 빌드는18분40초 후exit0이다.
+원본 source는c9f0f521이며 `pkg`와Studio public의JS/WASM SHA-256 일치를 확인했다.
+같은 원본·Print·compat2022·96dpi·Native의 실제 full font CSS를 공급한49–53·62–63쪽
+fresh WASM TSV가7쪽 누락 없이 완료됐다. 두 backend의7개 지표는 모두 같으며
+전체417/415쪽 불일치와50·51·53·62·63쪽 미달도 동일하다. 완료된 음성 검증의exit1을
+통과로 취급하지 않는다. 전415쪽 범위는 아직 통과하지 못했다.
+
+첫 진단 시도는 CSS fallback 목록의 모든 대체 face를 필수 공급 face로 잘못 검사해
+raster 전에 중단됐다. 실제 우선 face의 full program과 기존 순서의 fallback 목록을
+보존하도록 ignored 진단 wrapper를 수정하고 새r2 경로에 재실행했다. source·출력 좌표·
+metric·90% 기준은 변경하지 않았다. 첫 실패 경로도 남겼다. primary face/cmap 검사,
+Native CSS 원본과hash, 실제 WASM raw SVG와render tree, wrapper SHA는r2 기록에 있다.
+
+최종 경계 로그는 `c22-wasm-pr7701-zero-boundary-r2.log`, TSV/manifest는
+`c22-wasm-pr7701-zero-boundary-r2/pr7701-zero-boundary/`, Native/WASM 비교는
+`c22-native-wasm-zero-boundary-comparison.json`이다. 대표 fresh WASM 직접 판독 이미지는
+같은 경계의 `direct-review/review_052.png`·`review_053.png`다.
+
+### 소비 높이와 실제 앞 조각의 경계 추적
+
+현재147쪽 NativeRenderTree에서 문단11·표0의상자는y77.5/h620.5이며,
+걸침셀(8,1)의상자는y134.5/h563.2다. 앞 조각의실제 상자와 scanner가소비한
+565.8을동일한값으로취급하지 않는다. 같은Print147쪽raster의긴괘선마지막은
+716번째행이고,Native표상자/셀상자의끝은약698이다. raster 줄번호는진단관측값이며
+회귀기대px핀을만들지않았다.
+
+생산·소비경로는 `FragmentStart`의 `straddle_page_band_relief` → `RowScanQuery`의
+요구/수용과 `emit_fragment`의 `partial_height`/`straddle_page_bands_after_fragment`
+→ `PageItem::PartialTable` → `layout_partial_table`이다. 실제paint는MeasuredTable을
+바탕으로행높이를 다시 구성하며,온전한 plain행은 `whole_fragment_row_uses_measured_height`
+분기에서cut높이재계산을건너뛴다. 새 `straddle_row_relief`는 전달되지만같은helper를
+썼다는사실만으로이후의행상자/쪽끝밴드가공유됐다고판정하지않는다.
+
+자료는 `c22-native-pr7701-physical-ledger/`, `c22-pr7701-section5-budget.log`,
+독립 `c22-independent-print-p147.png`이다. Native앞쪽상자의차이와정본앞쪽빈밴드를
+확인하고,소비공간과내용컷을분리한공통물리결과를검토한다. 원인이정확히확정되기전에는
+장식상자만늘리거나배치값을clamp하여수용한것으로보고하지않는다.
