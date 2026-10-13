@@ -255,3 +255,65 @@ Native CSS 원본과hash, 실제 WASM raw SVG와render tree, wrapper SHA는r2 �
 독립 `c22-independent-print-p147.png`이다. Native앞쪽상자의차이와정본앞쪽빈밴드를
 확인하고,소비공간과내용컷을분리한공통물리결과를검토한다. 원인이정확히확정되기전에는
 장식상자만늘리거나배치값을clamp하여수용한것으로보고하지않는다.
+
+### C24 저장 첫 줄 점유 보정 후보 — Native 선행 검증
+
+2026-10-13 검증 후보는 `b78eb69604067ae7cff7600e48af03ad982e0592` 위의
+미커밋 Rust 변경이다. HEAD만으로 후보 코드를 식별하지 않는다.
+`c24-cell-leading-native-candidate/provenance.json`에 네 소스 파일 SHA-256과
+패치 SHA-256, 실제 실행 파일 SHA-256을 고정했다. 아직 최종 승인 대상이 아니다.
+
+원본 구역5 문단11의 셀 `(11,8)`은 첫 줄 원점200HU와 다음 문단 원점1700HU,
+줄높이1000HU 및 위·아래 패딩141HU를 저장한다. 독립 저장 끝점은2982HU인데,
+기존 측정은첫 원점200HU를 제외한2782HU였다. 기존 컷은 그 선행 공간을 이미
+소비하고 있어 측정과 컷이 다른 공간을 예약했다. 후보는 기존 bounded stored lead를
+측정과 컷에서 공통 helper로 소비한다. 배치 원점·정렬에서 별도로 소비하는 lead는
+다시 더하지 않는다. 저장 줄이 없는 재조판은 기존 문단 앞 간격 계약을 유지한다.
+
+Native Clippy와 Native/Skia CLI 빌드는 exit0이다. 같은 원본·독립 Print·compat2022·
+96dpi·full font 공급으로147–149쪽을 재출력했다.
+
+| 페이지 | 이전 C22 Native | C24 Native | 직접 판독 |
+| --- | ---: | ---: | --- |
+| 147 | 별도 앞 조각 진단 | 94.82317% | 행11의 저장 선행 점유는 반영됐으나 쪽 끝 표 외곽이 Print보다 짧다. |
+| 148 | 83.07534% | 88.71359% | 전체 행 경계로 이어지지만 첫 본문 행 이후의 높이 차이가 남는다. 90% 미달이다. |
+| 149 | 75.81202% | 96.75070% | Print의 마지막 ‘재해·재난의 원인’ 행이 해당 쪽에 없다. 높은 점수로 소속 차이를 면제하지 않는다. |
+
+후보의 전 문서 쪽수는 여전히417/415다. `dump-pages`는148쪽에서17–28행을
+내용 컷 없이 소비하고,149쪽은28–40행,150쪽은40행부터 소비한다.
+원본40행 셀 `(40,8)`의 저장 줄 원점200→0은 실제 원본의 이어받기 경계이며,
+단순히 문서 전체에서 텍스트가 존재한다는 검사로 해당 쪽의 보존을 대신하지 않는다.
+앞 조각의 빈 물리 공간, 일반 수용 예산의 pagination tolerance, 다음 조각의
+걸침 셀 잔여 높이와 실제 paint 상자를 계속 대조한다. 허용치·기대값은 변경하지 않았다.
+
+Native 대조군은 그림 셀4쪽 최저99.85950%, 그림 띠2쪽92.75255%,
+중첩 표 정상 입력 두 문서 각각8쪽96.81300%, K-water27쪽94.12523%로,
+각 문서의 전체 쪽수도 일치한다. K-water의27개 Native PNG와 TSV는 C22와 모두 같다.
+이 결과는 Native 선행 증거이며 fresh WASM 및 직접 판독을 자동 대체하지 않는다.
+
+증거는 ignored `output/pr-review/planet6897-followup-20261011/` 아래
+`c24-native-leading-summary.json`, `c24-original-cell-line-probe.log`,
+`c24-pr7701-dump-pages.json`, `c24-pr7701-budget-diagnostic.log`에 있다.
+실제 원본 줄·스타일을 읽은 sidecar probe는 진단이며 정식 회귀 검사로 등록하지 않았다.
+대표 이미지는 `c24-native-pr7701-leading-147-149/pr7701-leading-147-149/`
+아래 `direct-review/review/review_147.png`, `review_148.png`, `review_149.png`다.
+
+후속 fresh WASM 빌드는 root wrapper, 공용 `/home/tsjang/rhwp/target/pr-review`,
+`CARGO_BUILD_JOBS=6`으로17분46초 후 exit0을 확인했다.
+`c24-live-build-jobs6-audit.json`은 실제 Cargo 프로세스 환경을 확인한 기록이다.
+동결 package와 루트 `pkg`·Studio public의 JS/WASM SHA-256도 일치한다.
+
+fresh WASM은 교육과정 경계3쪽과 Native 대조군49쪽을 모두 산출했다. 교육과정3쪽과
+대조군49쪽의 페이지별 지표·PNG는 Native와 동일하다. 이는 해당 후보의 측정 경로
+일치 증거이며 전415쪽 승인 또는 직접 판독 완료를 뜻하지 않는다.
+
+K-water의 첫 진단 시도는 서로 다른 페이지의 Native 폰트 CSS를 하나로 합치려다
+descriptor 충돌 검사에서 중단됐다. 각 페이지에 해당 Native SVG의 실제 full-font CSS만
+그대로 적용하는 r2 adapter로27쪽 전체를 재실행했다. 모델·좌표·폰트 프로그램·90% 기준은
+변경하지 않았다. 최초 실패 로그와 원 adapter를 보존했다. 최종 결과는
+`c24-wasm-k-water-middle-dot-control-r2.log` 및 같은 r2 경로의 TSV/manifest에 있다.
+전체 paired 완료 기록은 `c24-wasm-leading-diagnostic-results.json`,
+`c24-wasm-leading-diagnostic-completion.json`이다.
+
+최종 source의 전체 회귀·WASM/workspace/Skia lint·전체 시각 검증은 아직 남아 있다.
+148쪽 미달, 쪽수와149쪽 내용 소속 문제 때문에 PR 생성·승인·통합은 계속 보류한다.
