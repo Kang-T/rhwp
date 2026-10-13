@@ -1066,3 +1066,35 @@ C43 파생 suite 준비·fmt-check·Native/WASM/workspace Clippy·workspace buil
 `c43-rust-unit-tiers.log`에 보존했다. 이 결과는 source blob이 일치하는85bc359c8의
 검증 기록이다. #7882를 반영한 새 base/head의 검증으로 재사용하지 않는다.
 현재 code의 fresh WASM·전체 Rust/Skia/Studio와 원래54문서 범위는 아직 미완료다.
+
+### 고정 base 전쪽 비교 완료와 #7882 대기 — 2026-10-14
+
+고정 `upstream/devel`22317614b의 교과 교육과정 원본 전418쪽 SVG를 변경 없이
+raster했고, 실제 대응 Print415쪽의 같은 ordinal 전쪽 TSV를 산출했다. 입력·Print·
+CLI SHA와 같은 글꼴 공급을 검증한 실행은 최종 종료0이다. 이는 산출 완료이며
+검증 통과가 아니다. Native418/Print415쪽, 비교415쪽 중389쪽90% 미만,
+최저96쪽0.00000%, 대응 Print가 없는416~418쪽3개, gate는
+`re_review_required`다. 내용에 맞춰 페이지를 재매핑하거나 전체 쪽수 차이를
+지우지 않았다. `c41-pinned-base-completed-summary.json`에서 원본 실행 manifest와
+전쪽 `silhouette.tsv`·`silhouette_manifest.json`을 연결했다.
+
+기존 C38 전쪽 Native415/Print415·232쪽 미달 결과와 구역별 소속 대조를 함께
+보존한다. C38의 전체 쪽수 일치는 구역10의 기존 초과1쪽과 구역23의 신규 부족1쪽을
+상쇄한 결과이므로 원본 출력 보정 완료가 아니다. C43의 새 전쪽 Native/fresh WASM
+결과로도 가장하지 않는다. 이 고정 base의 Native 실패만으로 회귀 제거를 확정하지
+않고, 새 head의 출력·범위·독립 Print와 필요한 backend 증거를 계속 대조한다.
+
+#7882 head ef9712a77856efa2dd0e33f3be908e23759da380은 이번 확인에서 OPEN이며
+merge commit이 없다. Archive B의
+`issue_5877_source_frame_relations::restart_frames_align_selected_content_and_preserve_the_spanning_tail`
+검사가 병합 종료 행의 높이 관계에서 실패했고, 실제 결과는2056 PASS·1 FAIL이다.
+`pr7882-archive-b-ci.log`와 원격 상태 snapshot에 보존했다. 해당 PR의 code를
+수정·머지하지 않았고 현재 검토 브랜치도 아직 리베이스하지 않았다.
+
+정확한 원격 head의 `table_partial.rs`와 실패한 테스트만 읽기 전용 snapshot으로
+확인했다. 현재 분할 표의 그림 문단 원점·흐름 하단과 원격의 이어받기 행 프레임이
+같은 파일에서 바뀐다. `pr7882-readonly-source/table-partial-impact.json`은 리베이스
+영향 조사이며 실제 충돌 판정이나 체리픽 적용이 아니다. 원격 머지 확인 후 최신
+upstream을 fetch하고 두 보정의 실제 소비 경로를 보존해 리베이스한다. 진행 중이던
+전쪽 raster와 lint/Native 수집은 모두 종료했고, 새로운 source 보정이나 fresh WASM
+빌드는 시작하지 않았다.
