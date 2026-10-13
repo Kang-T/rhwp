@@ -5030,8 +5030,9 @@ Native 전쪽·fresh 전쪽·관계형 회귀 등록·최종 backend/UI·원격C
 동일 b4ff8c 소스의 재시도에서 prepare·fmt·Native Clippy·WASM lib Clippy·
 workspace build·workspace/all-target Clippy·고정 base manifest·unit-tier 검사 모두
 exit0이다. 전체 nextest는 현재 실행 중이며 새 소스의 전체 PASS로 앞서 보고하지 않는다.
-Studio 재검증 준비를 복구했고 TypeScript/단위 검사·production build·frontend binding은
-exit0이다. 현재 package의 public consumer와 실제 pointer/Canvas 검증은 별도 확인한다.
+Studio 재검증 준비를 복구했고 TypeScript/단위 검사·production build·frontend binding·
+현재 package의 public consumer6종·실제 PR7566 pointer 검사는 모두exit0이다.
+actual pointer는 새WASM 해시를 확인했고 임시 서버를 종료했다. K-water Canvas는 별도 미완료다.
 fresh 경계 재시도는 실행 중이다. Native 전쪽 재시도는 fresh 경계의 완료·직접 판독 뒤
 시작하도록 대기시켜 동일한 두 대용량 중간 출력이 다시 겹치지 않게 했다.
 필수 시각·회귀·backend/UI·원격 CI의 완료 판정은 여전히 보류한다.
