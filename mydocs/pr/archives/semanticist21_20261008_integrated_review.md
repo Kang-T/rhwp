@@ -5024,3 +5024,14 @@ package/input/source guard로 fresh 경계와 실패한 Rust 게이트를 재시
 Native 전쪽·fresh 전쪽·관계형 회귀 등록·최종 backend/UI·원격CI는 아직 완료 전이다.
 개별17개는 **머지 보류**이며 모두 해결·검증된 뒤에만 **메인터너 보정 후 승인**으로
 바꾸고 승인된 PR/merge/후속처리를 이어간다.
+
+## 진행 갱신198 — 디스크 복구 뒤 최신 필수 lint 통과 (2026-10-13)
+
+동일 b4ff8c 소스의 재시도에서 prepare·fmt·Native Clippy·WASM lib Clippy·
+workspace build·workspace/all-target Clippy·고정 base manifest·unit-tier 검사 모두
+exit0이다. 전체 nextest는 현재 실행 중이며 새 소스의 전체 PASS로 앞서 보고하지 않는다.
+Studio 재검증 준비를 복구했고 TypeScript/단위 검사·production build·frontend binding은
+exit0이다. 현재 package의 public consumer와 실제 pointer/Canvas 검증은 별도 확인한다.
+fresh 경계 재시도는 실행 중이다. Native 전쪽 재시도는 fresh 경계의 완료·직접 판독 뒤
+시작하도록 대기시켜 동일한 두 대용량 중간 출력이 다시 겹치지 않게 했다.
+필수 시각·회귀·backend/UI·원격 CI의 완료 판정은 여전히 보류한다.
