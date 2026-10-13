@@ -5669,3 +5669,12 @@ Closes 대상은 동일 CGMP 전체48쪽으로 확인한 #7764다. 대표#7445 �
 | `manifest` | exit0 / 2.784 |
 
 원 통합 PR #7882 및 문서 후속 #7887, #7764 완료 증거·원 PR16개 종료/17개 댓글과 전용 branch/worktree 정리는 실제 확인한 기존 완료 범위다. 이번 주석 보완 PR의 GitHub CI·merge는 이후 별도로 확인하며, 기존 CI나 시각 자료를 새 실행으로 주장하지 않는다.
+
+
+## 진행 갱신242 — 주석 보완 PR #7889의 정확한 code CI 성공과 trailing 기록 (2026-10-14)
+
+**승인 — 요청한 주석 한글화 보완.** [PR #7889](https://github.com/edwardkim/rhwp/pull/7889)의 code candidate `7b6cdc6e235553e3df676c6be31848b14ab03544`, 정책 base `07e7e813d06d3f8031e86eb7c27233b829964907`에서 필수 로컬 lint 묶음과 정확한 head의 GitHub CI를 완료했다: [CI](https://github.com/edwardkim/rhwp/actions/runs/38483170236) · [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38483170161) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38483170109) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38483170088) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38483170052). 최종 `CI Impact Policy=success`도 확인했다. 이전 통합 PR의 CI를 이번 head의 결과로 대신하지 않았다.
+
+`emit.rs` 일반 주석8줄과 `table_partial.rs` 일반 주석9줄만 한글화했고 포맷 뒤/commit 뒤의 비주석 원문 바이트·파일 줄 수 동일성을 확인했다. 코드·검사·fixture·출력 계약의 변경은 없어 조판/Visual Sweep 범위는 비해당이다. 기존 Native/fresh 자료는 해당 생산 SHA의 역사 증거로 유지하며 새 source 재출력으로 주장하지 않는다. 이 두 파일은 기존 크기를 유지하고 언어 수정에 리팩토링을 섞지 않았다.
+
+같은 PR에 이 review와 오늘할일만 single-parent trailing commit으로 반영한다. 새 trailing head의 CI·정책 status·mergeability를 확인한 뒤 병합하며 현재 merge 완료로 기록하지 않는다. 원 PR #7882/#7887의 issue·contributor 후속처리는 이미 완료된 범위로 보존하고 반복하지 않는다. 이 주석 PR에는 추가 종료 이슈가 없다. 병합 후 duration 갱신 결과·devel 포함과 전용 브랜치 정리만 확인한다.
