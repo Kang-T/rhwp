@@ -97,6 +97,17 @@ try {
     const ir=evidence.report.documentIr.paragraphs[0].controls;
     const irTables=ir.filter(c=>c.Table).map(c=>c.Table);
     assert.equal(irTables.length,tables?1:0);
+    if(tables && evidence.report.lowering.deferredTables.length===0) {
+      const owned=new Set(detection.tables.flatMap(t=>t.sourcePathIndices));
+      const rootRuleIds=new Set(ir.flatMap(c=>{
+        const r=c.Shape?.Rectangle;
+        return r && !r.drawing.text_box && r.drawing.fill.solid ? [r.common.instance_id]:[];
+      }));
+      for(const source of evidence.report.lowering.ruleSourceControls) {
+        assert.equal(rootRuleIds.has(source.instanceId),!owned.has(source.path),
+          "source boundary must have exactly one owner; unrelated rules must remain");
+      }
+    }
     if (name==="nested") {
       assert.deepEqual(detection.tables.map(t=>t.hierarchy.depth),[0,1,2]);
       assert.ok(detection.tables.every(t=>t.topology.boundarySquaredZero));

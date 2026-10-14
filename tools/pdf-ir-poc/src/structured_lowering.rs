@@ -260,6 +260,7 @@ struct TableBuilder<'a> {
     span_controls: &'a [Option<usize>],
     shape_ids: &'a [Option<u32>],
     image_controls: &'a [usize],
+    rule_controls: &'a [Option<usize>],
 }
 
 fn cell_border(doc: &mut Document, controls: &[Control], bounds: &Value) -> Result<u16, String> {
@@ -441,6 +442,7 @@ impl TableBuilder<'_> {
             span_controls,
             shape_ids,
             image_controls,
+            rule_controls,
         } = self;
         let grid = grids.get(candidate).ok_or("missing recognized grid")?;
         let recognized_table = recognized
@@ -752,10 +754,20 @@ impl TableBuilder<'_> {
         table.row_sizes = (0..table.row_count)
             .map(|row| table.cells.iter().filter(|c| c.row == row).count() as i16)
             .collect();
-        for (i, c) in controls.iter().enumerate() {
-            if let Control::Shape(s) = c {
-                if is_grid_rule(s, grid)? {
-                    removed.insert(i);
+        if family {
+            for path in refs(&grid["sourcePathIndices"])? {
+                let control = rule_controls
+                    .get(path)
+                    .ok_or("invalid source rule reference")?
+                    .ok_or("source boundary has no lowering representation")?;
+                removed.insert(control);
+            }
+        } else {
+            for (i, c) in controls.iter().enumerate() {
+                if let Control::Shape(s) = c {
+                    if is_grid_rule(s, grid)? {
+                        removed.insert(i);
+                    }
                 }
             }
         }
@@ -786,6 +798,14 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
     let mut span_controls = vec![None; page.spans.len()];
     let mut shape_ids = vec![None; page.spans.len()];
     let mut image_controls = Vec::new();
+    let mut rule_controls = vec![None; page.paths.len()];
+    for source in array(&report["ruleSourceControls"])? {
+        let path = index(&source["path"])?;
+        let control = index(&source["control"])?;
+        *rule_controls
+            .get_mut(path)
+            .ok_or("invalid rule/control mapping")? = Some(control);
+    }
     let nonempty: Vec<_> = page
         .spans
         .iter()
@@ -819,6 +839,7 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
         span_controls: &span_controls,
         shape_ids: &shape_ids,
         image_controls: &image_controls,
+        rule_controls: &rule_controls,
     };
     let mut removed = BTreeSet::new();
     let mut tables = Vec::new();

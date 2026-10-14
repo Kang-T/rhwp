@@ -285,3 +285,36 @@ POC의 중첩 가족에만 아래 보정을 적용했다. 제품 renderer/serial
   고정하지 않는다. 상태머신/위상/소유권의 순수 계약 검사는 실물 조판 판정과 구분한다.
 - 선택 쪽 통과 뒤 나머지 원본 페이지의 인식 진단을 재실행한다. 원본 12쪽 전체 HWPX 변환,
   3단계 편집 후 한컴 저장/재열기, 제품 적용은 별도 검증 범위로 남긴다.
+
+### R1 결과 (2026-10-14)
+
+경계마다 원본 path/segment ID와 stroke 폭을 보존했다. 기하가 정확히 같은 반복만
+인식용 coverage에서 합쳤고, 원본 페인트나 서로 다른 style 기여는 삭제하지 않았다.
+검증된 셀 변들의 연속 coverage와 수직 방향 테두리의 실제 ink 점유 범위로
+접합용 overhang을 분류한다. 중첩 lowering은 이 경계의 source path → 원본 control mapping으로
+소비하며 bbox 좌표를 다시 추측하지 않는다. 가족 rollback과 기존 단일 표/B 경로는 유지했다.
+
+| 선택 원본 | raw / canonical edge | 실제 Table 수 | 잔류 원본 괘선 | 인식 축에 겹치는 잔류 선 |
+| --- | --- | --- | --- | --- |
+| 7쪽 | 58 / 38 | 4 | 28 → 11 | 17 → 0 |
+| 8쪽 | 54 / 34 | 3 | 28 → 18 | 10 → 0 |
+
+남은 괘선은 아직 객체화하지 않은 내부 표의 표현이다. 잘못된 격자 경계 소유권까지
+전체 해결했다고 주장하지 않는다. 원본 순서 변경/반복에도 셀·계층은 같지만 provenance는
+입력에 따라 달라지므로 의미 구조 비교와 기여 기록 보존 검사를 분리했다.
+66개 POC 검사, Native/WASM Clippy, fresh WASM Worker에서 통과했다.
+브라우저 검사는 source instance ID를 통해 표 경계의 이중 소비/잔존과 별도 괘선의 누락을 확인한다.
+기존 한컴 통과 B본과 단일 표 대조군 HWPX는 byte-identical하다.
+
+Native/fresh WASM 선택 7쪽/8쪽 점수는 양쪽 97.12563%/96.60263%다.
+동일 후보의 실제 한컴 Print 점수는 54.66379%/36.81599%로 **계속 불합격**이다.
+직접 판독에서 인식된 표의 별도 원본 가로선은 제거됐지만 셀 흐름과 인라인 표 원점이
+여전히 어긋나며 8쪽 하단 내용도 누락된다. 앞 단계의 잔류 선이 원본 위치를 덮었던 만큼
+전체 픽셀 점수는 낮아졌으며 이를 정상 회귀 통과로 바꾸지 않는다.
+R1의 경계 소비 계약 개선과 R3에서 해결할 재조판 결함을 분리해 기록한다.
+
+증적: `output/poc/pdf-ir-20261014/nested-tables-retry-r1/`의
+`verification/`, `browser/evidence/`, `hancom/jobs.json`, `hancom/inspection.json`,
+`hancom/rule-audit.json`과 `hancom/visual/`.
+선택 원본은 재분리한 `source/page-7.pdf`, `source/page-8.pdf`이며 원본 페이지 의미와
+텍스트/PNG를 대조한다. PDF 재분리 파일의 byte 해시는 이전 분리본과 달라질 수 있다.

@@ -111,6 +111,12 @@ node tools/pdf-ir-poc/verify-visual.mjs "$PWD" output/poc/pdf-ir
 순으로 재도전한다. [재도전 전략](NESTED_TABLES.md#재도전-전략-2026-10-14-승인됨)은
 2026-10-14 메인테이너가 승인했으며 R1부터 단계별 구현·검증을 진행한다.
 
+R1에서 원본 기여 ID로 중첩 표 경계의 괘선을 소비하도록 보정했다. 선택한 7쪽/8쪽의
+인식 축과 겹치는 잔류 괘선은 17개/10개에서 양쪽 0개로 줄었고 Table 수와 전체 글자는 유지됐다.
+66개 POC 검사와 fresh WASM을 통과했으며 Native/WASM 점수는 97.12563%/96.60263%다.
+실제 한컴 Print는 54.66379%/36.81599%로 계속 불합격이다. R1 경계 소유권과 R3 재조판
+판정을 구분하며, 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r1/`에 있다.
+
 ```sh
 cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked \
   --target-dir target/pr-review -- pdf/issue5875/nested_table_text_caption-2020.pdf \

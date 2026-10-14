@@ -97,7 +97,29 @@ fn path_order_and_duplicates_do_not_change_the_tree() {
     reversed.reverse();
     reversed.extend(nested());
     let b = detection(&reversed, &[]);
-    assert_eq!(a["tables"], b["tables"]);
+    let semantic_tables = |d: &Value| {
+        let mut tables = d["tables"].clone();
+        for table in tables.as_array_mut().unwrap() {
+            let table = table.as_object_mut().unwrap();
+            // Source IDs follow the input ordering; geometry, cells and hierarchy do not.
+            table.remove("sourceBoundarySegments");
+            table.remove("sourcePathIndices");
+        }
+        tables
+    };
+    assert_eq!(semantic_tables(&a), semantic_tables(&b));
+    assert_eq!(a["canonicalEdgeCount"], b["canonicalEdgeCount"]);
+    for (a, b) in a["tables"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(b["tables"].as_array().unwrap())
+    {
+        assert_eq!(
+            b["sourcePathIndices"].as_array().unwrap().len(),
+            2 * a["sourcePathIndices"].as_array().unwrap().len()
+        );
+    }
 }
 
 #[test]

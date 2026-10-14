@@ -25,6 +25,57 @@ fn grid() -> Vec<PathContent> {
 fn detect(paths: &[PathContent], spans: &[TextSpan]) -> Value {
     detect_ruled_tables(spans, paths, &[], (0.0, 0.0, 200.0, 200.0)).unwrap()
 }
+
+#[test]
+fn duplicate_coverage_retains_every_source_contributor() {
+    let source = grid();
+    let repeated = [source.clone(), source].concat();
+    let d = detect(&repeated, &[]);
+    assert_eq!(d["edgeCount"], 12);
+    assert_eq!(d["canonicalEdgeCount"], 6);
+    assert_eq!(
+        d["tables"][0]["sourcePathIndices"],
+        serde_json::json!((0..12).collect::<Vec<_>>())
+    );
+    assert_eq!(
+        d["tables"][0]["sourceBoundarySegments"]
+            .as_array()
+            .unwrap()
+            .len(),
+        12
+    );
+}
+
+#[test]
+fn border_join_overhang_is_owned_but_unrelated_extension_is_not() {
+    let mut source = grid();
+    source[3].stroke_width = 4.;
+    source[5].stroke_width = 4.;
+    source[0] = line(9., 10., 71., 10.);
+    source.push(line(5., 70., 75., 70.));
+    let d = detect(&source, &[]);
+    assert_eq!(count(&d), 1);
+    assert_eq!(
+        d["tables"][0]["sourcePathIndices"],
+        serde_json::json!((0..6).collect::<Vec<_>>())
+    );
+}
+
+#[test]
+fn geometric_union_does_not_discard_distinct_paint_evidence() {
+    let mut source = grid();
+    let mut changed = source[0].clone();
+    changed.stroke_width = 2.;
+    source.push(changed);
+    let d = detect(&source, &[]);
+    assert_eq!(d["canonicalEdgeCount"], 6);
+    let contributors = d["tables"][0]["sourceBoundarySegments"].as_array().unwrap();
+    assert_eq!(contributors.len(), 7);
+    assert_eq!(
+        contributors.iter().find(|c| c["path"] == 6).unwrap()["strokeWidth"],
+        2.
+    );
+}
 fn count(v: &Value) -> usize {
     v["tables"].as_array().unwrap().len()
 }

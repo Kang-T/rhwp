@@ -123,6 +123,7 @@ pub(crate) fn lower(
     let mut lines = 0;
     let mut painted = 0;
     let mut unsupported_paths = 0;
+    let mut rule_sources = Vec::new();
     let mut warnings = vec![
         "positional text boxes, not semantic paragraph/table reconstruction".to_string(),
         "PDF paint ordering, clipping, transparency and embedded fonts are not reconstructed"
@@ -130,7 +131,7 @@ pub(crate) fn lower(
     ];
 
     // Keep straight rules as editable IR shapes even when table inference misses them.
-    for path in &page.paths {
+    for (source_path, path) in page.paths.iter().enumerate() {
         let [PathOperation::MoveTo(x1, y1), PathOperation::LineTo(x2, y2)] =
             path.operations.as_slice()
         else {
@@ -184,6 +185,8 @@ pub(crate) fn lower(
                 },
                 ..Default::default()
             };
+            rule_sources
+                .push(json!({"path":source_path,"control":owner.controls.len(),"instanceId":id}));
             owner
                 .controls
                 .push(Control::Shape(Box::new(ShapeObject::Rectangle(rect))));
@@ -217,6 +220,8 @@ pub(crate) fn lower(
             end,
             ..Default::default()
         };
+        rule_sources
+            .push(json!({"path":source_path,"control":owner.controls.len(),"instanceId":id}));
         owner
             .controls
             .push(Control::Shape(Box::new(ShapeObject::Line(shape))));
@@ -377,6 +382,8 @@ pub(crate) fn lower(
         "mode":"positional-page", "textBoxes":page.spans.iter().filter(|s|!s.text.is_empty()).count(),
         "pictures":doc.bin_data_content.len(), "straightRules":lines,
         "paintedRuleRectangles":painted,
+        "ruleSourceControls":rule_sources,
+        "ruleSourceControlScope":"positional controls before table replacement; instance IDs remain stable",
         "singleLineParagraphs":"SQUEEZE",
         "detectedTables":detected, "semanticTables":0,
         "unsupportedPaths":unsupported_paths, "unknownFontSpans":unknown_fonts,

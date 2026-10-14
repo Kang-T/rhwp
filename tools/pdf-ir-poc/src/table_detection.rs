@@ -18,6 +18,9 @@ struct Edge {
     at: f32,
     from: f32,
     to: f32,
+    source_path: usize,
+    source_segment: usize,
+    stroke_width: f32,
 }
 
 struct Sets(Vec<usize>);
@@ -51,7 +54,7 @@ fn edges(paths: &[PathContent], left: f32, top: f32) -> Result<Vec<Edge>, String
     let mut edges = Vec::new();
     let mut invalid = false;
     let mut overflow = false;
-    let mut add = |x1: f32, y1: f32, x2: f32, y2: f32| {
+    let mut add = |x1: f32, y1: f32, x2: f32, y2: f32, source_path: usize, stroke_width: f32| {
         if ![x1, y1, x2, y2].iter().all(|v| v.is_finite()) {
             invalid = true;
             return;
@@ -61,12 +64,16 @@ fn edges(paths: &[PathContent], left: f32, top: f32) -> Result<Vec<Edge>, String
             return;
         }
         let (x1, x2, y1, y2) = (x1 - left, x2 - left, top - y1, top - y2);
+        let source_segment = edges.len();
         if (y1 - y2).abs() <= EPS && (x1 - x2).abs() > EPS {
             edges.push(Edge {
                 horizontal: true,
                 at: (y1 + y2) / 2.0,
                 from: x1.min(x2),
                 to: x1.max(x2),
+                source_path,
+                source_segment,
+                stroke_width,
             });
         } else if (x1 - x2).abs() <= EPS && (y1 - y2).abs() > EPS {
             edges.push(Edge {
@@ -74,10 +81,13 @@ fn edges(paths: &[PathContent], left: f32, top: f32) -> Result<Vec<Edge>, String
                 at: (x1 + x2) / 2.0,
                 from: y1.min(y2),
                 to: y1.max(y2),
+                source_path,
+                source_segment,
+                stroke_width,
             });
         }
     };
-    for path in paths {
+    for (source_path, path) in paths.iter().enumerate() {
         if path.stroke_color.is_none() || path.matrix.is_some() {
             continue;
         }
@@ -91,21 +101,21 @@ fn edges(paths: &[PathContent], left: f32, top: f32) -> Result<Vec<Edge>, String
                 }
                 PathOperation::LineTo(x, y) => {
                     if let Some((px, py)) = cursor {
-                        add(px, py, x, y);
+                        add(px, py, x, y, source_path, path.stroke_width);
                     }
                     cursor = Some((x, y));
                 }
                 PathOperation::Rectangle(x, y, w, h) => {
-                    add(x, y, x + w, y);
-                    add(x + w, y, x + w, y + h);
-                    add(x + w, y + h, x, y + h);
-                    add(x, y + h, x, y);
+                    add(x, y, x + w, y, source_path, path.stroke_width);
+                    add(x + w, y, x + w, y + h, source_path, path.stroke_width);
+                    add(x + w, y + h, x, y + h, source_path, path.stroke_width);
+                    add(x, y + h, x, y, source_path, path.stroke_width);
                     cursor = Some((x, y));
                     start = cursor;
                 }
                 PathOperation::ClosePath => {
                     if let (Some((x, y)), Some((sx, sy))) = (cursor, start) {
-                        add(x, y, sx, sy);
+                        add(x, y, sx, sy, source_path, path.stroke_width);
                     }
                     cursor = start;
                 }
@@ -139,6 +149,63 @@ fn axes(mut values: Vec<f32>) -> Vec<f32> {
         .iter()
         .map(|g| g.iter().sum::<f32>() / g.len() as f32)
         .collect()
+}
+
+fn same_geometry(a: &Edge, b: &Edge) -> bool {
+    a.horizontal == b.horizontal && a.at == b.at && a.from == b.from && a.to == b.to
+}
+
+fn boundary_contributor(edge: &Edge, grid: &Grid, component: &[Edge]) -> bool {
+    let mut intervals = Vec::new();
+    for cell in &grid.cells {
+        let b = cell.bbox;
+        let (axes, from, to) = if edge.horizontal {
+            ([b.y, b.y + b.height], b.x, b.x + b.width)
+        } else {
+            ([b.x, b.x + b.width], b.y, b.y + b.height)
+        };
+        if axes.iter().any(|at| (at - edge.at).abs() <= EPS) {
+            intervals.push((from, to));
+        }
+    }
+    intervals.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let Some(&(start, _)) = intervals.first() else {
+        return false;
+    };
+    let end = intervals.iter().map(|(_, to)| *to).fold(start, f32::max);
+    // Endpoints can reach into the perpendicular border's painted join, not arbitrary artwork.
+    let join_extent = |at: f32| {
+        component
+            .iter()
+            .filter(|other| {
+                other.horizontal != edge.horizontal
+                    && (other.at - at).abs() <= EPS
+                    && edge.at >= other.from - EPS
+                    && edge.at <= other.to + EPS
+            })
+            .map(|other| other.stroke_width / 2.)
+            .fold(0., f32::max)
+    };
+    if edge.from < start - join_extent(start) - EPS || edge.to > end + join_extent(end) + EPS {
+        return false;
+    }
+    let target_start = edge.from.max(start);
+    let target_end = edge.to.min(end);
+    if target_end - target_start <= EPS {
+        return false;
+    }
+    let mut cursor = target_start;
+    for (from, to) in intervals {
+        let (from, to) = (from.max(target_start), to.min(target_end));
+        if to <= cursor {
+            continue;
+        }
+        if from > cursor + EPS {
+            return false;
+        }
+        cursor = cursor.max(to);
+    }
+    cursor >= target_end - EPS
 }
 
 fn coverage(edges: &[Edge], horizontal: bool, at: f32, from: f32, to: f32) -> f32 {
@@ -192,6 +259,7 @@ struct Grid {
     ys: Vec<f32>,
     cells: Vec<Cell>,
     topology: Value,
+    source_edges: Vec<Edge>,
 }
 
 fn grid(edges: &[Edge]) -> Result<Grid, String> {
@@ -299,6 +367,7 @@ fn grid(edges: &[Edge]) -> Result<Grid, String> {
         ys,
         cells,
         topology,
+        source_edges: Vec::new(),
     })
 }
 
@@ -314,7 +383,14 @@ pub fn detect_ruled_tables(
         return Err("invalid page geometry".into());
     }
     let (left, _, _, top) = media_box;
-    let edges = edges(paths, left, top)?;
+    let source_edges = edges(paths, left, top)?;
+    let mut edges = Vec::new();
+    // This is geometric coverage normalization, not a claim that distinct paints are interchangeable.
+    for edge in &source_edges {
+        if !edges.iter().any(|other| same_geometry(edge, other)) {
+            edges.push(*edge);
+        }
+    }
     let mut sets = Sets::new(edges.len());
     for a in 0..edges.len() {
         for b in a + 1..edges.len() {
@@ -344,7 +420,19 @@ pub fn detect_ruled_tables(
     for group in sets.groups() {
         let component: Vec<_> = group.iter().map(|i| edges[*i]).collect();
         match grid(&component) {
-            Ok(g) => grids.push(g),
+            Ok(mut g) => {
+                let contributors = source_edges
+                    .iter()
+                    .filter(|edge| component.iter().any(|other| same_geometry(edge, other)))
+                    .copied()
+                    .collect::<Vec<_>>();
+                g.source_edges = contributors
+                    .iter()
+                    .filter(|edge| boundary_contributor(edge, &g, &contributors))
+                    .copied()
+                    .collect();
+                grids.push(g);
+            }
             Err(reason) => rejected.push(json!({"edgeCount":component.len(),"reason":reason})),
         }
     }
@@ -449,11 +537,22 @@ pub fn detect_ruled_tables(
     Ok(json!({
         "algorithm":"ruling-cellular-topology-v2","coordinateSystem":"points, top-left of MediaBox",
         "scope":"stroked axis-aligned ruled grids; geometric candidates, not semantic proof",
-        "tolerancePt":EPS,"edgeCount":edges.len(),
+        "tolerancePt":EPS,"edgeCount":source_edges.len(),"canonicalEdgeCount":edges.len(),
+        "boundaryNormalization":"exact geometric duplicates share coverage; original paint contributors retained",
         "tables":grids.iter().enumerate().map(|(gi,g)|json!({
             "bbox":g.bbox,"rows":g.ys.len()-1,"columns":g.xs.len()-1,
             "xBoundaries":g.xs,"yBoundaries":g.ys,
             "topology":g.topology,
+            "sourceBoundarySegments":g.source_edges.iter().map(|edge|json!({
+                "path":edge.source_path,"segment":edge.source_segment,
+                "horizontal":edge.horizontal,"at":edge.at,"from":edge.from,"to":edge.to,
+                "strokeWidth":edge.stroke_width
+            })).collect::<Vec<_>>(),
+            "sourcePathIndices":g.source_edges.iter().map(|edge|edge.source_path)
+                .collect::<std::collections::BTreeSet<_>>().into_iter().filter(|path|
+                    source_edges.iter().filter(|edge|edge.source_path==*path).all(|edge|
+                        g.source_edges.iter().any(|owned|owned.source_segment==edge.source_segment)))
+                .collect::<Vec<_>>(),
             "hierarchy":{"status":if placements[gi].deferred.is_some(){"Deferred"}else{"Confirmed"},
                 "reason":placements[gi].deferred,"depth":placements[gi].depth,
                 "parent":placements[gi].parent.map(|(table,cell)|json!({"table":table,"cell":cell})),
