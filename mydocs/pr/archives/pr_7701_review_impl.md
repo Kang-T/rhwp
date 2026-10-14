@@ -1206,3 +1206,61 @@ freeze한C45를 계속 사용하며 공용 target의 마지막 바이너리로 �
 실제 renderer의 source를 base provenance로 구분한다. current의 원점 개선은
 확인됐지만 남은 종료 공간 보정·fresh WASM·정상 반례 없이 기대값을 바꾸거나
 개선 완료·PR 제출 가능으로 판정하지 않는다.
+
+### 종료 호스트 줄의 소유 검토 — 2026-10-14
+
+`issue5884`의 마지막 비인라인 중첩 표는 전체 본체가 아니라 저장 첫 조각 높이를
+개체 높이로 보존한다. 실제 공통 행 본체181.44px에서 저장 첫 조각16.44px을 빼고
+바깥 여백7.5467px을 더하면172.5467px이며, 원본 호스트 줄vpos12941HU와 같다.
+따라서 이 빈 줄은 개체 시작 줄이 아니라 마지막 조각 뒤의 종료 줄이다. 저장 줄
+높이900HU는 그 조각의 부모 공간을 소유하며 자식 표의 콘텐츠나 viewport가 아니다.
+단순한 빈 문자열이나 큰 vpos만으로 이 소속을 판정하지 않는다.
+
+구현은 이 원본 종료식이 성립하는 실제 저장 호스트의 마지막 줄만 공통 결과로
+인증한다. 줄 높이를 마지막 자식 유닛의 물리 예약에 붙여 예산이 부족할 때 마지막
+콘텐츠와 함께 이월하고, 자식 viewport에서는 이 부모 줄을 제외한다. 문서 ID·
+픽셀 상수·원점 clamp는 사용하지 않는다. inline/Square/NO_LS·편집·종료식 불일치
+경로는 적용되지 않으며 현재 정상 대조군으로 대조한다. `block/prepare`의
+`row_cut_content_height`와 `advance_row_cut`은 같은 유닛을 예약하고,
+`nested_table_split_from_cut_units`의 부모 흐름과 자식 가시 높이를 구분한다.
+실제 출력·호출 경로 검증 전에는 이 설계를 완료로 판정하지 않는다.
+
+구현 commit `8360766a1c2ebc904765aeafcece27283e005fe1`의 Native Skia 빌드는
+7분17초·종료0이며, 원본 8문서/94 Print쪽 재산출도 완료했다.
+`c48-native-completed-summary.json`에 입력·Print·고정 source 및 전쪽 TSV를
+연결했다. `issue5884`는 2/2쪽·누락0, 1쪽91.14945%, 2쪽98.72130%다.
+부모 예약에 원본 종료 줄900HU를 반영하면서 자식 가시 높이와 그림 원점은
+보존됐다. 정상49쪽과 `issue5877`31쪽도 전쪽90% 이상이다. `issue6122`는
+12쪽 중2·6·7쪽이 미달인 상태이며 이 결과를 전체54문서의 완료로 확대하지 않는다.
+
+같은 head의 1·2쪽 review와 2쪽 수식/외곽 확대 이미지를 직접 열었다
+(`c48-issue5884-native-direct-review`). 2쪽 부모 외곽은 개선됐으나 1쪽에서
+원본 U+F06D가 채운 원●으로 표시되고 독립 Print는 빈 원○인 결함을 확인했다.
+`map_pua_bullet_char`는 해당 글리프를 흰 원으로 설명하면서 U+25CF에 근사하고
+있다. 기존 F06C의 채운 원은 유지하고 F06D의 표시 대응만 빈 원으로 수정한다.
+`composer::convert_pua_display_text`의 측정 표시 문자열과 paint의
+`expand_pua_render_text`는 같은 대응표를 소비하며 원문 PUA는 변경하지 않는다.
+수정 후 새 Native/fresh WASM 전2쪽과 같은 영역 확대 판독을 다시 확인한다.
+현재 점수만으로 새 관계 회귀나 기존의 잘못된 페이지 핀을 먼저 변경하지 않는다.
+
+Studio `npx tsc --noEmit`과 `npm test`는 각각종료0이고 단위1842건 전부통과했다
+(`c48-studio-results.json`, `c48-studio-unit.log`). 실제 브라우저/WASM 렌더 확인과
+새 Rust source의 전체 회귀·lint·Skia 검증은 별도이며 아직 완료되지 않았다.
+
+같은 head의 fresh WASM 최적화 빌드는23분27초·종료0이며 wrapper의 root pkg와
+Studio 공개JS/WASM SHA 일치를 확인했다. canonical `visual_sweep.py --wasm-pkg`
+실제 전2쪽 측정은종료0·누락0, Native와 같은91.14945%/98.72130%다
+(`c48-fresh-wasm-issue5884-result.json`). 새 WASM PNG도 Native와 전2쪽 SHA가
+일치한다. 이 단계는 PUA 기호 수정 전이며 판독한1쪽 오류를 면제하거나 회귀 검사를
+먼저 변경하지 않았다. 1쪽의 마지막 두 작은 표 사이 간격도 직접 대조했다. 실제
+수평 괘선은 Native975/992·999/1016행, Print968/984·1012/1029행이다.
+이 값은 같은96dpi raster의 진단 관측값이며 고정 px 기대값으로 사용하지 않는다.
+기호뿐 아니라 이 두 개체의 간격·저장 줄 소유도 추가 검토 대상으로 남긴다.
+
+`issue6122`의 같은 원본/Print/font 전12쪽을 새 고정 base b3eaf7b10의 실제 CLI로
+산출했다(`c46-new-base-issue6122-result.json`). 2·6·7쪽은 각각31.37605%,
+60.80544%,38.17142%로 현재31.37697%,60.80174%,38.18738%와 같은 미달 범위다.
+쪽수12/12·누락0이다. 첫 진단 driver의 잘못된 case key로 발생한 StopIteration은
+`c46-new-base-issue6122-driver.log`에 보존했고 실제 렌더 실패로 세지 않는다.
+올바른 key의 재실행은 측정 완료·gate 미달로종료1이다. #7445 본문에서 원본 이름과
+해당 번호의 등록을 찾지 못했으므로, 이 비교만으로 기존 정상 검사를 제거하지 않는다.
