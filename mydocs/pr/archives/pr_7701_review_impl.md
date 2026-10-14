@@ -1182,3 +1182,27 @@ manifest 단계는 각각종료0이고 source unit-tier도종료0이다. 상위e
 새 base b3eaf7b10의 실제 전쪽 출력 대조는 아직 미검증이므로 초과분을 신규 회귀나
 기존 문제로 추정하지 않는다. 별도 고정 worktree의 Native 빌드를 공용 target에서
 집중 nextest 종료 뒤 순차 시작했다(`c46-pinned-base-native-build.log`).
+
+새 base Native 빌드는 sparse checkout에서 `vendor/svg2pdf`와 컴파일 내장 입력
+`saved/blank2010.hwp`가 누락돼 각각101로 종료한 초기 실행을 보존했다. 실제 base
+commit의 해당 파일과 cargo 설정을 materialize한r3은4분51초·종료0이며 upstream
+코드는 수정하지 않았다. `c46-r3-pinned-base-native-candidate/provenance.json`의
+고정b3eaf7b10와 바이너리 hash를 비교 근거로 사용한다. 검토 source는 이전에
+freeze한C45를 계속 사용하며 공용 target의 마지막 바이너리로 바꾸지 않는다.
+
+같은 원본·기존 Print와 actual tree/page items의 새 base/current 대조에서 base는
+422쪽, current는419쪽, Print는415쪽이다. current의 구역10·12·25·26 각1쪽
+초과는 모두 새 base에도 같은 구역 길이로 존재한다. 구역1·5·14는 base의 각각
+1쪽 초과가 current에서 Print 길이로 개선됐다. 구역23은 base/current 모두14쪽이다.
+구역 길이가 base보다 증가한 곳은0이지만, 이 사실은 페이지별 내용·배치의 무회귀나
+시각 일치의 증거가 아니다. `c46-new-base-curriculum-diagnostic/result.json`에
+전체34구역의 대응과 실제 명령을 보존했다. 현재418/415 같은 과거 숫자를 새 base의
+결과로 재사용하지 않으며 이관한 회귀를 복원·기대값 갱신하지 않았다.
+
+`issue5884`도 같은 Print/font의 새 base 전2쪽 Native TSV를 만들었다. 새 base
+2쪽은40.79699%, current는88.34684%이며 둘 다2/2쪽·누락0이고90% 미달이다.
+`c46-new-base-issue5884-summary.json`에서 정확한 compiled base와 TSV·gate를
+연결했다. root capture-tool Git SHA와 frozen base renderer SHA는 다른 역할이므로
+실제 renderer의 source를 base provenance로 구분한다. current의 원점 개선은
+확인됐지만 남은 종료 공간 보정·fresh WASM·정상 반례 없이 기대값을 바꾸거나
+개선 완료·PR 제출 가능으로 판정하지 않는다.
