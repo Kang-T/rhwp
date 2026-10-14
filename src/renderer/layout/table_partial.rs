@@ -23,7 +23,7 @@ use super::table_layout::{
     border_style_has_diagonal, calc_nested_split_rows, effective_margin_left_line,
     expand_page_fragment_clip_to_own_text_lines, extend_completed_nested_table_border_clips,
     native_terminal_child_host_line_spacing, para_relative_float_table_lead,
-    translate_render_subtree_y, unwrapped_table_cell_ctx, NestedTableSplit,
+    translate_render_subtree_y, unwrapped_table_cell_ctx, NestedTableSplit, StoredNestedHostFlow,
     INLINE_WRAP_WIDTH_EPSILON_PX,
 };
 use super::text_measurement::{estimate_text_width, resolved_to_text_style};
@@ -2644,9 +2644,14 @@ impl LayoutEngine {
                 let frame_paragraph = composed.paragraph_with_frame_geometry(para);
                 let para = frame_paragraph.as_ref();
 
+                let stored_host_flow =
+                    self.stored_nested_host_physical_flow(cell, table, styles, cp_idx, cut_units);
                 let mut table_host_has_stored_origin = false;
                 let mut single_column_snap_spacing_before = false;
-                if let Some(origin) = single_column_flow
+                if stored_host_flow.is_some() {
+                    // 종료 줄의 저장 원점은 표의 시작점이 아니다. 앞 유닛에서
+                    // 이어지는 현재 흐름 원점을 보존하고 같은 소유 구간을 소비한다.
+                } else if let Some(origin) = single_column_flow
                     .as_ref()
                     .and_then(|flow| flow.line_origins_hu.get(cp_idx))
                     .and_then(|lines| lines.get(start_line))
@@ -2737,6 +2742,7 @@ impl LayoutEngine {
                     }
                 }
 
+                let stored_host_flow_entry = para_y;
                 // [#3637 진단] 조각 셀에서 실제로 배치되는 문단과 그 y. 컷 범위 밖
                 // 문단이 예외 경로(중첩 표 보유 등)로 새는지 직접 본다. 동작 불변.
                 if std::env::var("RHWP_DIAG_CELLPARA").is_ok() {
@@ -2877,6 +2883,10 @@ impl LayoutEngine {
                     && start_line == 0
                     && !table_host_has_stored_origin
                     && owns_paragraph_entry
+                    && !matches!(
+                        stored_host_flow,
+                        Some(StoredNestedHostFlow::BeforeLine { .. })
+                    )
                 {
                     // 이 경로는 layout_composed_paragraph를 거치지 않는다.
                     // 셀 측정과 같은 문단 앞 간격을 첫 개체 줄 앞에서 한 번
@@ -4044,7 +4054,14 @@ impl LayoutEngine {
                                                 self.dpi,
                                             )
                                         });
-                                    let nested_y = if let Some(frame) = stored_float_frame {
+                                    let nested_y = if matches!(
+                                        stored_host_flow,
+                                        Some(StoredNestedHostFlow::BeforeLine { .. })
+                                    ) {
+                                        // 앞 간격은 종료 줄을 소유한다. 본체는 앞 유닛이
+                                        // 끝난 곳에서 시작하고 바깥 여백은 표 배치가 소비한다.
+                                        stored_host_flow_entry
+                                    } else if let Some(frame) = stored_float_frame {
                                         frame.table_top
                                     } else if let Some(offset) = stored_square_offset {
                                         para_y_before_lines + hwpunit_to_px(offset, self.dpi)
@@ -4915,6 +4932,14 @@ impl LayoutEngine {
                                 para_y = para_y.max(next_vpos_y.min(cell_content_bottom));
                             }
                         }
+                    }
+                }
+                if let Some(StoredNestedHostFlow::BeforeLine { height }) = stored_host_flow {
+                    // 행 컷이 수용한 같은 문단 유닛의 끝을 다음 흐름으로 전달한다.
+                    // 자식의 반환 높이는 부모 종료 줄이나 예약 간격을 소유하지 않는다.
+                    para_y = stored_host_flow_entry + height;
+                    if std::env::var_os("RHWP_DIAG_SCAN").is_some() {
+                        eprintln!("DIAG_STORED_NESTED_HOST_FLOW cp={cp_idx} entry={stored_host_flow_entry:.6} height={height:.6} end={para_y:.6}");
                     }
                 }
             }

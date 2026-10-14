@@ -9,6 +9,7 @@ mod stored_first_line_restart;
 mod stored_inline_row_frame;
 mod stored_intra_paragraph_frame;
 mod stored_nested_frame;
+mod stored_nested_host_flow;
 mod stored_nested_outer_frame;
 mod stored_nested_padding;
 mod stored_nested_source_cut;
@@ -24,6 +25,7 @@ mod stored_terminal_row_frame;
 mod stored_zero_origin;
 mod unit_diagnostics;
 mod wrapper_cell_viewport;
+pub(super) use stored_nested_host_flow::StoredNestedHostFlow;
 
 use super::super::composer::{compose_paragraph, ComposedLine, ComposedParagraph};
 use super::super::height_measurer::{

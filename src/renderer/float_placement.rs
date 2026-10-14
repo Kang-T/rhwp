@@ -10,10 +10,12 @@ pub(crate) use stored_cell_flow_picture::{
 mod stored_closed_cell_frame;
 mod stored_empty_host_frame;
 mod stored_nested_before_host;
+mod stored_nested_closing_host;
 mod stored_nested_terminal_line;
 pub(crate) use stored_nested_before_host::{
     stored_nested_before_host_placement, stored_table_before_host_frame,
 };
+pub(crate) use stored_nested_closing_host::stored_nested_host_closes_after_previous_line;
 pub(crate) use stored_nested_terminal_line::stored_nested_terminal_host_line_height_hu;
 mod stored_cut_outer_frame;
 mod stored_header_frame;

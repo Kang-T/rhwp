@@ -11614,18 +11614,18 @@ pub fn map_pua_bullet_char(ch: char) -> char {
     match w {
         // 도형/기호 (0x6C~0x7E)
         0x6C => '\u{25CF}', // ● Black circle
-        // 흰 원의 내부를 채우지 않는다. 독립 한컴 Print에서도 빈 원으로 표시된다.
-        0x6D => '\u{25CB}', // ○ 오른쪽 아래 그림자가 있는 흰 원의 윤곽 대체
-        0x6E => '\u{25A0}', // ■ Black square
-        0x6F => '\u{25A1}', // □ White square
-        0x70 => '\u{25A1}', // □ (Bold white square → 근사값)
-        0x71 => '\u{25A1}', // □ (Lower right shadowed → 근사값)
-        0x72 => '\u{25A1}', // □ (Upper right shadowed → 근사값)
-        0x73 => '\u{2B27}', // ⬧ Black medium lozenge
-        0x74 => '\u{29EB}', // ⧫ Black lozenge
-        0x75 => '\u{25C6}', // ◆ Black diamond
-        0x76 => '\u{2756}', // ❖ Black diamond minus white X
-        0x77 => '\u{2B25}', // ⬥ Black medium diamond
+        // 원문의 빈 내부와 오른쪽 아래 그림자를 함께 보존한다(독립 한컴 Print 대조).
+        0x6D => '\u{1F53E}', // 오른쪽 아래 그림자가 있는 흰 원
+        0x6E => '\u{25A0}',  // ■ Black square
+        0x6F => '\u{25A1}',  // □ White square
+        0x70 => '\u{25A1}',  // □ (Bold white square → 근사값)
+        0x71 => '\u{25A1}',  // □ (Lower right shadowed → 근사값)
+        0x72 => '\u{25A1}',  // □ (Upper right shadowed → 근사값)
+        0x73 => '\u{2B27}',  // ⬧ Black medium lozenge
+        0x74 => '\u{29EB}',  // ⧫ Black lozenge
+        0x75 => '\u{25C6}',  // ◆ Black diamond
+        0x76 => '\u{2756}',  // ❖ Black diamond minus white X
+        0x77 => '\u{2B25}',  // ⬥ Black medium diamond
         // 체크/별/점 (0x9E~0xAF)
         0x9E => '\u{00B7}', // · Middle dot
         0x9F => '\u{2022}', // • Bullet
