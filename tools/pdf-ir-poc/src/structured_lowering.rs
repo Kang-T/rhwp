@@ -6,7 +6,8 @@ use rhwp::model::{
     paragraph::{CharShapeRef, LineSeg, Paragraph},
     shape::{CommonObjAttr, HorzRelTo, ShapeObject, TextWrap, VertRelTo},
     style::{
-        border_width_index, Alignment, BorderLineType, LineSpacingType, PARA_ATTR2_LINE_WRAP_MASK,
+        border_width_index, Alignment, BorderLineType, LineSpacingType, TabDef, TabItem,
+        PARA_ATTR2_LINE_WRAP_MASK,
     },
     table::{Cell, Table, TablePageBreak, VerticalAlign},
 };
@@ -30,6 +31,14 @@ fn index(v: &Value) -> Result<usize, String> {
 }
 fn refs(v: &Value) -> Result<Vec<usize>, String> {
     array(v)?.iter().map(index).collect()
+}
+
+fn physical_margin(points: f32) -> Result<i32, String> {
+    // Odd IR margin values encode CHAR units, not sub-HWPUNIT PDF precision.
+    i32::try_from(hu(points)?)
+        .ok()
+        .and_then(|value| value.checked_mul(2))
+        .ok_or_else(|| "physical paragraph measure exceeds format range".into())
 }
 
 fn text_with_spaces(page: &ExtractedPage, indices: &[usize]) -> (String, Vec<(u32, usize)>) {
@@ -67,6 +76,38 @@ fn text_with_spaces(page: &ExtractedPage, indices: &[usize]) -> (String, Vec<(u3
     (text, runs)
 }
 
+type LineText = (String, Vec<(u32, usize)>, Vec<TabItem>, Vec<[u16; 7]>);
+
+fn text_with_tabs(
+    page: &ExtractedPage,
+    indices: &[usize],
+    cell_x: f32,
+) -> Result<LineText, String> {
+    let mut text = String::new();
+    let mut runs = Vec::new();
+    let mut tabs = Vec::new();
+    let mut extensions = Vec::new();
+    let mut end = None;
+    for &i in indices {
+        let span = &page.spans[i];
+        if let Some(previous_end) = end.filter(|x| span.bbox.x - x > span.font_size * 0.2) {
+            text.push('\t');
+            tabs.push(TabItem {
+                position: u32::try_from(physical_margin(span.bbox.x - cell_x)?)
+                    .map_err(|_| "invalid PDF tab position")?,
+                ..Default::default()
+            });
+            let width = u16::try_from(hu(span.bbox.x - previous_end)?)
+                .map_err(|_| "PDF span gap exceeds inline tab width")?;
+            extensions.push([width, 0, 0, 0, 0, 0, 9]);
+        }
+        runs.push((text.encode_utf16().count() as u32, i));
+        text.push_str(&text_with_spaces(page, &[i]).0);
+        end = Some(span.bbox.x + span.bbox.width);
+    }
+    Ok((text, runs, tabs, extensions))
+}
+
 fn offsets(text: &str) -> (Vec<u32>, u32) {
     let mut len = 0;
     let offsets = text
@@ -99,18 +140,21 @@ fn paragraph(
     let cell_x = number(&cell_box["x"])?;
     let cell_width = number(&cell_box["width"])?;
     let top = number(&first["baseline"])? - number(&first["fontSize"])? * 0.95;
-    let centered = lines.iter().all(|l| {
-        let b = &l["bbox"];
-        let mid =
-            b["x"].as_f64().unwrap_or(f64::NAN) + b["width"].as_f64().unwrap_or(f64::NAN) / 2.;
-        (mid as f32 - cell_x - cell_width / 2.).abs() <= number(&l["fontSize"]).unwrap_or(0.) * 0.75
-    });
+    let centered = !fixed_line_height
+        && lines.iter().all(|l| {
+            let b = &l["bbox"];
+            let mid =
+                b["x"].as_f64().unwrap_or(f64::NAN) + b["width"].as_f64().unwrap_or(f64::NAN) / 2.;
+            (mid as f32 - cell_x - cell_width / 2.).abs()
+                <= number(&l["fontSize"]).unwrap_or(0.) * 0.75
+        });
     let mut para = Paragraph::new_empty();
     para.char_count_msb = true;
     para.char_shapes.clear();
     para.line_segs.clear();
     let mut last_end = top;
     let mut utf16 = 0;
+    let mut tabs = Vec::new();
     for (line_no, line) in lines.iter().enumerate() {
         let indices = refs(&line["spanIndices"])?;
         if indices.is_empty() {
@@ -124,7 +168,14 @@ fn paragraph(
         } else {
             line_top + size
         };
-        let (text, runs) = text_with_spaces(page, &indices);
+        let (text, runs) = if fixed_line_height {
+            let (text, runs, line_tabs, extensions) = text_with_tabs(page, &indices, cell_x)?;
+            tabs.extend(line_tabs);
+            para.tab_extended.extend(extensions);
+            (text, runs)
+        } else {
+            text_with_spaces(page, &indices)
+        };
         // Preserve explicit PDF line grouping; paragraph boundaries remain heuristic.
         if line_no > 0 {
             para.text.push('\n');
@@ -167,6 +218,9 @@ fn paragraph(
     para.has_para_text = true;
     let mut style = doc.doc_info.para_shapes[0].clone();
     style.raw_data = None;
+    if fixed_line_height {
+        style.attr1 &= !(1 << 8);
+    }
     style.attr2 = (style.attr2 & !PARA_ATTR2_LINE_WRAP_MASK) | 1;
     style.alignment = if centered {
         Alignment::Center
@@ -175,6 +229,8 @@ fn paragraph(
     };
     style.margin_left = if centered {
         0
+    } else if fixed_line_height {
+        physical_margin(number(&first["bbox"]["x"])? - cell_x)?
     } else {
         hu(2. * (number(&first["bbox"]["x"])? - cell_x))? as i32
     };
@@ -182,13 +238,23 @@ fn paragraph(
     style.indent = 0;
     style.spacing_before = 0;
     style.spacing_after = 0;
+    if !tabs.is_empty() {
+        tabs.sort_by_key(|t| t.position);
+        tabs.dedup_by_key(|t| t.position);
+        style.tab_def_id = u16::try_from(doc.doc_info.tab_defs.len())
+            .map_err(|_| "too many PDF line tab definitions")?;
+        doc.doc_info.tab_defs.push(TabDef {
+            tabs,
+            ..Default::default()
+        });
+    }
     style.line_spacing_type = if fixed_line_height {
         LineSpacingType::Fixed
     } else {
         LineSpacingType::Percent
     };
     style.line_spacing = if fixed_line_height {
-        hu(2. * number(&first["fontSize"])?)? as i32
+        physical_margin(number(&first["fontSize"])?)?
     } else if lines.len() > 1 {
         ((number(&lines[1]["baseline"])? - number(&first["baseline"])?)
             / number(&first["fontSize"])?
@@ -341,75 +407,6 @@ fn cell_border(doc: &mut Document, controls: &[Control], bounds: &Value) -> Resu
 }
 
 impl TableBuilder<'_> {
-    fn positional_line(
-        &self,
-        doc: &mut Document,
-        line: &Value,
-        cell_box: &Value,
-    ) -> Result<FlowItem, String> {
-        let size = number(&line["fontSize"])?;
-        let top = number(&line["baseline"])? - size * 0.95;
-        let mut host = Paragraph::new_empty();
-        host.char_count_msb = true;
-        host.control_mask = 0x800;
-        host.char_shapes = vec![CharShapeRef {
-            start_pos: 0,
-            char_shape_id: 0,
-        }];
-        let mut cursor = number(&cell_box["x"])?;
-        for i in refs(&line["spanIndices"])? {
-            let control = self.span_controls[i].ok_or("missing positional span")?;
-            let Control::Shape(original) = &self.controls[control] else {
-                return Err("invalid positional span control".into());
-            };
-            let mut shape = original.clone();
-            let c = shape.common_mut();
-            let left = c.horizontal_offset as f32 / 100.;
-            if left < cursor - 0.5 {
-                return Err("overlapping positional spans".into());
-            }
-            let vertical = i32::try_from(c.vertical_offset).map_err(|e| e.to_string())?;
-            c.margin.left = 0;
-            c.treat_as_char = false;
-            c.horz_rel_to = HorzRelTo::Para;
-            c.vert_rel_to = VertRelTo::Para;
-            c.horizontal_offset = hu(left - number(&cell_box["x"])?)?;
-            c.vertical_offset = vertical
-                .checked_sub(i32::try_from(hu(top)?).map_err(|e| e.to_string())?)
-                .ok_or("relative text-box offset overflow")? as u32;
-            c.text_wrap = TextWrap::InFrontOfText;
-            c.flow_with_text = true;
-            c.allow_overlap = true;
-            cursor = left + c.width as f32 / 100.;
-            host.controls.push(Control::Shape(shape));
-        }
-        host.char_count = 1 + host.controls.len() as u32 * 8;
-        let mut ps = doc.doc_info.para_shapes[0].clone();
-        ps.raw_data = None;
-        ps.margin_left = 0;
-        ps.margin_right = 0;
-        ps.indent = 0;
-        ps.spacing_before = 0;
-        ps.spacing_after = 0;
-        ps.line_spacing_type = LineSpacingType::Fixed;
-        ps.line_spacing = hu(2. * size)? as i32;
-        host.para_shape_id =
-            u16::try_from(doc.doc_info.para_shapes.len()).map_err(|e| e.to_string())?;
-        doc.doc_info.para_shapes.push(ps);
-        host.line_segs = vec![LineSeg {
-            line_height: hu(size)? as i32,
-            text_height: hu(size)? as i32,
-            baseline_distance: hu(size)? as i32,
-            segment_width: hu(number(&cell_box["width"])?)? as i32,
-            tag: LineSeg::TAG_SINGLE_SEGMENT_LINE,
-            ..Default::default()
-        }];
-        Ok(FlowItem {
-            top,
-            bottom: top + size,
-            paragraph: host,
-        })
-    }
     fn build(
         &self,
         doc: &mut Document,
@@ -552,18 +549,14 @@ impl TableBuilder<'_> {
                 if family {
                     // PDF line geometry is evidence even when authored paragraph grouping is unresolved.
                     for line in array(&proposal["lines"])? {
-                        if proposal["status"] == "Deferred" {
-                            flow.push(self.positional_line(doc, line, cb)?);
-                        } else {
-                            flow.push(paragraph(
-                                page,
-                                doc,
-                                &json!({"lines":[line]}),
-                                cb,
-                                shape_ids,
-                                true,
-                            )?);
-                        }
+                        flow.push(paragraph(
+                            page,
+                            doc,
+                            &json!({"lines":[line]}),
+                            cb,
+                            shape_ids,
+                            true,
+                        )?);
                     }
                 } else if proposal["status"] == "Confirmed" {
                     flow.push(paragraph(page, doc, proposal, cb, shape_ids, false)?);
@@ -607,23 +600,21 @@ impl TableBuilder<'_> {
                 }];
                 let mut ps = doc.doc_info.para_shapes[0].clone();
                 ps.raw_data = None;
+                ps.attr1 &= !(1 << 8);
                 ps.margin_left = 0;
                 ps.margin_right = 0;
                 ps.indent = 0;
                 ps.spacing_before = 0;
                 ps.spacing_after = 0;
-                ps.line_spacing_type = LineSpacingType::Fixed;
-                ps.line_spacing = i32::try_from(height)
-                    .ok()
-                    .and_then(|height| height.checked_mul(2))
-                    .ok_or("nested line height exceeds format range")?;
+                ps.line_spacing_type = LineSpacingType::SpaceOnly;
+                ps.line_spacing = 0;
                 host.para_shape_id =
                     u16::try_from(doc.doc_info.para_shapes.len()).map_err(|e| e.to_string())?;
                 doc.doc_info.para_shapes.push(ps);
                 host.line_segs = vec![LineSeg {
                     line_height: height as i32,
                     text_height: height as i32,
-                    baseline_distance: height as i32,
+                    baseline_distance: (height as f32 * 0.85).round() as i32,
                     segment_width: cell.width as i32,
                     tag: LineSeg::TAG_SINGLE_SEGMENT_LINE,
                     ..Default::default()
@@ -720,15 +711,22 @@ impl TableBuilder<'_> {
                 if picture {
                     // Place the inter-item gap before the inline image's flow origin.
                     if let Some(style) = previous_style {
-                        doc.doc_info.para_shapes[style as usize].spacing_after =
-                            hu(2. * gap)? as i32;
+                        doc.doc_info.para_shapes[style as usize].spacing_after = if family {
+                            physical_margin(gap)?
+                        } else {
+                            hu(2. * gap)? as i32
+                        };
                     } else {
                         cell.padding.top = i16::try_from(hu(gap)?)
                             .map_err(|_| "cell padding exceeds format range")?;
                     }
                 } else {
                     doc.doc_info.para_shapes[item.paragraph.para_shape_id as usize]
-                        .spacing_before = hu(2. * gap)? as i32;
+                        .spacing_before = if family {
+                        physical_margin(gap)?
+                    } else {
+                        hu(2. * gap)? as i32
+                    };
                 }
                 if flow_index == 0 && item.paragraph.controls.is_empty() {
                     // Stored cell starts own their lead in the frame, not flow_before.
@@ -855,6 +853,7 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
         });
         let style_start = doc.doc_info.para_shapes.len();
         let border_start = doc.doc_info.border_fills.len();
+        let tab_start = doc.doc_info.tab_defs.len();
         let mut candidate_removed = BTreeSet::new();
         let built = builder.build(
             &mut doc,
@@ -871,6 +870,7 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
             Err(reason) => {
                 doc.doc_info.para_shapes.truncate(style_start);
                 doc.doc_info.border_fills.truncate(border_start);
+                doc.doc_info.tab_defs.truncate(tab_start);
                 held.push(json!({"candidate":candidate,"reason":reason}));
             }
         }
@@ -922,6 +922,14 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
 mod tests {
     use super::*;
     use pdf_oxide::elements::{PathContent, PathOperation};
+
+    #[test]
+    fn pdf_physical_measure_cannot_turn_into_character_units() {
+        assert_eq!(physical_margin(3.725).unwrap(), 746);
+        assert_eq!(physical_margin(0.).unwrap(), 0);
+        assert!(physical_margin(f32::INFINITY).is_err());
+        assert!(physical_margin(20_000_000.).is_err());
+    }
 
     fn grid() -> Vec<PathContent> {
         [

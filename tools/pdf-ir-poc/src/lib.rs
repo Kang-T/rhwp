@@ -131,6 +131,7 @@ fn compile_with_rules(
             "paragraphs":document.sections[0].paragraphs,
             "charShapes":document.doc_info.char_shapes,
             "paraShapes":document.doc_info.para_shapes,
+            "tabDefs":document.doc_info.tab_defs,
             "fonts":document.doc_info.font_faces
         }
     });

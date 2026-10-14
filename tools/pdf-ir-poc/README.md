@@ -123,6 +123,16 @@ R2는 검증된 부모 셀 안의 1행/1열 표 탐색과 잉크로 지지되는
 실제 한컴 Print는 67.01952%/39.91311%로 불합격이며 R3 재조판 보정을 진행한다.
 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r2/`에 보존했다.
 
+R3는 중첩 셀의 모든 PDF 줄을 실제 Paragraph/Run으로 내보내고, 물리 좌표가 CHAR 단위로
+직렬화되지 않도록 `2 × hu(points)` 변환을 사용한다. span 간격에는 실제 저장 탭 폭을 넣는다.
+선택 7쪽/8쪽 Native/fresh WASM은 93.76171%/94.12229%, 실제 한컴 Print는
+94.05924%/92.76461%이며 글자 614/714개가 각각 전부 보존됐다.
+한컴 HWP 저장 진단에서도 `<표 5>` 호스트의 잘못된 추가 높이 27.8pt가 해소됐음을 확인했다.
+범위는 선택한 두 1쪽 문서이며 전체 12쪽 변환과 한컴 UI 편집 통과를 뜻하지 않는다.
+Native/WASM 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r3-verified/`,
+한컴 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r3/`에 있다.
+상세 실험과 독립 근거는 [R3 결과](NESTED_TABLES.md#r3-결과-2026-10-14)를 참조한다.
+
 ```sh
 cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked \
   --target-dir target/pr-review -- pdf/issue5875/nested_table_text_caption-2020.pdf \
@@ -134,8 +144,8 @@ cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked
 Git에는 Rust/JS 소스, Cargo.lock, 이 문서만 보존한다. WASM/HWPX/SVG/PNG와 실행 manifest는
 ignored output에 둔다. 검증·빌드 target은 저장소 공용 `target/pr-review`다.
 
-후속 과제는 실물 미인식 내부 표의 원본 획 추적, 한 행짜리 표의 오검출 방지 기준,
-한컴 중첩 표 조판/편집 검증, 글꼴과 세부 간격 복원, 한 변 안의 혼합 테두리,
+후속 과제는 선택 범위 밖 미인식 내부 표의 원본 획 추적, 한 행짜리 표의 추가 오검출 검증,
+한컴 UI 편집 검증, 글꼴과 세부 간격 복원, 한 변 안의 혼합 테두리,
 borderless 표 및 원본 전쪽 변환이다. 기존 B본은 비교 기준으로 보존한다.
 
 보안 한계: 입력/추출 결과 예산만 있으며 parser 내부 선행 할당·압축 폭탄·CPU 상한은

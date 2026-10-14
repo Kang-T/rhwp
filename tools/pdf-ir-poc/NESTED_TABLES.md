@@ -354,3 +354,50 @@ R3에서 정상 원본 HWP의 호스트 메트릭과 실제 셀 텍스트 표현
 
 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r2/`의
 `verification/`, `browser/evidence/`, `hancom/`에 있다.
+
+### R3 결과 (2026-10-14)
+
+R2를 `6faf10987`에 커밋한 뒤 한컴 재조판 계약을 보정했다.
+빈 호스트의 떠 있는 글상자 대신 PDF의 각 줄을 실제 셀 Paragraph/Run으로 만든다.
+작성 당시의 문단 경계·정렬 의미를 복원했다고 주장하지 않으며 줄의 좌측 원점을 유지한다.
+span 간 큰 공백은 TabDef와 원본 PDF에서 측정한 실제 탭 폭으로 표현한다.
+자리표 폭 0은 rhwp에서는 TabDef로 재계산되지만 한컴에서는 공백이 사라지므로 사용하지 않는다.
+
+핵심 결함은 **PDF 물리 좌표를 문단 IR의 단위 비트에 잘못 넣었던 것**이다.
+`hu(2 × points)`를 반올림하면 홀수가 될 수 있다. 문단 여백의 홀수 IR 값은
+HWPUNIT의 소수 정밀도가 아니라 CHAR 단위 플래그로 직렬화된다.
+생성하는 물리 간격은 `2 × hu(points)`로 변환해 이 플래그를 만들지 않는다.
+제품 serializer는 변경하지 않았으며 기존 B본/단일 표 출력 경로는 유지했다.
+
+한컴 저장 HWP에서 `<표 5>`의 호스트 줄 시작은 수정 전 4674에서 수정 후 1894 HWPUNIT으로
+변했다. 앞 캡션의 `spacing_after`는 잘못된 CHAR 표현 1391에서 물리 표현 1390으로 바뀐다.
+차이는 단순 0.01pt 반올림 오차가 아니라 실제 줄 시작의 **27.8pt 차이**다.
+독립 한컴 Print에서 8쪽 하단 누락도 해소됐다.
+셀 padding, 줄 상자, inter-item gap은 같은 PDF 점유 상자의 원점/끝점을 사용한다.
+인라인 자식은 정상 원본의 baseline 비율 85%를 쓰며 추가 줄 간격을 0으로 분리한다.
+
+실험은 덮어쓰지 않고 `nested-tables-retry-r3a`부터 `r3g`까지 보존했다.
+baseline 변경, 추가 줄 간격 제거, 실제 문단 전환, snapToGrid 해제만으로는
+8쪽 한컴 점수가 약 39.96%에 머물렀다. 물리 단위 수정은 88.24422%,
+폭 없는 탭 후보는 86.92926%, 실제 저장 폭을 넣은 후보는 **92.76461%**다.
+첫 단일 자식 1행 2열의 진단은 `r3d/single-child/`와 `r3d/probes-hancom/`에 있고,
+저장 LineSeg를 전부 뺀 후보도 기존 실패와 동일한 조판이어서 캐시만의 문제로 설명하지 않는다.
+단일 자식 진단은 전체 원본 PDF 일치율의 근거로 사용하지 않는다.
+
+| 선택 원본 | Native / fresh WASM | 실제 한컴 Print | 한컴 공백 제외 글자 |
+| --- | --- | --- | --- |
+| 7쪽 | 양쪽 93.76171% | 94.05924% | 614 / 614, multiset 동일 |
+| 8쪽 | 양쪽 94.12229% | 92.76461% | 714 / 714, multiset 동일 |
+
+각 선택 문서의 전체 1쪽을 검사했고 Native/WASM PNG는 서로 동일하다.
+선행 시각 검증 최저 92.37282%(단일 표 대조군)와 직접 판독 뒤 실제 셀 텍스트·물리 단위·
+저장 탭 폭 검사를 추가했다. 빈 프레임 셀은 PDF 줄이 아니므로 격자 맞춤 검사와 구별했다.
+가족 실패 시 TabDef 풀도 함께 rollback한다. 최종 71개 POC 검사, Native/WASM Clippy와
+fresh WASM Worker를 통과했고 B본/단일 표 HWPX의 byte-identical 보존도 확인했다.
+
+Native/fresh WASM 최종 검증·소스 해시는 `nested-tables-retry-r3-verified/`에,
+한컴 Print job·입출력 SHA·전체 쪽수·글자·쪽별 TSV는 `nested-tables-retry-r3/hancom/`에 있다.
+메인테이너가 추가 승인한 HWP 저장 진단은 같은 루트의 `hancom-save/`에 있고
+`host_probe`로 수정 전후 셀 흐름을 추출했다. 이 저장 진단은 Print 또는 편집 검증을 대신하지 않는다.
+실제 한컴 제품은 11.0.0.9136, engine 2020, Print method 0과 one-up driver 경로를 확인했다.
+R4에서 이 head의 전체 선택 쪽과 나머지 12쪽의 인식 진단을 재확인한다.

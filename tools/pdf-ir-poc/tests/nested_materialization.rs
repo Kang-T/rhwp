@@ -263,12 +263,72 @@ fn failed_descendant_rolls_back_the_entire_family_and_style_pools() {
         baseline.document.doc_info.border_fills.len()
     );
     assert_eq!(
+        c.document.doc_info.tab_defs.len(),
+        baseline.document.doc_info.tab_defs.len()
+    );
+    assert_eq!(
         c.report["lowering"]["deferredTables"]
             .as_array()
             .unwrap()
             .len(),
         1
     );
+}
+
+#[test]
+fn real_pdf_lines_use_editable_cell_text_and_physical_spacing() {
+    fn inspect(table: &Table, doc: &Document, tabs: &mut usize) {
+        for cell in &table.cells {
+            for p in &cell.paragraphs {
+                if p.text.is_empty() && p.controls.is_empty() {
+                    continue;
+                }
+                let ps = &doc.doc_info.para_shapes[p.para_shape_id as usize];
+                for measure in [
+                    ps.margin_left,
+                    ps.margin_right,
+                    ps.indent,
+                    ps.spacing_before,
+                    ps.spacing_after,
+                ] {
+                    assert_eq!(measure % 2, 0, "PDF points must not use CHAR units");
+                }
+                assert_eq!(
+                    ps.attr1 & (1 << 8),
+                    0,
+                    "PDF line positions do not snap to a document grid"
+                );
+                assert_eq!(p.text.matches('\t').count(), p.tab_extended.len());
+                for extension in &p.tab_extended {
+                    assert!(
+                        !rhwp::model::paragraph::tab_ext_is_placeholder(extension),
+                        "Hancom requires a real PDF span gap, not a zero-width marker"
+                    );
+                    *tabs += 1;
+                }
+                for control in &p.controls {
+                    match control {
+                        Control::Table(t) => inspect(t, doc, tabs),
+                        Control::Picture(_) => {}
+                        _ => {
+                            panic!("PDF lines must remain editable text, not floating cell shapes")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for page in [6, 7] {
+        let c = compile_page_tables(&input(), page).unwrap();
+        let loaded = rhwp::parse_document(&c.hwpx).unwrap();
+        let mut before_tabs = 0;
+        let mut after_tabs = 0;
+        inspect(roots(&c.document)[0], &c.document, &mut before_tabs);
+        inspect(roots(&loaded)[0], &loaded, &mut after_tabs);
+        assert!(before_tabs > 0);
+        assert_eq!(before_tabs, after_tabs);
+        assert_eq!(chars(&text(&c.document)), chars(&text(&loaded)));
+    }
 }
 
 #[test]
