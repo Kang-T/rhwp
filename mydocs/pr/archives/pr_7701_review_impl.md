@@ -1354,3 +1354,39 @@ Skia 통과를 선언하지 않는다. 글꼴 후보의 부재와 기본 메트�
 (`c51-symbol-font-evidence.json`). 1em이나 화면 간격에 맞춘 값을 가정하지 않는다.
 해당 공개 OFL 프로그램의 bytes·hash·라이선스 및 공급 규칙을 함께 보존하고, 실제
 Native SVG/Skia·fresh WASM·Canvas 출력과 전2쪽 비교에서 다시 확인한다.
+
+### 기호의 동일 프로그램·전진폭과 실제 Skia 복구 — 2026-10-14
+
+`09da34a19`에서 원문 F06D 한 글자를 별도 표시 런으로 보존하고, 같은 `text_style`
+소비자가 Noto Sans Symbols2와 직접 추출한916/1000 em 메트릭을 선택하게 했다.
+결합 문자는 grapheme 내부에서 나누지 않고, 표시 길이가 다른 옛한글·삽입 컨트롤은
+이 한 글자 투영으로 추정하지 않는다. 본문과 source의 글꼴·문자·오프셋은 유지했다.
+공개 OFL 프로그램은 `assets/fonts`와 기존 Native 번들 경로 `ttfs/opensource`에
+같은 SHA로 보존했다. Studio 공개 fonts는 기존 assets symlink를 소비한다.
+공급 변경은 기존3개 change set을 보존한 reducer로 sequence4/5를 적용했다.
+최종 registry는835규칙·833 active·2 retired이며 projection check는종료0이다.
+초기 migration-only generate 및 잘못된 capability/parent digest 준비 오류는
+수정했으며 기존 유지·이관 이력을 지우지 않았다. 기존 기대값이나 시각 기준을
+완화한 변경은 아니다.
+
+새 Native Skia 빌드는5분32초·종료0이고 전8문서94쪽도 driver종료0으로 완료했다
+(`c51-native-completed-summary.json`). `issue5884` 전2쪽 Native SVG는
+98.56737%/98.72130%, 쪽수2/2·누락0이다. 실제 tree의 F06D는 한 source 문자로
+보존됐고 표시 문자 U+1F53E의 폭은14.7px(16px×916/1000의 출력 반올림)이다.
+이 수치는 프로그램 메트릭의 관측이며 실물 위치를 고정하는 기대값이 아니다.
+정상49쪽과 source-frame31쪽도90% 이상이다. `issue6122`의2·6·7쪽 미달은
+기존과 같다. 이 방향 확인을 원래54문서1849 Print쪽의 최종 완료로 확대하지 않는다.
+
+실제 Native Skia도 같은 원본의 전2쪽을 새로 `export-png`하고 같은 Print raster로
+측정했다(`c51-issue5884-skia-silhouette`). 1쪽97.94466%,2쪽99.01302%다.
+`c51-issue5884-native-skia/p001-glyph-backends-5x.png`를 직접 열어 이전 Skia의
+누락 기호가 같은 프로그램의 그림자 원으로 복구된 것을 확인했다. 전체 수식·간격의
+fresh WASM/Canvas 판독은 아직 별도로 필요하며 회귀 검사 변경은 시작하지 않았다.
+
+Studio 타입 검사는종료0이었다. 첫 unit은 카탈로그 수량만1841PASS/1FAIL이었다.
+새 공급 규칙으로 Canvas2D153→154, CanvasKit158→159가 된 독립 변경 계약에
+맞춰 기존 구조 검사 두 수량을 수정한 `d47938174` 후1842건 전부통과했다
+(`c51-studio-unit-r2.log`). 렌더링 baseline/px 핀 변경이 아니며 source unit-tier
+정책도 고정b3eaf7b10에서종료0이다. 최종 Rust lint·전체 회귀·실제 브라우저와
+원래 전범위의 시각 검증은 아직 미완료다. C51 fresh WASM은 고정 target/jobs8로
+진행 중이며 해당 빌드의 source/font SHA guard와 결과를 수집한 뒤 다음 단계로 간다.
