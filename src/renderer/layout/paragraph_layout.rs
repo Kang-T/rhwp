@@ -2553,10 +2553,9 @@ fn compute_line_extra_spacing(
                     0.0,
                 )
             } else {
-                // A projected soft-wrap still carries its consumed separator.
-                // That final space advances too; distribute over all slots in
-                // this case. Other rows distribute between visible glyphs.
-                let slots = total_char_count - usize::from(!renders_synthetic_wrap_trailing_space);
+                // 저장 줄과 합성 줄은 같은 글자 사이 간격을 사용한다.
+                // 말미 구분 공백의 별도 정렬 플래그를 다시 적용하지 않는다.
+                let slots = total_char_count - 1;
                 let raw = slack / slots as f64;
                 let avg_char_w = total_text_width / total_char_count as f64;
                 let min_sp = -avg_char_w * 0.5;

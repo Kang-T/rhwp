@@ -3047,9 +3047,7 @@ fn inline_control_requires_own_line(
     } else {
         to_hwp(available_width_px)
     };
-    let scope = ParagraphMetricScope::new(text_chars, styles)
-        .with_reflow_slots(text_chars)
-        .with_space_metric(space_metric);
+    let scope = ParagraphMetricScope::new(text_chars, styles).with_space_metric(space_metric);
     let width_of = |range: Range<usize>| {
         let text: String = text_chars[range.clone()].iter().collect();
         to_hwp(measure_token_width(
