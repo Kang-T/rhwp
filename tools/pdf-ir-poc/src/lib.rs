@@ -3,6 +3,8 @@ mod lowering;
 pub mod recognition;
 mod structured_lowering;
 pub mod table_detection;
+pub mod table_hierarchy;
+pub mod table_topology;
 
 use pdf_oxide::{elements::PathContent, extractors::PdfImage, layout::TextSpan, PdfDocument};
 use rhwp::model::document::Document;

@@ -515,6 +515,21 @@ fn validate_table(table: &Value, span_count: usize, image_count: usize) -> Resul
     if occupied.iter().any(|v| !*v) {
         return Err("uncovered grid slots".into());
     }
+    crate::table_topology::evidence(
+        rows,
+        cols,
+        &cells
+            .iter()
+            .map(|c| {
+                Ok((
+                    index(&c["row"])?,
+                    index(&c["column"])?,
+                    index(&c["rowspan"])?,
+                    index(&c["colspan"])?,
+                ))
+            })
+            .collect::<Result<Vec<_>, String>>()?,
+    )?;
     Ok(())
 }
 
@@ -567,6 +582,47 @@ pub fn recognize_page(
     let candidates = detection["tables"]
         .as_array()
         .ok_or("table candidates missing")?;
+    if candidates.len() > 128 {
+        return Err("table recognition budget exceeded".into());
+    }
+    let validations: Vec<_> = candidates
+        .iter()
+        .map(|t| validate_table(t, spans.len(), images.len()))
+        .collect();
+    let valid_ids: Vec<_> = validations
+        .iter()
+        .enumerate()
+        .filter_map(|(i, v)| v.is_ok().then_some(i))
+        .collect();
+    let geometry = valid_ids
+        .iter()
+        .map(|i| {
+            let t = &candidates[*i];
+            Ok((
+                rect(&t["bbox"])?,
+                t["cells"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|c| rect(&c["bbox"]))
+                    .collect::<Result<Vec<_>, String>>()?,
+            ))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let composed = crate::table_hierarchy::compose(&geometry)?;
+    let mut placements = vec![
+        crate::table_hierarchy::Placement {
+            parent: None,
+            depth: 0,
+            embedding: None,
+            deferred: None
+        };
+        candidates.len()
+    ];
+    for (local, &global) in valid_ids.iter().enumerate() {
+        placements[global] = composed[local].clone();
+        placements[global].parent = composed[local].parent.map(|(p, c)| (valid_ids[p], c));
+    }
     let mut tables = Vec::new();
     let mut regions = Vec::new();
     let mut reserved = BTreeSet::new();
@@ -597,7 +653,23 @@ pub fn recognize_page(
         }
     }
     for (ti, t) in candidates.iter().enumerate() {
-        let context = vec!["page".to_string(), format!("table:{ti}")];
+        let mut chain = vec![ti];
+        let mut at = ti;
+        for _ in 0..16 {
+            let Some((parent, _)) = placements[at].parent else {
+                break;
+            };
+            chain.push(parent);
+            at = parent;
+        }
+        chain.reverse();
+        let mut context = vec!["page".to_string()];
+        for (level, &table) in chain.iter().enumerate() {
+            if level > 0 {
+                context.push(format!("cell:{}", placements[table].parent.unwrap().1));
+            }
+            context.push(format!("table:{table}"));
+        }
         let mut machine = TableMachine {
             state: TableState::Searching,
             trace: Trace {
@@ -616,7 +688,24 @@ pub fn recognize_page(
             "check_grid_and_owners",
             json!({}),
         )?;
-        let validation = validate_table(t, spans.len(), images.len()).and_then(|_| {
+        let validation = validations[ti].clone().and_then(|_| {
+            if let Some(reason) = &placements[ti].deferred {
+                return Err(reason.clone());
+            }
+            if context.len() + 2 > policy.max_context_depth {
+                return Err("recognition context depth exceeded".into());
+            }
+            if t["hierarchy"]["status"] == "Deferred" {
+                return Err("detector deferred table composition".into());
+            }
+            if !t["hierarchy"].is_null() {
+                let expected = placements[ti]
+                    .parent
+                    .map(|(table, cell)| json!({"table":table,"cell":cell}));
+                if t["hierarchy"]["parent"] != json!(expected) {
+                    return Err("detector parent disagrees with cell-slot geometry".into());
+                }
+            }
             if !contains(page_bounds, rect(&t["bbox"])?) {
                 return Err("table outside page".into());
             }
@@ -693,10 +782,18 @@ pub fn recognize_page(
         for (ci, c) in t["cells"].as_array().unwrap().iter().enumerate() {
             let mut cell_context = context.clone();
             cell_context.push(format!("cell:{ci}"));
-            let obstacles = indices(&c["imageIndices"])?
+            let mut obstacles: Vec<_> = indices(&c["imageIndices"])?
                 .iter()
                 .map(|i| image_boxes[*i])
                 .collect();
+            let child_tables: Vec<_> = placements
+                .iter()
+                .enumerate()
+                .filter_map(|(child, p)| (p.parent == Some((ti, ci))).then_some(child))
+                .collect();
+            for child in &child_tables {
+                obstacles.push(rect(&candidates[*child]["bbox"])?);
+            }
             let region = Region {
                 context: cell_context,
                 bbox: rect(&c["bbox"])?,
@@ -705,7 +802,7 @@ pub fn recognize_page(
             };
             let result = recognize_region(spans, &region, media_box, policy)?;
             children
-                .push(json!({"cell":ci,"row":c["row"],"column":c["column"],"imageIndices":c["imageIndices"],"recognition":result}));
+                .push(json!({"cell":ci,"row":c["row"],"column":c["column"],"imageIndices":c["imageIndices"],"childTableIndices":child_tables,"recognition":result}));
         }
         machine.step(
             TableEvent::EndCells,
@@ -714,8 +811,34 @@ pub fn recognize_page(
         )?;
         tables.push(
             json!({"candidate":ti,"status":"GeometryConfirmed","semanticStatus":"unverified",
+            "parent":placements[ti].parent.map(|(table,cell)|json!({"table":table,"cell":cell})),
+            "depth":placements[ti].depth,
             "cells":children,"transitions":machine.trace.records}),
         );
+    }
+    for _ in 0..=16 {
+        let mut changed = false;
+        for i in 0..placements.len() {
+            if let Some((parent, _)) = placements[i].parent {
+                if (tables[i]["status"] == "Deferred") != (tables[parent]["status"] == "Deferred") {
+                    let held = if tables[i]["status"] == "Deferred" {
+                        parent
+                    } else {
+                        i
+                    };
+                    tables[held]["status"] = json!("Deferred");
+                    tables[held]["reason"] = json!("unresolved nested table context");
+                    tables[held]["transitions"].as_array_mut().unwrap().push(json!({
+                        "actor":"table","from":"Complete","to":"Deferred","event":"HoldSubtree",
+                        "reason":"unresolved nested table context","evidence":{"child":i,"parent":parent}
+                    }));
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
     }
     let remaining: Vec<_> = spans
         .iter()
@@ -738,10 +861,10 @@ pub fn recognize_page(
         regions.push(recognize_region(spans, &region, media_box, policy)?);
     }
     Ok(
-        json!({"algorithm":"hierarchical-efsm-v1","acceptance":"rule-based proposals, not authored paragraph/table metadata",
+        json!({"algorithm":"hierarchical-efsm-v2","acceptance":"rule-based proposals, not authored paragraph/table metadata",
         "policy":{"baselineToleranceEm":policy.baseline_tolerance_em,"alignmentToleranceEm":policy.alignment_tolerance_em,
             "paragraphGapEm":policy.paragraph_gap_em,"maxContextDepth":policy.max_context_depth},
         "tables":tables,"bodyRegions":regions,"unresolvedContent":ambiguous,"renderingIrChanged":false,
-        "limits":["body columns require explicit segmentation; disjoint runs deferred","nested tables and tagged semantics not reconstructed"]}),
+        "limits":["body columns require explicit segmentation; disjoint runs deferred","nested cell-slot structure inferred; nested Table IR materialization deferred","tagged semantics not reconstructed"]}),
     )
 }

@@ -7,6 +7,8 @@
 
 - `pdf_oxide 0.3.78`에서 span/image/path를 추출하여 기존 rhwp Document IR로 lowering한다.
 - 괘선 격자 검출기와 계층형 표/문단 상태머신이 소유권·후보·보류 근거를 남긴다.
+- 중첩 표는 셀 복합체의 F2 경계·호몰로지 검증과 셀 슬롯 대입 모델로 계층을 인식한다.
+  구현과 수학적 적용 한계는 [중첩 표 POC](NESTED_TABLES.md)에 정리했다.
 - 기본 변환은 배치형 글상자·그림·도형이다. `--tables`는 geometry-confirmed 표 후보를
   실제 Table/Cell/Paragraph IR로 생성하며 불확실한 후보는 배치형 경로에 보류한다.
 - 글상자는 명시적 0 여백과 단일 줄 SQUEEZE로 저장한다. 제품 serializer가 생략한 0 여백은
@@ -57,6 +59,24 @@ node tools/pdf-ir-poc/verify-visual.mjs "$PWD" output/poc/pdf-ir
 - **새 표 객체 출력은 한컴 미검증**이다. 기존 B본의 확인을 새 모드로 승격하지 않는다.
   재열기 조판/편집 후 저장 및 전쪽 변환도 별도로 확인해야 한다.
 
+## 중첩 인식 단계 검증 (2026-10-14)
+
+- 기존 47개와 새 중첩 계약 12개, 총 59개 POC 검사가 통과했다.
+  Native/WASM Clippy와 fresh WASM Worker 실행을 확인했다.
+- 독립 합성 PDF의 3단계 표 계층·단일 내용 소유권은 Native/WASM 보고서가 일치했다.
+  중첩 객체화는 보류하며 배치형 HWPX를 그대로 유지한다. 이 출력의 PDF 실루엣은 양쪽 100%다.
+- 기존 B본과 단일 표 객체 HWPX는 변경 전 파일과 byte-identical이다.
+  단일 표 출력은 Native/WASM 각각 92.37282%, B본은 98.35443%를 유지했다.
+- 실제 `nested_table_text_caption-2020.pdf` 전체 12쪽을 Native에서 인식 진단했다.
+  7쪽은 부모 1개/자식 3개, 8쪽은 부모 1개/자식 2개를 인식했다. 원본 PDF도 직접 판독했다.
+- **실물 전수 인식은 미완료**다. 7쪽의 `<표 2>`는 부분 내부 가로 경계로 보류됐고,
+  8쪽의 `<표 6>`·`<표 7>`은 한 행짜리 격자로 현재 기본 검출 범위 밖이다.
+  인식되지 않은 내부 표의 내용은 부모 영역에 남을 수 있으므로 의미 복원 완료가 아니다.
+  3쪽은 모호한 내용 소유권으로 보류됐다. 이 진단은 전쪽 HWPX 변환·시각 통과를 뜻하지 않는다.
+- 재현 output: `output/poc/pdf-ir-20261014/nested-recognition/`.
+  `nested-probe.json`은 실물 전쪽 진단, `verification/`은 검사·lint·해시·TSV 요약,
+  `browser/evidence/`는 Native/fresh WASM 결과다. 한컴 중첩 조판·편집은 미검증이다.
+
 ```sh
 cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked \
   --target-dir target/pr-review -- pdf/issue5875/nested_table_text_caption-2020.pdf \
@@ -68,8 +88,9 @@ cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked
 Git에는 Rust/JS 소스, Cargo.lock, 이 문서만 보존한다. WASM/HWPX/SVG/PNG와 실행 manifest는
 ignored output에 둔다. 검증·빌드 target은 저장소 공용 `target/pr-review`다.
 
-후속 과제는 한컴의 새 표 객체 조판/편집 검증, 글꼴과 세부 간격 복원, 혼합 테두리,
-borderless/중첩 표 및 원본 전쪽 변환이다. 기존 B본은 비교 기준으로 보존한다.
+후속 과제는 실물 미인식 내부 표의 원본 획 추적, 한 행짜리 표의 오검출 방지 기준,
+중첩 Table IR 객체화와 한컴 조판/편집 검증, 글꼴과 세부 간격 복원, 혼합 테두리,
+borderless 표 및 원본 전쪽 변환이다. 기존 B본은 비교 기준으로 보존한다.
 
 보안 한계: 입력/추출 결과 예산만 있으며 parser 내부 선행 할당·압축 폭탄·CPU 상한은
 보장하지 않는다. 제품 통합 전에 Worker 종료 정책과 손상/공격성 PDF 검증이 필요하다.

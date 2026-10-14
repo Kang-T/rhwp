@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
+import { nestedPdf } from "./fixtures/nested-grid.mjs";
 
 const root=path.dirname(new URL(import.meta.url).pathname);
 const repo=path.resolve(process.argv[2] || "");
@@ -35,6 +36,10 @@ try {
   }
   run("table-painted-native","cargo",["+1.93.1","run",...shared,"--",path.join(repo,inputs.table),path.join(output,"table-painted-page"),"--painted-rules"]);
   run("table-structured-native","cargo",["+1.93.1","run",...shared,"--",path.join(repo,inputs.table),path.join(output,"table-structured-page"),"--tables"]);
+  await fs.writeFile(path.join(output,"nested-input.pdf"),await nestedPdf());
+  for (const mode of ["painted","structured"]) {
+    run(`nested-${mode}-native`,"cargo",["+1.93.1","run",...shared,"--",path.join(output,"nested-input.pdf"),path.join(output,`nested-${mode}-page`),mode==="painted"?"--painted-rules":"--tables"]);
+  }
   run("wasm-build","cargo",["+1.93.1","build",...shared,"--lib","--target","wasm32-unknown-unknown"]);
   run("wasm-bindgen",bindgen,[path.join(repo,"target/pr-review/wasm32-unknown-unknown/release/rhwp_pdf_oxide_poc.wasm"),"--target","web","--out-dir",path.join(output,"browser/pkg")]);
   run("browser",process.execPath,[path.join(root,"browser/verify.mjs"),repo,path.join(output,"browser/evidence")]);
@@ -57,7 +62,7 @@ try {
     rustToolchain:"1.93.1",pdfOxide:"0.3.78",officeOxide:"0.1.9",
     inputHashes:await Promise.all(Object.entries(inputs).map(async([name,input])=>({name,input,sha256:sha(await fs.readFile(path.join(repo,input)))}))),
     wasmBytes:wasm.length,wasmGzipBytes:gzipSync(wasm).length,wasmSha256:sha(wasm),
-    pocSources:await Promise.all(["Cargo.toml","Cargo.lock","src/lib.rs","src/lowering.rs","src/structured_lowering.rs","src/hwpx_compatibility.rs","src/main.rs","tests/contracts.rs","tests/structured.rs","browser/verify.mjs"].map(async file=>({file,sha256:sha(await fs.readFile(path.join(root,file)))}))),
+    pocSources:await Promise.all(["Cargo.toml","Cargo.lock","src/lib.rs","src/lowering.rs","src/structured_lowering.rs","src/hwpx_compatibility.rs","src/main.rs","src/table_detection.rs","src/table_hierarchy.rs","src/table_topology.rs","src/recognition.rs","tests/nested_tables.rs","tests/contracts.rs","tests/structured.rs","fixtures/nested-grid.content","fixtures/nested-grid.mjs","browser/verify.mjs"].map(async file=>({file,sha256:sha(await fs.readFile(path.join(root,file)))}))),
     comparisons,hancomCompatibility:"unverified-awaiting-maintainer-retest",
     limits:"selected first pages only; optional inferred Table IR; new structured output requires Hancom verification"
   },null,2));

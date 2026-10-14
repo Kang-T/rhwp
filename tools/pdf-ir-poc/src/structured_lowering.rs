@@ -279,6 +279,18 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
     let mut held = Vec::new();
     for recognized_table in recognized {
         let candidate = index(&recognized_table["candidate"])?;
+        let grid = grids.get(candidate).ok_or("missing recognized grid")?;
+        let has_children = array(&grid["cells"])?.iter().any(|c| {
+            c["childTableIndices"]
+                .as_array()
+                .is_some_and(|a| !a.is_empty())
+        });
+        if !grid["hierarchy"]["parent"].is_null() || has_children {
+            held.push(
+                json!({"candidate":candidate,"reason":"nested_table_materialization_pending"}),
+            );
+            continue;
+        }
         if recognized_table["status"] != "GeometryConfirmed"
             || array(&recognized_table["cells"])?.iter().any(|c| {
                 c["recognition"]["paragraphs"]

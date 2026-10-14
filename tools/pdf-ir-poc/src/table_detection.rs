@@ -191,6 +191,7 @@ struct Grid {
     xs: Vec<f32>,
     ys: Vec<f32>,
     cells: Vec<Cell>,
+    topology: Value,
 }
 
 fn grid(edges: &[Edge]) -> Result<Grid, String> {
@@ -274,11 +275,30 @@ fn grid(edges: &[Edge]) -> Result<Grid, String> {
         return Err("no distinct cells".into());
     }
     cells.sort_by_key(|c| (c.row, c.col));
+    for c in &cells {
+        let (right, bottom) = (c.bbox.x + c.bbox.width, c.bbox.y + c.bbox.height);
+        if !complete(edges, true, c.bbox.y, c.bbox.x, right)
+            || !complete(edges, true, bottom, c.bbox.x, right)
+            || !complete(edges, false, c.bbox.x, c.bbox.y, bottom)
+            || !complete(edges, false, right, c.bbox.y, bottom)
+        {
+            return Err("cell face boundary lacks source rule coverage".into());
+        }
+    }
+    let topology = crate::table_topology::evidence(
+        rows,
+        cols,
+        &cells
+            .iter()
+            .map(|c| (c.row, c.col, c.rows, c.cols))
+            .collect::<Vec<_>>(),
+    )?;
     Ok(Grid {
         bbox: Rect::new(xs[0], ys[0], xs[cols] - xs[0], ys[rows] - ys[0]),
         xs,
         ys,
         cells,
+        topology,
     })
 }
 
@@ -334,6 +354,12 @@ pub fn detect_ruled_tables(
             .total_cmp(&b.bbox.y)
             .then(a.bbox.x.total_cmp(&b.bbox.x))
     });
+    let placements = crate::table_hierarchy::compose(
+        &grids
+            .iter()
+            .map(|g| (g.bbox, g.cells.iter().map(|c| c.bbox).collect()))
+            .collect::<Vec<_>>(),
+    )?;
     let mut unassigned = Vec::new();
     let mut ambiguous = Vec::new();
     let mut assign = |kind: &str, index: usize, bbox: Rect| {
@@ -348,8 +374,24 @@ pub fn detect_ruled_tables(
                 }
             }
         }
-        if owners.len() == 1 {
-            let (gi, ci) = owners[0];
+        let deepest = owners
+            .iter()
+            .copied()
+            .filter(|(gi, _)| {
+                placements[*gi].deferred.is_none()
+                    && owners.iter().all(|(other, _)| {
+                        placements[*other].deferred.is_none()
+                            && crate::table_hierarchy::ancestor(&placements, *other, *gi)
+                    })
+                    && grids.iter().enumerate().all(|(other, g)| {
+                        !overlaps(bbox, g.bbox)
+                            || other == *gi
+                            || !crate::table_hierarchy::ancestor(&placements, *gi, other)
+                    })
+            })
+            .collect::<Vec<_>>();
+        if deepest.len() == 1 {
+            let (gi, ci) = deepest[0];
             let cell = &mut grids[gi].cells[ci];
             if kind == "span" {
                 cell.spans.push(index);
@@ -405,18 +447,26 @@ pub fn detect_ruled_tables(
         }
     }
     Ok(json!({
-        "algorithm":"ruling-topology-v1","coordinateSystem":"points, top-left of MediaBox",
+        "algorithm":"ruling-cellular-topology-v2","coordinateSystem":"points, top-left of MediaBox",
         "scope":"stroked axis-aligned ruled grids; geometric candidates, not semantic proof",
         "tolerancePt":EPS,"edgeCount":edges.len(),
-        "tables":grids.iter().map(|g|json!({
+        "tables":grids.iter().enumerate().map(|(gi,g)|json!({
             "bbox":g.bbox,"rows":g.ys.len()-1,"columns":g.xs.len()-1,
             "xBoundaries":g.xs,"yBoundaries":g.ys,
-            "cells":g.cells.iter().map(|c|json!({"row":c.row,"column":c.col,
+            "topology":g.topology,
+            "hierarchy":{"status":if placements[gi].deferred.is_some(){"Deferred"}else{"Confirmed"},
+                "reason":placements[gi].deferred,"depth":placements[gi].depth,
+                "parent":placements[gi].parent.map(|(table,cell)|json!({"table":table,"cell":cell})),
+                "embedding":placements[gi].embedding.map(|e|json!({"x":e.x,"y":e.y,"width":e.width,"height":e.height}))},
+            "cells":g.cells.iter().enumerate().map(|(ci,c)|json!({"row":c.row,"column":c.col,
                 "rowspan":c.rows,"colspan":c.cols,"bbox":c.bbox,
-                "spanIndices":c.spans,"imageIndices":c.images
+                "spanIndices":c.spans,"imageIndices":c.images,
+                "childTableIndices":placements.iter().enumerate().filter_map(|(child,p)|
+                    (p.parent==Some((gi,ci))).then_some(child)).collect::<Vec<_>>()
             })).collect::<Vec<_>>()
         })).collect::<Vec<_>>(),
         "contentOrder":"original extraction index; semantic reading order deferred",
+        "composition":"guarded cell-slot substitution; affine unit-square embeddings",
         "rejectedComponents":rejected,"unassignedContent":unassigned,"ambiguousContent":ambiguous
     }))
 }

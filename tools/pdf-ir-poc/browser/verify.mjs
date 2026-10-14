@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { nestedPdf } from "../fixtures/nested-grid.mjs";
 
 const root = path.dirname(new URL(import.meta.url).pathname);
 const repo = process.argv[2];
@@ -13,14 +14,15 @@ const require = createRequire(path.join(repo, "rhwp-studio/package.json"));
 const puppeteer = require("puppeteer-core");
 const inputs = {
   text: path.join(repo,"pdf/re-align-center-hancom-hwp-2020.pdf"),
-  table: path.join(repo,"pdf/issue5875/nested_table_text_caption-2020.pdf")
+  table: path.join(repo,"pdf/issue5875/nested_table_text_caption-2020.pdf"),
+  nested: path.join(artifacts,"nested-input.pdf")
 };
 const mime = {".js":"text/javascript", ".html":"text/html", ".wasm":"application/wasm", ".pdf":"application/pdf"};
 const server = http.createServer(async (request,response) => {
   try {
     const url = new URL(request.url, "http://localhost");
     if (url.pathname==="/favicon.ico") {response.writeHead(204);response.end();return;}
-    const name = url.pathname.match(/^\/pdf\/(text|table)\.pdf$/)?.[1];
+    const name = url.pathname.match(/^\/pdf\/(text|table|nested)\.pdf$/)?.[1];
     const fileRoot=url.pathname.startsWith("/pkg/")?path.join(artifacts,"browser"):root;
     const file = name ? inputs[name] : path.resolve(fileRoot, "." + (url.pathname === "/" ? "/index.html" : url.pathname));
     if (!name && !file.startsWith(fileRoot + path.sep)) throw new Error("invalid path");
@@ -59,15 +61,16 @@ try {
   });
   assert.match(invalid,/PDF byte buffers/);
   result.invalidInputRejected=invalid;
-  for (const [name,paintedRules,tables] of [["text",false,false],["table",false,false],["table",true,false],["table",true,true]]) {
-    const label=tables?"table-structured":paintedRules?"table-painted":name;
+  assert.deepEqual(await fs.readFile(inputs.nested),await nestedPdf());
+  for (const [name,paintedRules,tables] of [["text",false,false],["table",false,false],["table",true,false],["table",true,true],["nested",true,true]]) {
+    const label=tables?`${name}-structured`:paintedRules?`${name}-painted`:name;
     result.stage=label;
     const evidence = await page.evaluate(({name,paintedRules,tables})=>window.runPdf(name,paintedRules,tables),{name,paintedRules,tables});
     const native = JSON.parse(await fs.readFile(path.join(artifacts,label+"-page/report.json"),"utf8"));
     assert.deepEqual(evidence.report,native,"Native/WASM IR reports differ");
     const detection=evidence.report.extraction.tableDetection;
     const recognition=evidence.report.extraction.recognition;
-    assert.equal(recognition.algorithm,"hierarchical-efsm-v1");
+    assert.equal(recognition.algorithm,"hierarchical-efsm-v2");
     assert.equal(recognition.renderingIrChanged,false);
     const paragraphRegions=[...recognition.bodyRegions];
     for (const table of recognition.tables) {
@@ -83,15 +86,28 @@ try {
     if (name==="text") {
       assert.equal(paragraphs.length,1);
       assert.equal(paragraphs[0].lines.length,3);
-    } else {
+    } else if (name==="table") {
       const pictureCell=recognition.tables[0].cells.find(c=>c.row===2 && c.column===2);
       assert.deepEqual(pictureCell.imageIndices,[0,1]);
       assert.equal(pictureCell.recognition.transitions.filter(t=>t.event==="AcceptBoundary" && t.reason==="intervening_image").length,2);
     }
-    assert.equal(detection.tables.length,name==="table"?1:0);
+    assert.equal(detection.tables.length,name==="nested"?3:name==="table"?1:0);
     const ir=evidence.report.documentIr.paragraphs[0].controls;
     const irTables=ir.filter(c=>c.Table).map(c=>c.Table);
-    assert.equal(irTables.length,tables?1:0);
+    assert.equal(irTables.length,tables && name==="table"?1:0);
+    if (name==="nested") {
+      assert.deepEqual(detection.tables.map(t=>t.hierarchy.depth),[0,1,2]);
+      assert.ok(detection.tables.every(t=>t.topology.boundarySquaredZero));
+      assert.deepEqual(detection.tables.map(t=>t.topology.betti),[[1,0,0],[1,0,0],[1,0,0]]);
+      assert.deepEqual(detection.ambiguousContent,[]);
+      assert.equal(evidence.report.lowering.semanticTables,0);
+      assert.equal(evidence.report.lowering.deferredTables.length,3);
+      assert.ok(evidence.report.lowering.deferredTables.every(t=>t.reason==="nested_table_materialization_pending"));
+      assert.equal(evidence.report.lowering.paintedRuleRectangles,18);
+      assert.equal(evidence.report.lowering.textBoxes,3);
+      const positional=await fs.readFile(path.join(artifacts,"nested-painted-page/compiled.hwpx"));
+      assert.deepEqual(Buffer.from(evidence.hwpx),positional,"nested fallback changed HWPX layout objects");
+    }
     if (name==="table") {
       assert.equal(detection.tables[0].rows,5);
       assert.equal(detection.tables[0].columns,3);
@@ -119,7 +135,7 @@ try {
       }
     }
     assert.equal(evidence.pageCount,1);
-    assert.equal(evidence.report.lowering.explicitZeroTextMargins,tables?1:name==="table"?95:3);
+    assert.equal(evidence.report.lowering.explicitZeroTextMargins,tables && name==="table"?1:name==="table"?95:3);
     assert.equal(evidence.report.lowering.singleLineParagraphs,"SQUEEZE");
     assert.ok(evidence.inkPixels>100);
     assert.equal(evidence.images,name==="table"?2:0);
