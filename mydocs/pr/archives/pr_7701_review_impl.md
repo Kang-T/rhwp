@@ -1473,3 +1473,53 @@ Cargo 산출물은 보존했다. 과거 raster의 `incomplete` 판정도 그대�
 가리키고 있었다. 시험지 이관은 유지하고, 실제 파일이 있던 commit SHA의 코드 링크와
 이관 전 기록이라는 설명으로 바로잡았다. 삭제한 회귀를 복원하거나 검증 완료로
 승격한 변경이 아니다. 이번 #5884 증적 링크와 함께 링크 검사를 다시 실행한다.
+
+### 최종 lint 완료·전체 회귀 실패 수집·실제 Canvas 준비 경로 — 2026-10-14
+
+`bb7d01597`/고정b3 기준의 fmt·세 Clippy·workspace build·manifest/unit 정책
+9단계를 공용target/jobs8로 순차 실행해 모두종료0을 확인했다. 문서와 PNG를
+`6209798e312dc13fe9697f67dee3c7332e18bcec`로 보존한 뒤 release-test 전체
+nextest를 실행했다. 실제 summary는10311건 중10285PASS(25 slow)·26FAIL·
+45 skipped, 실행976.172초·종료100이다. 실패26건의 binary/함수 이름을
+`c52-full-nextest-failure-inventory.json`에 빠짐없이 수집했다. 집중6PASS나 lint
+통과를 전체 회귀의 통과로 주장하지 않는다. 이 실행을 근거로 기대값·baseline을
+현재 출력에 맞춰 변경하지 않았다. 전체 실패의 입력·독립 기대값·base 비교를
+확인한 뒤 구현 보정/정확한 검사 유지/허용된 이관을 구분한다.
+
+Native는 원래54문서의 실행을 모두 마쳤지만 metric manifest는53개였다.
+교육과정은 실제419쪽/독립 Print415쪽으로 canonical count 검사에서 raster 전에
+종료되어 TSV가 없었다. 이를 측정 완료나 누락0으로 표시하지 않는다. 이미 내보낸
+419 SVG와415 PDF raster를 같은 쪽 번호로 대조하는 canonical capture/metric
+진단을 시작했다. 추가4쪽은 독립 reference 없음으로 남기고 실제 쪽수와 보류를
+유지한다. 전체 fresh WASM은 별도로 계속 진행 중이다. sample10의 전763쪽
+Native TSV는 미달을 검출했으며 대표 이슈 #7774의 해결·시각 통과로 표시하지 않는다.
+
+실제 Studio baseline은#5884 전2쪽과 기존 문단 대조군을 screen/print,
+Canvas2D/CanvasKit compat/default의18캡처로 실행해종료1이었다. Chrome 버전은
+155.0.8059.39였다. Canvas2D의 그림자 원형 기호는 실제 screenshot의5배 비교로
+Native SVG/독립 Print와 직접 대조해 복구를 확인했다. #5884 CanvasKit은 원문
+`한양신명조, HyhwpEQ` 준비 실패로 실제 backend가 Canvas2D에 fallback했으며,
+요청한 CanvasKit의 빈 캡처를 정상 출력으로 인정하지 않았다. 문단 대조군은 실제
+CanvasKit을 선택했고 report-only 픽셀 비교가 미달이었다. 두 실패의 의미를 구별한다.
+
+Native 검증 경로의1492개 고유 SFNT 파일을 전face로 확인한 결과 원문 한양신명조
+family는 찾지 못했고 HyhwpEQ는 실제 프로그램을 찾았다. 첫 probe의 TTC reader
+공유 종료 오류를 수정한 r2는 파싱 오류0건이었다. Windows PowerShell/SSH 읽기
+전용 조회에서 `C:\Windows\Fonts\H2MJSM.TTF`를 확인해 ignored output으로 복사했다.
+실제 family는HYSinMyeongJo-Medium/HY신명조, Regular400이며 한양신명조 SFNT
+identity라고 이름을 바꾸지 않았다. 기존 Native SVG의 local(HY신명조) fallback과
+canonical paint-substitute를 근거로 논리 요청의 대체 공급임을 별도 descriptor에
+기록했다. 라이선스 글꼴 bytes는 Git에 넣지 않았고 원격 파일도 변경하지 않았다.
+
+공개 host-font provider에 이 프로그램과 실제 HyhwpEQ 프로그램을 공급한 추가
+Canvas2D 전2쪽 capture는 완료했다. 같은 공급의 CanvasKit은 여전히 실제
+Canvas2D fallback이었다. r2 selection 진단에서는 한양신명조 준비 실패는 해소되고
+`HyhwpEQ` 하나만 미준비로 남았다. 원인은 실제 호출 경로에서 확인된다:
+`main.prepareCanvasKitDocument → collectHostFontRequests`는 textRun/charOverlap만
+수집하고, host provider가 활성화된 `prepareLocalFonts`는즉시 return한다.
+실제 수식의 `hancomGlyphs` paint는별도 `findPreparedTypeface('HyhwpEQ')`를
+소비한다. 이 별도 수식 소비자의 host 준비 경로는 아직 보완·재검증하지 않았다.
+기호 글꼴 Noto의 실패라고 오인하거나 CanvasKit 준비/승인을 완료로 표시하지 않는다.
+
+최종 PR 제출·CI·merge·후속 처리는 계속 미완료다. 현재 소스/원문과 실패 증거를
+유지하며 전체 회귀26건과 전범위 시각 검증을 계속 처리한다.
