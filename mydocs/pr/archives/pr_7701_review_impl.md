@@ -1331,3 +1331,26 @@ U+274D의 DejaVu Sans는 오른쪽 그림자가 있고 아래 윤곽은 달랐�
 Pillow/FreeType의 프로그램 진단이며 rhwp 승인 증거가 아니다. 표준 U+1F53E로
 표시 대응을 보정한 뒤 실제 Native/Canvas/WASM의 글꼴 선택과 원문·오프셋 보존을
 확인한다. PUA 원문을 바꾸거나 잘못된 좌표/잘림을 숨기는 보정은 하지 않는다.
+
+### 공통 흐름 보정과 기호 프로그램의 실제 결측 — 2026-10-14
+
+`3aacea543`의 Native 빌드는4분56초·종료0이며8문서94쪽 측정도 완료했다.
+`issue5884`는1쪽98.31448%,2쪽98.72130%·쪽수2/2·누락0이다. 작은 표 상단은
+각각969.2/1013.6px로 개선됐고2쪽 자식과 그림 원점은 유지됐다. 이는 진단 관측값이며
+px 기대값으로 사용하지 않는다. source 종료 관계와 같은 수용 유닛의 끝을 paint가
+소비하도록 변경한 결과다. 정상 대조군·source-frame 출력과 미달 반례의 결과를
+`c50-native-controls-results.json`에 보존했다. C49의 실제 fresh WASM 전2쪽도
+완료·종료0이며91.14297%/98.72130%다. C50의 fresh 결과로 재사용하지 않는다.
+
+실제 C50 Skia `export-png`도종료0으로 실행해 같은1쪽 기호를 확대했다. SVG는
+OS의 Noto Sans Symbols2로 그림자 원을 표시하지만 Skia에서는 그 기호가 빠졌다
+(`c50-issue5884-native-skia/p001-glyph-backends-5x.png`). SVG 점수만으로 실제
+Skia 통과를 선언하지 않는다. 글꼴 후보의 부재와 기본 메트릭 결측을 해결해야 한다.
+
+다음 보정은 원문의 F06D가 표시 투영된 한 글자만 별도 런으로 보존하고, 그 런의
+공통 `text_style`이 Noto Sans Symbols2의 실제 프로그램과 메트릭을 함께 선택하게
+한다. 주변 본문은 원래 스타일·문자 순서·오프셋을 유지한다. SFNT cmap/hmtx를 직접
+읽어 U+1F53E/1F53F의 glyph1084/1379, em1000, advance916을 확인했다
+(`c51-symbol-font-evidence.json`). 1em이나 화면 간격에 맞춘 값을 가정하지 않는다.
+해당 공개 OFL 프로그램의 bytes·hash·라이선스 및 공급 규칙을 함께 보존하고, 실제
+Native SVG/Skia·fresh WASM·Canvas 출력과 전2쪽 비교에서 다시 확인한다.
