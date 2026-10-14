@@ -106,6 +106,11 @@ node tools/pdf-ir-poc/verify-visual.mjs "$PWD" output/poc/pdf-ir
 원본의 중복 stroke와 객체화 뒤 남는 괘선도 독립 Poppler/qpdf로 확인했다. 상세 근거와 제한은
 [한컴 재조판 비교본](NESTED_TABLES.md#한컴-재조판-비교본-2026-10-14)에 기록했다.
 
+현재 객체화 실험과 한컴 실패 근거는 `3b879f610`에 체크포인트로 커밋했다.
+다음 단계는 경계 정규화/소유권 → 부모 셀별 내부 격자 → 단일 자식 한컴 재조판 → 가족 확대
+순으로 재도전한다. [재도전 전략](NESTED_TABLES.md#재도전-전략-2026-10-14-승인됨)은
+2026-10-14 메인테이너가 승인했으며 R1부터 단계별 구현·검증을 진행한다.
+
 ```sh
 cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked \
   --target-dir target/pr-review -- pdf/issue5875/nested_table_text_caption-2020.pdf \
