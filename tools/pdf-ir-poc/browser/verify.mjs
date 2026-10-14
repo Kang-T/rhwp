@@ -93,7 +93,7 @@ try {
       assert.deepEqual(pictureCell.imageIndices,[0,1]);
       assert.equal(pictureCell.recognition.transitions.filter(t=>t.event==="AcceptBoundary" && t.reason==="intervening_image").length,2);
     }
-    assert.equal(detection.tables.length,name==="real7"?4:name==="real8"?3:name==="nested"?3:name==="table"?1:0);
+    assert.equal(detection.tables.length,name.startsWith("real")?5:name==="nested"?3:name==="table"?1:0);
     const ir=evidence.report.documentIr.paragraphs[0].controls;
     const irTables=ir.filter(c=>c.Table).map(c=>c.Table);
     assert.equal(irTables.length,tables?1:0);
@@ -124,9 +124,9 @@ try {
       assert.equal(descendants(child[0]).length,1);
     }
     if (name.startsWith("real")) {
-      assert.equal(evidence.report.lowering.semanticTables,name==="real7"?4:3);
+      assert.equal(evidence.report.lowering.semanticTables,5);
       assert.equal(evidence.report.lowering.semanticRootTables,1);
-      assert.equal(evidence.report.lowering.semanticNestedTables,name==="real7"?3:2);
+      assert.equal(evidence.report.lowering.semanticNestedTables,4);
       assert.deepEqual(evidence.report.lowering.deferredTables,[]);
     }
     if (name==="table") {
@@ -156,7 +156,13 @@ try {
       }
     }
     assert.equal(evidence.pageCount,1);
-    assert.equal(evidence.report.lowering.explicitZeroTextMargins,name==="real7"?109:name==="real8"?150:name==="nested"?0:tables && name==="table"?1:name==="table"?95:3);
+    const textBoxCount=value=>{
+      if(Array.isArray(value)) return value.reduce((sum,v)=>sum+textBoxCount(v),0);
+      if(value && typeof value==="object") return Object.entries(value).reduce((sum,[key,v])=>
+        sum+(key==="text_box" && v!==null?1:0)+textBoxCount(v),0);
+      return 0;
+    };
+    assert.equal(evidence.report.lowering.explicitZeroTextMargins,textBoxCount(ir));
     assert.equal(evidence.report.lowering.singleLineParagraphs,"SQUEEZE");
     assert.ok(evidence.inkPixels>100);
     assert.equal(evidence.images,name==="table"?2:0);

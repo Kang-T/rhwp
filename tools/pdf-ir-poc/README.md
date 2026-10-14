@@ -117,6 +117,12 @@ R1에서 원본 기여 ID로 중첩 표 경계의 괘선을 소비하도록 보�
 실제 한컴 Print는 54.66379%/36.81599%로 계속 불합격이다. R1 경계 소유권과 R3 재조판
 판정을 구분하며, 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r1/`에 있다.
 
+R2는 검증된 부모 셀 안의 1행/1열 표 탐색과 잉크로 지지되는 논리 접합을 추가했다.
+7쪽 `<표 2>`와 8쪽 `<표 6>`·`<표 7>`까지 검출되어 양쪽 실제 Table 수는 5개(부모 1, 자식 4)다.
+잔류 원본 괘선은 0개, 69개 POC 검사는 통과했고 Native/fresh WASM 점수는 96.83768%/96.22903%다.
+실제 한컴 Print는 67.01952%/39.91311%로 불합격이며 R3 재조판 보정을 진행한다.
+증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r2/`에 보존했다.
+
 ```sh
 cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked \
   --target-dir target/pr-review -- pdf/issue5875/nested_table_text_caption-2020.pdf \

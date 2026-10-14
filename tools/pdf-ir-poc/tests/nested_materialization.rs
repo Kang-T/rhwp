@@ -204,7 +204,8 @@ fn three_level_tables_are_real_controls_after_serialization_and_paint() {
 #[test]
 fn real_nested_pages_preserve_cell_ownership_text_and_unique_tables() {
     let bytes = input();
-    for (page, nested) in [(6, 3), (7, 2)] {
+    // The source HWP and reference PDF each have four inner tables on these selected pages.
+    for (page, nested) in [(6, 4), (7, 4)] {
         let c = compile_page_tables(&bytes, page).unwrap();
         let loaded = rhwp::parse_document(&c.hwpx).unwrap();
         assert_eq!(c.report["lowering"]["semanticNestedTables"], nested);

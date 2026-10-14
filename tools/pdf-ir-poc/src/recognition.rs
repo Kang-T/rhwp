@@ -435,7 +435,12 @@ fn indices(v: &Value) -> Result<Vec<usize>, String> {
 fn validate_table(table: &Value, span_count: usize, image_count: usize) -> Result<(), String> {
     let rows = index(&table["rows"])?;
     let cols = index(&table["columns"])?;
-    if rows < 2 || cols < 2 || rows.checked_mul(cols).is_none_or(|n| n > 4096) {
+    if rows == 0
+        || cols == 0
+        || rows
+            .checked_mul(cols)
+            .is_none_or(|n| !(2..=4096).contains(&n))
+    {
         return Err("invalid grid dimensions".into());
     }
     let mut occupied = vec![false; rows * cols];
@@ -469,6 +474,9 @@ fn validate_table(table: &Value, span_count: usize, image_count: usize) -> Resul
         return Err("table bounds do not match grid axes".into());
     }
     let cells = table["cells"].as_array().ok_or("cells missing")?;
+    if (rows == 1 || cols == 1) && cells.len() < 2 {
+        return Err("invalid grid dimensions".into());
+    }
     for c in cells {
         let (r, col, rs, cs) = (
             index(&c["row"])?,
@@ -691,6 +699,9 @@ pub fn recognize_page(
         let validation = validations[ti].clone().and_then(|_| {
             if let Some(reason) = &placements[ti].deferred {
                 return Err(reason.clone());
+            }
+            if (t["rows"] == 1 || t["columns"] == 1) && placements[ti].parent.is_none() {
+                return Err("invalid grid dimensions".into());
             }
             if context.len() + 2 > policy.max_context_depth {
                 return Err("recognition context depth exceeded".into());

@@ -6,7 +6,7 @@ use pdf_oxide::{
     layout::TextSpan,
 };
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const EPS: f32 = 0.5;
 const MAX_EDGES: usize = 512;
@@ -155,6 +155,72 @@ fn same_geometry(a: &Edge, b: &Edge) -> bool {
     a.horizontal == b.horizontal && a.at == b.at && a.from == b.from && a.to == b.to
 }
 
+fn geometry_key(edge: &Edge) -> (bool, u32, u32, u32) {
+    let bits = |v: f32| if v == 0. { 0 } else { v.to_bits() };
+    (
+        edge.horizontal,
+        bits(edge.at),
+        bits(edge.from),
+        bits(edge.to),
+    )
+}
+
+fn project_junctions(edge: Edge, source: &[Edge]) -> Edge {
+    let endpoint = |value: f32| {
+        source
+            .iter()
+            .filter(|other| {
+                other.horizontal != edge.horizontal
+                    && other.at >= edge.from
+                    && other.at <= edge.to
+                    && edge.at >= other.from - EPS
+                    && edge.at <= other.to + EPS
+                    && (other.at - value).abs() <= other.stroke_width / 2. + EPS
+            })
+            .min_by(|a, b| {
+                (a.at - value)
+                    .abs()
+                    .total_cmp(&(b.at - value).abs())
+                    .then(a.at.total_cmp(&b.at))
+            })
+            .map_or(value, |other| other.at)
+    };
+    let (from, to) = (endpoint(edge.from), endpoint(edge.to));
+    if to - from > EPS {
+        Edge { from, to, ..edge }
+    } else {
+        edge
+    }
+}
+
+fn component_groups(edges: &[Edge]) -> Vec<Vec<usize>> {
+    let mut sets = Sets::new(edges.len());
+    for a in 0..edges.len() {
+        for b in a + 1..edges.len() {
+            let (a_edge, b_edge) = (edges[a], edges[b]);
+            let touches = if a_edge.horizontal == b_edge.horizontal {
+                (a_edge.at - b_edge.at).abs() <= EPS
+                    && a_edge.from <= b_edge.to + EPS
+                    && b_edge.from <= a_edge.to + EPS
+            } else {
+                let (h, v) = if a_edge.horizontal {
+                    (a_edge, b_edge)
+                } else {
+                    (b_edge, a_edge)
+                };
+                v.at >= h.from - EPS
+                    && v.at <= h.to + EPS
+                    && h.at >= v.from - EPS
+                    && h.at <= v.to + EPS
+            };
+            if touches {
+                sets.join(a, b);
+            }
+        }
+    }
+    sets.groups()
+}
+
 fn boundary_contributor(edge: &Edge, grid: &Grid, component: &[Edge]) -> bool {
     let mut intervals = Vec::new();
     for cell in &grid.cells {
@@ -260,9 +326,10 @@ struct Grid {
     cells: Vec<Cell>,
     topology: Value,
     source_edges: Vec<Edge>,
+    search_region: Option<Rect>,
 }
 
-fn grid(edges: &[Edge]) -> Result<Grid, String> {
+fn grid(edges: &[Edge], allow_linear: bool) -> Result<Grid, String> {
     let xs = axes(
         edges
             .iter()
@@ -277,7 +344,7 @@ fn grid(edges: &[Edge]) -> Result<Grid, String> {
             .map(|e| e.at)
             .collect(),
     );
-    if xs.len() < 3 || ys.len() < 3 {
+    if xs.len() < 2 || ys.len() < 2 || (!allow_linear && (xs.len() < 3 || ys.len() < 3)) {
         return Err("not a two-dimensional multi-cell grid".into());
     }
     let (cols, rows) = (xs.len() - 1, ys.len() - 1);
@@ -368,7 +435,33 @@ fn grid(edges: &[Edge]) -> Result<Grid, String> {
         cells,
         topology,
         source_edges: Vec::new(),
+        search_region: None,
     })
+}
+
+fn supported_grid(
+    component: &[Edge],
+    source: &[Edge],
+    logical: &[Edge],
+    allow_linear: bool,
+) -> Result<Grid, String> {
+    let mut g = grid(component, allow_linear)?;
+    let contributors = source
+        .iter()
+        .filter(|edge| {
+            logical.iter().any(|logical| {
+                logical.source_segment == edge.source_segment
+                    && component.iter().any(|other| same_geometry(logical, other))
+            })
+        })
+        .copied()
+        .collect::<Vec<_>>();
+    g.source_edges = contributors
+        .iter()
+        .filter(|edge| boundary_contributor(edge, &g, &contributors))
+        .copied()
+        .collect();
+    Ok(g)
 }
 
 /// Returns geometric table candidates and original content indices, not rhwp Table IR.
@@ -384,56 +477,83 @@ pub fn detect_ruled_tables(
     }
     let (left, _, _, top) = media_box;
     let source_edges = edges(paths, left, top)?;
+    let logical_edges = source_edges
+        .iter()
+        .map(|edge| project_junctions(*edge, &source_edges))
+        .collect::<Vec<_>>();
     let mut edges = Vec::new();
     // This is geometric coverage normalization, not a claim that distinct paints are interchangeable.
-    for edge in &source_edges {
+    for edge in &logical_edges {
         if !edges.iter().any(|other| same_geometry(edge, other)) {
             edges.push(*edge);
         }
     }
-    let mut sets = Sets::new(edges.len());
-    for a in 0..edges.len() {
-        for b in a + 1..edges.len() {
-            let (a_edge, b_edge) = (edges[a], edges[b]);
-            let touches = if a_edge.horizontal == b_edge.horizontal {
-                (a_edge.at - b_edge.at).abs() <= EPS
-                    && a_edge.from <= b_edge.to + EPS
-                    && b_edge.from <= a_edge.to + EPS
-            } else {
-                let (h, v) = if a_edge.horizontal {
-                    (a_edge, b_edge)
-                } else {
-                    (b_edge, a_edge)
-                };
-                v.at >= h.from - EPS
-                    && v.at <= h.to + EPS
-                    && h.at >= v.from - EPS
-                    && h.at <= v.to + EPS
-            };
-            if touches {
-                sets.join(a, b);
-            }
-        }
-    }
     let mut grids = Vec::new();
     let mut rejected = Vec::new();
-    for group in sets.groups() {
+    for group in component_groups(&edges) {
         let component: Vec<_> = group.iter().map(|i| edges[*i]).collect();
-        match grid(&component) {
-            Ok(mut g) => {
-                let contributors = source_edges
-                    .iter()
-                    .filter(|edge| component.iter().any(|other| same_geometry(edge, other)))
-                    .copied()
-                    .collect::<Vec<_>>();
-                g.source_edges = contributors
-                    .iter()
-                    .filter(|edge| boundary_contributor(edge, &g, &contributors))
-                    .copied()
-                    .collect();
-                grids.push(g);
-            }
+        match supported_grid(&component, &source_edges, &logical_edges, false) {
+            Ok(g) => grids.push(g),
             Err(reason) => rejected.push(json!({"edgeCount":component.len(),"reason":reason})),
+        }
+    }
+    // Search the unclaimed evidence in already-verified cell regions; never clip crossing strokes.
+    loop {
+        let start_count = grids.len();
+        if start_count > 128 {
+            return Err("nested table candidate budget exceeded".into());
+        }
+        let mut regions = grids
+            .iter()
+            .flat_map(|g| g.cells.iter().map(|c| c.bbox))
+            .collect::<Vec<_>>();
+        regions.sort_by(|a, b| {
+            (a.width * a.height)
+                .total_cmp(&(b.width * b.height))
+                .then(a.y.total_cmp(&b.y))
+                .then(a.x.total_cmp(&b.x))
+        });
+        let mut claimed = grids
+            .iter()
+            .flat_map(|g| &g.source_edges)
+            .map(|owned| geometry_key(&logical_edges[owned.source_segment]))
+            .collect::<BTreeSet<_>>();
+        for region in regions {
+            let local = edges
+                .iter()
+                .filter(|edge| {
+                    let bounds = if edge.horizontal {
+                        Rect::new(edge.from, edge.at, edge.to - edge.from, 0.)
+                    } else {
+                        Rect::new(edge.at, edge.from, 0., edge.to - edge.from)
+                    };
+                    !claimed.contains(&geometry_key(edge)) && inside(bounds, region)
+                })
+                .copied()
+                .collect::<Vec<_>>();
+            for group in component_groups(&local) {
+                let component = group.iter().map(|i| local[*i]).collect::<Vec<_>>();
+                if let Ok(mut g) = supported_grid(&component, &source_edges, &logical_edges, true) {
+                    if !inside(g.bbox, region)
+                        || grids.iter().any(|existing| existing.bbox == g.bbox)
+                    {
+                        continue;
+                    }
+                    g.search_region = Some(region);
+                    claimed.extend(
+                        g.source_edges
+                            .iter()
+                            .map(|owned| geometry_key(&logical_edges[owned.source_segment])),
+                    );
+                    grids.push(g);
+                    if grids.len() > 128 {
+                        return Err("nested table candidate budget exceeded".into());
+                    }
+                }
+            }
+        }
+        if grids.len() == start_count {
+            break;
         }
     }
     grids.sort_by(|a, b| {
@@ -539,10 +659,13 @@ pub fn detect_ruled_tables(
         "scope":"stroked axis-aligned ruled grids; geometric candidates, not semantic proof",
         "tolerancePt":EPS,"edgeCount":source_edges.len(),"canonicalEdgeCount":edges.len(),
         "boundaryNormalization":"exact geometric duplicates share coverage; original paint contributors retained",
+        "junctionModel":"centerline intersections supported by perpendicular stroke ink and quantization tolerance",
+        "nestedSearch":"verified-parent-cell regions; unclaimed complete evidence only",
         "tables":grids.iter().enumerate().map(|(gi,g)|json!({
             "bbox":g.bbox,"rows":g.ys.len()-1,"columns":g.xs.len()-1,
             "xBoundaries":g.xs,"yBoundaries":g.ys,
             "topology":g.topology,
+            "searchRegion":g.search_region,
             "sourceBoundarySegments":g.source_edges.iter().map(|edge|json!({
                 "path":edge.source_path,"segment":edge.source_segment,
                 "horizontal":edge.horizontal,"at":edge.at,"from":edge.from,"to":edge.to,

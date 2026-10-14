@@ -76,6 +76,68 @@ fn geometric_union_does_not_discard_distinct_paint_evidence() {
         2.
     );
 }
+
+#[test]
+fn linear_grids_require_a_verified_parent_cell() {
+    let one_row = vec![
+        line(15., 45., 35., 45.),
+        line(15., 65., 35., 65.),
+        line(15., 45., 15., 65.),
+        line(25., 45., 25., 65.),
+        line(35., 45., 35., 65.),
+    ];
+    assert_eq!(count(&detect(&one_row, &[])), 0);
+    let d = detect(&[grid(), one_row].concat(), &[]);
+    assert_eq!(count(&d), 2);
+    assert_eq!(d["tables"][1]["rows"], 1);
+    assert_eq!(d["tables"][1]["columns"], 2);
+    assert_eq!(
+        d["tables"][1]["hierarchy"]["parent"],
+        serde_json::json!({"table":0,"cell":0})
+    );
+    assert!(!d["tables"][1]["searchRegion"].is_null());
+}
+
+#[test]
+fn one_column_nested_grid_has_two_real_faces() {
+    let one_column = vec![
+        line(15., 45., 35., 45.),
+        line(15., 55., 35., 55.),
+        line(15., 65., 35., 65.),
+        line(15., 45., 15., 65.),
+        line(35., 45., 35., 65.),
+    ];
+    let d = detect(&[grid(), one_column].concat(), &[]);
+    assert_eq!(count(&d), 2);
+    assert_eq!(d["tables"][1]["columns"], 1);
+    assert_eq!(d["tables"][1]["cells"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        d["tables"][1]["topology"]["betti"],
+        serde_json::json!([1, 0, 0])
+    );
+}
+
+#[test]
+fn overhanging_join_does_not_create_a_partial_border_in_a_merged_cell() {
+    let mut source = grid();
+    for path in &mut source {
+        path.stroke_width = 1.2;
+    }
+    source[1] = line(9.4, 40., 40.6, 40.);
+    source[1].stroke_width = 1.2;
+    let d = detect(&source, &[]);
+    assert_eq!(count(&d), 1);
+    assert_eq!(d["tables"][0]["cells"].as_array().unwrap().len(), 3);
+    assert!(d["tables"][0]["cells"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|c| c["rowspan"] == 2));
+    assert!(d["tables"][0]["sourcePathIndices"]
+        .as_array()
+        .unwrap()
+        .contains(&serde_json::json!(1)));
+}
 fn count(v: &Value) -> usize {
     v["tables"].as_array().unwrap().len()
 }
