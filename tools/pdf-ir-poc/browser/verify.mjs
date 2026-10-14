@@ -15,14 +15,16 @@ const puppeteer = require("puppeteer-core");
 const inputs = {
   text: path.join(repo,"pdf/re-align-center-hancom-hwp-2020.pdf"),
   table: path.join(repo,"pdf/issue5875/nested_table_text_caption-2020.pdf"),
-  nested: path.join(artifacts,"nested-input.pdf")
+  nested: path.join(artifacts,"nested-input.pdf"),
+  real7: path.join(artifacts,"source/page-7.pdf"),
+  real8: path.join(artifacts,"source/page-8.pdf")
 };
 const mime = {".js":"text/javascript", ".html":"text/html", ".wasm":"application/wasm", ".pdf":"application/pdf"};
 const server = http.createServer(async (request,response) => {
   try {
     const url = new URL(request.url, "http://localhost");
     if (url.pathname==="/favicon.ico") {response.writeHead(204);response.end();return;}
-    const name = url.pathname.match(/^\/pdf\/(text|table|nested)\.pdf$/)?.[1];
+    const name = url.pathname.match(/^\/pdf\/(text|table|nested|real7|real8)\.pdf$/)?.[1];
     const fileRoot=url.pathname.startsWith("/pkg/")?path.join(artifacts,"browser"):root;
     const file = name ? inputs[name] : path.resolve(fileRoot, "." + (url.pathname === "/" ? "/index.html" : url.pathname));
     if (!name && !file.startsWith(fileRoot + path.sep)) throw new Error("invalid path");
@@ -62,7 +64,7 @@ try {
   assert.match(invalid,/PDF byte buffers/);
   result.invalidInputRejected=invalid;
   assert.deepEqual(await fs.readFile(inputs.nested),await nestedPdf());
-  for (const [name,paintedRules,tables] of [["text",false,false],["table",false,false],["table",true,false],["table",true,true],["nested",true,true]]) {
+  for (const [name,paintedRules,tables] of [["text",false,false],["table",false,false],["table",true,false],["table",true,true],["nested",true,true],["real7",true,true],["real8",true,true]]) {
     const label=tables?`${name}-structured`:paintedRules?`${name}-painted`:name;
     result.stage=label;
     const evidence = await page.evaluate(({name,paintedRules,tables})=>window.runPdf(name,paintedRules,tables),{name,paintedRules,tables});
@@ -82,7 +84,7 @@ try {
     const paragraphs=paragraphRegions.flatMap(r=>r.paragraphs);
     const refs=paragraphs.flatMap(p=>p.spanIndices).sort((a,b)=>a-b);
     assert.deepEqual(refs,evidence.report.extraction.spans.map((_,i)=>i));
-    assert.ok(paragraphs.every(p=>p.status==="Confirmed"));
+    if (!name.startsWith("real")) assert.ok(paragraphs.every(p=>p.status==="Confirmed"));
     if (name==="text") {
       assert.equal(paragraphs.length,1);
       assert.equal(paragraphs[0].lines.length,3);
@@ -91,22 +93,30 @@ try {
       assert.deepEqual(pictureCell.imageIndices,[0,1]);
       assert.equal(pictureCell.recognition.transitions.filter(t=>t.event==="AcceptBoundary" && t.reason==="intervening_image").length,2);
     }
-    assert.equal(detection.tables.length,name==="nested"?3:name==="table"?1:0);
+    assert.equal(detection.tables.length,name==="real7"?4:name==="real8"?3:name==="nested"?3:name==="table"?1:0);
     const ir=evidence.report.documentIr.paragraphs[0].controls;
     const irTables=ir.filter(c=>c.Table).map(c=>c.Table);
-    assert.equal(irTables.length,tables && name==="table"?1:0);
+    assert.equal(irTables.length,tables?1:0);
     if (name==="nested") {
       assert.deepEqual(detection.tables.map(t=>t.hierarchy.depth),[0,1,2]);
       assert.ok(detection.tables.every(t=>t.topology.boundarySquaredZero));
       assert.deepEqual(detection.tables.map(t=>t.topology.betti),[[1,0,0],[1,0,0],[1,0,0]]);
       assert.deepEqual(detection.ambiguousContent,[]);
-      assert.equal(evidence.report.lowering.semanticTables,0);
-      assert.equal(evidence.report.lowering.deferredTables.length,3);
-      assert.ok(evidence.report.lowering.deferredTables.every(t=>t.reason==="nested_table_materialization_pending"));
-      assert.equal(evidence.report.lowering.paintedRuleRectangles,18);
-      assert.equal(evidence.report.lowering.textBoxes,3);
-      const positional=await fs.readFile(path.join(artifacts,"nested-painted-page/compiled.hwpx"));
-      assert.deepEqual(Buffer.from(evidence.hwpx),positional,"nested fallback changed HWPX layout objects");
+      assert.equal(evidence.report.lowering.semanticTables,3);
+      assert.equal(evidence.report.lowering.semanticNestedTables,2);
+      assert.deepEqual(evidence.report.lowering.deferredTables,[]);
+      assert.equal(evidence.report.lowering.paintedRuleRectangles,0);
+      assert.equal(evidence.report.lowering.textBoxes,0);
+      const descendants=t=>t.cells.flatMap(c=>c.paragraphs.flatMap(p=>p.controls.filter(c=>c.Table).map(c=>c.Table)));
+      const child=descendants(irTables[0]);
+      assert.equal(child.length,1);
+      assert.equal(descendants(child[0]).length,1);
+    }
+    if (name.startsWith("real")) {
+      assert.equal(evidence.report.lowering.semanticTables,name==="real7"?4:3);
+      assert.equal(evidence.report.lowering.semanticRootTables,1);
+      assert.equal(evidence.report.lowering.semanticNestedTables,name==="real7"?3:2);
+      assert.deepEqual(evidence.report.lowering.deferredTables,[]);
     }
     if (name==="table") {
       assert.equal(detection.tables[0].rows,5);
@@ -135,7 +145,7 @@ try {
       }
     }
     assert.equal(evidence.pageCount,1);
-    assert.equal(evidence.report.lowering.explicitZeroTextMargins,tables && name==="table"?1:name==="table"?95:3);
+    assert.equal(evidence.report.lowering.explicitZeroTextMargins,name==="real7"?109:name==="real8"?150:name==="nested"?0:tables && name==="table"?1:name==="table"?95:3);
     assert.equal(evidence.report.lowering.singleLineParagraphs,"SQUEEZE");
     assert.ok(evidence.inkPixels>100);
     assert.equal(evidence.images,name==="table"?2:0);

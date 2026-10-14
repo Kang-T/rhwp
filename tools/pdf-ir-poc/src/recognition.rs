@@ -865,6 +865,6 @@ pub fn recognize_page(
         "policy":{"baselineToleranceEm":policy.baseline_tolerance_em,"alignmentToleranceEm":policy.alignment_tolerance_em,
             "paragraphGapEm":policy.paragraph_gap_em,"maxContextDepth":policy.max_context_depth},
         "tables":tables,"bodyRegions":regions,"unresolvedContent":ambiguous,"renderingIrChanged":false,
-        "limits":["body columns require explicit segmentation; disjoint runs deferred","nested cell-slot structure inferred; nested Table IR materialization deferred","tagged semantics not reconstructed"]}),
+        "limits":["body columns require explicit segmentation; disjoint runs deferred","nested cell-slot structure inferred; lowering may preserve unresolved content as positioned spans","tagged semantics not reconstructed"]}),
     )
 }

@@ -40,6 +40,9 @@ try {
   for (const mode of ["painted","structured"]) {
     run(`nested-${mode}-native`,"cargo",["+1.93.1","run",...shared,"--",path.join(output,"nested-input.pdf"),path.join(output,`nested-${mode}-page`),mode==="painted"?"--painted-rules":"--tables"]);
   }
+  await fs.mkdir(path.join(output,"source"),{recursive:true});
+  run("split-real-nested-pages","pdfseparate",["-f","7","-l","8",path.join(repo,inputs.table),path.join(output,"source/page-%d.pdf")]);
+  for (const page of [7,8]) run(`real${page}-structured-native`,"cargo",["+1.93.1","run",...shared,"--",path.join(output,`source/page-${page}.pdf`),path.join(output,`real${page}-structured-page`),"--tables"]);
   run("wasm-build","cargo",["+1.93.1","build",...shared,"--lib","--target","wasm32-unknown-unknown"]);
   run("wasm-bindgen",bindgen,[path.join(repo,"target/pr-review/wasm32-unknown-unknown/release/rhwp_pdf_oxide_poc.wasm"),"--target","web","--out-dir",path.join(output,"browser/pkg")]);
   run("browser",process.execPath,[path.join(root,"browser/verify.mjs"),repo,path.join(output,"browser/evidence")]);
@@ -62,7 +65,7 @@ try {
     rustToolchain:"1.93.1",pdfOxide:"0.3.78",officeOxide:"0.1.9",
     inputHashes:await Promise.all(Object.entries(inputs).map(async([name,input])=>({name,input,sha256:sha(await fs.readFile(path.join(repo,input)))}))),
     wasmBytes:wasm.length,wasmGzipBytes:gzipSync(wasm).length,wasmSha256:sha(wasm),
-    pocSources:await Promise.all(["Cargo.toml","Cargo.lock","src/lib.rs","src/lowering.rs","src/structured_lowering.rs","src/hwpx_compatibility.rs","src/main.rs","src/table_detection.rs","src/table_hierarchy.rs","src/table_topology.rs","src/recognition.rs","tests/nested_tables.rs","tests/contracts.rs","tests/structured.rs","fixtures/nested-grid.content","fixtures/nested-grid.mjs","browser/verify.mjs"].map(async file=>({file,sha256:sha(await fs.readFile(path.join(root,file)))}))),
+    pocSources:await Promise.all(["Cargo.toml","Cargo.lock","src/lib.rs","src/lowering.rs","src/structured_lowering.rs","src/hwpx_compatibility.rs","src/main.rs","src/table_detection.rs","src/table_hierarchy.rs","src/table_topology.rs","src/recognition.rs","tests/nested_materialization.rs","tests/nested_tables.rs","tests/contracts.rs","tests/structured.rs","fixtures/nested-grid.content","fixtures/nested-grid.mjs","browser/verify.mjs","browser/worker.js","browser/index.html","verify-local.mjs","verify-visual.mjs"].map(async file=>({file,sha256:sha(await fs.readFile(path.join(root,file)))}))),
     comparisons,hancomCompatibility:"unverified-awaiting-maintainer-retest",
     limits:"selected first pages only; optional inferred Table IR; new structured output requires Hancom verification"
   },null,2));

@@ -11,7 +11,7 @@ const commands=[];
 const cases=[];
 const hash=async file=>createHash("sha256").update(await fs.readFile(file)).digest("hex");
 try {
-  for(const [name,input] of [["text","pdf/re-align-center-hancom-hwp-2020.pdf"],["table","pdf/issue5875/nested_table_text_caption-2020.pdf"],["table-painted","pdf/issue5875/nested_table_text_caption-2020.pdf"],["table-structured","pdf/issue5875/nested_table_text_caption-2020.pdf"],["nested-structured",path.join(output,"nested-input.pdf")]]) {
+  for(const [name,input] of [["text","pdf/re-align-center-hancom-hwp-2020.pdf"],["table","pdf/issue5875/nested_table_text_caption-2020.pdf"],["table-painted","pdf/issue5875/nested_table_text_caption-2020.pdf"],["table-structured","pdf/issue5875/nested_table_text_caption-2020.pdf"],["nested-structured",path.join(output,"nested-input.pdf")],["real7-structured",path.join(output,"source/page-7.pdf")],["real8-structured",path.join(output,"source/page-8.pdf")]]) {
     const base=path.join(output,"visual",name);
     const referenceDir=path.join(base,"reference");
     await fs.mkdir(referenceDir,{recursive:true});

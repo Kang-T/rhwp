@@ -5,7 +5,9 @@ use rhwp::model::{
     document::Document,
     paragraph::{CharShapeRef, LineSeg, Paragraph},
     shape::{CommonObjAttr, HorzRelTo, ShapeObject, TextWrap, VertRelTo},
-    style::{border_width_index, Alignment, LineSpacingType, PARA_ATTR2_LINE_WRAP_MASK},
+    style::{
+        border_width_index, Alignment, BorderLineType, LineSpacingType, PARA_ATTR2_LINE_WRAP_MASK,
+    },
     table::{Cell, Table, TablePageBreak, VerticalAlign},
 };
 use serde_json::{json, Value};
@@ -90,6 +92,7 @@ fn paragraph(
     proposal: &Value,
     cell_box: &Value,
     shape_ids: &[Option<u32>],
+    fixed_line_height: bool,
 ) -> Result<FlowItem, String> {
     let lines = array(&proposal["lines"])?;
     let first = lines.first().ok_or("paragraph has no lines")?;
@@ -179,8 +182,14 @@ fn paragraph(
     style.indent = 0;
     style.spacing_before = 0;
     style.spacing_after = 0;
-    style.line_spacing_type = LineSpacingType::Percent;
-    style.line_spacing = if lines.len() > 1 {
+    style.line_spacing_type = if fixed_line_height {
+        LineSpacingType::Fixed
+    } else {
+        LineSpacingType::Percent
+    };
+    style.line_spacing = if fixed_line_height {
+        hu(2. * number(&first["fontSize"])?)? as i32
+    } else if lines.len() > 1 {
         ((number(&lines[1]["baseline"])? - number(&first["baseline"])?)
             / number(&first["fontSize"])?
             * 100.)
@@ -243,29 +252,557 @@ fn is_grid_rule(shape: &ShapeObject, grid: &Value) -> Result<bool, String> {
     )
 }
 
+struct TableBuilder<'a> {
+    page: &'a ExtractedPage,
+    controls: &'a [Control],
+    grids: &'a [Value],
+    recognized: &'a [Value],
+    span_controls: &'a [Option<usize>],
+    shape_ids: &'a [Option<u32>],
+    image_controls: &'a [usize],
+}
+
+fn cell_border(doc: &mut Document, controls: &[Control], bounds: &Value) -> Result<u16, String> {
+    let (x, y, w, h) = (
+        number(&bounds["x"])?,
+        number(&bounds["y"])?,
+        number(&bounds["width"])?,
+        number(&bounds["height"])?,
+    );
+    let mut border = doc.doc_info.border_fills[1].clone();
+    border.raw_data = None;
+    for (side, (horizontal, at, from, to)) in [
+        (false, x, y, y + h),
+        (false, x + w, y, y + h),
+        (true, y, x, x + w),
+        (true, y + h, x, x + w),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut segments = Vec::new();
+        let mut styles = BTreeSet::new();
+        for control in controls {
+            let Control::Shape(shape) = control else {
+                continue;
+            };
+            let ShapeObject::Rectangle(r) = shape.as_ref() else {
+                continue;
+            };
+            if r.drawing.text_box.is_some() {
+                continue;
+            }
+            let Some(fill) = &r.drawing.fill.solid else {
+                continue;
+            };
+            let c = &r.common;
+            let (xx, yy, ww, hh) = (
+                c.horizontal_offset as f32 / 100.,
+                c.vertical_offset as f32 / 100.,
+                c.width as f32 / 100.,
+                c.height as f32 / 100.,
+            );
+            let (rule_h, rule_at, a, b) = if ww >= hh {
+                (true, yy + hh / 2., xx, xx + ww)
+            } else {
+                (false, xx + ww / 2., yy, yy + hh)
+            };
+            let (a, b) = (a.max(from), b.min(to));
+            if rule_h == horizontal && (rule_at - at).abs() <= 0.5 && b - a > 0.5 {
+                segments.push((a, b));
+                styles.insert((
+                    fill.background_color,
+                    border_width_index(ww.min(hh) as f64 * 25.4 / 72.),
+                ));
+            }
+        }
+        segments.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut end = from;
+        for (a, b) in segments {
+            if a > end + 0.5 {
+                return Err("cell border coverage gap".into());
+            }
+            end = end.max(b);
+        }
+        if end < to - 0.5 || styles.len() != 1 {
+            return Err("nonuniform or missing cell side style".into());
+        }
+        let &(color, width) = styles.first().unwrap();
+        border.borders[side].line_type = BorderLineType::Solid;
+        border.borders[side].color = color;
+        border.borders[side].width = width;
+    }
+    if let Some(i) = doc.doc_info.border_fills.iter().position(|b| b == &border) {
+        return u16::try_from(i + 1).map_err(|e| e.to_string());
+    }
+    doc.doc_info.border_fills.push(border);
+    u16::try_from(doc.doc_info.border_fills.len()).map_err(|e| e.to_string())
+}
+
+impl TableBuilder<'_> {
+    fn positional_line(
+        &self,
+        doc: &mut Document,
+        line: &Value,
+        cell_box: &Value,
+    ) -> Result<FlowItem, String> {
+        let size = number(&line["fontSize"])?;
+        let top = number(&line["baseline"])? - size * 0.95;
+        let mut host = Paragraph::new_empty();
+        host.char_count_msb = true;
+        host.control_mask = 0x800;
+        host.char_shapes = vec![CharShapeRef {
+            start_pos: 0,
+            char_shape_id: 0,
+        }];
+        let mut cursor = number(&cell_box["x"])?;
+        for i in refs(&line["spanIndices"])? {
+            let control = self.span_controls[i].ok_or("missing positional span")?;
+            let Control::Shape(original) = &self.controls[control] else {
+                return Err("invalid positional span control".into());
+            };
+            let mut shape = original.clone();
+            let c = shape.common_mut();
+            let left = c.horizontal_offset as f32 / 100.;
+            if left < cursor - 0.5 {
+                return Err("overlapping positional spans".into());
+            }
+            let vertical = i32::try_from(c.vertical_offset).map_err(|e| e.to_string())?;
+            c.margin.left = 0;
+            c.treat_as_char = false;
+            c.horz_rel_to = HorzRelTo::Para;
+            c.vert_rel_to = VertRelTo::Para;
+            c.horizontal_offset = hu(left - number(&cell_box["x"])?)?;
+            c.vertical_offset = vertical
+                .checked_sub(i32::try_from(hu(top)?).map_err(|e| e.to_string())?)
+                .ok_or("relative text-box offset overflow")? as u32;
+            c.text_wrap = TextWrap::InFrontOfText;
+            c.flow_with_text = true;
+            c.allow_overlap = true;
+            cursor = left + c.width as f32 / 100.;
+            host.controls.push(Control::Shape(shape));
+        }
+        host.char_count = 1 + host.controls.len() as u32 * 8;
+        let mut ps = doc.doc_info.para_shapes[0].clone();
+        ps.raw_data = None;
+        ps.margin_left = 0;
+        ps.margin_right = 0;
+        ps.indent = 0;
+        ps.spacing_before = 0;
+        ps.spacing_after = 0;
+        ps.line_spacing_type = LineSpacingType::Fixed;
+        ps.line_spacing = hu(2. * size)? as i32;
+        host.para_shape_id =
+            u16::try_from(doc.doc_info.para_shapes.len()).map_err(|e| e.to_string())?;
+        doc.doc_info.para_shapes.push(ps);
+        host.line_segs = vec![LineSeg {
+            line_height: hu(size)? as i32,
+            text_height: hu(size)? as i32,
+            baseline_distance: hu(size)? as i32,
+            segment_width: hu(number(&cell_box["width"])?)? as i32,
+            tag: LineSeg::TAG_SINGLE_SEGMENT_LINE,
+            ..Default::default()
+        }];
+        Ok(FlowItem {
+            top,
+            bottom: top + size,
+            paragraph: host,
+        })
+    }
+    fn build(
+        &self,
+        doc: &mut Document,
+        candidate: usize,
+        removed: &mut BTreeSet<usize>,
+        stack: &mut BTreeSet<usize>,
+        family: bool,
+    ) -> Result<Table, String> {
+        if stack.len() >= 8 || !stack.insert(candidate) {
+            return Err("invalid or too-deep nested table composition".into());
+        }
+        let result = self.build_inner(doc, candidate, removed, stack, family);
+        stack.remove(&candidate);
+        result
+    }
+
+    fn build_inner(
+        &self,
+        doc: &mut Document,
+        candidate: usize,
+        removed: &mut BTreeSet<usize>,
+        stack: &mut BTreeSet<usize>,
+        family: bool,
+    ) -> Result<Table, String> {
+        let Self {
+            page,
+            controls,
+            grids,
+            recognized,
+            span_controls,
+            shape_ids,
+            image_controls,
+        } = self;
+        let grid = grids.get(candidate).ok_or("missing recognized grid")?;
+        let recognized_table = recognized
+            .iter()
+            .find(|r| r["candidate"].as_u64() == Some(candidate as u64))
+            .ok_or("missing table recognition")?;
+        if recognized_table["status"] != "GeometryConfirmed" {
+            return Err("recognition_deferred".into());
+        }
+        let mut stroke_styles = BTreeSet::new();
+        for c in *controls {
+            if let Control::Shape(s) = c {
+                if is_grid_rule(s, grid)? {
+                    match s.as_ref() {
+                        ShapeObject::Line(l) => {
+                            stroke_styles.insert((
+                                l.drawing.border_line.color,
+                                l.drawing.border_line.width as u32,
+                            ));
+                        }
+                        ShapeObject::Rectangle(r) => {
+                            stroke_styles.insert((
+                                r.drawing
+                                    .fill
+                                    .solid
+                                    .as_ref()
+                                    .ok_or("missing rule fill")?
+                                    .background_color,
+                                r.common.width.min(r.common.height),
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        if !family && stroke_styles.len() != 1 {
+            return Err("mixed or missing rule styles require further lowering".into());
+        }
+        let &(color, width) = stroke_styles.first().ok_or("missing rule style")?;
+        let mut border = doc
+            .doc_info
+            .border_fills
+            .get(1)
+            .ok_or("missing scaffold solid border")?
+            .clone();
+        border.raw_data = None;
+        for side in &mut border.borders {
+            if family {
+                side.line_type = BorderLineType::None;
+            } else {
+                side.color = color;
+                side.width = border_width_index(width as f64 / 100. * 25.4 / 72.);
+            }
+        }
+        doc.doc_info.border_fills.push(border);
+        let border_id =
+            u16::try_from(doc.doc_info.border_fills.len()).map_err(|e| e.to_string())?;
+        let b = &grid["bbox"];
+        let mut table = Table {
+            row_count: u16::try_from(index(&grid["rows"])?).map_err(|e| e.to_string())?,
+            col_count: u16::try_from(index(&grid["columns"])?).map_err(|e| e.to_string())?,
+            border_fill_id: border_id,
+            page_break: TablePageBreak::None,
+            common: CommonObjAttr {
+                width: hu(number(&b["width"])?)?,
+                height: hu(number(&b["height"])?)?,
+                horizontal_offset: hu(number(&b["x"])?)?,
+                vertical_offset: hu(number(&b["y"])?)?,
+                instance_id: u32::try_from(controls.len() + 2 + candidate * 2)
+                    .map_err(|e| e.to_string())?,
+                text_wrap: TextWrap::InFrontOfText,
+                allow_overlap: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        table.row_sizes = vec![table.col_count as i16; table.row_count as usize];
+        for recognized_cell in array(&recognized_table["cells"])? {
+            let cell_idx = index(&recognized_cell["cell"])?;
+            let source = array(&grid["cells"])?
+                .get(cell_idx)
+                .ok_or("missing cell geometry")?;
+            let cb = &source["bbox"];
+            let cell_border_id = if family {
+                cell_border(doc, controls, cb)?
+            } else {
+                border_id
+            };
+            let mut cell = Cell::new_empty(
+                index(&source["column"])? as u16,
+                index(&source["row"])? as u16,
+                hu(number(&cb["width"])?)?,
+                hu(number(&cb["height"])?)?,
+                cell_border_id,
+            );
+            cell.col_span = index(&source["colspan"])? as u16;
+            cell.row_span = index(&source["rowspan"])? as u16;
+            cell.vertical_align = VerticalAlign::Top;
+            cell.apply_inner_margin = true;
+            cell.paragraphs[0].char_shapes = vec![CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 0,
+            }];
+            let mut flow = Vec::new();
+            for proposal in array(&recognized_cell["recognition"]["paragraphs"])? {
+                if family {
+                    // PDF line geometry is evidence even when authored paragraph grouping is unresolved.
+                    for line in array(&proposal["lines"])? {
+                        if proposal["status"] == "Deferred" {
+                            flow.push(self.positional_line(doc, line, cb)?);
+                        } else {
+                            flow.push(paragraph(
+                                page,
+                                doc,
+                                &json!({"lines":[line]}),
+                                cb,
+                                shape_ids,
+                                true,
+                            )?);
+                        }
+                    }
+                } else if proposal["status"] == "Confirmed" {
+                    flow.push(paragraph(page, doc, proposal, cb, shape_ids, false)?);
+                } else {
+                    return Err("recognition_deferred".into());
+                }
+            }
+            let children = recognized_cell["childTableIndices"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default();
+            for child_ref in children {
+                let child_id = index(&child_ref)?;
+                let child_grid = grids.get(child_id).ok_or("missing child grid")?;
+                if child_grid["hierarchy"]["parent"] != json!({"table":candidate,"cell":cell_idx}) {
+                    return Err("nested cell-slot ownership mismatch".into());
+                }
+                let mut child = self.build(doc, child_id, removed, stack, true)?;
+                let child_box = &child_grid["bbox"];
+                let top = number(&child_box["y"])?;
+                let bottom = top + number(&child_box["height"])?;
+                let left = hu(number(&child_box["x"])? - number(&cb["x"])?)?;
+                child.common.treat_as_char = true;
+                child.common.horz_rel_to = HorzRelTo::Para;
+                child.common.vert_rel_to = VertRelTo::Para;
+                child.common.horizontal_offset = 0;
+                child.common.vertical_offset = 0;
+                child.common.text_wrap = TextWrap::TopAndBottom;
+                child.common.allow_overlap = false;
+                child.common.flow_with_text = true;
+                child.outer_margin_left =
+                    i16::try_from(left).map_err(|_| "nested inset exceeds format range")?;
+                let height = child.common.height;
+                let mut host = Paragraph::new_empty();
+                host.char_count_msb = true;
+                host.char_count = 9;
+                host.control_mask = 0x800;
+                host.char_shapes = vec![CharShapeRef {
+                    start_pos: 0,
+                    char_shape_id: 0,
+                }];
+                let mut ps = doc.doc_info.para_shapes[0].clone();
+                ps.raw_data = None;
+                ps.margin_left = 0;
+                ps.margin_right = 0;
+                ps.indent = 0;
+                ps.spacing_before = 0;
+                ps.spacing_after = 0;
+                ps.line_spacing_type = LineSpacingType::Fixed;
+                ps.line_spacing = i32::try_from(height)
+                    .ok()
+                    .and_then(|height| height.checked_mul(2))
+                    .ok_or("nested line height exceeds format range")?;
+                host.para_shape_id =
+                    u16::try_from(doc.doc_info.para_shapes.len()).map_err(|e| e.to_string())?;
+                doc.doc_info.para_shapes.push(ps);
+                host.line_segs = vec![LineSeg {
+                    line_height: height as i32,
+                    text_height: height as i32,
+                    baseline_distance: height as i32,
+                    segment_width: cell.width as i32,
+                    tag: LineSeg::TAG_SINGLE_SEGMENT_LINE,
+                    ..Default::default()
+                }];
+                host.controls.push(Control::Table(Box::new(child)));
+                flow.push(FlowItem {
+                    top,
+                    bottom,
+                    paragraph: host,
+                });
+            }
+            for image_idx in refs(&source["imageIndices"])? {
+                let control_idx = *image_controls
+                    .get(image_idx)
+                    .ok_or("image/control map mismatch")?;
+                let Control::Picture(original) = &controls[control_idx] else {
+                    unreachable!()
+                };
+                let mut picture = original.clone();
+                let top = picture.common.vertical_offset as f32 / 100.;
+                picture.common.treat_as_char = true;
+                picture.common.text_wrap = TextWrap::TopAndBottom;
+                picture.common.allow_overlap = false;
+                if family {
+                    picture.common.flow_with_text = true;
+                }
+                picture.common.vert_rel_to = VertRelTo::Para;
+                picture.common.horz_rel_to = HorzRelTo::Para;
+                picture.common.horizontal_offset = 0;
+                picture.common.vertical_offset = 0;
+                let mut para = Paragraph::new_empty();
+                para.char_count_msb = true;
+                para.char_count = 9;
+                para.control_mask = 0x800;
+                para.char_shapes = vec![CharShapeRef {
+                    start_pos: 0,
+                    char_shape_id: 0,
+                }];
+                let mut ps = doc.doc_info.para_shapes[0].clone();
+                ps.raw_data = None;
+                ps.margin_left =
+                    2 * (original.common.horizontal_offset as i32 - hu(number(&cb["x"])?)? as i32);
+                ps.line_spacing = 100;
+                if family {
+                    ps.line_spacing_type = LineSpacingType::Fixed;
+                    ps.line_spacing = i32::try_from(picture.common.height)
+                        .ok()
+                        .and_then(|height| height.checked_mul(2))
+                        .ok_or("picture line height exceeds format range")?;
+                }
+                ps.spacing_before = 0;
+                ps.spacing_after = 0;
+                para.para_shape_id = doc.doc_info.para_shapes.len() as u16;
+                doc.doc_info.para_shapes.push(ps);
+                para.line_segs = vec![LineSeg {
+                    line_height: picture.common.height as i32,
+                    text_height: picture.common.height as i32,
+                    baseline_distance: picture.common.height as i32,
+                    segment_width: cell.width as i32,
+                    tag: LineSeg::TAG_SINGLE_SEGMENT_LINE,
+                    ..Default::default()
+                }];
+                let bottom = top + picture.common.height as f32 / 100.;
+                para.controls.push(Control::Picture(picture));
+                flow.push(FlowItem {
+                    top,
+                    bottom,
+                    paragraph: para,
+                });
+                removed.insert(control_idx);
+            }
+            flow.sort_by(|a, b| a.top.total_cmp(&b.top));
+            let mut cursor = number(&cb["y"])?;
+            let mut previous_style: Option<u16> = None;
+            for (flow_index, item) in flow.iter_mut().enumerate() {
+                if item.top < cursor - 0.5 {
+                    return Err("overlapping cell flow requires additional lowering".into());
+                }
+                let gap = (item.top - cursor).max(0.);
+                if family && flow_index == 0 {
+                    // Cell inset is shared by cached placement and a consumer's fresh reflow.
+                    cell.padding.top =
+                        i16::try_from(hu(gap)?).map_err(|_| "cell padding exceeds format range")?;
+                    cursor = item.bottom;
+                    previous_style = Some(item.paragraph.para_shape_id);
+                    continue;
+                }
+                let picture = item.paragraph.controls.first().is_some_and(|c| {
+                    matches!(
+                        c,
+                        Control::Picture(_) | Control::Table(_) | Control::Shape(_)
+                    )
+                });
+                if picture {
+                    // Place the inter-item gap before the inline image's flow origin.
+                    if let Some(style) = previous_style {
+                        doc.doc_info.para_shapes[style as usize].spacing_after =
+                            hu(2. * gap)? as i32;
+                    } else {
+                        cell.padding.top = i16::try_from(hu(gap)?)
+                            .map_err(|_| "cell padding exceeds format range")?;
+                    }
+                } else {
+                    doc.doc_info.para_shapes[item.paragraph.para_shape_id as usize]
+                        .spacing_before = hu(2. * gap)? as i32;
+                }
+                if flow_index == 0 && item.paragraph.controls.is_empty() {
+                    // Stored cell starts own their lead in the frame, not flow_before.
+                    let lead = hu((item.top - cursor).max(0.))? as i32;
+                    for segment in &mut item.paragraph.line_segs {
+                        segment.vertical_pos += lead;
+                    }
+                }
+                cursor = item.bottom;
+                previous_style = Some(item.paragraph.para_shape_id);
+            }
+            if !flow.is_empty() {
+                cell.paragraphs = flow.into_iter().map(|i| i.paragraph).collect();
+            }
+            for i in refs(&source["spanIndices"])? {
+                if let Some(c) = span_controls[i] {
+                    removed.insert(c);
+                }
+            }
+            table.cells.push(cell);
+        }
+        table.rebuild_grid();
+        table.row_sizes = (0..table.row_count)
+            .map(|row| table.cells.iter().filter(|c| c.row == row).count() as i16)
+            .collect();
+        for (i, c) in controls.iter().enumerate() {
+            if let Control::Shape(s) = c {
+                if is_grid_rule(s, grid)? {
+                    removed.insert(i);
+                }
+            }
+        }
+        Ok(table)
+    }
+}
+
+fn table_count(controls: &[Control]) -> usize {
+    controls
+        .iter()
+        .map(|c| match c {
+            Control::Table(t) => {
+                1 + t
+                    .cells
+                    .iter()
+                    .flat_map(|c| &c.paragraphs)
+                    .map(|p| table_count(&p.controls))
+                    .sum::<usize>()
+            }
+            _ => 0,
+        })
+        .sum()
+}
+
 pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
     let (mut doc, mut report) = crate::lowering::lower(page, true)?;
     let controls = std::mem::take(&mut doc.sections[0].paragraphs[0].controls);
     let mut span_controls = vec![None; page.spans.len()];
     let mut shape_ids = vec![None; page.spans.len()];
     let mut image_controls = Vec::new();
-    let mut span_cursor = 0;
     let nonempty: Vec<_> = page
         .spans
         .iter()
         .enumerate()
         .filter_map(|(i, s)| (!s.text.is_empty()).then_some(i))
         .collect();
+    let mut span_cursor = 0;
     for (control_idx, c) in controls.iter().enumerate() {
         match c {
             Control::Picture(_) => image_controls.push(control_idx),
             Control::Shape(s) => {
-                if let Some(box_) = s.drawing().and_then(|d| d.text_box.as_ref()) {
+                if let Some(b) = s.drawing().and_then(|d| d.text_box.as_ref()) {
                     let source = *nonempty
                         .get(span_cursor)
                         .ok_or("span/control map mismatch")?;
                     span_controls[source] = Some(control_idx);
-                    shape_ids[source] = Some(box_.paragraphs[0].char_shapes[0].char_shape_id);
+                    shape_ids[source] = Some(b.paragraphs[0].char_shapes[0].char_shape_id);
                     span_cursor += 1;
                 }
             }
@@ -274,242 +811,41 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
     }
     let grids = array(&page.snapshot["tableDetection"]["tables"])?;
     let recognized = array(&page.snapshot["recognition"]["tables"])?;
+    let builder = TableBuilder {
+        page,
+        controls: &controls,
+        grids,
+        recognized,
+        span_controls: &span_controls,
+        shape_ids: &shape_ids,
+        image_controls: &image_controls,
+    };
     let mut removed = BTreeSet::new();
     let mut tables = Vec::new();
     let mut held = Vec::new();
-    for recognized_table in recognized {
-        let candidate = index(&recognized_table["candidate"])?;
-        let grid = grids.get(candidate).ok_or("missing recognized grid")?;
-        let has_children = array(&grid["cells"])?.iter().any(|c| {
+    for (candidate, grid) in grids.iter().enumerate() {
+        if !grid["hierarchy"]["parent"].is_null() {
+            continue;
+        }
+        let family = array(&grid["cells"])?.iter().any(|c| {
             c["childTableIndices"]
                 .as_array()
                 .is_some_and(|a| !a.is_empty())
         });
-        if !grid["hierarchy"]["parent"].is_null() || has_children {
-            held.push(
-                json!({"candidate":candidate,"reason":"nested_table_materialization_pending"}),
-            );
-            continue;
-        }
-        if recognized_table["status"] != "GeometryConfirmed"
-            || array(&recognized_table["cells"])?.iter().any(|c| {
-                c["recognition"]["paragraphs"]
-                    .as_array()
-                    .is_none_or(|ps| ps.iter().any(|p| p["status"] != "Confirmed"))
-            })
-        {
-            held.push(json!({"candidate":candidate,"reason":"recognition_deferred"}));
-            continue;
-        }
-        let grid = grids.get(candidate).ok_or("missing recognized grid")?;
         let style_start = doc.doc_info.para_shapes.len();
         let border_start = doc.doc_info.border_fills.len();
         let mut candidate_removed = BTreeSet::new();
-        let built = (|| -> Result<Control, String> {
-            let mut stroke_styles = BTreeSet::new();
-            for c in &controls {
-                if let Control::Shape(s) = c {
-                    if is_grid_rule(s, grid)? {
-                        match s.as_ref() {
-                            ShapeObject::Line(l) => {
-                                stroke_styles.insert((
-                                    l.drawing.border_line.color,
-                                    l.drawing.border_line.width as u32,
-                                ));
-                            }
-                            ShapeObject::Rectangle(r) => {
-                                stroke_styles.insert((
-                                    r.drawing
-                                        .fill
-                                        .solid
-                                        .as_ref()
-                                        .ok_or("missing rule fill")?
-                                        .background_color,
-                                    r.common.width.min(r.common.height),
-                                ));
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            if stroke_styles.len() != 1 {
-                return Err("mixed or missing rule styles require further lowering".into());
-            }
-            let &(color, width) = stroke_styles.first().ok_or("missing rule style")?;
-            let mut border = doc
-                .doc_info
-                .border_fills
-                .get(1)
-                .ok_or("missing scaffold solid border")?
-                .clone();
-            border.raw_data = None;
-            for side in &mut border.borders {
-                side.color = color;
-                side.width = border_width_index(width as f64 / 100. * 25.4 / 72.);
-            }
-            doc.doc_info.border_fills.push(border);
-            let border_id =
-                u16::try_from(doc.doc_info.border_fills.len()).map_err(|e| e.to_string())?;
-            let b = &grid["bbox"];
-            let mut table = Table {
-                row_count: u16::try_from(index(&grid["rows"])?).map_err(|e| e.to_string())?,
-                col_count: u16::try_from(index(&grid["columns"])?).map_err(|e| e.to_string())?,
-                border_fill_id: border_id,
-                page_break: TablePageBreak::None,
-                common: CommonObjAttr {
-                    width: hu(number(&b["width"])?)?,
-                    height: hu(number(&b["height"])?)?,
-                    horizontal_offset: hu(number(&b["x"])?)?,
-                    vertical_offset: hu(number(&b["y"])?)?,
-                    instance_id: u32::try_from(controls.len() + 2 + candidate * 2)
-                        .map_err(|e| e.to_string())?,
-                    text_wrap: TextWrap::InFrontOfText,
-                    allow_overlap: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            table.row_sizes = vec![table.col_count as i16; table.row_count as usize];
-            for recognized_cell in array(&recognized_table["cells"])? {
-                let cell_idx = index(&recognized_cell["cell"])?;
-                let source = array(&grid["cells"])?
-                    .get(cell_idx)
-                    .ok_or("missing cell geometry")?;
-                let cb = &source["bbox"];
-                let mut cell = Cell::new_empty(
-                    index(&source["column"])? as u16,
-                    index(&source["row"])? as u16,
-                    hu(number(&cb["width"])?)?,
-                    hu(number(&cb["height"])?)?,
-                    border_id,
-                );
-                cell.col_span = index(&source["colspan"])? as u16;
-                cell.row_span = index(&source["rowspan"])? as u16;
-                cell.vertical_align = VerticalAlign::Top;
-                cell.apply_inner_margin = true;
-                cell.paragraphs[0].char_shapes = vec![CharShapeRef {
-                    start_pos: 0,
-                    char_shape_id: 0,
-                }];
-                let mut flow = Vec::new();
-                for proposal in array(&recognized_cell["recognition"]["paragraphs"])? {
-                    flow.push(paragraph(page, &mut doc, proposal, cb, &shape_ids)?);
-                }
-                for image_idx in refs(&source["imageIndices"])? {
-                    let control_idx = *image_controls
-                        .get(image_idx)
-                        .ok_or("image/control map mismatch")?;
-                    let Control::Picture(original) = &controls[control_idx] else {
-                        unreachable!()
-                    };
-                    let mut picture = original.clone();
-                    let top = picture.common.vertical_offset as f32 / 100.;
-                    picture.common.treat_as_char = true;
-                    picture.common.text_wrap = TextWrap::TopAndBottom;
-                    picture.common.allow_overlap = false;
-                    picture.common.vert_rel_to = VertRelTo::Para;
-                    picture.common.horz_rel_to = HorzRelTo::Para;
-                    picture.common.horizontal_offset = 0;
-                    picture.common.vertical_offset = 0;
-                    let mut para = Paragraph::new_empty();
-                    para.char_count_msb = true;
-                    para.char_count = 9;
-                    para.control_mask = 0x800;
-                    para.char_shapes = vec![CharShapeRef {
-                        start_pos: 0,
-                        char_shape_id: 0,
-                    }];
-                    let mut ps = doc.doc_info.para_shapes[0].clone();
-                    ps.raw_data = None;
-                    ps.margin_left = 2
-                        * (original.common.horizontal_offset as i32
-                            - hu(number(&cb["x"])?)? as i32);
-                    ps.line_spacing = 100;
-                    ps.spacing_before = 0;
-                    ps.spacing_after = 0;
-                    para.para_shape_id = doc.doc_info.para_shapes.len() as u16;
-                    doc.doc_info.para_shapes.push(ps);
-                    para.line_segs = vec![LineSeg {
-                        line_height: picture.common.height as i32,
-                        text_height: picture.common.height as i32,
-                        baseline_distance: picture.common.height as i32,
-                        segment_width: cell.width as i32,
-                        tag: LineSeg::TAG_SINGLE_SEGMENT_LINE,
-                        ..Default::default()
-                    }];
-                    let bottom = top + picture.common.height as f32 / 100.;
-                    para.controls.push(Control::Picture(picture));
-                    flow.push(FlowItem {
-                        top,
-                        bottom,
-                        paragraph: para,
-                    });
-                    candidate_removed.insert(control_idx);
-                }
-                flow.sort_by(|a, b| a.top.total_cmp(&b.top));
-                let mut cursor = number(&cb["y"])?;
-                let mut previous_style: Option<u16> = None;
-                for (flow_index, item) in flow.iter_mut().enumerate() {
-                    if item.top < cursor - 0.5 {
-                        return Err("overlapping cell flow requires additional lowering".into());
-                    }
-                    let gap = (item.top - cursor).max(0.);
-                    let picture = item
-                        .paragraph
-                        .controls
-                        .first()
-                        .is_some_and(|c| matches!(c, Control::Picture(_)));
-                    if picture {
-                        // Place the inter-item gap before the inline image's flow origin.
-                        if let Some(style) = previous_style {
-                            doc.doc_info.para_shapes[style as usize].spacing_after =
-                                hu(2. * gap)? as i32;
-                        } else {
-                            cell.padding.top = i16::try_from(hu(gap)?)
-                                .map_err(|_| "cell padding exceeds format range")?;
-                        }
-                    } else {
-                        doc.doc_info.para_shapes[item.paragraph.para_shape_id as usize]
-                            .spacing_before = hu(2. * gap)? as i32;
-                    }
-                    if flow_index == 0 && item.paragraph.controls.is_empty() {
-                        // Stored cell starts own their lead in the frame, not flow_before.
-                        let lead = hu((item.top - cursor).max(0.))? as i32;
-                        for segment in &mut item.paragraph.line_segs {
-                            segment.vertical_pos += lead;
-                        }
-                    }
-                    cursor = item.bottom;
-                    previous_style = Some(item.paragraph.para_shape_id);
-                }
-                if !flow.is_empty() {
-                    cell.paragraphs = flow.into_iter().map(|i| i.paragraph).collect();
-                }
-                for i in refs(&source["spanIndices"])? {
-                    if let Some(c) = span_controls[i] {
-                        candidate_removed.insert(c);
-                    }
-                }
-                table.cells.push(cell);
-            }
-            table.rebuild_grid();
-            table.row_sizes = (0..table.row_count)
-                .map(|row| table.cells.iter().filter(|c| c.row == row).count() as i16)
-                .collect();
-            for (i, c) in controls.iter().enumerate() {
-                if let Control::Shape(s) = c {
-                    if is_grid_rule(s, grid)? {
-                        candidate_removed.insert(i);
-                    }
-                }
-            }
-            Ok(Control::Table(Box::new(table)))
-        })();
+        let built = builder.build(
+            &mut doc,
+            candidate,
+            &mut candidate_removed,
+            &mut BTreeSet::new(),
+            family,
+        );
         match built {
             Ok(table) => {
                 removed.extend(candidate_removed);
-                tables.push(table);
+                tables.push(Control::Table(Box::new(table)));
             }
             Err(reason) => {
                 doc.doc_info.para_shapes.truncate(style_start);
@@ -518,7 +854,8 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
             }
         }
     }
-    let table_count = tables.len();
+    let root_count = tables.len();
+    let table_count = table_count(&tables);
     let mut retained: Vec<_> = controls
         .into_iter()
         .enumerate()
@@ -530,6 +867,10 @@ pub(crate) fn lower(page: &ExtractedPage) -> Result<(Document, Value), String> {
     owner.char_count = 1 + owner.controls.len() as u32 * 8;
     report["mode"] = json!("structured-tables-with-positional-fallback");
     report["semanticTables"] = json!(table_count);
+    report["semanticRootTables"] = json!(root_count);
+    report["semanticNestedTables"] = json!(table_count - root_count);
+    report["nestedParagraphPolicy"] =
+        json!("PDF lines retained separately; authored paragraph grouping is not asserted");
     report["ruledTableCandidates"] = json!(grids.len());
     report["tableSemantics"] = json!("inferred-from-geometry-not-authored-metadata");
     report["textBoxes"] = json!(owner
