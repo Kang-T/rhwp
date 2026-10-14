@@ -27043,6 +27043,10 @@ mod row_cut_tests {
         // 계속 채울 수 있다.
         let eng = LayoutEngine::new(96.0);
         let styles = ResolvedStyleSet::default();
+        // HWP 5.0 LINE_SEG tag bit 0은 쪽 첫 줄이다. 양수 로컬 좌표 감소만으로
+        // 쪽 경계를 가정하지 않고, 이 합성 입력의 의도를 저장 표지로 명시한다.
+        let mut continuation = visible_text_para(1, 1000);
+        continuation.line_segs[0].tag |= LineSeg::TAG_FIRST_LINE_OF_PAGE;
         let t = rowbreak_table(vec![cell(
             0,
             0,
@@ -27051,7 +27055,7 @@ mod row_cut_tests {
                 empty_anchor_non_inline_picture_para(1200),
                 empty_overlay_para(1, 2400),
                 visible_text_para(2, 3600),
-                visible_text_para(1, 1000),
+                continuation,
             ],
         )]);
         let units = eng.cell_units(&t.cells[0], &t, &styles);
@@ -27089,11 +27093,21 @@ mod row_cut_tests {
         // [Task #1488] 가시 문단 사이 리셋은 하드 브레이크로 보존(Task #993 의도).
         let eng = LayoutEngine::new(96.0);
         let styles = ResolvedStyleSet::default();
+        // HWP 5.0 LINE_SEG tag bit 0은 쪽 첫 줄이다. 양수 로컬 좌표 감소만으로
+        // 쪽 경계를 가정하지 않고, 이 합성 입력의 의도를 저장 표지로 명시한다.
+        let mut continuation = visible_text_para(2, 1000);
+        continuation.line_segs[0].tag |= LineSeg::TAG_FIRST_LINE_OF_PAGE;
         let t = table(vec![cell(
             0,
             0,
-            vec![visible_text_para(3, 0), visible_text_para(2, 1000)],
+            vec![visible_text_para(3, 0), continuation],
         )]);
+        // 같은 양수 감소라도 쪽 표지가 없으면 문단 로컬 원점이다.
+        let mut local = t.clone();
+        local.cells[0].paragraphs[1].line_segs[0].tag &= !LineSeg::TAG_FIRST_LINE_OF_PAGE;
+        let local_cut = eng.advance_row_cut(&local, 0, &[], 1000.0, &styles);
+        assert!(local_cut.fully_consumed && !local_cut.hit_hard_break);
+
         // avail 충분해도 리셋에서 정지.
         let r = eng.advance_row_cut(&t, 0, &[], 1000.0, &styles);
         assert_eq!(r.end_cut, vec![3]);
@@ -27249,12 +27263,16 @@ mod row_cut_tests {
         // 16px 유닛 1개)만 담은 sliver 페이지가 된다 (59043 pi=160: 946px→22px 교대).
         let eng = LayoutEngine::new(96.0);
         let styles = ResolvedStyleSet::default();
+        // HWP 5.0 LINE_SEG tag bit 0은 쪽 첫 줄이다. 양수 로컬 좌표 감소만으로
+        // 쪽 경계를 가정하지 않고, 이 합성 입력의 의도를 저장 표지로 명시한다.
+        let mut continuation = visible_text_para(2, 1000);
+        continuation.line_segs[0].tag |= LineSeg::TAG_FIRST_LINE_OF_PAGE;
         // 문단0: 3줄(vpos 0..2400) = 유닛 3개(각 16px). 문단1: vpos 1000 리셋
         // → 유닛 3 앞 hard break.
         let t = rowbreak_table(vec![cell(
             0,
             0,
-            vec![visible_text_para(3, 0), visible_text_para(2, 1000)],
+            vec![visible_text_para(3, 0), continuation],
         )]);
         // 예산 40px: 유닛 0..2(32px)까지 들어가고 유닛 2(16px)에서 예산 정지 —
         // 잔여(유닛 2, 16px) 직후가 hard break 이므로 48px 한도 내 흡수.
