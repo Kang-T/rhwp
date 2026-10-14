@@ -2432,20 +2432,20 @@ fn compute_line_extra_spacing(
             .filter(|c| **c == ' ')
             .count();
         let leader_dashes = count_dash_leaders(&all_chars[..visible_count]);
-        if interior_spaces > 0 {
-            // 후행 공백 폭 계산
-            let trailing_width = if trailing_spaces > 0 {
-                if let Some(last_run) = comp_line.runs.last() {
-                    let mut ts = last_run.text_style(styles);
-                    ts.default_tab_width = tab_width;
-                    let trailing_str: String = " ".repeat(trailing_spaces);
-                    estimate_text_width(&trailing_str, &ts)
-                } else {
-                    0.0
-                }
+        // 후행 공백 폭 계산
+        let trailing_width = if trailing_spaces > 0 {
+            if let Some(last_run) = comp_line.runs.last() {
+                let mut ts = last_run.text_style(styles);
+                ts.default_tab_width = tab_width;
+                let trailing_str: String = " ".repeat(trailing_spaces);
+                estimate_text_width(&trailing_str, &ts)
             } else {
                 0.0
-            };
+            }
+        } else {
+            0.0
+        };
+        if interior_spaces > 0 {
             let split_ink_overhang = if alignment == Alignment::Split {
                 trailing_glyph_ink_overhang()
             } else {
@@ -2525,9 +2525,11 @@ fn compute_line_extra_spacing(
                 };
                 (ews, ecs, 0.0)
             }
-        } else if total_char_count > 1 {
-            // 양쪽 정렬이지만 공백 없음 (일본어/숫자 등):
-            let slack = available_width - total_text_width;
+        } else if visible_count > 1 {
+            // 내부 공백이 없는 줄도 소비한 말미 구분 공백을 가시 폭에서 제외한다.
+            // 공백의 논리 advance는 보존하고 가시 글자 사이만 배분한다.
+            let visible_text_width = total_text_width - trailing_width;
+            let slack = available_width - visible_text_width;
             if justify_spaces_only && slack > 0.0 {
                 // [#4516] 머리말/꼬리말 예외로만 justify 된 마지막 줄은 한컴처럼
                 // **공백만** 벌린다. 공백 없는 줄(영문 문서번호 등)에 양수 slack 을
@@ -2553,11 +2555,10 @@ fn compute_line_extra_spacing(
                     0.0,
                 )
             } else {
-                // 저장 줄과 합성 줄은 같은 글자 사이 간격을 사용한다.
-                // 말미 구분 공백의 별도 정렬 플래그를 다시 적용하지 않는다.
-                let slots = total_char_count - 1;
+                // 같은 가시 폭과 글자 수로 저장 줄·합성 줄의 배분을 정한다.
+                let slots = visible_count - 1;
                 let raw = slack / slots as f64;
-                let avg_char_w = total_text_width / total_char_count as f64;
+                let avg_char_w = visible_text_width / visible_count as f64;
                 let min_sp = -avg_char_w * 0.5;
                 (0.0, raw.max(min_sp), 0.0)
             }
