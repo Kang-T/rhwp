@@ -807,7 +807,7 @@ impl DocumentCore {
                 // [#7824] 앞 문단(줄 보유)의 아래 간격(HWPUNIT). 재구성 사다리는 줄 전진만
                 // 쌓으므로, 저장 좌표가 원점을 정하지 않은 문단 경계에서는 편집 경로
                 // (`recalculate_section_vpos`)와 같은 문단 간격 `앞 아래 + 뒤 위` 를 더한다.
-                let mut previous_spacing_after_hu: Option<i32> = None;
+                let mut previous_spacing_after_hu: Option<(i32, bool)> = None;
 
                 for (pi, para) in section.paragraphs.iter_mut().enumerate() {
                     let was_reflowed = reflowed_paras.contains(&pi);
@@ -995,7 +995,14 @@ impl DocumentCore {
                     // [#7824] 저장 쪽 리셋이 원점을 정하지 않았으면 문단 간격을 더한다.
                     // 원본 앵커(아래)는 저장 간격을 그대로 옮기므로 큰 쪽을 쓴다.
                     if running_vpos == accumulated_vpos && !para.line_segs.is_empty() {
-                        if let Some(spacing_after) = previous_spacing_after_hu {
+                        if let Some((spacing_after, _)) =
+                            previous_spacing_after_hu.filter(|(_, previous_has_source_span)| {
+                                // 양쪽의 저장 줄이 있으면 그 원점 차이가 문단 간격을 이미
+                                // 소유한다. 스타일 간격은 합성 줄이 경계에 참여할 때만
+                                // 재구성하며 저장 간격에 다시 더하지 않는다.
+                                !*previous_has_source_span || orig_span[pi].is_none()
+                            })
+                        {
                             let spacing_before = styles
                                 .para_styles
                                 .get(para.para_shape_id as usize)
@@ -1182,7 +1189,7 @@ impl DocumentCore {
                         prev_stored_last_vpos = v;
                     }
                     if !para.line_segs.is_empty() {
-                        previous_spacing_after_hu = Some(
+                        previous_spacing_after_hu = Some((
                             styles
                                 .para_styles
                                 .get(para.para_shape_id as usize)
@@ -1190,7 +1197,8 @@ impl DocumentCore {
                                     crate::renderer::px_to_hwpunit(style.spacing_after, dpi)
                                 })
                                 .unwrap_or(0),
-                        );
+                            orig_span[pi].is_some(),
+                        ));
                     }
                 }
             }
