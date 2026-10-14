@@ -1800,6 +1800,8 @@ enum RecursiveBlockPreludeRole {
 pub(super) struct CellUnit {
     /// 유닛 높이 (px). [#5880] table_partial 의 조각 원점 보정이 소비분 합산에 읽는다.
     pub(super) height: f64,
+    /// 마지막 자식 내용과 함께 예약하는 부모 호스트 종료 줄. 자식 viewport에는 포함하지 않는다.
+    nested_host_closing_line_height: f64,
     /// 이 유닛 앞에 vpos 리셋(셀 내부 페이지 분할)이 있는가.
     hard_break_before: bool,
     /// 같은 문단의 줄 사이에서 페이지 하단까지 진행한 저장 vpos가
@@ -13827,6 +13829,7 @@ impl LayoutEngine {
                     recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
                     top_and_bottom_flow: false,
                     empty_spacer: cell.paragraphs[pi].text.trim().is_empty(),
+                    nested_host_closing_line_height: 0.0,
                     non_inline_control_range: None,
                 })
                 .collect();
@@ -13867,6 +13870,7 @@ impl LayoutEngine {
                         if picture.common.text_wrap == TextWrap::TopAndBottom)
                 }),
                 empty_spacer: false,
+                nested_host_closing_line_height: 0.0,
                 non_inline_control_range: Some((0, cell.paragraphs[0].controls.len() - 1)),
             }];
         }
@@ -14244,6 +14248,7 @@ impl LayoutEngine {
                         recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
                         top_and_bottom_flow: false,
                         empty_spacer: false,
+                        nested_host_closing_line_height: 0.0,
                         non_inline_control_range: None,
                     });
                     non_inline_h -= h;
@@ -14280,6 +14285,7 @@ impl LayoutEngine {
                     // [#4468] 쪽을 걸친 셀에서 TopAndBottom 그림이 앞·뒤 조각에 중복
                     // 페인트되지 않도록, atomic unit 을 control identity 로 표지한다.
                     // Square 경로와 같이 그 control 의 **첫** unit 을 품은 cut 만 emit 한다.
+                    nested_host_closing_line_height: 0.0,
                     non_inline_control_range: tb_range,
                 });
             };
@@ -15397,6 +15403,7 @@ impl LayoutEngine {
                                             RecursiveBlockPreludeRole::None,
                                         top_and_bottom_flow: false,
                                         empty_spacer: false,
+                                        nested_host_closing_line_height: 0.0,
                                         non_inline_control_range: None,
                                     });
                                     unit_cum += uh;
@@ -15580,9 +15587,31 @@ impl LayoutEngine {
                             recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
                             top_and_bottom_flow: false,
                             empty_spacer: false,
+                            nested_host_closing_line_height: 0.0,
                             non_inline_control_range: None,
                         });
                         unit_cum += uh;
+                    }
+                    // 마지막 저장 호스트 줄이 자식 표의 종료를 증명하면 마지막 자식 유닛과
+                    // 같은 예산으로 예약한다. 줄만 따로 이월해 빈 후속 페이지를 만들지 않는다.
+                    if host_is_cell_last_para
+                        && !cell.dirty_flag
+                        && !self.profile.get().session_edited()
+                        && (self.profile.get().hwp5_stored_pagination_layout()
+                            || self.profile.get().hwpx_stored_layout())
+                        && !self
+                            .render_normalization
+                            .borrow()
+                            .table_text_reflowed(table)
+                        && !self.render_normalization.borrow().table_text_reflowed(nt)
+                    {
+                        let body = rhs.iter().sum::<f64>() + ncs * (nrow + 1) as f64;
+                        if let Some(height) = crate::renderer::float_placement::stored_nested_terminal_host_line_height_hu(p, nt, body, self.dpi) {
+                            let closing = hwpunit_to_px(height, self.dpi);
+                            let last = units.last_mut().expect("projected nested rows");
+                            last.height += closing;
+                            last.nested_host_closing_line_height = closing;
+                        }
                     }
                     attach_stored_square_picture_owner(&mut units, pi);
                     let non_inline_range = append_non_inline_units(
@@ -15780,6 +15809,7 @@ impl LayoutEngine {
                                 recursive_block_prelude_role: fragment.recursive_block_prelude_role,
                                 top_and_bottom_flow: false,
                                 empty_spacer: false,
+                                nested_host_closing_line_height: 0.0,
                                 non_inline_control_range: None,
                             });
                             unit_cum += uh;
@@ -15904,6 +15934,7 @@ impl LayoutEngine {
                             recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
                             top_and_bottom_flow: false,
                             empty_spacer: false,
+                            nested_host_closing_line_height: 0.0,
                             non_inline_control_range: None,
                         });
                         unit_cum += lh;
@@ -16069,6 +16100,7 @@ impl LayoutEngine {
                                 recursive_block_prelude_role: fragment.recursive_block_prelude_role,
                                 top_and_bottom_flow: false,
                                 empty_spacer: false,
+                                nested_host_closing_line_height: 0.0,
                                 non_inline_control_range: None,
                             });
                             unit_cum += fragment.height;
@@ -16262,6 +16294,7 @@ impl LayoutEngine {
                     recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
                     top_and_bottom_flow: para_top_and_bottom_flow_unit,
                     empty_spacer: is_empty_spacer_para,
+                    nested_host_closing_line_height: 0.0,
                     non_inline_control_range: None,
                 });
                 unit_cum += para_h;
@@ -16404,6 +16437,7 @@ impl LayoutEngine {
                         },
                         top_and_bottom_flow: para_top_and_bottom_flow_unit,
                         empty_spacer: is_empty_spacer_para,
+                        nested_host_closing_line_height: 0.0,
                         non_inline_control_range: None,
                     });
                     unit_cum += lh;
@@ -23796,6 +23830,7 @@ impl LayoutEngine {
         let mut last_unit: Option<&CellUnit> = None;
         let mut has_fragment = false;
         let mut visible_height = 0.0;
+        let mut flow_height = 0.0;
         for unit in units.iter().take(hi).skip(lo) {
             if unit.para_idx != para_idx || unit.nested_row.is_none() {
                 continue;
@@ -23803,7 +23838,8 @@ impl LayoutEngine {
             first_unit.get_or_insert(unit);
             last_unit = Some(unit);
             has_fragment |= unit.nested_table_fragment.is_some();
-            visible_height += unit.height;
+            flow_height += unit.height;
+            visible_height += unit.height - unit.nested_host_closing_line_height;
         }
         if !has_fragment {
             return None;
@@ -23812,7 +23848,9 @@ impl LayoutEngine {
         let first_index = units
             .iter()
             .position(|unit| std::ptr::eq(unit, first_unit))?;
-        visible_height += self.nested_continuation_header_height(cell, &units, first_index, styles);
+        let header = self.nested_continuation_header_height(cell, &units, first_index, styles);
+        visible_height += header;
+        flow_height += header;
         let first_row = first_unit.nested_row?;
         let last_row = last_unit.nested_row?;
         let start_cut = first_unit
@@ -23841,7 +23879,7 @@ impl LayoutEngine {
             start_row: first_row,
             end_row: last_row + 1,
             visible_height,
-            flow_height: visible_height,
+            flow_height,
             offset_within_start: 0.0,
             content_offset: 0.0,
             force_source_start_cut: false,
@@ -26280,6 +26318,7 @@ mod row_cut_tests {
             recursive_block_prelude_role: RecursiveBlockPreludeRole::None,
             top_and_bottom_flow: false,
             empty_spacer: false,
+            nested_host_closing_line_height: 0.0,
             non_inline_control_range: None,
         }
     }
@@ -26320,6 +26359,7 @@ mod row_cut_tests {
             recursive_block_prelude_role: role,
             top_and_bottom_flow: false,
             empty_spacer: false,
+            nested_host_closing_line_height: 0.0,
             non_inline_control_range: None,
         }
     }
