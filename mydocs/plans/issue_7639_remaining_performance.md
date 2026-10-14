@@ -151,3 +151,12 @@ Chrome 154를 명시한 최종 fresh WASM 전쪽 Sweep도 `svg=161, tree=161, pd
 대표 1쪽을 추가 산출해 Native/fresh WASM review와 standalone overlay를 직접 열었다. 두 경로의 2px 실루엣 보조값은 각각 99.74962%, 엄격 픽셀 일치는 94.01578%였다. 표 행·열과 본문의 소속은 같고 획·얇은 괘선의 raster 차이가 보인다. 도구 라벨과 수치는 정상 판독된다. 대표 한 쪽의 수치를 전체 162쪽 통과로 확대하지 않는다. 원본 입력은 기존 tracked sample이며 SHA-256 `47de1ce82472050a4c5f33ccab2a3eac2c7e55d0e2a688febd085f0b4c8320ca`로 HEAD 바이트와 같다. 새 기준 Print PDF는 다른 tracked PDF와 해시가 달라 덮어쓰지 않고 [한컴 2020 Print](../working/assets/issue7639/hancom-2020-print.pdf)에 검증에 쓴 바이트 그대로 보존한다. Native/WASM 대표 PNG와 실제 Studio PNG도 같은 assets 디렉터리에 보존한다.
 
 세 Clippy·workspace build·새 base의 manifest/unit-tier 검사와 focused 검사 12건은 통과했다. 전체 Rust와 Native Skia는 실행 중이다. 이 단계에는 GitHub push·PR 생성·이슈 종료를 수행하지 않았다.
+
+
+## 통합본 필수 검증 완료와 제출 준비
+
+통합본 전체 nextest는 **10,285 통과·실패 0·skip 45**였다. compile 포함 1,071.8초, 실행 476.7초다. Native Skia lib는 root 3,859건과 내부 crate 15·165·2건, 합계 **4,041 통과·ignored 12**였다. placeholder 2건과 direct PDF 4건도 통과했다. fmt·세 Clippy·workspace build·정책 검사·focused 12건·TypeScript·Studio 전체 1,840건, Native/Docker WASM 빌드와 실제 브라우저 검사 모두 완료했다. `devel-merge-20261014/validation.json` 및 각 로그로 재현한다. 코드·test 소스는 빌드 이후 변경이 없으며 `source-drift.json`은 빈 배열이다. 기준값이나 허용치를 바꾸지 않았다.
+
+검증 중 원격은 `fea344f1fbed64737862e7f9f2c56287911d1256`로 전진했다(#7889·#7896). 두 Rust 파일의 바뀐 부분은 줄 주석 번역뿐이며, 주석을 제외한 줄 배열과 전체 줄수가 이전 base와 같다. 나머지는 문서 기록이다. 충돌 없는 현재-base merge-tree와 새 base의 manifest/unit-tier 검사를 추가 확인했다. 검증된 code head는 유지하고 기본 작업공간의 clean한 devel만 이 SHA로 fast-forward했다. `base-advance.json`, `latest-base-manifest.log`, `latest-base-unit-tier.log`에 연결한다. PR base는 현재 devel이며, GitHub merge tree에는 최신 주석·문서가 함께 보존된다.
+
+제출 범위는 행·너비 탐색, 현재 페이지 hover 셀 조회, 동기 paint의 font 해석 비용 개선과 출력 보존이다. 161/162쪽 차이와 전체 TSV 미완성은 자동 gate 미충족으로 남기되, 메인터너가 승인한 성능 범위 예외로 제출한다. 독립 Print 조판 일치 완료를 주장하거나 기존 쪽수 검사 기대값을 바꾸지 않는다. 한국어 PR 본문 초안과 정확한 head로 고정할 Native/WASM review·overlay PNG, 검증에 쓴 원본·Print PDF를 준비했다. PR 등록 후 해당 code head의 CI와 self-review, 이후 merge 승인은 별도 단계다.
