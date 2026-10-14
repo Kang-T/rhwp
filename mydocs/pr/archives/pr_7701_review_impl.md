@@ -1301,6 +1301,8 @@ source guard로 진행 중이며, 완료·관계 회귀 변경·최종 PR 제출
 C49 Native의8문서94쪽은 driver종료0으로 완료했고 전쪽의 누락과 쪽수 차이는0이다
 (`c49-native-completed-summary.json`). 미달은 기존과 같은 `issue6122`2·6·7쪽이고,
 나머지91쪽은90% 이상이다. C48과 실제 PNG를 전94쪽 SHA로 대조한 결과 바뀐 것은
-F06D를 표시한 `issue5884`1쪽뿐이며 나머지93쪽은 바이트가 같다. 정상 대조군49쪽과
-`issue5877`31쪽의 출력은 유지됐다. 고정b3eaf7b10 기준 source unit-tier 정책 검사도
+`issue5884`1쪽과 `valid_orientation-nested-mixed-cell`1쪽이며 나머지92쪽은
+바이트가 같다. 정상 대조군49쪽과 `issue5877`31쪽의 전쪽90% 기준은 유지됐으며,
+대조군1쪽의 PNG 차이는 기호 보정의 영향으로 추정하지 않고 추가 확인한다.
+고정b3eaf7b10 기준 source unit-tier 정책 검사도
 종료0이며 이는4103개 테스트 inventory 정책 확인이고 전체 테스트 실행 결과가 아니다.
