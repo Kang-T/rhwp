@@ -4,6 +4,7 @@ mod nested_header_frame;
 mod row_block_cut;
 mod stored_body_closed_frame;
 mod stored_complete_block_cut;
+mod stored_deferred_picture_frame;
 mod stored_empty_frame_restart;
 mod stored_first_line_restart;
 mod stored_inline_row_frame;
@@ -14746,7 +14747,10 @@ impl LayoutEngine {
                             // 양수 문단 원점의 감소는 국소 좌표 재시작일 수 있다.
                             // 강제 컷은 그리기와 같은 원본 프레임 인증을 사용한다.
                             && (cur_seg.vertical_pos == 0
-                                || is_stored_frame_rewind(prev_seg, cur_seg, pi, 0))
+                                || is_stored_frame_rewind(prev_seg, cur_seg, pi, 0)
+                                || self.stored_deferred_picture_frame_before(
+                                    cell, table, pi, p,
+                                ))
                             // [#5585] 앞 줄 **바닥**보다 앞서는 것만으로는 리셋이 아니다.
                             // 줄 전진량이 줄 높이보다 작은 문단(겹치는 줄 상자)에서는 평범한
                             // 한 걸음도 이 조건을 만족한다 — 148738070 실측: p2 vpos 9800

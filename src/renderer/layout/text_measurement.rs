@@ -1559,6 +1559,9 @@ pub(crate) fn char_width_decision<'a>(
         );
         if let Some(width) = digit_width {
             embedded.width_px = Some(width);
+            // 검증된 프로그램 폭을 선택했으면 장치 격자의 em 비율도 같은
+            // 프로그램을 소비한다. 표시 대체 글꼴의 비율을 다시 쓰지 않는다.
+            embedded.em_fraction = (font_size > 0.0).then_some(width / font_size);
             embedded.width_source = "verifiedLegacyDigit";
             embedded.character_match = "hit";
         }
