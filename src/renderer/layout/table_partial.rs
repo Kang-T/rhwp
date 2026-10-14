@@ -5256,6 +5256,7 @@ impl LayoutEngine {
         } else {
             outer_table
         };
+        let _rows = self.table_rows_scope(table);
 
         // 컷과 원본 물리 상자를 같은 확인 결과로 소비한다. 첫 조각의 남은 빈 띠와
         // 뒤 조각의 글줄 끝·패딩을 서로 다른 높이 추측으로 바꾸지 않는다.
