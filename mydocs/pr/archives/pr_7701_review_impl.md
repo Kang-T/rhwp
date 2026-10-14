@@ -1523,3 +1523,74 @@ Canvas2D fallback이었다. r2 selection 진단에서는 한양신명조 준비 
 
 최종 PR 제출·CI·merge·후속 처리는 계속 미완료다. 현재 소스/원문과 실패 증거를
 유지하며 전체 회귀26건과 전범위 시각 검증을 계속 처리한다.
+
+### C53 수식 공급·관계 검사 보완과 C54 문자 판정 — 2026-10-14
+
+수식 host 준비 보완은 `822bf1d72`로 커밋했다. 실제 `hancomGlyphs` 수식이
+소비하는 HyhwpEQ만 `collectHostFontRequests`에 추가했고, SVG 수식·일반 숫자
+수식은 공급 요청을 만들지 않는다. 같은 face의 중복 요청도 합친다. 새 provider
+검사는 수정 전 요청0/기대1로 실패하고 수정 후 통과했다. 이후 실제 CanvasKit
+전2쪽 선택·캡처를 완료했지만 그림자 원형 기호는 여전히 빠져 있었다. 이때
+2px 점수는90% 이상이었다. 자동 점수 통과를 기호 표시의 통과로 승격하지 않는다.
+
+원인은 실제 F06D 원문→U+1F53E 표시·Noto Sans Symbols2 준비가 끝난 이후의
+일반 glyph replay 문자 판정이었다. `1ea847bf9788136b784d5f5b12e8cbdc2153f67b`는
+Studio의 판별자를 작은 helper로 분리하고 Rust 사전 판정과 같은 두 원형 기호를
+허용한다. 실제 SFNT cmap/hmtx 프로그램 근거는 C51 기록을 재사용한다. VS·ZWJ·
+결합 문자와 복합 script는 기존 shaping 경로에 남긴다. TS 보정의 실제 CanvasKit
+전2쪽 점수는96.63472%/98.42344%이며 Print와 같은 기호의 복원을5배 PNG로 직접
+확인했다. 이 캡처는 C51 WASM+수정된 Studio 소스의 결과다. 새 Rust 판정까지
+포함한 fresh WASM·브라우저 재검증은 아직 미완료다.
+
+검증 로그·TSV·원문/프로그램 해시는 ignored
+`output/pr-review/planet6897-followup-20261011/`의 다음 증적에 있다.
+
+| 범위 | 실행 결과와 의미 | 증적 |
+| --- | --- | --- |
+| Studio | TypeScript 검사 성공, 전체1845PASS·0FAIL. 새 문자 판정2건 포함 | `c53-studio-typescript-r2.log`, `c53-studio-unit-r2.log` |
+| #6095 | 원문 SHA가 #5884와 같은 문서의 전2쪽 Native/fresh98.56737%/98.72130%·Print2쪽·직접 판독을 재사용. 잘못된 p2 제목/절대 y·폭 영역 핀을 원문 제목/결과의 쪽 소속·정확히1회 보존과 소개→중량표→주석 순서·포함으로 교체. 독립 Print2쪽 대조는 유지. 집중1PASS | `c53-issue6095-focused-nextest.log` |
+| #4966 | sealed830/retired2 계약은 유지. 기록된 실제 공급2개 add-change-set의 projection·delta·의미를 검증한 뒤 active833을 확인. 3PASS이며 레이아웃 baseline 갱신 아님 | `c53-font-rule-focused-nextest-r2.log` |
+| 교육 문서 Native | 실제419/Print415. 비교 가능한415쪽 전부 산출,286쪽 미달·reference 없는4쪽 유지. 전체 통과 아님 | `c53-completed-raster-metrics-education/silhouette.tsv`, `c53-education-completed-capture-metrics-result.json` |
+| C54 집중 | 기존 행 분할3건+CanvasKit 문자 계약1건 모두PASS(3992 skipped), 실행0.130초 | `c54-row-cut-nominal-policy.log`, `c54-row-cut-nominal-policy-result.json` |
+
+행 분할3건은 고정b3에서PASS/현재에서FAIL이었지만, 이를 실제 원본 문서의
+회귀라고 단정한 앞선 중간 보고를 정정한다. 세 입력은 수동으로 만든 양수
+vpos 감소(→1000)만 있고 쪽/단 첫 줄 표지·실제 선언 프레임이 없다. 원인 변경은
+`91173bba4`의 양수 로컬 원점 인증이다. 독립 근거인 HWP 5.0 LINE_SEG tag bit0
+(쪽 첫 줄)에 따라 합성 입력의 의도한 경계를 명시했다. 기존 컷·유닛 소유·예산
+assertion은 그대로 두고, 표지 없는 같은 양수 감소는 분할하지 않는 반례도
+실행했다. 실제 출력의 물리 경계 인증을 완화하지 않았으며 합성 내부 계약을
+한컴 시각 증거로 주장하지 않는다. fmt-check와 고정b3 source-unit 정책 검사는
+성공했다. 새 source test 함수는 추가하지 않았다.
+
+### C54 저장 공간 복구·전범위 WASM 재개 — 2026-10-14
+
+C54 집중 integration 재실행은 컴파일 중 ENOSPC로 종료됐고 실제 검사는0건이다.
+실패 로그는 `c54-remaining-contract-failures.log`에 보존했으며 검사PASS로 세지
+않는다. C52 전범위 WASM도53번째 교육 문서의 projected SVG를 쓰다가 ENOSPC로
+종료됐다. raw WASM419쪽과 render tree419쪽은 완료됐고,54번째 sample10은 아직
+시작하지 않았다. 잘린 결과 JSON에서53개의 원래 완전한 결과를 복구했으며
+실패한53번째 기록도 그대로 유지했다. 원래 손상 바이트와 복구 근거는
+`c54-original-wasm-ledger-enospc-truncated.json`, `c54-wasm-ledger-recovery.json`에 있다.
+
+종료된 이 실행의 부분 projected SVG273개(28,902,071,561 bytes)를 무손실
+압축3,889,489,294 bytes로 보존하고, 모든 member의 원래 SHA·크기를 대조한
+뒤 동일한 expanded 사본만 교체했다. 마지막 부분 파일도 성공 산출물로
+취급하지 않고 실패 당시 바이트로 보존했다. 원본 HWP/PDF·PNG·TSV·로그·raw
+WASM과 공용 Cargo 캐시는 보존했다. index는
+`archive/c54-stopped-education-wasm-projected-svg-index.json`이다.
+
+`run-c54-large-frozen-wasm-stream.py`는 교육 문서와 sample10을 이어서 처리한다.
+C51 동결 package/Native 산출물·같은 입력/Print/font CSS 해시를 대조하고,
+canonical font-policy·cmap·Chrome raster·2px 계산을 재사용한다.8쪽씩 캡처 후
+각 SVG의 압축 바이트를 검증해 expanded 사본을 교체하며 전쪽 범위·원래
+ordinal과419/415 쪽수 불일치를 유지한다. 기존에 완성됐던272쪽 projected SVG는
+바이트 동일성도 요구한다. 이 진행 결과는 동결C51 source의 보완 증거이며 이후
+수정한 source의 완료 증거라고 표시하지 않는다. 실행 로그는
+`c54-large-frozen-wasm-stream.log`에 있다.
+
+전체 Rust의 마지막 결과는 여전히10285PASS·26FAIL·45 skipped다. 이 중5개의
+실패 함수는 이후 집중 실행에서PASS를 확인했지만 전체를 다시 실행하지 않았다.
+나머지 실패의 입력/기대값/정확한 이관 범위, 최종 lint·Native Skia·fresh WASM·
+브라우저, 전범위 시각 판정과 최종 review/오늘할일은 계속 처리 중이다.
+PR 제출·CI·merge·후속 처리도 아직 완료하지 않았다.
