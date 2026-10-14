@@ -1098,3 +1098,87 @@ merge commit이 없다. Archive B의
 upstream을 fetch하고 두 보정의 실제 소비 경로를 보존해 리베이스한다. 진행 중이던
 전쪽 raster와 lint/Native 수집은 모두 종료했고, 새로운 source 보정이나 fresh WASM
 빌드는 시작하지 않았다.
+
+### #7882 머지 뒤 리베이스와 소비 API 정합 — 2026-10-14
+
+#7882의 실제 merge SHA86a3c88fc89de9a2306a10bdda9a31023f0e24a5를 확인했다.
+그 뒤 `git fetch upstream devel`로 b3eaf7b10b15a2d40810d42acdcf4de6c1ba026b를
+받았고 해당 merge의 포함 관계를 확인했다. 사용자 지정 순서에 따라 기존 검토
+브랜치를 리베이스했다. 전후75개 commit 대응과 새 base 위0/75 divergence,
+별도 untracked9개 파일의 SHA-256 보존을 확인했다. 직후 head는572e44849이며
+이전0ffd4b9b4는 로컬 backup branch에 보존했다. 실행 명령·충돌·range-diff는
+`pr7882-rebase-result.json`과 `pr7882-rebase.log`·`pr7882-rebase-range-diff.log`에 연결했다.
+
+충돌 해결에서는 upstream의 원본 재시작 정렬·원본 본문 프레임 종료·실제 수용 행
+계획을 먼저 유지하고, 저장 내용 컷 정렬·문단 유지 컷·실제 rowspan 상자 원장을
+함께 소비하게 했다. 이미 예약한 끝 띠와 미예약 띠를 구분하고, 미예약 띠는 실제
+행 상자를 늘리기 전에 계산해 다음 장부에서도 한 번만 소비한다. 메트릭 scope의
+앞뒤 텍스트 측정·글리프 fallback·기존 HFT 굵게 전진과 장치 격자 전진을 연결했다.
+충돌 해결 사실만으로 정상 출력을 입증하지 않으며 실제 새 head 검증을 요구한다.
+
+저장 첫 줄 선행 점유는 upstream의 `cell_paragraph_spacing::paragraph_before`
+공통 결과를 측정과 컷에서 사용한다. 사용하지 않는 로컬 중복 helper 파일과
+포맷 정리는2ce943346에 별도 code commit했다. 첫 fmt는 이전 파생 suite가
+upstream에서 제거된 파일을 참조해 실패했고, `--prepare` 뒤 재실행은종료0이다.
+파생28 harness/manifest는 검증에만 사용하며 커밋하지 않았다. shared target을
+초기화하거나 제거한 파일의 정식 테스트 target을 다시 등록하지 않았다.
+
+첫 Native 실행은 미커밋 source를 감지한 preflight에서 Cargo 시작 전 종료했다.
+의도한 source commit 뒤 실행한 C44 Native는101이며 실제 컴파일 오류3개를
+보존했다. upstream에 새로 추가된 정렬 플래그 소비, 기존 scope 메서드, 저장 TAC
+개체 줄의 들여쓰기 소비가 로컬 API 변경과 맞지 않았다. b2f8efca9에서 합성/저장
+줄의 공통 간격 슬롯, 통합 메트릭 scope, 실제 저장 줄 상자 폭·DPI 인자를 연결했다.
+테스트 기대값·baseline은 바꾸지 않았다. C45 fmt/fmt-check는종료0이며 이 code
+head의 Native Skia release-test CLI/lib 빌드는 공용target/jobs8로 진행 중이다.
+`c44-rebase-native-preflight-failure.json`·C44 실패 log·C45 새 실행을 구분한다.
+
+새 base의 suite/policy와 Native 실제 출력을 먼저 확인한다. #7882의 마지막
+보정 문서 `issue5877`31쪽, 그림 폭 부족 `issue6122`12쪽, 미달 `issue5884`2쪽과
+정상 대조군49쪽은8문서94 Print쪽의 방향 확인 범위다. 이 결과를 원래54문서
+범위의 완료로 확대하지 않는다. 새 canonical Visual Sweep의 Chrome 재사용·
+동일 글꼴 바이트 외부화 경로를 사용하며 이전 ignored raster helper를 새 실행으로
+가장하지 않는다. 새 whole Native/fresh WASM·실제 backend·회귀·lint·Studio의
+미완료 범위는 계속 검토한다. 새 PR 생성·승인·merge는 아직 수행하지 않았다.
+
+C45의 Native Skia CLI/lib 빌드는4분55초·종료0이며1406개 source hash를
+고정했다. 별도 source-frame 집중 nextest는 기존 suite021/022의5검사 PASS·
+420 filtered skip·실제 실행1.646초다. #7882에서 실패했던 종료 행 관계도 통과했다.
+그림6쪽의 두 그림 수·세로 순서·포함·캡션 후행 진단은 모두true이며 이전 정상
+후보와 해당 tree도 같다. 기존 기대값을 변경하지 않았고 전체 회귀로 확대하지 않는다.
+
+새 canonical Native 산출8문서94쪽은 모두 완료했다. `issue5877`31/31쪽은
+최저26쪽92.11368%, 변경18쪽95.11621%다. p18/p26의 실제 compare·overlay·
+review를 새로 만들고 열었다(`c45-issue5877-direct-review`). 표 경계와 내용은
+보존되며 글꼴 획·폭 및p26 표 뒤 문단 간격의 차이는 남는다. 수치 통과를 모든 미세
+간격의 동일성이나 fresh WASM의 통과로 바꾸지 않는다. 정상49쪽은 전90% 이상·
+쪽수 일치·누락0이며 K-water 최저는96.92201%다. `issue6122`는12/12쪽 중
+2·6·7쪽 미달, 최저31.37697%이며 이전6미달 쪽에서3쪽으로 줄었다.
+`issue5884`는2/2쪽 중2쪽88.34684%(이전69.62394%)로 아직 미달이다.
+전쪽 TSV·gate·input/Print는 `c45-native-completed-summary.json`에 연결했다.
+
+`issue5884`2쪽을 새 `review_002.png`로 직접 판독했다. 실제 그림 원점156.6px은
+Print156.308/156.309px과 가까워졌고 중첩 표 시작도83.1px로 보정됐다. 부모
+상자는176.5px인데 Print의 실제188.1133px보다 짧다. 원본 마지막 중첩 표 host는
+비인라인 TopAndBottom이며 실제 저장 줄 높이가900HU다. 현재 투영 유닛과 실제
+프레임의 소유를 추가 추적한다(`c45-issue5884-unit-probe/parent-units.log`).
+이 값은 원인 관측값이고 px 기대값이나 덧셈 보정의 승인 근거가 아니다. 별도의
+closing 공간을 추가하기 전에 공통 요구 높이·배치 소비와 정상 반례를 대조한다.
+
+C45 prepare·fmt-check·Native/WASM/workspace Clippy·workspace build·고정 base
+manifest 단계는 각각종료0이고 source unit-tier도종료0이다. 상위exec 핸들은143을
+반환했으므로 wrapper종료0으로 보고하지 않는다. 실제 driver의 COMPLETE와
+개별7단계 결과·최종 source hash 일치를 `c45-rust-lint-completed-summary.json`에
+보존했다. 문서 링크 검사도종료0이다. full nextest/Skia/Studio/fresh WASM는 아직
+미완료이며 미달 문서 기대값·baseline 갱신과 새 PR은 계속 보류한다.
+
+교육과정 입력·Print는 새 upstream에서 `mydocs/pr/assets/issue7445/education-curriculum-map/`
+아래로 이동돼 있었다. HWP623b00d56...와 기존 Printbc16ee926...의 실제 바이트가
+기존 원본과 같은 것을 확인했다. 없어진 옛 sample 경로로 실행한 첫 진단은 입력
+읽기 실패이며 조판 실패가 아니다. 이관한 활성 테스트를 복원하지 않고 실제 보존
+경로의 같은 원본으로 tree와 `dump-pages --respect-vpos-reset`을 재산출했다.
+현재419쪽이며 구역23은 Print와 같은14쪽으로 복구됐다. 구역10·12·25·26은
+각1쪽 초과다. `c45-curriculum-section-page-count-comparison.json`은 현재419쪽,
+이전 C38, 고정22317614b, 독립 Print의 대응을 보존하며 TSV 재매핑은 하지 않는다.
+새 base b3eaf7b10의 실제 전쪽 출력 대조는 아직 미검증이므로 초과분을 신규 회귀나
+기존 문제로 추정하지 않는다. 별도 고정 worktree의 Native 빌드를 공용 target에서
+집중 nextest 종료 뒤 순차 시작했다(`c46-pinned-base-native-build.log`).
