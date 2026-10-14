@@ -2115,9 +2115,7 @@ impl LayoutEngine {
                         self.cell_cut_visible_height(cell, table, styles, start, end)
                     })
                     .unwrap_or(total_content_height)
-            } else if center_saved_spanning_cell == Some(cell_idx)
-                || cut_frame_owns_alignment
-            {
+            } else if center_saved_spanning_cell == Some(cell_idx) || cut_frame_owns_alignment {
                 // 그림 띠를 포함한 컷 유닛 높이를 예약과 정렬에서 함께 소비한다.
                 let units = self.cell_units(cell, table, styles);
                 cut_units
