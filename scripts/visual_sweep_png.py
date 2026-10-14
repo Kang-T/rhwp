@@ -152,25 +152,20 @@ def font_catalog(vs, root: Path, font_paths, base: Path) -> Path:
             fonts = collection.fonts if collection else [TTFont(source, lazy=True)]
             try:
                 for index, font in enumerate(fonts):
-                    names = sorted({entry.toUnicode() for entry in font['name'].names
-                                    if entry.nameID in {1, 4, 16} and entry.toUnicode()})
+                    names, name_errors = font_family_names(font)
                     weight = font['OS/2'].usWeightClass if 'OS/2' in font else 400
                     italic = bool(font['head'].macStyle & 2) if 'head' in font else False
                     path = source
-                    repaired_cmap = repair_terminal_cmap(font.getTableData('cmap'), font['maxp'].numGlyphs) if 'cmap' in font else None
-                    if repaired_cmap is not None:
-                        from fontTools.ttLib.tables.DefaultTable import DefaultTable
-                        table = DefaultTable('cmap')
-                        table.data = repaired_cmap
-                        font['cmap'] = table
+                    repaired_cmap = repair_terminal_cmap(font.reader['cmap'], font['maxp'].numGlyphs) if 'cmap' in font else None
                     if collection or repaired_cmap is not None:
                         resource_dir.mkdir(exist_ok=True)
                         path = resource_dir / f'{digest}-{index}.ttf'
-                        font.save(path)
+                        write_font_face(font, path, repaired_cmap)
                     records.append({'path': str(path.resolve()), 'source': str(source.resolve()),
                                     'sourceSha256': digest, 'sha256': vs.sha256_file(path),
                                     'faceIndex': index, 'families': names, 'weight': weight,
                                     'style': 'italic' if italic else 'normal',
+                                    'nameRecordErrors': name_errors,
                                     'repairs': ['cmap-format4-terminal-notdef'] if repaired_cmap is not None else []})
             finally:
                 if collection:
@@ -180,6 +175,40 @@ def font_catalog(vs, root: Path, font_paths, base: Path) -> Path:
     path = base / 'font-catalog.json'
     vs.write_json_atomic(path, {'faces': records})
     return path
+
+
+def font_family_names(font) -> tuple[list[str], list[dict]]:
+    """유효한 이름을 사용하고 해독 불가 항목의 원본 식별자를 보존한다."""
+    names, errors = set(), []
+    for entry in font['name'].names:
+        if entry.nameID not in {1, 4, 16}:
+            continue
+        try:
+            value = entry.toUnicode()
+        except (UnicodeError, LookupError) as error:
+            errors.append({'nameID': entry.nameID, 'platformID': entry.platformID,
+                           'encodingID': entry.platEncID, 'languageID': entry.langID,
+                           'rawSha256': hashlib.sha256(entry.string).hexdigest(),
+                           'reason': str(error)})
+        else:
+            if value:
+                names.add(value)
+    if errors and not names:
+        raise ValueError('공급 face의 family 이름을 해독할 수 없습니다: ' + str(errors))
+    return sorted(names), errors
+
+
+def write_font_face(font, path: Path, repaired_cmap: bytes | None) -> None:
+    """원본 SFNT 테이블을 복사한다. 글리프·메트릭·경계·날짜를 재컴파일하지 않는다."""
+    from fontTools.ttLib.sfnt import SFNTWriter
+    # TTFont.save는 읽어 둔 테이블을 재컴파일하고 CFF 전체의 bbox를 계산한다.
+    # face 공급에는 directory/checksum 갱신과 명시한 cmap 종료 항목 수정만 필요하다.
+    tags = sorted(font.reader.keys())
+    with path.open('wb') as output:
+        writer = SFNTWriter(output, len(tags), font.sfntVersion)
+        for tag in tags:
+            writer[tag] = repaired_cmap if tag == 'cmap' and repaired_cmap is not None else font.reader[tag]
+        writer.close()
 
 
 def repair_terminal_cmap(data: bytes, glyph_count: int) -> bytes | None:
@@ -261,9 +290,9 @@ def embedded_font_catalog(requests: Path, output: Path) -> Path:
     root = requests.parent
     adapter = SimpleNamespace(resolve_input_path=lambda root, path: Path(path),
                               sha256_file=lambda path: hashlib.sha256(path.read_bytes()).hexdigest(),
-                              write_json_atomic=lambda path, value: path.write_text(json.dumps(value)))
+                              write_json_atomic=lambda path, value: path.write_text(json.dumps(value), encoding='utf-8'))
     catalogue = font_catalog(adapter, root, [root / 'source-fonts'], output)
-    value = json.loads(catalogue.read_text())
+    value = json.loads(catalogue.read_text(encoding='utf-8'))
     selected = []
     for face in value['faces']:
         matches = [entry for entry in entries if Path(entry['path']).resolve() == Path(face['source'])
@@ -277,7 +306,7 @@ def embedded_font_catalog(requests: Path, output: Path) -> Path:
                    and face['faceIndex'] == entry['faceIndex'] for face in selected) for entry in entries):
         raise SystemExit('문서 내장 글꼴의 선택 face를 공급할 수 없습니다.')
     value['faces'] = selected
-    catalogue.write_text(json.dumps(value, ensure_ascii=False))
+    catalogue.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
     return catalogue
 
 

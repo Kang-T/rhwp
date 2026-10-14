@@ -168,18 +168,179 @@ class EmbeddedFontCatalogueTests(unittest.TestCase):
             root = Path(folder)
             sources = root / 'source-fonts'
             sources.mkdir()
-            path = sources / 'embedded.ttc'
+            path = sources / '내장 font face.ttc'
             shutil.copyfile(Path(__file__).parents[2] / 'tests/fixtures/fonts/RHWPExactFaceSmoke.ttc', path)
             requests = root / 'requests.json'
             requests.write_text(json.dumps([{'path': str(path), 'faceIndex': 1,
-                                            'families': ['문서 논리 글꼴']}]))
-            catalogue = json.loads(png.embedded_font_catalog(requests, root).read_text())
+                                            'families': ['문서 논리 글꼴 Ω 🚀']}]), encoding='utf-8')
+            catalogue = json.loads(png.embedded_font_catalog(requests, root).read_text(encoding='utf-8'))
             self.assertEqual(len(catalogue['faces']), 1)
             face = catalogue['faces'][0]
             self.assertEqual(face['faceIndex'], 1)
             self.assertEqual(face['sourceKind'], 'document-embedded')
-            self.assertIn('문서 논리 글꼴', face['families'])
+            self.assertIn('문서 논리 글꼴 Ω 🚀', face['families'])
             self.assertIn('RHWP Exact Face One', face['families'])
             from fontTools.ttLib import TTFont
             with TTFont(face['path']) as font:
                 self.assertTrue(font.getBestCmap())
+
+    def test_extracted_face_preserves_glyph_tables_and_header_metadata(self):
+        from fontTools.ttLib import TTCollection, TTFont
+        import hashlib
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = Path(__file__).parents[2] / 'tests/fixtures/fonts/RHWPExactFaceSmoke.ttc'
+            inputs = root / 'input'
+            inputs.mkdir()
+            copied = inputs / 'faces.ttc'
+            shutil.copyfile(source, copied)
+            adapter = SimpleNamespace(resolve_input_path=lambda root, path: Path(path),
+                sha256_file=lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest(),
+                write_json_atomic=lambda p, v: p.write_text(json.dumps(v)))
+            catalogue = json.loads(png.font_catalog(adapter, root, [inputs], root).read_text())
+            collection = TTCollection(copied, lazy=True)
+            try:
+                for record in catalogue['faces']:
+                    original = collection.fonts[record['faceIndex']]
+                    with TTFont(record['path'], lazy=True) as actual:
+                        self.assertEqual(set(actual.reader.keys()), set(original.reader.keys()))
+                        for tag in original.reader.keys():
+                            if tag != 'head':
+                                self.assertEqual(actual.reader[tag], original.reader[tag], tag)
+                        # 추출 SFNT의 checksumAdjustment만 달라질 수 있다. 경계·날짜는 원본이다.
+                        before, after = original.reader['head'], actual.reader['head']
+                        self.assertEqual(after[:8] + after[12:], before[:8] + before[12:])
+            finally:
+                collection.close()
+
+    def test_cff_collection_does_not_recalculate_bounds_or_recompile_tables(self):
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.t2CharStringPen import T2CharStringPen
+        from fontTools.misc.psCharStrings import T2CharString
+        from fontTools.ttLib import TTCollection, TTFont
+        from fontTools.ttLib.sfnt import calcChecksum
+        import hashlib
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            inputs = root / 'input'
+            inputs.mkdir()
+            builder = FontBuilder(1000, isTTF=False)
+            builder.setupGlyphOrder(['.notdef', 'A'])
+            builder.setupCharacterMap({65: 'A'})
+            builder.setupHorizontalMetrics({'.notdef': (500, 0), 'A': (600, 0)})
+            builder.setupHorizontalHeader(ascent=800, descent=-200)
+            builder.setupNameTable({'familyName': 'Catalogue CFF', 'styleName': 'Regular'})
+            builder.setupOS2(sTypoAscender=800, sTypoDescender=-200, usWinAscent=800, usWinDescent=200)
+            builder.setupPost()
+            glyphs = {}
+            for name in ['.notdef', 'A']:
+                pen = T2CharStringPen(600, None)
+                pen.moveTo((20, 0))
+                pen.lineTo((300, 700))
+                pen.lineTo((580, 0))
+                pen.closePath()
+                glyphs[name] = pen.getCharString()
+            builder.setupCFF('CatalogueCFF', {}, glyphs, {})
+            builder.font['head'].modified = 3400000000
+            builder.font.recalcTimestamp = False
+            collection = TTCollection()
+            collection.fonts = [builder.font]
+            source = inputs / 'outline.ttc'
+            collection.save(source)
+            adapter = SimpleNamespace(resolve_input_path=lambda root, path: Path(path),
+                sha256_file=lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest(),
+                write_json_atomic=lambda p, v: p.write_text(json.dumps(v)))
+            with patch.object(T2CharString, 'calcBounds', side_effect=AssertionError('CFF 경계 재계산')):
+                catalogue = json.loads(png.font_catalog(adapter, root, [inputs], root).read_text())
+            self.assertEqual(len(catalogue['faces']), 1)
+            path = Path(catalogue['faces'][0]['path'])
+            self.assertEqual(calcChecksum(path.read_bytes()), 0xB1B0AFBA)
+            with TTFont(source, fontNumber=0, lazy=True) as original, TTFont(path, lazy=True) as actual:
+                self.assertEqual(actual.sfntVersion, 'OTTO')
+                self.assertEqual(set(actual.reader.keys()), set(original.reader.keys()))
+                for tag in original.reader.keys():
+                    before, after = original.reader[tag], actual.reader[tag]
+                    if tag == 'head':
+                        before, after = before[:8] + before[12:], after[:8] + after[12:]
+                    self.assertEqual(after, before, tag)
+
+    def test_cmap_repair_preserves_other_tables_and_duplicate_sources(self):
+        from fontTools.ttLib import TTFont
+        from fontTools.ttLib.sfnt import SFNTWriter, calcChecksum
+        import hashlib
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            inputs = root / 'input'
+            inputs.mkdir()
+            fixture = Path(__file__).parents[2] / 'tests/fixtures/fonts/RHWPExactFaceSmoke.ttc'
+            source = inputs / 'terminal.ttf'
+            invalid = TerminalCmapTests.cmap()
+            with TTFont(fixture, fontNumber=0, lazy=True) as font, source.open('wb') as output:
+                writer = SFNTWriter(output, len(font.reader.keys()), font.sfntVersion)
+                for tag in sorted(font.reader.keys()):
+                    writer[tag] = invalid if tag == 'cmap' else font.reader[tag]
+                writer.close()
+            shutil.copyfile(source, inputs / 'duplicate.ttf')
+            adapter = SimpleNamespace(resolve_input_path=lambda root, path: Path(path),
+                sha256_file=lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest(),
+                write_json_atomic=lambda p, v: p.write_text(json.dumps(v)))
+            catalogue = json.loads(png.font_catalog(adapter, root, [inputs, inputs], root).read_text())
+            self.assertEqual(len(catalogue['faces']), 1)
+            record = catalogue['faces'][0]
+            self.assertEqual(record['repairs'], ['cmap-format4-terminal-notdef'])
+            path = Path(record['path'])
+            self.assertEqual(calcChecksum(path.read_bytes()), 0xB1B0AFBA)
+            with TTFont(source, lazy=True) as original, TTFont(path, lazy=True) as actual:
+                self.assertEqual(set(actual.reader.keys()), set(original.reader.keys()))
+                for tag in original.reader.keys():
+                    before, after = original.reader[tag], actual.reader[tag]
+                    if tag == 'head':
+                        before, after = before[:8] + before[12:], after[:8] + after[12:]
+                    if tag != 'cmap':
+                        self.assertEqual(after, before, tag)
+                self.assertEqual(actual.reader['cmap'], png.repair_terminal_cmap(invalid, original['maxp'].numGlyphs))
+                self.assertEqual(actual.getBestCmap(), {65: original.getBestCmap()[65]})
+
+    def test_unreadable_legacy_name_keeps_valid_family_and_raw_name_table(self):
+        from fontTools.ttLib import TTCollection, TTFont
+        from fontTools.ttLib.tables._n_a_m_e import NameRecord
+        import hashlib
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            inputs = root / 'input'
+            inputs.mkdir()
+            fixture = Path(__file__).parents[2] / 'tests/fixtures/fonts/RHWPExactFaceSmoke.ttc'
+            with TTFont(fixture, fontNumber=0) as font:
+                good = ['RHWP Exact Face Zero', 'RHWP Exact Face Zero Regular']
+                entry = NameRecord()
+                entry.nameID, entry.platformID, entry.platEncID, entry.langID = 1, 3, 5, 1042
+                entry.string = b'\xd3\x9c'
+                font['name'].names.append(entry)
+                collection = TTCollection()
+                collection.fonts = [font]
+                collection.save(inputs / 'legacy.ttc')
+            adapter = SimpleNamespace(resolve_input_path=lambda root, path: Path(path),
+                sha256_file=lambda p: hashlib.sha256(Path(p).read_bytes()).hexdigest(),
+                write_json_atomic=lambda p, v: p.write_text(json.dumps(v), encoding='utf-8'))
+            catalogue = json.loads(png.font_catalog(adapter, root, [inputs], root).read_text(encoding='utf-8'))
+            record = catalogue['faces'][0]
+            self.assertEqual(record['families'], good)
+            self.assertEqual(len(record['nameRecordErrors']), 1)
+            error = record['nameRecordErrors'][0]
+            self.assertEqual((error['nameID'], error['platformID'], error['encodingID'], error['languageID']),
+                             (1, 3, 5, 1042))
+            self.assertEqual(error['rawSha256'], hashlib.sha256(entry.string).hexdigest())
+            with TTFont(inputs / 'legacy.ttc', fontNumber=0, lazy=True) as original, TTFont(record['path'], lazy=True) as actual:
+                self.assertEqual(actual.reader['name'], original.reader['name'])
+
+    def test_all_unreadable_family_names_fail_without_inventing_aliases(self):
+        from fontTools.ttLib import TTFont
+        from fontTools.ttLib.tables._n_a_m_e import NameRecord
+        fixture = Path(__file__).parents[2] / 'tests/fixtures/fonts/RHWPExactFaceSmoke.ttc'
+        with TTFont(fixture, fontNumber=0) as font:
+            entry = NameRecord()
+            entry.nameID, entry.platformID, entry.platEncID, entry.langID = 1, 3, 5, 1042
+            entry.string = b'\xd3\x9c'
+            font['name'].names = [entry]
+            with self.assertRaisesRegex(ValueError, 'family 이름'):
+                png.font_family_names(font)
