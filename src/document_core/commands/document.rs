@@ -2210,7 +2210,17 @@ impl DocumentCore {
                     previous = Some((stored, next, occupied));
                 }
             }
-            mark_generated_host_lines(cell, &generated_host_lines);
+            let Some(Control::Table(original_table)) = self.document.sections[section_idx]
+                .paragraphs[para_idx]
+                .controls
+                .get(control_idx)
+            else {
+                continue;
+            };
+            let Some(original_cell) = original_table.cells.get(cell_idx) else {
+                continue;
+            };
+            mark_generated_host_lines(cell, original_cell, &generated_host_lines);
         }
     }
 

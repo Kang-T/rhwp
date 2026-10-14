@@ -49,13 +49,27 @@ pub(super) fn generated_block_host_lines(
     generated.into_iter().collect()
 }
 
-pub(super) fn mark_generated_host_lines(cell: &mut Cell, lines: &[(usize, usize)]) {
+pub(super) fn mark_generated_host_lines(
+    cell: &mut Cell,
+    original: &Cell,
+    lines: &[(usize, usize)],
+) {
     for &(para, line) in lines {
         if let Some(segment) = cell
             .paragraphs
             .get_mut(para)
             .and_then(|host| host.line_segs.get_mut(line))
         {
+            // 다른 줄의 컷을 되썼다는 이유로 그대로 재사용한 원본 호스트의
+            // 계보까지 바꾸지 않는다. 실제 줄 메트릭이 바뀐 호스트만 생성 줄이다.
+            if original
+                .paragraphs
+                .get(para)
+                .and_then(|host| host.line_segs.get(line))
+                == Some(&*segment)
+            {
+                continue;
+            }
             // 저장 텍스트·줄 메트릭·기존 tag는 보존한다. 독립 한컴 프레임이 아니라
             // 재작성된 부모 호스트라는 출처만 싣는다. reader의 기존 합성 줄 계약을 쓴다.
             segment.tag |= LineSeg::TAG_IMPLEMENTATION_PROPERTY;
