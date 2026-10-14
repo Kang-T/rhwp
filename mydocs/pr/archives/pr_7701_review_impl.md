@@ -1264,3 +1264,43 @@ Studio 공개JS/WASM SHA 일치를 확인했다. canonical `visual_sweep.py --wa
 `c46-new-base-issue6122-driver.log`에 보존했고 실제 렌더 실패로 세지 않는다.
 올바른 key의 재실행은 측정 완료·gate 미달로종료1이다. #7445 본문에서 원본 이름과
 해당 번호의 등록을 찾지 못했으므로, 이 비교만으로 기존 정상 검사를 제거하지 않는다.
+
+### 기호의 빈 내부와 남은 저장 호스트 간격 — 2026-10-14
+
+`64a19b43b`에서 F06D의 표시를 U+25CB로 바꿨다. F06C의 채운 원과 원문 모델은
+유지했다. Native Skia 빌드는4분50초·종료0이며, 첫 driver가 fmt/commit 종료 전에
+시작돼 dirty source guard로 중단한 기록은 `c49-hollow-circle-native-build-driver.log`
+에 남겼다. 실제 Cargo 실행 전의 준비 실패이고 renderer 결함이나 수정 전 FAIL이
+아니다. 비어 있는 해당 작업의 candidate 경로만 확인해 재사용한r2 빌드가 실제
+검증 근거다. 공유 target은 삭제·초기화하지 않았다.
+
+새 Native 전2쪽은91.14297%/98.72130%·쪽수2/2·누락0이며, 실제 새 PNG로
+review와 1쪽 기호5배 확대 이미지를 생성해 열었다
+(`c49-issue5884-native-direct-review/p001-hollow-circle-5x.png`). 채워진 내부는
+제거됐지만 Print의 오른쪽 아래 그림자 획과는 차이가 남아 있다. Unicode의
+[기호 목록](https://www.unicode.org/Public/UCD/latest/charts/nameslist/1f300/)에는
+U+1F53E가 오른쪽 아래 그림자를 가진 흰 원으로 지정되어 있고 U+274D도 연결된다.
+표시·측정이 소비하는 실제 글꼴 프로그램을 확인한 뒤 정확한 대응을 추가 보정한다.
+90% 통과를 이 기호의 정확한 형태 판독 통과로 대신하지 않는다.
+
+같은 C48 frozen renderer의 실제 전쪽 `export-render-tree`에 기존 원점·유닛 진단을
+켜 `c48-issue5884-host-origin-diagnostic`에 보존했다. 산출은종료0이며 실제 Native
+capture와 두 작은 표의 상자 좌표가 같다. 원본11번 호스트의 선행 줄 끝64504HU와
+자신의 vpos66303HU 차이는1799HU다. 이는 저장 표 높이1233HU와 바깥 여백
+283HU×2를 합한 값과 정확히 같다. 다음12번 호스트는12941HU로 되감긴다.
+이 독립 저장 관계와 마지막12번 호스트의 종료식은 구분해서 소비 경로를 검토한다.
+
+11번 유닛의 물리 예약은37.746667px인데 paint 커서는965.4→996.1로 약30.7px만
+전진한다. 12번 첫 유닛은26.88px이며 행 본체16.44px·앞 간격6.666667px·위 여백
+3.773333px을 포함한다. 실제 첫 조각 배치의 간격 소비가 이 예약과 일치하는지
+추적 중이다. 이 수치들은 원인 진단값으로만 보존하며 고정 위치 기대값이나 숨기는
+clamp를 추가하지 않았다. 정확한 공통 시작/끝 공간을 마련한 뒤 영향 전쪽의
+Native/fresh WASM와 정상 대조군을 다시 확인한다. 새 fresh WASM 빌드는 동일
+source guard로 진행 중이며, 완료·관계 회귀 변경·최종 PR 제출을 아직 주장하지 않는다.
+
+C49 Native의8문서94쪽은 driver종료0으로 완료했고 전쪽의 누락과 쪽수 차이는0이다
+(`c49-native-completed-summary.json`). 미달은 기존과 같은 `issue6122`2·6·7쪽이고,
+나머지91쪽은90% 이상이다. C48과 실제 PNG를 전94쪽 SHA로 대조한 결과 바뀐 것은
+F06D를 표시한 `issue5884`1쪽뿐이며 나머지93쪽은 바이트가 같다. 정상 대조군49쪽과
+`issue5877`31쪽의 출력은 유지됐다. 고정b3eaf7b10 기준 source unit-tier 정책 검사도
+종료0이며 이는4103개 테스트 inventory 정책 확인이고 전체 테스트 실행 결과가 아니다.
