@@ -1390,3 +1390,86 @@ Studio 타입 검사는종료0이었다. 첫 unit은 카탈로그 수량만1841P
 정책도 고정b3eaf7b10에서종료0이다. 최종 Rust lint·전체 회귀·실제 브라우저와
 원래 전범위의 시각 검증은 아직 미완료다. C51 fresh WASM은 고정 target/jobs8로
 진행 중이며 해당 빌드의 source/font SHA guard와 결과를 수집한 뒤 다음 단계로 간다.
+
+### 전2쪽 fresh WASM 완료와 관계형 회귀 — 2026-10-14
+
+앞 절의 C51 fresh WASM은19분04초·종료0으로 완료했다. renderer source는
+`09da34a192a477fa3d13e50375814a8f5d6b0325`이며 루트 package와 Studio 공개
+JS/WASM의 SHA 일치를 확인했다. 동일 원본/PDF의 전2쪽 fresh TSV는
+98.56737%/98.72130%, 쪽수2/2·누락0이었다. 새로 실행한 fresh WASM의 실제
+PNG는 전2쪽 모두 같은 C51 Native PNG와 SHA가 같다. 측정 모드의
+`not_evaluated`를 최종 승인으로 바꾸지 않았다.
+
+같은 캡처로 만든1쪽 작은 표 사이 간격3배와2쪽 수식·부모 표 외곽3배를 직접
+확인했다. 제목은1쪽에 남고 계산식·그림 두 개는2쪽에 이어지며 종료 호스트 줄의
+부모 점유가 보존된다. 기호 누락은 실제 Skia의 그림자 원형 기호5배에서도
+해소됐다. 본문·수식의 글꼴/AA 획 차이는 남지만 잘못된 연산자나 내용 소실로
+판정할 차이는 확인하지 못했다. 이는 #5884의 판독이며 전54문서의 판독 완료가 아니다.
+
+`bb7d015971d190cc79ae4a5ca8e514835c291c68`에서 정식
+`tests/cases/issue_5884_nested_row_first_line_height.rs`를 보완했다. 독립 Print의
+2쪽 수와 기존 overflow=0은 유지했다. 제목 `예1)/예2)`까지2쪽에 있다고 요구하던
+잘못된 전제는 제목 조각과 다음 계산식 조각의 소유·순서 검사로 교체했다. 전쪽의
+제목/계산 결과 각각1회 보존, 원본 그림2개와 각 소유 셀 안의 포함 관계도 검사한다.
+종료 호스트 줄은 화면의 절대 위치를 고정하지 않고 원본 저장 LineSeg 높이를
+소비하는 표 간 간격과 부모/자식 끝점의 관계로 검사한다. 원본 F06D 문자·표시
+U+1F53E·셀 소유도 보호한다. 기존3함수에서1함수를 교체하고3함수를 추가해6함수가 됐다.
+
+동일 formal source와 C51 frozen rlib의6검사는 통과했다. C49 rlib에서는 작은 표
+간격7.5467px가 원본 줄12px보다 작아 실패했고, 기호가 주변 본문 런에 섞여 있어
+기호 보존 검사도 실패했다. C45 frozen CLI의 실제 마지막 쪽 트리에는 부모/자식
+하단 차이5.7px(출력 JSON의 반올림)가 남고 C51은17.7px였다. 원본 XML
+`Contents/section0.xml`의 단일 호스트 줄 `vertsize=900HU`와 대조한 동일 관계가
+미충족→충족으로 바뀐다. C45 rlib의 직접 링크는 공유 dependency의 metadata hash가
+달라 실패했으므로 이 빌드 실패를 결함 검출로 세지 않는다. 고정b3eaf7b10 rlib의
+종료 줄 검사는 통과해, C45 통합 후보의 차이를 upstream의 같은 결함으로 주장하지 않는다.
+
+파생 suite 준비와 고정b3eaf7b10 manifest 검사는종료0이었다. 정식
+`regression_suite_010`의 집중 nextest도6PASS·215 filtered skip·실행0.178초,
+빌드6분15초·종료0이었다. 요청한 공용target/jobs8를 적용했다. 첫 집중 Cargo의
+jobs 환경 누락을 발견해 그 실행만 중단한 뒤 올바른 환경으로 다시 실행했다.
+첫 log는 보존했으며 위 결과는 `c52-issue5884-focused-nextest-r2.log`다.
+검사 추가는 앞의 전쪽 Native/fresh90% 이상·쪽수 일치·확대 판독 뒤 수행했다.
+원본/PDF hash는 앞의 C51 측정 기록과 동일하며 baseline·관용 거리는 변경하지 않았다.
+
+최종 PNG7개를 아래 안정 경로에 바이트 일치로 보존했다. 임시 TSV/실행 log/중간
+JSON은 ignored output에 남겼다. source code·입력·Print·전체 쪽수의 증거를
+`c52-stable-issue5884-assets.json`과 이전 C51 provenance에 연결했다.
+
+![#5884 종료 호스트 보정 1쪽](../assets/planet6897_followup_20261011/issue5884-closing-host-c51/review_001.png)
+
+![#5884 분할 계산식과 그림 보존 2쪽](../assets/planet6897_followup_20261011/issue5884-closing-host-c51/review_002.png)
+
+### 원래 전범위 재측정과 upstream 미달 구분 — 2026-10-14
+
+원래54문서·1849 독립 Print쪽을 C51 frozen Native와 C51 fresh WASM으로 각각
+재측정하고 있다. source/font SHA를 고정하며 교육과정의 이관된 파일도 원래 입력/PDF
+SHA와 같은 자료로 경로만 연결했다. Native의8문서94쪽 방향 확인이나 #5884의 통과를
+전체 범위의 완료로 확대하지 않는다. 새 미달·쪽수 불일치·측정 불가도 그대로 수집한다.
+
+upstream을 다시 fetch해 `b3eaf7b10b15a2d40810d42acdcf4de6c1ba026b`로 동일한 것을
+확인했다. 추가 리베이스는 하지 않았다. 같은 원본·Print·글꼴로 고정 upstream을 직접
+비교한 결과는 다음과 같다.
+
+| 문서 | pinned upstream Native | 현재 C51 Native | 실제 판독/판정 |
+| --- | --- | --- | --- |
+| owned-normal-picture-table 전2쪽 | 60.45143% /43.71706% | 61.91313% /44.10867% | 중간 셀의 큰 빈 공간과 다음 행의 쪽 소속 차이가 양쪽에 남는다. 배치 결함이며 글꼴 예외로 처리하지 않는다. |
+| HWP3 sample19 원본 전2쪽 | 48.79185% /75.60919% | 48.79302% /75.53185% | 본문의 줄·글자 위치 차이가 기존 upstream에도 남는다. 현재 수정의 새 미달로 판정할 근거는 없다. |
+
+두 문서의 현재/upstream review PNG를 실제로 열어 확인했다. 기존 이슈·정확한 검사
+범위를 확인하기 전에는 회귀를 제거하거나 이관 완료로 표시하지 않았다. 이후 확인된
+미달도 같은 original/Print로 upstream 비교 중이며, 별도 JSON에 모든 시점의 결과를
+보존한다. 최종 Rust lint 묶음도 `bb7d01597`/고정b3 기준으로 순차 실행 중이다.
+전체 회귀·전체 fresh WASM·Canvas 실출력 및 PR 제출/CI/merge는 아직 미완료다.
+
+대용량 전체 sweep의 공간 확보는 종료된 과거 SVG export의 gzip 바이트를 무손실
+tar.zst로 보존하는 방식으로 수행했다. 첫157개 파일은 archive 내부와 원래 파일의
+SHA를 모두 대조한 뒤 동일한 expanded 사본만 교체했다. 원본/PDF·TSV·PNG·JSON·log와
+Cargo 산출물은 보존했다. 과거 raster의 `incomplete` 판정도 그대로 남겼으며,
+아카이브 검증을 시각 통과로 주장하지 않는다. index에 파일별 hash와 복원 명령이 있다.
+
+문서 링크 검사는621문서 중1건의 기존 깨진 링크를 검출했다. 고정b3 기준에도
+없는 `issue_4318_endnote_last_column_frame.rs`를 architecture 표가 활성 검사처럼
+가리키고 있었다. 시험지 이관은 유지하고, 실제 파일이 있던 commit SHA의 코드 링크와
+이관 전 기록이라는 설명으로 바로잡았다. 삭제한 회귀를 복원하거나 검증 완료로
+승격한 변경이 아니다. 이번 #5884 증적 링크와 함께 링크 검사를 다시 실행한다.
