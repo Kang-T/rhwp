@@ -105,10 +105,17 @@ impl SkiaTextReplay<'_> {
                 let want_synthetic_bold = style.bold;
                 let finish_font = |tf: Typeface, size: f32| -> Font {
                     let is_bold_face = *tf.font_style().weight() >= 600;
+                    let is_slanted_face =
+                        tf.font_style().slant() != skia_safe::font_style::Slant::Upright;
                     let mut font = Font::new(tf, size);
                     font.set_edging(font::Edging::AntiAlias);
                     if want_synthetic_bold && !is_bold_face {
                         font.set_embolden(true);
+                    }
+                    // strict glyph replay와 PDF가 쓰는 같은 합성 기울임이다.
+                    // 실제 기울임 face에는 중복 shear를 적용하지 않는다.
+                    if style.italic && !is_slanted_face {
+                        font.set_skew_x(-0.25);
                     }
                     font
                 };
