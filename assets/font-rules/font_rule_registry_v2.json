@@ -14,6 +14,16 @@
       "changeSetId": "issue-7196.ygodic230-metric-name",
       "path": "assets/font-rules/changes/issue-7196-ygodic230-metric-name.json",
       "sha256": "32ba0e30b0bbb23fa29f46d56ac2dc6ffd80bfb16315090be1886df0b74cccf9"
+    },
+    {
+      "changeSetId": "issue-5884.noto-symbols2-webfont",
+      "path": "assets/font-rules/changes/issue-5884-noto-symbols2-webfont.json",
+      "sha256": "269c36ec10b2eae9af54e6630931875a5bfb9627be9881285eeb48d216dd82f4"
+    },
+    {
+      "changeSetId": "issue-5884.noto-symbols2-canvaskit",
+      "path": "assets/font-rules/changes/issue-5884-noto-symbols2-canvaskit.json",
+      "sha256": "0513fa026fc89793049314e945c94aff589961bfc9c6e8b7e996fcc58bda4be9"
     }
   ],
   "evidenceRecords": [
@@ -48,6 +58,14 @@
       "parentEvidenceIds": [],
       "sha256": "5db32d3107d229d471eb43b544e2c87a5fade1d1738b4bdea6338958726cc443",
       "source": "samples/issue7196/156760012_page_top_spacing_trim-2024.pdf"
+    },
+    {
+      "evidenceId": "evidence.issue-5884.noto-symbols2-program",
+      "kind": "public-source",
+      "licenseOrProvenance": "SIL OFL 1.1 원본 Noto Sans Symbols2 Regular. font-program-evidence.json의 cmap/hmtx 직접 추출과 공개 라이선스를 보존한다.",
+      "parentEvidenceIds": [],
+      "sha256": "876598db5f1e3bef2bc77c4d94c5b0d5d2c1620be4878a06f18fb5434e331688",
+      "source": "rhwp-studio/public/fonts/NotoSansSymbols2-Regular.ttf"
     }
   ],
   "issue": 5955,
@@ -43374,9 +43392,114 @@
       "status": "active",
       "supply": null,
       "targetFaceOrPolicy": "Haan YGodic 230"
+    },
+    {
+      "conditions": {
+        "profile": "canvas2d-css-unknown"
+      },
+      "decisionPlane": "supply",
+      "evidence": null,
+      "evidenceIds": [
+        "evidence.issue-5884.noto-symbols2-program"
+      ],
+      "lifecycle": {
+        "introducedBy": "issue-5884.noto-symbols2-webfont",
+        "lastEvidenceChangeBy": null,
+        "predecessorRuleIds": [],
+        "retiredBy": null,
+        "retirementReason": null,
+        "successorRuleIds": []
+      },
+      "metricEntryIds": [],
+      "order": null,
+      "projectionSequence": 153,
+      "projections": [
+        {
+          "id": "canvas2d-webfont",
+          "mode": "direct"
+        }
+      ],
+      "relationType": "supply-source",
+      "ruleId": "rule.issue-5884.noto-symbols2.webfont",
+      "selectionTupleSha256": "47801966375da37a6f40dbc5bb83c7e91a8f4d90fb07a89ec249bc773f78de34",
+      "sourceBoundaryId": "studio-supply.font-list",
+      "sourceFace": "Noto Sans Symbols2",
+      "status": "active",
+      "supply": {
+        "external": false,
+        "fontFamily": "Noto Sans Symbols2",
+        "format": "truetype",
+        "kind": "canvas2d-webfont",
+        "sourceUrl": "fonts/NotoSansSymbols2-Regular.ttf",
+        "unicodeRange": null
+      },
+      "targetFaceOrPolicy": "'fonts/NotoSansSymbols2-Regular.ttf'"
+    },
+    {
+      "conditions": {
+        "profile": "canvaskit-sfnt"
+      },
+      "decisionPlane": "supply",
+      "evidence": null,
+      "evidenceIds": [
+        "evidence.issue-5884.noto-symbols2-program"
+      ],
+      "lifecycle": {
+        "introducedBy": "issue-5884.noto-symbols2-canvaskit",
+        "lastEvidenceChangeBy": null,
+        "predecessorRuleIds": [],
+        "retiredBy": null,
+        "retirementReason": null,
+        "successorRuleIds": []
+      },
+      "metricEntryIds": [],
+      "order": null,
+      "projectionSequence": 158,
+      "projections": [
+        {
+          "id": "canvaskit-sfnt",
+          "mode": "direct"
+        }
+      ],
+      "relationType": "supply-source",
+      "ruleId": "rule.issue-5884.noto-symbols2.canvaskit",
+      "selectionTupleSha256": "4c35df2cd5de0deef1bbc3201db9fc7e06b5774f19dfe571c66f433275e1147d",
+      "sourceBoundaryId": "studio-supply.font-list",
+      "sourceFace": "Noto Sans Symbols2",
+      "status": "active",
+      "supply": {
+        "capabilityAgreement": true,
+        "declaredCapability": "sfnt-source",
+        "fontFamily": "Noto Sans Symbols2",
+        "kind": "canvaskit-plan",
+        "offline": {
+          "sources": [
+            {
+              "aliases": [
+                "Noto Sans Symbols2"
+              ],
+              "url": "fonts/NotoSansSymbols2-Regular.ttf"
+            }
+          ],
+          "unavailableFonts": []
+        },
+        "online": {
+          "sources": [
+            {
+              "aliases": [
+                "Noto Sans Symbols2"
+              ],
+              "url": "fonts/NotoSansSymbols2-Regular.ttf"
+            }
+          ],
+          "unavailableFonts": []
+        },
+        "runtimePlanStatus": "planned"
+      },
+      "targetFaceOrPolicy": "sfnt: fonts/NotoSansSymbols2-Regular.ttf"
     }
   ],
-  "rulesSha256": "837b77ca5f77164eff7913fcab46c8dd4bbe5a78bf7b77a546cbf3c31d1b50c0",
+  "rulesSha256": "964354b147971d33ecef3a6187c0c3111dba231c57de35c4d52d1d7e1cad2aa8",
   "schema": {
     "path": "assets/font-rules/font_rule_registry_v2.schema.json",
     "sha256": "e3412357b2943c00c8a5d2fbb5b0371a8c8c9721157c67e5e38d68ae40a7d7b3"
@@ -43388,15 +43511,15 @@
   },
   "sourceCommit": "a1f9872e28aea6755b656161ed1802f73308da58",
   "summary": {
-    "activeRuleCount": 831,
+    "activeRuleCount": 833,
     "countsByProjection": {
       "canvas2d-paint": 281,
-      "canvas2d-webfont": 153,
-      "canvaskit-sfnt": 158,
+      "canvas2d-webfont": 154,
+      "canvaskit-sfnt": 159,
       "rust-layout-metric": 68,
       "rust-layout-name": 171
     },
     "retiredRuleCount": 2,
-    "ruleCount": 833
+    "ruleCount": 835
   }
 }

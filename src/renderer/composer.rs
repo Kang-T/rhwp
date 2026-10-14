@@ -58,6 +58,14 @@ pub struct ComposedTextRun {
 impl ComposedTextRun {
     pub(crate) fn text_style(&self, styles: &ResolvedStyleSet) -> TextStyle {
         let mut style = resolved_to_text_style(styles, self.char_style_id, self.lang_index);
+        if mapped_symbol_fonts::owns_shadowed_circle_font(self) {
+            // 표시 기호 한 글자만 실제 프로그램을 선택한다. 본문과 IR의 글꼴은 보존한다.
+            style.font_family = format!(
+                "{},{}",
+                mapped_symbol_fonts::SHADOWED_CIRCLE_FONT,
+                style.font_family
+            );
+        }
         if self.supplemental_metrics_blocked {
             style.supplemental_metrics = None;
         }
@@ -82,6 +90,7 @@ impl ComposedTextRun {
     }
 }
 
+mod mapped_symbol_fonts;
 pub(crate) mod supplemental_clusters;
 
 /// 구성된 줄 (LineSeg 기반)
@@ -544,6 +553,8 @@ fn compose_paragraph_scoped(
     if protect_metrics {
         supplemental_clusters::preserve_boundaries(&mut composed, &para.text, metric_styles);
     }
+
+    mapped_symbol_fonts::split_mapped_symbol_font_runs(&mut composed);
 
     composed
 }

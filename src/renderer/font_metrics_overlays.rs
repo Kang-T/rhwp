@@ -521,7 +521,18 @@ static HCI_POPPY_LATIN_RANGES: [LatinRange; 5] = [
     },
 ];
 
-static MEASURED_FONT_METRIC_OVERLAYS: [FontMetric; 17] = [
+// 공개 OFL 프로그램의 SFNT cmap/hmtx 직접 추출. 화면 위치에서 역산하지 않는다.
+// Noto Sans Symbols2 Regular, em1000, SHA-256:
+// 876598db5f1e3bef2bc77c4d94c5b0d5d2c1620be4878a06f18fb5434e331688.
+// 전체 증거: mydocs/pr/assets/planet6897_followup_20261011/shadow-circle-font/font-program-evidence.json.
+static NOTO_SYMBOLS2_SHADOWED_CIRCLES: [u16; 2] = [916, 916];
+static NOTO_SYMBOLS2_CIRCLE_RANGES: [LatinRange; 1] = [LatinRange {
+    start: 0x1F53E,
+    end: 0x1F53F,
+    widths: &NOTO_SYMBOLS2_SHADOWED_CIRCLES,
+}];
+
+static MEASURED_FONT_METRIC_OVERLAYS: [FontMetric; 18] = [
     FontMetric {
         name: "HanyangSinMyeongJo",
         bold: false,
@@ -632,6 +643,14 @@ FontMetric { name: "Haan YGodic 240", bold: false, italic: false, em_size: 1000,
         italic: true,
         em_size: 2048,
         latin_ranges: &FONT_458_LATIN_RANGES,
+        hangul: None,
+    },
+    FontMetric {
+        name: "Noto Sans Symbols2",
+        bold: false,
+        italic: false,
+        em_size: 1000,
+        latin_ranges: &NOTO_SYMBOLS2_CIRCLE_RANGES,
         hangul: None,
     },
 ];
