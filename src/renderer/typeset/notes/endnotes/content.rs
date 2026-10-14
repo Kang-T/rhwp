@@ -1,7 +1,7 @@
 //! 미주 참조 해석과 번호 문자 준비. 원본 IR은 변경하지 않는다.
 
 use crate::renderer::typeset::{
-    format_number, EndnoteDeferral, EndnoteRef, Paragraph, RenderNumberFormat,
+    format_number, Control, EndnoteDeferral, EndnoteRef, Paragraph, RenderNumberFormat,
 };
 
 /// [미주 배치] `en_ref` 의 미주 본문(en_ctrl)을 해석한다. 현재 구역 미주면 본문
