@@ -133,6 +133,14 @@ Native/WASM 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r3-verifie
 한컴 증적은 `output/poc/pdf-ir-20261014/nested-tables-retry-r3/`에 있다.
 상세 실험과 독립 근거는 [R3 결과](NESTED_TABLES.md#r3-결과-2026-10-14)를 참조한다.
 
+R3 커밋 `5a7e4bbf8`에서 R4 재검증도 통과했다. 한컴 무편집 저장 HWP의 재열기 Print는
+8쪽 92.76461%를 유지한다. 원본 12쪽의 인식 진단도 실행했고 3쪽의 모호한 소유권은
+보류했다. 새 샘플 UI 판정과 원본 12쪽 전체 변환은 미검증이다.
+최종 샘플은 `output/poc/pdf-ir-20261014/nested-tables-retry-r4/` 아래의
+`real7-structured-page/compiled.hwpx`, `real8-structured-page/compiled.hwpx`다.
+원본과 한컴 Print PDF·TSV·job·해시는 같은 루트에 있다.
+[최종 확인 파일](NESTED_TABLES.md#r4-결과와-확인-파일-2026-10-14)을 참조한다.
+
 ```sh
 cargo +1.93.1 run --manifest-path tools/pdf-ir-poc/Cargo.toml --release --locked \
   --target-dir target/pr-review -- pdf/issue5875/nested_table_text_caption-2020.pdf \

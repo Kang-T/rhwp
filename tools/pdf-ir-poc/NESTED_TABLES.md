@@ -401,3 +401,41 @@ Native/fresh WASM 최종 검증·소스 해시는 `nested-tables-retry-r3-verifi
 `host_probe`로 수정 전후 셀 흐름을 추출했다. 이 저장 진단은 Print 또는 편집 검증을 대신하지 않는다.
 실제 한컴 제품은 11.0.0.9136, engine 2020, Print method 0과 one-up driver 경로를 확인했다.
 R4에서 이 head의 전체 선택 쪽과 나머지 12쪽의 인식 진단을 재확인한다.
+
+### R4 결과와 확인 파일 (2026-10-14)
+
+R3 구현을 `5a7e4bbf8`에 커밋한 뒤 같은 head에서 새 출력 루트로 최종 검증했다.
+Native/fresh WASM 71개 검사·Clippy·Worker·선택 쪽 시각 검증은 다시 통과했다.
+Native/WASM의 모든 대조군을 포함한 최저 값은 92.37282%, 선택 7쪽/8쪽은
+각각 93.76171%/94.12229%다. 모듈과 소스/입력 해시를 보존하고 Git commit의 실제
+소스 blob과 검사 manifest의 SHA가 일치하는지 확인했다.
+
+새 한컴 Print에서도 7쪽 94.05924%, 8쪽 92.76461%를 유지했다.
+두 파일 모두 전체 1쪽이고 각각 614개/714개 글자 multiset이 원본과 같다.
+각 파일의 부모 1개와 자식 4개는 실제 Table이며 원본 괘선 Rectangle은 남지 않는다.
+8쪽 생성본을 한컴에서 HWP로 저장한 뒤 다시 열어 Print한 결과도 92.76461%,
+714개 글자 보존을 확인했다. 이는 무편집 저장·재열기 계약이며 UI 편집 통과가 아니다.
+기존 B본과 단일 표 대조군 HWPX는 byte-identical하다.
+
+최종 산출물 루트:
+
+```text
+output/poc/pdf-ir-20261014/nested-tables-retry-r4/
+```
+
+| 확인 대상 | 루트 아래 경로 |
+| --- | --- |
+| 원본 PDF 7쪽 / 8쪽 | `source/page-7.pdf`, `source/page-8.pdf` |
+| 실제 중첩 표 HWPX 7쪽 / 8쪽 | `real7-structured-page/compiled.hwpx`, `real8-structured-page/compiled.hwpx` |
+| 한컴 Print PDF | `hancom/real7-candidate-2020.pdf`, `hancom/real8-candidate-2020.pdf` |
+| 한컴 저장본 재열기 Print | `hancom/real8-saved-reopened-2020.pdf` |
+| 입력·출력·MCP job·제품·Print 실행 증거 | `hancom/jobs.json`, `hancom/inspection.json` |
+| 전체 쪽 TSV·PNG | `visual/`, `hancom/visual/` |
+| 최종 head·단계별 명령·범위별 판정 | `verification/manifest.json`, `verification/commands.json`, `verification/final-summary.json` |
+| 원본 12쪽 인식 진단 | `all-page-detection.json`, `all-page-detection-command.json` |
+
+원본 12쪽은 전부 인식 진단을 실행했다. 7쪽/8쪽 각각 5개 격자(부모 1, 자식 4)가 있고,
+나머지 쪽은 각각 부모 후보 1개다. 3쪽은 공간 소유권이 모호하여 `Deferred`를 유지한다.
+이 진단은 12쪽 전체 HWPX 변환·재조판 검증이 아니다. 혼합 테두리, borderless 표,
+PDF embedded font 복원과 한컴 UI 편집은 후속 범위다.
+메인테이너의 새 샘플 UI 판정은 아직 받지 않았으며 원격 push/PR은 수행하지 않았다.
