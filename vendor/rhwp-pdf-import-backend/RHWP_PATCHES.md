@@ -54,6 +54,15 @@ rhwp 내부 보안 패치 dependency이며, 원 저작권·라이선스·NOTICE�
   이 내부 package에서 독립 cdylib/staticlib 제품을 배포하는 계약은 제공하지 않는다.
 - Rust 1.93에서 알려지지 않은 upstream lint 한 항목을 제거하고, 기존 boolean 식 한 곳을
   동치 식으로 정리했다. backend 자체의 `-D warnings` 검사를 위한 호환성 변경이다.
+- 후속 미검증 보완: 요청별 페이지 트리 깊이 32, 페이지 노드/객체 로드 방문량 100,000,
+  활성 객체 로드 수 32, Form 깊이 16, XObject 방문량 10,000 정책을 추가했다.
+  page/object cache hit의 fatal 상태 확인과 tree fallback의 오류 전파를 보완했다.
+  제한된 page count는 실제 tree를 순회하며 `/Count`와 flat-tree hint를 신뢰하지 않는다.
+  텍스트 Form의 조용한 depth/개수 skip과 예산을 우회하는 span/stream cache 재사용도 막았다.
+  수정 전 5개 계약 실패를 재현한 뒤 최초 재빌드는 디스크 부족으로 중단됐다.
+  공간 확보 후 Count 기반 subtree skip도 보완하고, span/glyph의 반복 해석 작업량을 반영한
+  총 44개 계약과 Native/WASM lib lint를 통과했다. 실물 Native HWPX도 보완 전과 동일했다.
+  전체 탐색/cache 감사·제품 공개 API·비신뢰 입력 배포 준비 완료를 뜻하지 않는다.
 
 ## 제한과 남은 게이트
 

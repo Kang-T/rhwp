@@ -766,3 +766,284 @@ fn product_import_does_not_swallow_lazy_cmap_resource_failure() {
     let normal = object_file(&objects(b"BT /F1 12 Tf 20 100 Td (OK) Tj ET", "", ""), "");
     assert!(parse_pdf_with_options(&normal, &PdfImportOptions::default()).is_ok());
 }
+
+fn page_tree_file(depth: usize, count: i64) -> Vec<u8> {
+    let mut parts = vec![b"<< /Type /Catalog /Pages 2 0 R >>".to_vec()];
+    for level in 0..depth {
+        parts.push(
+            format!(
+                "<< /Type /Pages /Count {count} /Kids [{} 0 R] >>",
+                level + 3
+            )
+            .into_bytes(),
+        );
+    }
+    parts.push(b"<< /Type /Page /MediaBox [0 0 200 200] >>".to_vec());
+    object_file(&parts, "")
+}
+
+fn form_tree_file(depth: usize) -> Vec<u8> {
+    let mut parts = objects(b"/Fm Do", "", "");
+    parts[2] = b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Fm 6 0 R >> >> /Contents 4 0 R >>".to_vec();
+    for level in 0..depth {
+        let (content, xobjects) = if level + 1 == depth {
+            ("BT /F1 12 Tf 20 100 Td (VISIBLE) Tj ET", String::new())
+        } else {
+            (
+                "BT ET /Fm Do",
+                format!("/XObject << /Fm {} 0 R >>", level + 7),
+            )
+        };
+        parts.push(format!("<< /Type /XObject /Subtype /Form /BBox [0 0 200 200] /Resources << /Font << /F1 5 0 R >> {xobjects} >> /Length {} >>\nstream\n{content}\nendstream", content.len()).into_bytes());
+    }
+    object_file(&parts, "")
+}
+
+#[test]
+fn traversal_page_depth_limit_reaches_public_page_count_and_get_page() {
+    for depth in [31, 32, 33] {
+        let doc = PdfDocument::from_bytes_with_limits(
+            page_tree_file(depth, 1),
+            PdfImportLimits::default(),
+        )
+        .unwrap();
+        let result = doc.get_page(0);
+        if depth > 32 {
+            assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
+            assert!(matches!(
+                doc.page_count(),
+                Err(Error::ImportResourceLimit(_))
+            ));
+        } else {
+            result.unwrap();
+            assert_eq!(doc.page_count().unwrap(), 1);
+        }
+    }
+}
+
+#[test]
+fn traversal_page_count_scan_cannot_return_partial_success_after_depth_limit() {
+    let doc = PdfDocument::from_bytes_with_limits(
+        page_tree_file(33, 8_388_608),
+        PdfImportLimits::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        doc.page_count(),
+        Err(Error::ImportResourceLimit(_))
+    ));
+    assert!(doc.get_page(0).is_err());
+}
+
+#[test]
+fn traversal_failed_request_cannot_return_a_cached_page_or_object() {
+    let doc = PdfDocument::from_bytes_with_limits(page_tree_file(1, 1), PdfImportLimits::default())
+        .unwrap();
+    let reference = pdf_oxide::object::ObjectRef::new(2, 0);
+    doc.get_page(0).unwrap();
+    doc.load_object(reference).unwrap();
+    doc.import_budget()
+        .unwrap()
+        .reject("test traversal failure");
+    assert!(matches!(
+        doc.get_page(0),
+        Err(Error::ImportResourceLimit("test traversal failure"))
+    ));
+    assert!(matches!(
+        doc.load_object(reference),
+        Err(Error::ImportResourceLimit("test traversal failure"))
+    ));
+    let fresh =
+        PdfDocument::from_bytes_with_limits(page_tree_file(1, 1), PdfImportLimits::default())
+            .unwrap();
+    assert_eq!(fresh.page_count().unwrap(), 1);
+    fresh.get_page(0).unwrap();
+}
+
+#[test]
+fn traversal_form_depth_limit_is_fatal_instead_of_silent_text_loss() {
+    for depth in [15, 16, 17] {
+        let doc =
+            PdfDocument::from_bytes_with_limits(form_tree_file(depth), PdfImportLimits::default())
+                .unwrap();
+        let text = doc.extract_text(0);
+        if depth > 16 {
+            assert!(matches!(text, Err(Error::ImportResourceLimit(_))));
+            assert!(doc.get_page(0).is_err());
+        } else {
+            assert!(text.unwrap().contains("VISIBLE"));
+        }
+    }
+}
+
+#[test]
+fn traversal_product_import_propagates_tree_and_form_failures_then_recovers() {
+    use rhwp::parser::pdf::{parse_pdf_with_options, PdfImportOptions};
+    for input in [page_tree_file(33, 1), form_tree_file(17)] {
+        let error = parse_pdf_with_options(&input, &PdfImportOptions::default())
+            .err()
+            .unwrap();
+        assert_eq!(error.code, "PDF_RESOURCE_LIMIT");
+        assert!(
+            parse_pdf_with_options(&page_tree_file(1, 1), &PdfImportOptions::default()).is_ok()
+        );
+    }
+}
+
+#[test]
+fn traversal_form_depth_and_work_limits_cover_each_product_extraction_mode() {
+    for mode in ["text", "paths", "images"] {
+        for (depth, cap) in [(2, 3), (3, 3), (4, 3)] {
+            let doc = PdfDocument::from_bytes_with_limits(
+                form_tree_file(depth),
+                PdfImportLimits {
+                    form_depth: cap,
+                    ..PdfImportLimits::default()
+                },
+            )
+            .unwrap();
+            let result = match mode {
+                "text" => doc.extract_spans(0).map(|spans| {
+                    assert!(spans.iter().any(|s| s.text.contains("VISIBLE")));
+                }),
+                "paths" => doc.extract_paths(0).map(|paths| assert!(paths.is_empty())),
+                _ => doc
+                    .page_image_handles(0)
+                    .map(|images| assert!(images.is_empty())),
+            };
+            if depth > cap {
+                assert!(
+                    matches!(result, Err(Error::ImportResourceLimit("Form depth"))),
+                    "{mode}: {result:?}"
+                );
+            } else {
+                result.unwrap();
+                doc.check_import_budget().unwrap();
+            }
+        }
+        // Span postprocessing stamps character origins using a second content
+        // interpretation. Both passes must consume the same request work budget.
+        let visits = if mode == "text" { 6 } else { 3 };
+        for cap in [visits - 1, visits, visits + 1] {
+            let doc = PdfDocument::from_bytes_with_limits(
+                form_tree_file(3),
+                PdfImportLimits {
+                    xobject_visits: cap,
+                    ..PdfImportLimits::default()
+                },
+            )
+            .unwrap();
+            let result = match mode {
+                "text" => doc.extract_spans(0).map(|_| ()),
+                "paths" => doc.extract_paths(0).map(|_| ()),
+                _ => doc.page_image_handles(0).map(|_| ()),
+            };
+            if cap < visits {
+                assert!(
+                    matches!(result, Err(Error::ImportResourceLimit("XObject visits"))),
+                    "{mode}: {result:?}"
+                );
+                assert!(doc.get_page(0).is_err());
+            } else {
+                result.unwrap_or_else(|error| panic!("{mode}, visit cap {cap}: {error:?}"));
+            }
+        }
+    }
+}
+
+#[test]
+fn traversal_object_cache_hits_still_consume_request_visits() {
+    let doc = PdfDocument::from_bytes_with_limits(
+        page_tree_file(1, 1),
+        PdfImportLimits {
+            reference_visits: 64,
+            ..PdfImportLimits::default()
+        },
+    )
+    .unwrap();
+    let reference = pdf_oxide::object::ObjectRef::new(2, 0);
+    doc.load_object(reference).unwrap();
+    let mut rejected = false;
+    for _ in 0..65 {
+        match doc.load_object(reference) {
+            Ok(_) => {}
+            Err(Error::ImportResourceLimit("reference visits")) => {
+                rejected = true;
+                break;
+            }
+            Err(error) => panic!("unexpected failure: {error:?}"),
+        }
+    }
+    assert!(rejected);
+    assert!(doc.get_page(0).is_err());
+}
+
+#[test]
+fn traversal_bulk_page_cache_cannot_swallow_deep_branch_failure() {
+    let mut kids = (3..67).map(|id| format!("{id} 0 R")).collect::<Vec<_>>();
+    kids.push("67 0 R".into());
+    let mut parts = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        format!("<< /Type /Pages /Count 65 /Kids [{}] >>", kids.join(" ")).into_bytes(),
+    ];
+    for _ in 0..64 {
+        parts.push(b"<< /Type /Page /MediaBox [0 0 200 200] >>".to_vec());
+    }
+    for id in 67..99 {
+        parts.push(format!("<< /Type /Pages /Count 1 /Kids [{} 0 R] >>", id + 1).into_bytes());
+    }
+    parts.push(b"<< /Type /Page /MediaBox [0 0 200 200] >>".to_vec());
+    let doc =
+        PdfDocument::from_bytes_with_limits(object_file(&parts, ""), PdfImportLimits::default())
+            .unwrap();
+    for page in 0..64 {
+        doc.get_page(page).unwrap();
+    }
+    assert!(matches!(
+        doc.get_page(64),
+        Err(Error::ImportResourceLimit("page tree depth"))
+    ));
+    assert!(doc.get_page(0).is_err());
+}
+
+#[test]
+fn traversal_page_count_uses_actual_leaves_instead_of_declared_count() {
+    let parts = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Count 1 /Kids [3 0 R 4 0 R] >>".to_vec(),
+        b"<< /Type /Page /MediaBox [0 0 200 200] >>".to_vec(),
+        b"<< /Type /Page /MediaBox [0 0 200 200] >>".to_vec(),
+    ];
+    let doc =
+        PdfDocument::from_bytes_with_limits(object_file(&parts, ""), PdfImportLimits::default())
+            .unwrap();
+    assert_eq!(doc.page_count().unwrap(), 2);
+    doc.get_page(1).unwrap();
+}
+
+#[test]
+fn traversal_zero_policy_values_cannot_disable_protection() {
+    for limits in [
+        PdfImportLimits {
+            reference_depth: 0,
+            ..PdfImportLimits::default()
+        },
+        PdfImportLimits {
+            reference_visits: 0,
+            ..PdfImportLimits::default()
+        },
+        PdfImportLimits {
+            form_depth: 0,
+            ..PdfImportLimits::default()
+        },
+        PdfImportLimits {
+            xobject_visits: 0,
+            ..PdfImportLimits::default()
+        },
+    ] {
+        assert!(matches!(
+            ImportBudget::new(limits),
+            Err(Error::ImportResourceLimit("zero import budget"))
+        ));
+    }
+}

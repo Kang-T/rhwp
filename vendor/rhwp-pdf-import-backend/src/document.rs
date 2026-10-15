@@ -2280,7 +2280,7 @@ impl PdfDocument {
 
         let mut out: Vec<ObjectRef> = Vec::new();
         let mut visited: HashSet<ObjectRef> = HashSet::new();
-        self.collect_page_refs(pages_ref, &mut out, &mut visited)?;
+        self.collect_page_refs(pages_ref, &mut out, &mut visited, 0)?;
         Ok(out)
     }
 
@@ -2289,7 +2289,11 @@ impl PdfDocument {
         node_ref: ObjectRef,
         out: &mut Vec<ObjectRef>,
         visited: &mut HashSet<ObjectRef>,
+        depth: usize,
     ) -> Result<()> {
+        if let Some(budget) = &self.import_budget {
+            budget.page_visit(depth)?;
+        }
         if !visited.insert(node_ref) {
             return Ok(());
         }
@@ -2310,7 +2314,7 @@ impl PdfDocument {
 
         // Fast path: flat subtree — every kid is a leaf when /Count == kids.len().
         let count = dict.get("Count").and_then(|c| c.as_integer()).unwrap_or(-1);
-        if count >= 0 && (count as usize) == kids.len() {
+        if self.import_budget.is_none() && count >= 0 && (count as usize) == kids.len() {
             for kid in kids {
                 if let Some(kid_ref) = kid.as_reference() {
                     out.push(kid_ref);
@@ -2322,7 +2326,7 @@ impl PdfDocument {
         // Mixed tree — recurse into each kid.
         for kid in kids {
             if let Some(kid_ref) = kid.as_reference() {
-                self.collect_page_refs(kid_ref, out, visited)?;
+                self.collect_page_refs(kid_ref, out, visited, depth + 1)?;
             }
         }
         Ok(())
@@ -2578,6 +2582,17 @@ impl PdfDocument {
     /// # Ok::<(), pdf_oxide::error::Error>(())
     /// ```
     pub fn load_object(&self, obj_ref: ObjectRef) -> Result<Object> {
+        let _reference = self
+            .import_budget
+            .as_ref()
+            .map(|budget| budget.enter_reference())
+            .transpose()?;
+        let result = self.load_object_inner(obj_ref);
+        self.check_import_budget()?;
+        result
+    }
+
+    fn load_object_inner(&self, obj_ref: ObjectRef) -> Result<Object> {
         log::debug!("Loading object {} gen {}", obj_ref.id, obj_ref.gen);
 
         // Check recursion depth (per-thread counter; no lock needed)
@@ -4563,6 +4578,13 @@ impl PdfDocument {
     /// # Ok::<(), pdf_oxide::error::Error>(())
     /// ```
     pub fn page_count(&self) -> Result<usize> {
+        self.check_import_budget()?;
+        if self.import_budget.is_some() {
+            // Do not trust /Count to hide unvisited nodes or revive partial scans.
+            let result = self.get_page_count_by_scanning();
+            self.check_import_budget()?;
+            return result;
+        }
         // Standard /Count reader, then a manual page-tree scan on failure.
         let primary: Result<usize> = match self.get_page_count_standard() {
             Ok(count) => {
@@ -4853,9 +4875,12 @@ impl PdfDocument {
 
     /// Recursively count pages in the page tree
     fn count_pages_recursive(&self, node_ref: ObjectRef, depth: usize) -> Result<usize> {
+        if let Some(budget) = &self.import_budget {
+            budget.page_visit(depth)?;
+        }
         // Prevent infinite recursion
         const MAX_DEPTH: usize = 50;
-        if depth > MAX_DEPTH {
+        if self.import_budget.is_none() && depth > MAX_DEPTH {
             log::warn!("Page tree depth exceeded {} levels, stopping", MAX_DEPTH);
             return Ok(0);
         }
@@ -4864,6 +4889,7 @@ impl PdfDocument {
         let node = match self.load_object(node_ref) {
             Ok(n) => n,
             Err(e) => {
+                self.check_import_budget()?;
                 log::warn!("Failed to load page tree node {}: {}", node_ref, e);
                 return Ok(0); // Skip this node
             },
@@ -4900,6 +4926,7 @@ impl PdfDocument {
                     if let Some(kid_ref) = kid.as_reference() {
                         match self.count_pages_recursive(kid_ref, depth + 1) {
                             Ok(page_count) => count += page_count,
+                            Err(e @ Error::ImportResourceLimit(_)) => return Err(e),
                             Err(Error::CircularReference(obj_ref)) => {
                                 log::warn!(
                                     "Circular reference in page tree at object {}, skipping",
@@ -4979,6 +5006,13 @@ impl PdfDocument {
     /// Returns an error if the page index is out of bounds or if the page
     /// tree structure is invalid.
     pub fn get_page(&self, page_index: usize) -> Result<Object> {
+        self.check_import_budget()?;
+        let result = self.get_page_inner(page_index);
+        self.check_import_budget()?;
+        result
+    }
+
+    fn get_page_inner(&self, page_index: usize) -> Result<Object> {
         // Check page cache first — page tree is static per §7.7.3.2
         if let Some(cached) = self.page_cache.lock_or_recover().get(&page_index).cloned() {
             return Ok(cached);
@@ -4991,6 +5025,7 @@ impl PdfDocument {
         if !self.page_cache_populated.load(Ordering::Acquire) && cache_misses >= LAZY_THRESHOLD {
             self.page_cache_populated.store(true, Ordering::Release);
             if let Err(e) = self.populate_page_cache() {
+                self.check_import_budget()?;
                 log::warn!(
                     "Bulk page tree walk failed ({}), falling back to per-page traversal",
                     e
@@ -5069,7 +5104,7 @@ impl PdfDocument {
 
         let mut page_index = 0usize;
         let mut inherited = HashMap::new();
-        self.collect_all_pages(pages_ref, &mut page_index, &mut inherited, &mut HashSet::new())?;
+        self.collect_all_pages(pages_ref, &mut page_index, &mut inherited, &mut HashSet::new(), 0)?;
         log::debug!("Populated page cache with {} pages", page_index);
         Ok(())
     }
@@ -5160,7 +5195,11 @@ impl PdfDocument {
         page_index: &mut usize,
         inherited: &mut HashMap<String, Object>,
         visited: &mut HashSet<ObjectRef>,
+        depth: usize,
     ) -> Result<()> {
+        if let Some(budget) = &self.import_budget {
+            budget.page_visit(depth)?;
+        }
         if !visited.insert(node_ref) {
             return Err(Error::CircularReference(node_ref));
         }
@@ -5227,9 +5266,14 @@ impl PdfDocument {
                 if let Some(kids) = node_dict.get("Kids").and_then(|obj| obj.as_array()) {
                     for kid in kids {
                         if let Some(kid_ref) = kid.as_reference() {
-                            if let Err(e) =
-                                self.collect_all_pages(kid_ref, page_index, inherited, visited)
-                            {
+                            if let Err(e) = self.collect_all_pages(
+                                kid_ref,
+                                page_index,
+                                inherited,
+                                visited,
+                                depth + 1,
+                            ) {
+                                self.check_import_budget()?;
                                 log::warn!(
                                     "Error collecting page from tree: {}, skipping branch",
                                     e
@@ -5399,6 +5443,7 @@ impl PdfDocument {
             current_index,
             inherited,
             &mut HashSet::new(),
+            0,
         )
     }
 
@@ -5409,7 +5454,11 @@ impl PdfDocument {
         current_index: &mut usize,
         inherited: &mut HashMap<String, Object>,
         visited: &mut HashSet<ObjectRef>,
+        depth: usize,
     ) -> Result<Object> {
+        if let Some(budget) = &self.import_budget {
+            budget.page_visit(depth)?;
+        }
         if !visited.insert(node_ref) {
             return Err(Error::CircularReference(node_ref));
         }
@@ -5437,7 +5486,7 @@ impl PdfDocument {
             .ok_or_else(|| Error::InvalidPdf("Page tree node missing /Type".to_string()))?;
 
         match node_type {
-            "Pages" if *current_index < target_index => {
+            "Pages" if self.import_budget.is_none() && *current_index < target_index => {
                 // Skip entire subtree if /Count shows target is past this node.
                 if let Some(count) = node_dict
                     .get("Count")
@@ -5546,8 +5595,10 @@ impl PdfDocument {
                         current_index,
                         inherited,
                         visited,
+                        depth + 1,
                     ) {
                         Ok(page) => return Ok(page),
+                        Err(e @ Error::ImportResourceLimit(_)) => return Err(e),
                         Err(Error::CircularReference(obj_ref)) => {
                             log::warn!(
                                 "Circular reference in page tree at object {}, skipping",
@@ -19610,8 +19661,9 @@ impl PdfDocument {
                 // XObject processing
                 Operator::Do { name } => {
                     if let Err(e) =
-                        self.process_form_xobject_paths(&name, &mut extractor, &mut state_stack)
+                        self.process_form_xobject_paths(&name, &mut extractor, &mut state_stack, 1)
                     {
+                        self.check_import_budget()?;
                         log::warn!(
                             "Failed to process XObject '{}' in path extraction: {}",
                             name,
@@ -19920,12 +19972,16 @@ impl PdfDocument {
         name: &str,
         extractor: &mut crate::extractors::paths::PathExtractor,
         state_stack: &mut crate::extractors::paths::PathGraphicsStateStack,
+        depth: usize,
     ) -> Result<()> {
         use crate::content::{parse_content_stream_paths_only, Matrix, Operator};
         use crate::elements::{LineCap, LineJoin};
         use crate::extractors::paths::FillRule;
         use crate::layout::Color;
 
+        if let Some(budget) = &self.import_budget {
+            budget.xobject_visit()?;
+        }
         let xobject_ref =
             match extractor.resolve_xobject_ref(name, |ref_obj| self.load_object(ref_obj)) {
                 Some(r) => r,
@@ -19974,6 +20030,10 @@ impl PdfDocument {
                 extractor.pop_xobject();
                 return Ok(());
             },
+        }
+
+        if let Some(budget) = &self.import_budget {
+            budget.form_depth(depth)?;
         }
 
         // Decode stream — reuse document-level cache shared with text extraction.
@@ -20209,9 +20269,13 @@ impl PdfDocument {
 
                 // Nested XObjects (recurse)
                 Operator::Do { name: nested_name } => {
-                    if let Err(e) =
-                        self.process_form_xobject_paths(&nested_name, extractor, state_stack)
-                    {
+                    if let Err(e) = self.process_form_xobject_paths(
+                        &nested_name,
+                        extractor,
+                        state_stack,
+                        depth + 1,
+                    ) {
+                        self.check_import_budget()?;
                         log::warn!("Failed to process nested XObject '{}': {}", nested_name, e);
                     }
                 },
@@ -23987,6 +24051,9 @@ impl PdfDocument {
     ) -> Result<Vec<crate::extractors::images::PdfImageHandle<'s>>> {
         use crate::extractors::images::image_handle_from_xobject;
 
+        if let Some(budget) = &self.import_budget {
+            budget.xobject_visit()?;
+        }
         let xobject_ref_obj = match xobject_dict.get(name) {
             Some(o) => o,
             None => return Ok(Vec::new()),
@@ -24074,6 +24141,9 @@ impl PdfDocument {
         use crate::extractors::images::image_handle_from_inline;
 
         // Cycle detection — identical policy to the materialised extraction path.
+        if let Some(budget) = &self.import_budget {
+            budget.form_depth(xobject_stack.len() + 1)?;
+        }
         if xobject_stack.contains(&xobject_ref) || xobject_stack.len() >= 100 {
             return Ok(Vec::new());
         }

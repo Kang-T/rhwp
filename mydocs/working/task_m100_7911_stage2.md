@@ -438,6 +438,152 @@ index의 내용도 일치했다. `git diff --cached --check`는 새로 보존하
 보안 patch와 무관한 포맷 변경은 하지 않았다. vendor를 제외한 staged 변경 검사는 통과했으며
 전체 검사가 통과했다고 기록하지 않는다. upstream 대비 실제 보안 변경의 검사는 3.5와 구분한다.
 
+### 3.7 Open PR 전 완료 선택과 탐색 제한 보완 (2026-10-15)
+
+메인테이너는 3.6의 질문에 **“남은 작업 완료 후 Open PR”**을 선택했다.
+중간 결과는 `9a5c6603f661287c50ff766f42329177dd4bc34a`에 커밋했고 작업 트리가 clean함을
+확인했다. `gh pr list --head task_m100_7911 --state all` 결과는 빈 목록이었다.
+Draft PR을 만들거나 미완료 게이트를 생략하지 않으며 원격 push·PR 생성은 아직 하지 않았다.
+
+#### 이번 보완의 경계
+
+- 요청별 `reference_depth=32`, `reference_visits=100000`, `form_depth=16`,
+  `xobject_visits=10000` 정책을 추가했다. 0은 제한 해제가 아니라 오류다.
+- 페이지 트리의 실제 깊이는 root=0인 edge 수다. 단일 쪽·bulk cache·쪽수 scan·참조 열거에
+  같은 깊이/방문량 예산을 적용한다. 제한된 쪽수 계산은 `/Count`나 조용한 enumeration 복구 대신
+  제한된 실제 트리를 순회한다. 참조 열거의 flat-tree count hint도 제한된 경로에서는 쓰지 않는다.
+- `load_object`는 cache hit를 포함해 방문량을 소비하고, 요청별 활성 객체 로드 수를 진입 전에
+  검사한다. RAII로 반환 시 활성 수를 복구한다. 활성 동시 로드 수의 상한은 모든 논리적 참조
+  helper의 재귀 깊이를 감사했다는 뜻이 아니다. 기존 thread-local counter는 원본 경로에 유지한다.
+- cache hit를 반환하는 `get_page`와 `load_object` 경계도 sticky fatal 상태를 확인한다.
+  tree recursion·bulk fallback에서 자원 실패를 branch skip이나 부분 성공으로 바꾸지 않는다.
+- 제품 frontend가 소비하는 텍스트·path·image-handle의 Form 경로에 요청별 방문량과 깊이 정책을
+  적용했다. 텍스트 경로의 기존 depth 10/500회 조용한 생략은 제한된 경로에서 사용하지 않는다.
+  텍스트 Form의 span/stream cache 우회와 fatal 확인도 추가했다. path/image의 전체 cache 복사,
+  별도 materialized-image API 및 기타 참조 helper의 전수 감사 완료를 주장하지 않는다.
+
+#### 수정 전 재현과 환경 중단
+
+먼저 기존 29개 자원 계약에 새로운 5개 계약만 추가하고 제품 source는 `9a5c6603f` 상태로
+실행했다. `traversal-before-contracts.log`는 실제 **29개 통과 / 5개 실패**, exit 101이다.
+
+| 추가 계약 | 수정 전 관측 |
+| --- | --- |
+| 페이지 tree 깊이 31/32/33 | 한도를 넘은 33도 성공 반환 |
+| 비정상 Count의 깊은 tree scan | 자원 오류가 아닌 성공 반환 |
+| fatal 이후 cached page/object | cached page가 성공 반환 |
+| Form 깊이 15/16/17 | 허용할 깊이의 `VISIBLE` 텍스트도 기존 depth 10에서 조용히 누락 |
+| 실제 PDF frontend의 깊은 입력/새 요청 | 깊은 입력이 오류 없이 성공해 계약 실패 |
+
+보완 후 같은 명령을 실행했으나 `librhwp.rlib` 생성에서 **No space left on device**로 실패했다
+(`traversal-after-contracts.log`, exit 101, 약 63.3초). 테스트 본문은 실행하지 않았으며
+**수정 후 PASS 또는 코드 결함 재현으로 세지 않는다**. 이후 각 추출 mode의 Form 한도,
+cache-hit 방문량, bulk tree cache, 실제 leaf 쪽수와 zero 정책의 계약 5개를 더 보완했다.
+현재 자원 계약은 총 39개이며 이번 최종 수정본의 실행 결과는 아직 없다.
+내부 `all_page_refs` 직접 호출용 공개 test API는 추가하지 않았다. 참조 열거 변경의 실제 소비자
+경로 실행은 별도로 미검증이며 공개 쪽수 API의 계약과 구분한다.
+
+확인 시 디스크 여유 약 527 MiB, 공유 `target/pr-review` 약 58 GiB, 그중 Native debug
+증분 cache 약 25 GiB였다. 실행 중인 Cargo가 없음을 확인했으나 공유 target은 정리하지 않았다.
+메인테이너가 **“직접 공간 확보 후 알림”**을 선택해 추가 빌드·테스트를 중단했다.
+소스 포맷 정리만 수행했으며 `traversal-final-fmt.log`는 root format 명령 결과다.
+vendor 3개 수정 파일도 원래 vendor rustfmt 설정으로 정리했다.
+
+공간 확보 알림 뒤 최종 source의 39개 자원 계약·기존 frontend/여백 계약부터 재실행한다.
+작은 계약이 통과한 뒤 Native/WASM·실물/패키지 검증을 수행하고 나머지 자원 게이트를 계속한다.
+`parser_allocation_bounds_proven=false`, 2단계 진행 중·비신뢰 입력 배포 보류는 유지한다.
+이번 보완 source와 기록은 재검증 전 미커밋이며, 기존 커밋의 34개 통과 결과를 적용하지 않는다.
+
+### 3.8 공간 확보 후 탐색 계약 재검증 (2026-10-15)
+
+메인테이너의 “공간 확보했습니다” 알림을 받아 빌드·테스트를 재개했다.
+최초 여유는 약 4.2 GiB였고 다른 Cargo 작업이 없음을 확인했다. 공유 target·cache·기존 증적은
+삭제하지 않았다. 아래 기록은 `9a5c6603f` 위 이번 탐색 보완 source의 실행 결과다.
+
+#### 재개 중 추가 확인과 보완
+
+최초 실행은 39개 중 37개 통과/2개 실패였다
+(`traversal-resume-contracts.log`, 진단 보강 `traversal-resume-diagnostic.log`).
+
+- 실제 leaf가 2개지만 `/Count=1`인 합성 tree에서 `page_count`는 2를 반환했으나
+  `get_page(1)`은 여전히 `/Count`로 subtree를 건너뛰었다. 제한된 페이지 선택에서도 이 hint를
+  사용하지 않도록 수정했다. 정상 tree뿐 아니라 쪽수 계산/선택의 같은 소비 계약을 확인한다.
+- Form 방문량 계약의 실패 mode는 text였다. 공개 span 추출은 후처리의 glyph-origin stamp에서
+  character 해석을 한 번 더 실행한다. 3개 Do의 두 해석을 합쳐 6회가 정확한 작업량이며,
+  path/image-handle은 각각 3회다. 기대값을 각 작업량의 한도-1/한도/한도+1로 정정했다.
+  제품의 문서 한도 10,000은 변경하지 않았고 반복 작업 계상을 우회하지 않았다.
+
+#### 실제 통과 결과
+
+| 검증 | 결과 | 로그 |
+| --- | --- | --- |
+| 자원 계약 | 39/39 통과, 테스트 본문 실행 | `traversal-resume-contracts-fixed.log` |
+| 기존 frontend 계약 | 4/4 통과 | `traversal-frontend-contracts.log` |
+| HWPX 여백 존재성 계약 | 1/1 통과 | `traversal-margin-contract.log` |
+| 제품 PDF-on Native/WASM32 lib Clippy | 각각 locked/offline·`-D warnings` 통과 | `traversal-{native,wasm}-clippy.log` |
+| backend 독립 Native/WASM32 default-off lib Clippy | 각각 locked/offline·`-D warnings` 통과 | `traversal-backend-{native,wasm}-clippy.log` |
+| 실물 전체 12쪽·선택 7/8쪽 Native 변환 | 3건 모두 실제 성공 | `traversal-native-real.log` |
+| fresh WASM release·web binding·실제 실행 | locked/offline build 약 6분 53초, smoke 통과 | `traversal-wasm-{release,bindgen,runtime}.log` |
+
+총 44개 계약이 통과했다. 3.7의 최초 5개 실패 계약도 동일 이름으로 통과했다.
+이 수치는 전체 nextest·workspace/all-targets·시각 게이트의 실행 결과가 아니다.
+
+실물 출력은 `output/pr-review/issue7911/traversal-real-pdf/`에 보존했다.
+전체 약 4.41초·선택 쪽 약 0.508/0.539초(Native debug), 각 선택 쪽 표 5개/nested 4개,
+전체 12개 section을 확인했다. 3건의 `ok=true`를 JSON에서 별도로 확인했고,
+`before-comparison.json`에서 직전 Native 결과와 HWPX가 byte-identical임을 확인했다.
+7개 쪽의 semantic table 보류는 유지한다. 한컴 Print·시각 판정·모든 문서의 무회귀 증거는 아니다.
+
+fresh WASM은 기존 probe의 Rust frontend를 현재 source로 다시 빌드해
+`traversal-wasm-runtime/`에 새 binding·결과를 보존했다. 이전 `security2-wasm-probe/pkg/`와
+제품 `pkg/`·Studio public bundle은 변경하지 않았다.
+
+- 페이지 깊이 33·Form 깊이 17은 `PDF_RESOURCE_LIMIT`로 거부했다.
+  깊이 32·16은 성공했고 후자는 HWPX section XML에 `VISIBLE` 텍스트가 보존됐다.
+- 잘못된 bytes·lexical 깊이·CMap 범위 초과까지 포함한 5건의 실패 뒤, 같은 instance에서
+  정상 입력을 처리했다. 비ASCII CMap도 panic 없이 처리했다.
+- 실물 전체 변환 약 0.329초, 선택 쪽 약 0.026초였으며 전체 12개 section/표 13개와 선택 쪽
+  각각 표 5개를 XML 파싱으로 확인했다. `native-comparison.json`은 최신 Native와 3건 모두
+  byte-identical이며 raw/후처리 WASM·JS의 크기·SHA도 함께 기록한다.
+- 관측 선형 메모리 용량은 실물 처리 뒤 22,347,776 bytes였다. live heap·RSS 상한이나
+  실제 브라우저 Worker/UI의 격리·취소·재생성 증거는 아니다.
+
+`resource-audit/traversal-source-snapshot.json`에 이번 source/설정/고지 426개 파일 hash를
+고정했다. 빌드 중에도 변경 0개를 확인했다. 원본 대비 수정 파일은 기존과 같은 23개이며,
+기존 upstream integrity 기록을 덮어쓰지 않았다.
+
+#### 파생 harness와 공유 산출물의 정합
+
+테스트 보완 후 첫 정책 검사에서 harness 2개의 drift가 나왔다.
+`traversal-final-prepare.log`로 파생물을 재생성한 뒤 고정 기준
+`a5e88ad682c805e1d845502ddc9521b94ea8eccd` 대비 integration 정책이 통과했다
+(`traversal-final-integration-policy.log`: 1,467 sources, 6,281 static attrs, 48 targets).
+source-side unit 정책도 4,103 tests/296 modules로 통과했다(`traversal-unit-policy.log`).
+이 기준은 계획에 고정한 SHA이며 새로 fetch한 최신 devel의 최종 PR gate라고 표시하지 않는다.
+
+재생성 뒤 추가 focused build는 같은 버전 `serde_core`/`serde_json`이 서로 다른 타입이라는
+컴파일 오류로 중단됐다(`traversal-final-resource-contracts.log`). 현재 Cargo graph에는 각 버전이
+하나뿐이고, 별도 Native probe와 root workspace가 공유하는 비해시 `librhwp.rlib`가 확인됐다.
+소스 내용/의존성/검사 기준을 변경하거나 target을 지우지 않고 `src/lib.rs`의 mtime만 갱신해
+현재 workspace graph로 재빌드를 유도했다. `git diff`는 해당 source의 내용 변경 0을 확인했다.
+같은 정상 명령을 재실행하자 39개 자원 계약이 모두 통과했다
+(`traversal-final-resource-contracts-refreshed.log`). 이 결과는 source/lockfile/검사 기준 변경 없이
+workspace 재빌드만으로 얻었으며, 앞 컴파일 실패와 수정 전 결함 재현을 혼동하지 않는다.
+같은 최종 graph에서 frontend 4개도 다시 통과했다(`traversal-final-frontend-contracts.log`).
+여백 1개도 재실행해 통과했다(`traversal-final-margin-contract.log`).
+root fmt check, vendor 변경 Rust 3개 파일의 원래 설정 fmt check, diff check와 변경 문서 3개의
+내부 링크 검사가 통과했다. `traversal-final-source-integrity.json`은 결과 기록용
+`RHWP_PATCHES.md` 이외의 425개 fingerprint가 그대로이며 Rust/Cargo/테스트 변경이 없음을 확인한다.
+이 검증한 탐색 보완과 진행 기록을 중간 checkpoint로 보존하며 2단계 완료로 승격하지 않는다.
+
+#### 남은 조건
+
+현재 재검증으로 모든 참조 helper·codec scratch·font/cache·이미지 버퍼 정책·Worker 실행의
+감사를 완료한 것은 아니다. `parser_allocation_bounds_proven=false`와 비신뢰 입력 배포 보류,
+2단계 진행 중 상태를 유지한다. 제품 CLI/WASM 공개 연결·전체 검증·PR 생성은 여전히 미실행이다.
+이번 탐색 source의 로컬 package 소비자 재검증은 아직 하지 않았으며 3.5의 이전 package 결과를
+그대로 적용하지 않는다. 게시된 rhwp 소비자의 의존성 배포 모델도 아직 종료 조건으로 남아 있다.
+
 ## 4. 미완료와 다음 게이트
 
 - 기존 format detect/`ParsedDocument`/Core 생성 경로, CLI 명령과 WASM 공개 import API는
@@ -451,6 +597,8 @@ index의 내용도 일치했다. `git diff --cached --check`는 새로 보존하
 - 최소 보안 patch의 초기 적용과 19개 계약은 위 3.4, 후속 10개 추가 계약·보완은 3.5에 기록했다.
   추가 도입·후속 진행 승인은 받았으나
   모든 선행/누적 할당 경로를 입증한 것은 아니며 자원 안전성 게이트는 여전히 열려 있다.
+- 3.7의 디스크 대기는 공간 확보 알림으로 해소했다. 탐색 보완의 계약·lint·Native 실물 결과는
+  3.8을 따른다. 나머지 2단계 자원 게이트와 단계 승인 절차는 유지한다.
 - default/feature-on 전체 Rust lint 묶음, workspace all-targets, nextest 전체 회귀,
   제품 Studio용 공식 fresh web wrapper/Worker·제품 번들 크기·전쪽 비교는 최종 게이트에서 남아 있다.
 - 현재 기록은 2단계 중간 checkpoint다. 커밋·PR 요청과 미완료 상태의 처리 확인은 3.6에 기록했다.

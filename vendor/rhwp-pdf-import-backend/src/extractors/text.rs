@@ -6650,7 +6650,11 @@ impl<'doc> TextExtractor<'doc> {
                 // Process Form XObjects to extract text from reusable content.
                 // Form XObjects can contain text that is not duplicated in the main stream.
                 // We track processed XObjects to avoid infinite loops and duplicates.
-                if let Err(e) = self.process_xobject(&name) {
+                let result = self.process_xobject(&name);
+                if let Some(doc) = self.document {
+                    doc.check_import_budget()?;
+                }
+                if let Err(e) = result {
                     // Log error but continue processing - don't fail the entire extraction
                     log::warn!("Failed to process XObject '{}': {}", name, e);
                 }
@@ -6729,11 +6733,16 @@ impl<'doc> TextExtractor<'doc> {
     }
 
     fn process_xobject(&mut self, name: &str) -> Result<()> {
-        if self.xobject_depth >= Self::MAX_XOBJECT_DEPTH {
-            return Ok(());
-        }
-        if self.xobject_decode_count >= Self::MAX_XOBJECT_DECODES {
-            return Ok(());
+        let import_budget = self.document.and_then(|doc| doc.import_budget()).cloned();
+        if let Some(budget) = &import_budget {
+            budget.xobject_visit()?;
+        } else {
+            if self.xobject_depth >= Self::MAX_XOBJECT_DEPTH {
+                return Ok(());
+            }
+            if self.xobject_decode_count >= Self::MAX_XOBJECT_DECODES {
+                return Ok(());
+            }
         }
 
         // Resolve name → ObjectRef using cached mapping (avoids expensive
@@ -6799,7 +6808,11 @@ impl<'doc> TextExtractor<'doc> {
         // Image XObjects can be megabytes of compressed pixel data — loading them
         // just to discover Subtype=Image is a major bottleneck (10-15ms per image).
         if !doc.is_form_xobject(xobject_ref) {
+            doc.check_import_budget()?;
             return Ok(());
+        }
+        if let Some(budget) = &import_budget {
+            budget.form_depth(self.xobject_depth as usize + 1)?;
         }
 
         // Span result cache: reuse extracted spans from self-contained Form XObjects.
@@ -6814,7 +6827,7 @@ impl<'doc> TextExtractor<'doc> {
         // `ctm_key` was already computed above for the `processed_xobjects` guard.
         let spans_cache_key = (xobject_ref, ctm_key);
         let has_filters = !self.excluded_layers.is_empty() || !self.excluded_inks.is_empty();
-        if self.extract_spans && !has_filters {
+        if self.extract_spans && !has_filters && import_budget.is_none() {
             let cached_spans = {
                 doc.xobject_spans_cache
                     .lock()
@@ -6887,7 +6900,9 @@ impl<'doc> TextExtractor<'doc> {
 
                 // Decode the stream — check cache first to avoid repeated FlateDecode.
                 self.xobject_decode_count += 1;
-                let cached_stream = {
+                let cached_stream = if import_budget.is_some() {
+                    None
+                } else {
                     doc.xobject_stream_cache
                         .lock()
                         .unwrap()
@@ -6904,7 +6919,9 @@ impl<'doc> TextExtractor<'doc> {
                             let current = doc
                                 .xobject_stream_cache_bytes
                                 .load(std::sync::atomic::Ordering::Relaxed);
-                            if current + data.len() <= MAX_STREAM_CACHE_BYTES {
+                            if import_budget.is_none()
+                                && current + data.len() <= MAX_STREAM_CACHE_BYTES
+                            {
                                 doc.xobject_stream_cache_bytes.store(
                                     current + data.len(),
                                     std::sync::atomic::Ordering::Relaxed,
@@ -7198,7 +7215,11 @@ impl<'doc> TextExtractor<'doc> {
                 // We still require `has_own_resources` so that font lookups are
                 // self-contained; XObjects that inherit page-level fonts would
                 // produce spans whose glyph mappings depend on caller context.
-                if has_own_resources && self.extract_spans && !has_filters {
+                if has_own_resources
+                    && self.extract_spans
+                    && !has_filters
+                    && import_budget.is_none()
+                {
                     let new_spans = if self.spans.len() > spans_before {
                         Some(self.spans[spans_before..].to_vec())
                     } else {
@@ -7244,6 +7265,7 @@ impl<'doc> TextExtractor<'doc> {
                 // identical text. Keeping it prevents O(n!) fan-out in pages with
                 // deep XObject trees (e.g., 4000+ nested chart elements).
 
+                doc.check_import_budget()?;
                 Ok(())
             },
             Some("Image") => {

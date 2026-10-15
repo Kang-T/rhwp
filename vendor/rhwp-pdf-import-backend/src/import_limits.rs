@@ -107,6 +107,14 @@ pub struct PdfImportLimits {
     pub cmap_scan_bytes: usize,
     /// Maximum CID width/vertical metric expansion work across fonts.
     pub font_entries: usize,
+    /// Maximum page-tree edge depth and concurrent indirect-object loads.
+    pub reference_depth: usize,
+    /// Maximum cumulative page-node visits and object loads, including cache hits.
+    pub reference_visits: usize,
+    /// Maximum nested Form invocations, with the first form at depth one.
+    pub form_depth: usize,
+    /// Maximum XObject invocations across the request, including cache hits.
+    pub xobject_visits: usize,
 }
 
 impl Default for PdfImportLimits {
@@ -128,6 +136,10 @@ impl Default for PdfImportLimits {
             cmap_entries: 100_000,
             cmap_scan_bytes: 64 * 1024 * 1024,
             font_entries: 100_000,
+            reference_depth: 32,
+            reference_visits: 100_000,
+            form_depth: 16,
+            xobject_visits: 10_000,
         }
     }
 }
@@ -146,6 +158,9 @@ pub struct ImportBudget {
     cmap_entries: AtomicUsize,
     cmap_scanned: AtomicUsize,
     font_entries: AtomicUsize,
+    reference_visits: AtomicUsize,
+    active_references: AtomicUsize,
+    xobject_visits: AtomicUsize,
     failed: AtomicBool,
     failure_reason: std::sync::Mutex<Option<&'static str>>,
 }
@@ -170,6 +185,10 @@ impl ImportBudget {
             limits.cmap_entries,
             limits.cmap_scan_bytes,
             limits.font_entries,
+            limits.reference_depth,
+            limits.reference_visits,
+            limits.form_depth,
+            limits.xobject_visits,
         ]
         .contains(&0)
         {
@@ -186,6 +205,9 @@ impl ImportBudget {
             cmap_entries: AtomicUsize::new(0),
             cmap_scanned: AtomicUsize::new(0),
             font_entries: AtomicUsize::new(0),
+            reference_visits: AtomicUsize::new(0),
+            active_references: AtomicUsize::new(0),
+            xobject_visits: AtomicUsize::new(0),
             failed: AtomicBool::new(false),
             failure_reason: std::sync::Mutex::new(None),
         })
@@ -315,6 +337,41 @@ impl ImportBudget {
         Ok(())
     }
 
+    pub(crate) fn page_visit(&self, depth: usize) -> Result<()> {
+        self.check()?;
+        if depth > self.limits.reference_depth {
+            return Err(self.reject("page tree depth"));
+        }
+        self.charge_reference_visit()
+    }
+
+    fn charge_reference_visit(&self) -> Result<()> {
+        self.charge(&self.reference_visits, 1, self.limits.reference_visits, "reference visits")
+    }
+
+    pub(crate) fn enter_reference(&self) -> Result<ReferenceGuard<'_>> {
+        self.charge_reference_visit()?;
+        self.charge(
+            &self.active_references,
+            1,
+            self.limits.reference_depth,
+            "active object loads",
+        )?;
+        Ok(ReferenceGuard(self))
+    }
+
+    pub(crate) fn xobject_visit(&self) -> Result<()> {
+        self.charge(&self.xobject_visits, 1, self.limits.xobject_visits, "XObject visits")
+    }
+
+    pub(crate) fn form_depth(&self, depth: usize) -> Result<()> {
+        self.check()?;
+        if depth > self.limits.form_depth {
+            return Err(self.reject("Form depth"));
+        }
+        Ok(())
+    }
+
     pub(crate) fn output(&self) -> BoundedOutput<'_> {
         BoundedOutput {
             budget: self,
@@ -349,6 +406,14 @@ impl ImportBudget {
             }
             output.append(&chunk[..count])?;
         }
+    }
+}
+
+pub(crate) struct ReferenceGuard<'a>(&'a ImportBudget);
+
+impl Drop for ReferenceGuard<'_> {
+    fn drop(&mut self) {
+        self.0.active_references.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
