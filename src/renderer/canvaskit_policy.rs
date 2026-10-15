@@ -26,7 +26,7 @@ use crate::renderer::render_tree::{
     RenderLayerInfo, RenderNodeType, TextRunNode,
 };
 
-const OLD_HANGUL_FONT_FAMILY: &str = "Source Han Serif K Old Hangul";
+const OLD_HANGUL_FONT_FAMILY: &str = "RHWP Old Hangul";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

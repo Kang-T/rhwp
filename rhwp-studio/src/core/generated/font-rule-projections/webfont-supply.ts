@@ -25,9 +25,9 @@ export type GeneratedFontRuleProjection = Readonly<{
 export const FONT_RULE_CANVAS2D_WEBFONT_META = Object.freeze({
   "schemaVersion": "1.0",
   "sourceCommit": "a1f9872e28aea6755b656161ed1802f73308da58",
-  "inputSha256": "e6cfc80272bfc328c500fdbc0296d0c3901296bcabcdfcd37ada5a3e284d7a46",
+  "inputSha256": "362249f4e2a0020b5f190bb89b4a396432f5423a9ff18f5d53dc3abf2ac1b521",
   "projectionId": "canvas2d-webfont",
-  "projectionSha256": "9791b31a4e2719169270555dfbacbcb4c8c3ffea3a3cd2a778ea53359da9200b",
+  "projectionSha256": "74158e11fbaeabda7894841a43751aa2724842bd140e2ed48cdc7dd4ce362435",
   "ruleCount": 154
 });
 
@@ -3377,12 +3377,12 @@ export const FONT_RULE_CANVAS2D_WEBFONT_RULES: readonly GeneratedFontRuleProject
     }
   },
   {
-    "ruleId": "rule.studio-supply.0aab2d58429b52047acb.canvas2d",
+    "ruleId": "rule.issue-4969.oldhangul-license-webfont",
     "sourceBoundaryId": "studio-supply.font-list",
     "relationType": "supply-source",
     "decisionPlane": "supply",
-    "sourceFace": "Source Han Serif K Old Hangul",
-    "targetFaceOrPolicy": "'fonts/SourceHanSerifK-OldHangul-subset.woff2'",
+    "sourceFace": "RHWP Old Hangul",
+    "targetFaceOrPolicy": "'fonts/RHWPOldHangul-Regular.woff2'",
     "conditions": {
       "profile": "canvas2d-css-unknown"
     },
@@ -3391,10 +3391,10 @@ export const FONT_RULE_CANVAS2D_WEBFONT_RULES: readonly GeneratedFontRuleProject
     "metricEntryIds": [],
     "supply": {
       "external": false,
-      "fontFamily": "Source Han Serif K Old Hangul",
+      "fontFamily": "RHWP Old Hangul",
       "format": "woff2",
       "kind": "canvas2d-webfont",
-      "sourceUrl": "fonts/SourceHanSerifK-OldHangul-subset.woff2",
+      "sourceUrl": "fonts/RHWPOldHangul-Regular.woff2",
       "unicodeRange": "U+1100-11FF, U+A960-A97F, U+D7B0-D7FF"
     }
   },

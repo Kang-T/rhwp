@@ -495,6 +495,30 @@ impl SkiaLayerRenderer {
         self
     }
 
+    /// 이미 공급한 family를 문서의 요청 이름에 명시적으로 연결한다.
+    /// `with_font_paths` 이후 호출하며 실제 폰트 메타데이터와 기본 폴백은 변경하지 않는다.
+    /// 이 renderer에 적재된 스타일 목록을 공유하고 글자별 coverage 검사는 그대로 적용한다.
+    pub fn with_font_family_alias(
+        mut self,
+        requested: &str,
+        supplied: &str,
+    ) -> LayerRenderResult<Self> {
+        if requested.trim().is_empty() {
+            return Err(HwpError::RenderError(
+                "요청 글꼴 이름이 비어 있습니다".into(),
+            ));
+        }
+        let faces = self
+            .custom_typefaces
+            .get(supplied)
+            .cloned()
+            .ok_or_else(|| {
+                HwpError::RenderError(format!("공급되지 않은 글꼴 family: {supplied}"))
+            })?;
+        self.custom_typefaces.insert(requested.to_owned(), faces);
+        Ok(self)
+    }
+
     /// 기본 native Skia paint와 동일한 후보 사다리에서 문자별 typeface 결정을 읽는다.
     /// 렌더링, surface 생성, font 파일 적재를 시작하지 않는다.
     pub(crate) fn font_decision(

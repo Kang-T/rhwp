@@ -34,8 +34,7 @@ use std::sync::Arc;
 use wasm_bindgen_test::wasm_bindgen_test;
 
 const NOTO: &[u8] = include_bytes!("../../ttfs/opensource/NotoSansKR-Regular.ttf");
-const SOURCE_HAN: &[u8] =
-    include_bytes!("../../ttfs/opensource/SourceHanSerifK-OldHangul-subset.otf");
+const SOURCE_HAN: &[u8] = include_bytes!("../../ttfs/opensource/RHWPOldHangul-Regular.otf");
 const HAPPINESS: &[u8] =
     include_bytes!("../../ttfs/redistributable/happiness-sans/HappinessSansVF.ttf");
 
@@ -806,7 +805,7 @@ fn issue_4969_terminal_attempt_owns_applied_output_without_text_trace() {
     assert!(attempt.trace.settings_sha256.is_some());
     assert_eq!(
         attempt.trace.font_source_sha256.as_deref(),
-        Some("2f86ef9a52acb6d1dad9d915843239123b635d97edd88fd0573a88ffcb4e16f1")
+        Some("0a32ff354d11c955f819d84d91e695927d41aca0fd74b4a286b6235345101af4")
     );
     let applied = attempt.applied.as_ref().expect("applied payload");
     assert_eq!(applied.glyphs.len(), attempt.trace.glyph_count);
@@ -1142,7 +1141,7 @@ fn issue_4969_q4_c_old_hangul_geometry_has_one_owner_and_exact_origins() {
     assert_eq!(transaction.trace().attempt_id, 4969);
     assert_eq!(
         transaction.trace().font_source_sha256.as_deref(),
-        Some("2f86ef9a52acb6d1dad9d915843239123b635d97edd88fd0573a88ffcb4e16f1")
+        Some("0a32ff354d11c955f819d84d91e695927d41aca0fd74b4a286b6235345101af4")
     );
     assert!(std::sync::Arc::ptr_eq(
         transaction.line_geometry(),

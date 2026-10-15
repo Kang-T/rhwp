@@ -123,7 +123,7 @@ export interface CanvasKitLayerRendererOptions {
   requirePreparedFontFamilies?: boolean;
 }
 
-const OLD_HANGUL_FONT_FAMILY = 'Source Han Serif K Old Hangul';
+const OLD_HANGUL_FONT_FAMILY = 'RHWP Old Hangul';
 const VERTICAL_PRESENTATION_BASE_TEXT = new Map<string, string>([
   ['\uFE19', '\u2026'],
   ['\uFE31', '\u2014'],
@@ -355,7 +355,7 @@ export class CanvasKitLayerRenderer {
     private readonly defaultFontUrl: string = 'fonts/NotoSansKR-Regular.woff2',
     private readonly requirePreparedFontFamilies: boolean = false,
     private readonly oldHangulTypeface: CanvasKitLocalTypeface | null = null,
-    private readonly oldHangulFontUrl: string = 'fonts/SourceHanSerifK-OldHangul-subset.woff2',
+    private readonly oldHangulFontUrl: string = 'fonts/RHWPOldHangul-Regular.woff2',
     private readonly defaultFontBytes?: ArrayBuffer,
   ) {
     this.glyphRunFonts = new CanvasKitGlyphRunFontCache(canvasKit);
@@ -412,7 +412,7 @@ export class CanvasKitLayerRenderer {
     }
     let oldHangulTypeface: CanvasKitLocalTypeface | null = null;
     const oldHangulFontUrl = options.oldHangulFontUrl
-      ?? 'fonts/SourceHanSerifK-OldHangul-subset.woff2';
+      ?? 'fonts/RHWPOldHangul-Regular.woff2';
     let oldHangulNativeTypeface: Typeface | null = null;
     let oldHangulFontManager: FontMgr | null = null;
     try {

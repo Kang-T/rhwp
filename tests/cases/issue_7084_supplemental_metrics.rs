@@ -59,7 +59,7 @@ fn canvas_font_setup_preserves_positioned_painter_contract() {
     assert_eq!(font.descriptor(), format!("italic bold 12.600px {family}"));
     assert_eq!(
         font.old_hangul_descriptor(),
-        format!("italic bold 12.600px 'Source Han Serif K Old Hangul', {family}")
+        format!("italic bold 12.600px 'RHWP Old Hangul', {family}")
     );
     near(font.draw_size(), 12.6);
     near(font.horizontal_scale(), 0.9);
