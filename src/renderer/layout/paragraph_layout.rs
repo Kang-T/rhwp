@@ -31,6 +31,7 @@ use crate::model::bin_data::BinDataContent;
 use crate::model::control::Control;
 use crate::model::paragraph::{LineSeg, MarkerHead, NumberingMarker, Paragraph};
 
+mod leading_justification;
 mod right_tab_fields;
 use crate::model::shape::{
     Caption, CaptionDirection, CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap,
@@ -38,6 +39,7 @@ use crate::model::shape::{
 };
 use crate::model::style::{Alignment, HeadType, LineSpacingType, Numbering, UnderlineType};
 use crate::model::table::Table;
+use leading_justification::LeadingSpacePlan;
 
 const CAPTION_CELL_SENTINEL: usize = 65534;
 
@@ -1334,6 +1336,7 @@ struct EquationTacLineVars {
 struct RunEmitVars {
     stored_tac_assignment: bool,
     trailing_space_limit: usize,
+    natural_prefix_runs: usize,
     baseline: f64,
     raw_lh: f64,
     alignment: crate::model::style::Alignment,
@@ -2217,7 +2220,7 @@ impl CenteredTextLineMeasure {
 /// 목표보다 1~2% 헐겁다. 가운데 정렬은 줄 끝 측정 결과를 재사용하고,
 /// 나머지 일반 문단·일반 셀의 기존 선형 경로는 그대로 둔다.
 fn converge_cell_overflow_char_spacing(
-    comp_line: &ComposedLine,
+    line_plan: &LeadingSpacePlan<'_>,
     styles: &ResolvedStyleSet,
     centered_measure: Option<&CenteredTextLineMeasure>,
     tab_width: f64,
@@ -2225,19 +2228,24 @@ fn converge_cell_overflow_char_spacing(
     total_text_width: f64,
     available_width: f64,
 ) -> f64 {
-    let avg_char_w = total_text_width / total_char_count as f64;
+    let spacing_count = total_char_count - line_plan.leading_spaces;
+    debug_assert!(spacing_count > 0);
+    let body_width = total_text_width - line_plan.natural_width(styles, tab_width);
+    let avg_char_w = body_width / spacing_count as f64;
     let min_sp = -avg_char_w * 0.5;
-    let mut extra = ((available_width - total_text_width) / total_char_count as f64).max(min_sp);
+    let mut extra = ((available_width - total_text_width) / spacing_count as f64).max(min_sp);
     for _ in 0..4 {
         let measured = centered_measure.map_or_else(
             || {
-                comp_line
+                line_plan
+                    .line
                     .runs
                     .iter()
-                    .map(|run| {
+                    .enumerate()
+                    .map(|(index, run)| {
                         let mut ts = run.text_style(styles);
                         ts.default_tab_width = tab_width;
-                        ts.extra_char_spacing = extra;
+                        ts.extra_char_spacing = line_plan.spacing(index, extra);
                         estimate_text_width(&run.text, &ts)
                     })
                     .sum()
@@ -2248,7 +2256,7 @@ fn converge_cell_overflow_char_spacing(
         if delta >= -0.05 && delta.abs() < 0.25 {
             break;
         }
-        extra = (extra + delta / total_char_count as f64).max(min_sp);
+        extra = (extra + delta / spacing_count as f64).max(min_sp);
     }
     extra.min(0.0)
 }
@@ -2259,6 +2267,7 @@ fn converge_cell_overflow_char_spacing(
 fn compute_line_extra_spacing(
     comp_line: &ComposedLine,
     trailing_space_limit: usize,
+    leading_space_plan: &LeadingSpacePlan<'_>,
     styles: &ResolvedStyleSet,
     centered_measure: Option<&CenteredTextLineMeasure>,
     alignment: Alignment,
@@ -2427,7 +2436,8 @@ fn compute_line_extra_spacing(
         {
             return (0.0, 0.0, 0.0);
         }
-        let interior_spaces = all_chars[..visible_count]
+        let interior_spaces = all_chars
+            [leading_space_plan.leading_spaces.min(visible_count)..visible_count]
             .iter()
             .filter(|c| **c == ' ')
             .count();
@@ -2446,6 +2456,7 @@ fn compute_line_extra_spacing(
             0.0
         };
         if interior_spaces > 0 {
+            let spacing_char_count = total_char_count - leading_space_plan.leading_spaces;
             let split_ink_overhang = if alignment == Alignment::Split {
                 trailing_glyph_ink_overhang()
             } else {
@@ -2485,20 +2496,22 @@ fn compute_line_extra_spacing(
                 // 테두리에서 클리핑된다. 공백-없는 분기와 동일하게 잔여 음수 슬랙을
                 // 자간으로 흡수한다 (narrow glyph 역진은 #229 per-char 클램프가 방어).
                 let leftover = slack - ews * rendered_space_slots as f64;
-                let ecs = if in_cell && leftover < 0.0 && total_char_count > 1 && !has_tabs {
-                    let avg_char_w = total_text_width / total_char_count as f64;
+                let ecs = if in_cell && leftover < 0.0 && spacing_char_count > 1 && !has_tabs {
+                    let avg_char_w = (total_text_width
+                        - leading_space_plan.natural_width(styles, tab_width))
+                        / spacing_char_count as f64;
                     let min_ecs = -avg_char_w * 0.5;
-                    let mut ecs = (leftover / total_char_count as f64).max(min_ecs);
+                    let mut ecs = (leftover / spacing_char_count as f64).max(min_ecs);
                     // narrow glyph per-char 클램프가 음수 자간 기여 일부를 되돌리므로
                     // 선형 1회 분배로는 부족하다 — underflow 확장과 동일하게 실효 폭
                     // 재측정으로 수렴 반복한다.
                     let measure_with = |ecs: f64| -> f64 {
                         let mut measured = 0.0f64;
-                        for r in &comp_line.runs {
+                        for (run_index, r) in leading_space_plan.line.runs.iter().enumerate() {
                             let mut ts = r.text_style(styles);
                             ts.default_tab_width = tab_width;
-                            ts.extra_word_spacing = ews;
-                            ts.extra_char_spacing = ecs;
+                            ts.extra_word_spacing = leading_space_plan.spacing(run_index, ews);
+                            ts.extra_char_spacing = leading_space_plan.spacing(run_index, ecs);
                             measured += estimate_text_width(&r.text, &ts);
                         }
                         if trailing_spaces > 0 {
@@ -2517,7 +2530,7 @@ fn compute_line_extra_spacing(
                         if delta.abs() < 0.5 {
                             break;
                         }
-                        ecs = (ecs + delta / total_char_count as f64).max(min_ecs);
+                        ecs = (ecs + delta / spacing_char_count as f64).max(min_ecs);
                     }
                     ecs.min(0.0)
                 } else {
@@ -2530,7 +2543,7 @@ fn compute_line_extra_spacing(
             // 공백의 논리 advance는 보존하고 가시 글자 사이만 배분한다.
             let visible_text_width = total_text_width - trailing_width;
             let slack = available_width - visible_text_width;
-            if justify_spaces_only && slack > 0.0 {
+            if (justify_spaces_only || alignment == Alignment::Split) && slack > 0.0 {
                 // [#4516] 머리말/꼬리말 예외로만 justify 된 마지막 줄은 한컴처럼
                 // **공백만** 벌린다. 공백 없는 줄(영문 문서번호 등)에 양수 slack 을
                 // 자간으로 살포하면 글자가 전체 폭으로 흩어지므로 자연 폭 유지.
@@ -2544,7 +2557,7 @@ fn compute_line_extra_spacing(
                 (
                     0.0,
                     converge_cell_overflow_char_spacing(
-                        comp_line,
+                        leading_space_plan,
                         styles,
                         None,
                         tab_width,
@@ -2556,9 +2569,13 @@ fn compute_line_extra_spacing(
                 )
             } else {
                 // 같은 가시 폭과 글자 수로 저장 줄·합성 줄의 배분을 정한다.
-                let slots = visible_count - 1;
+                let visible_body_count =
+                    visible_count - leading_space_plan.leading_spaces.min(visible_count);
+                let slots = visible_body_count - 1;
                 let raw = slack / slots as f64;
-                let avg_char_w = visible_text_width / visible_count as f64;
+                let avg_char_w = (visible_text_width
+                    - leading_space_plan.natural_width(styles, tab_width))
+                    / visible_body_count as f64;
                 let min_sp = -avg_char_w * 0.5;
                 (0.0, raw.max(min_sp), 0.0)
             }
@@ -2621,7 +2638,7 @@ fn compute_line_extra_spacing(
             (
                 0.0,
                 converge_cell_overflow_char_spacing(
-                    comp_line,
+                    leading_space_plan,
                     styles,
                     centered_measure,
                     tab_width,
@@ -6809,6 +6826,18 @@ impl LayoutEngine {
                 None
             };
 
+            // 글줄 소유 개체/각주는 가시 문자열 바깥에도 있으므로 선행 공백의 끝을 제한한다.
+            let first_inline_pos = if needs_justify {
+                line_tac_offsets_for_width
+                    .iter()
+                    .map(|(pos, _, _)| *pos)
+                    .chain(composed.footnote_positions.iter().map(|(pos, _, _)| *pos))
+                    .filter(|pos| *pos >= comp_line.char_start)
+                    .min()
+            } else {
+                Some(comp_line.char_start)
+            };
+            let leading_space_plan = LeadingSpacePlan::new(comp_line, first_inline_pos);
             let trailing_space_limit = trailing_space_limit_after_last_inline_object(
                 comp_line,
                 line_tac_offsets_for_width
@@ -6837,6 +6866,7 @@ impl LayoutEngine {
                 compute_line_extra_spacing(
                     comp_line,
                     trailing_space_limit,
+                    &leading_space_plan,
                     styles,
                     centered_measure.as_ref(),
                     alignment,
@@ -7145,7 +7175,11 @@ impl LayoutEngine {
                 tree,
                 &mut line_node,
                 col_node,
-                comp_line,
+                if extra_word_sp == 0.0 && extra_char_sp == 0.0 {
+                    comp_line
+                } else {
+                    leading_space_plan.line.as_ref()
+                },
                 composed,
                 para,
                 bin_data_content,
@@ -7165,6 +7199,7 @@ impl LayoutEngine {
                 RunEmitVars {
                     stored_tac_assignment: stored_tac_assignment.is_some(),
                     trailing_space_limit,
+                    natural_prefix_runs: leading_space_plan.natural_prefix_runs,
                     baseline,
                     raw_lh,
                     alignment,
@@ -7928,6 +7963,7 @@ impl LayoutEngine {
         let RunEmitVars {
             stored_tac_assignment,
             trailing_space_limit,
+            natural_prefix_runs,
             baseline,
             raw_lh,
             alignment,
@@ -8225,8 +8261,17 @@ impl LayoutEngine {
                 } // end else (non-blank run)
             }
             text_style.line_x_offset = x - col_area.x;
-            text_style.extra_word_spacing = extra_word_sp;
-            text_style.extra_char_spacing = extra_char_sp;
+            // 분모·수렴 측정과 같은 계획의 선행 공백 런만 자연 폭으로 방출한다.
+            text_style.extra_word_spacing = if run_idx < natural_prefix_runs {
+                0.0
+            } else {
+                extra_word_sp
+            };
+            text_style.extra_char_spacing = if run_idx < natural_prefix_runs {
+                0.0
+            } else {
+                extra_char_sp
+            };
             text_style.extra_dash_advance = extra_dash_sp;
             // [Task #874 #2] composer lang split (예: "F3→Alt+I" → "F3"/"→"/"Alt+I")
             // 으로 auto_tab_right post-tab 콘텐츠가 후속 run 으로 흩어진 경우, 현재
@@ -10983,7 +11028,7 @@ mod issue_4370_tac_table_wrap_tests {
 
 #[cfg(test)]
 mod issue_2809_split_alignment_tests {
-    use super::{compute_line_extra_spacing, needs_word_distribution};
+    use super::{compute_line_extra_spacing, needs_word_distribution, LeadingSpacePlan};
     use crate::model::style::Alignment;
     use crate::renderer::composer::{ComposedLine, ComposedTextRun};
     use crate::renderer::layout::text_measurement::{estimate_text_width, resolved_to_text_style};
@@ -11020,6 +11065,7 @@ mod issue_2809_split_alignment_tests {
         let (extra_word, extra_char, extra_dash) = compute_line_extra_spacing(
             &line,
             usize::MAX,
+            &LeadingSpacePlan::new(&line, None),
             &ResolvedStyleSet::default(),
             None,
             Alignment::Split,
@@ -11057,6 +11103,7 @@ mod issue_2809_split_alignment_tests {
         let (extra_word, extra_char, extra_dash) = compute_line_extra_spacing(
             &trailing_line,
             usize::MAX,
+            &LeadingSpacePlan::new(&trailing_line, None),
             &styles,
             None,
             Alignment::Justify,
@@ -11097,6 +11144,7 @@ mod issue_2809_split_alignment_tests {
         let (extra_word, extra_char, extra_dash) = compute_line_extra_spacing(
             &line,
             usize::MAX,
+            &LeadingSpacePlan::new(&line, None),
             &styles,
             None,
             Alignment::Split,
@@ -11147,6 +11195,7 @@ mod issue_2809_split_alignment_tests {
         let (extra_word, extra_char, extra_dash) = compute_line_extra_spacing(
             &line,
             usize::MAX,
+            &LeadingSpacePlan::new(&line, None),
             &ResolvedStyleSet::default(),
             None,
             Alignment::Justify,
@@ -11170,6 +11219,7 @@ mod issue_2809_split_alignment_tests {
         let (_, extra_char_mid, _) = compute_line_extra_spacing(
             &line,
             usize::MAX,
+            &LeadingSpacePlan::new(&line, None),
             &ResolvedStyleSet::default(),
             None,
             Alignment::Justify,
@@ -11191,7 +11241,7 @@ mod issue_2809_split_alignment_tests {
 
 #[cfg(test)]
 mod issue_4657_distribute_alignment_tests {
-    use super::compute_line_extra_spacing;
+    use super::{compute_line_extra_spacing, LeadingSpacePlan};
     use crate::model::style::Alignment;
     use crate::renderer::composer::{ComposedLine, ComposedTextRun};
     use crate::renderer::layout::text_measurement::{estimate_text_width, resolved_to_text_style};
@@ -11217,6 +11267,7 @@ mod issue_4657_distribute_alignment_tests {
         let (extra_word, extra_char, extra_dash) = compute_line_extra_spacing(
             &line(text),
             usize::MAX,
+            &LeadingSpacePlan::new(&line(text), None),
             &ResolvedStyleSet::default(),
             None,
             Alignment::Distribute,

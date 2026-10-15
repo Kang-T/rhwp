@@ -107,6 +107,8 @@ impl SkiaTextReplay<'_> {
                         tf.font_style().slant() != skia_safe::font_style::Slant::Upright;
                     let mut font = Font::new(tf, size);
                     font.set_edging(font::Edging::AntiAlias);
+                    // 글줄이 정한 소수 원점을 glyph raster에서도 보존한다.
+                    font.set_subpixel(true);
                     if want_synthetic_bold && !is_bold_face {
                         font.set_embolden(true);
                     }
@@ -131,6 +133,7 @@ impl SkiaTextReplay<'_> {
                         let mut font = Font::default();
                         font.set_size(size);
                         font.set_edging(font::Edging::AntiAlias);
+                        font.set_subpixel(true);
                         Some(font)
                     }
                 };
