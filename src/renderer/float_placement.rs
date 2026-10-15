@@ -6033,10 +6033,11 @@ pub(crate) fn rowbreak_fragment_frame_bottom(
     dpi: f64,
     body_filling_source_frame: bool,
 ) -> f64 {
-    // The extra inset is a single-cell fragment contract. Ordinary multirow
-    // frames close at the body's outer-bottom margin; borrowing the inset
-    // loses physical space from a spanning cell's carried page-end band.
-    if body_filling_source_frame || table.row_count != 1 || table.col_count != 1 {
+    // 한 행에 속한 셀의 반복 프레임은 기존 본문 끝 inset을 공유한다.
+    // 다행·다열이라는 이유만으로 이 계약을 버리지 않는다. 걸친 셀의
+    // 물리 잔여와 본문 전체를 선언한 개체 상자에는 inset을 중복 계상하지 않는다.
+    let has_spanning_cells = table.cells.iter().any(|cell| cell.row_span > 1);
+    if body_filling_source_frame || has_spanning_cells {
         body_bottom - hwpunit_to_px(i32::from(table.outer_margin_bottom), dpi)
     } else {
         single_cell_page_fragment_bottom(table, body_bottom, dpi)
