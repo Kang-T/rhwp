@@ -29,6 +29,8 @@ pub mod hwp_summary;
 pub mod hwpx;
 pub mod ingest;
 pub mod ole_container;
+#[cfg(feature = "pdf-import")]
+pub mod pdf;
 pub mod record;
 pub mod tags;
 pub(crate) mod tracked_viewtext;

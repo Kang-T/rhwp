@@ -2,7 +2,7 @@
 
 - Issue: [#7911](https://github.com/edwardkim/rhwp/issues/7911)
 - 작성일: 2026-10-15 (Asia/Seoul)
-- 상태: **구현계획 승인 대기**. 수행계획은 메인테이너 승인 완료.
+- 상태: **2026-10-15 메인테이너 승인, 2단계 구현 진행 중**.
 - [수행계획](task_m100_7911.md), [1단계 조사 보고](../working/task_m100_7911_stage1.md)
 - 브랜치: `task_m100_7911`; 조사 head `92df2f3cbdc7012f5e91635512ceda68debecfac`
 - 고정 base: `origin/devel` `a5e88ad682c805e1d845502ddc9521b94ea8eccd`
@@ -10,7 +10,7 @@
 
 ## 1. 설계 결정
 
-승인 요청안은 **공통 파서에 opt-in PDF frontend를 연결하는 직접 IR 컴파일**이다.
+승인된 설계는 **공통 파서에 opt-in PDF frontend를 연결하는 직접 IR 컴파일**이다.
 
 ```text
 PDF bytes + PdfImportOptions
@@ -44,10 +44,30 @@ PDF 특유의 추론은 frontend 소유이고 renderer에 PDF 전용 좌표 보�
   root `Cargo.lock`에 의도적으로 반영하고 이후 검증은 `--locked`로 수행한다.
 - `office_oxide`는 전이 의존성이다. POC의 직접 pin을 이유 없이 root에 추가하지 않는다.
   해석된 버전·라이선스·NOTICE와 불필요한 OCR/ML/Python/native feature 유입을 확인한다.
+- 2단계 확인: 자동 선택 `office_oxide 0.1.13`은 `pdf_oxide 0.3.78` 내부의
+  `DocumentIR` initializer와 호환되지 않아 E0063을 재현했다. 검증된 `=0.1.9`를
+  optional 직접 제약으로 명시한다. lockfile을 사용하지 않는 라이브러리 소비자에도 필요한 제약이다.
 - WASM의 구버전 getrandom `js` feature 필요 여부는 feature tree와 실제 빌드로 확인한다.
   서버·Python·native PDF runtime·원격 OCR은 필수 의존성이 아니다.
+- 2단계 확인: POC의 `getrandom 0.2` alias는 실제 전이 의존성이 사용하지 않았다.
+  제품에서 제거하고 기존 getrandom 0.4 `wasm_js`로 wasm32 빌드를 확인했다.
 - 기본 활성화, 외부 비신뢰 PDF에 대한 안전성 보장, 배포 번들 자동 채택은 별도 판단이다.
   opt-in은 자원 검증을 면제하지 않는다. 확인되지 않은 안전성을 홍보하지 않는다.
+- 2026-10-15 자원 보완안 추가 승인 후 `pdf_oxide` import alias의 실체를
+  `vendor/rhwp-pdf-import-backend`의 `rhwp-pdf-import-backend =0.3.78-rhwp.1`로 전환했다.
+  0.3.78 원본은 보존하며 크기 축소가 아닌 보안 전용 patch다. 변경·고지는
+  [backend 기록](../../vendor/rhwp-pdf-import-backend/RHWP_PATCHES.md)을 따른다.
+
+#### 1.2.1 크기 최적화 비범위 확정 (2026-10-15)
+
+메인테이너 지시로 **크기 최적화는 이번 이슈 범위에서 제외**한다.
+현재의 `pdf_oxide =0.3.78` Cargo 의존 방식과 `office_oxide =0.1.9` 호환성 제약을 유지한다.
+크기 축소를 위한 소스 추출·vendoring·추출 전용 fork·별도 WASM 분리는 도입하지 않는다.
+기존 실측 증가분은 [2단계 기록](../working/task_m100_7911_stage2.md#31-pdf-포함제외-wasm-크기-실측)에 보존한다.
+최종 제품 bundle 비용 측정은 유지하되 이번 완료 조건에 크기 감축 목표를 추가하지 않는다.
+이 결정은 아래 자원·오류 게이트의 면제가 아니며, 안전성 보완에 별도 dependency 변경이 필요하면
+그 범위를 보고하고 구현계획 변경 승인을 받는 절차는 유지한다.
+이후 별도 승인된 0.3.78 기반 보안 patch 도입은 크기 최적화 제외 결정의 변경이 아니다.
 
 ## 2. 파일별 변경과 API
 
@@ -156,6 +176,138 @@ opt-in 표시나 Worker 종료를 메모리 안전성 입증의 대체로 삼지
 PDF JavaScript·첨부 실행·외부 링크 fetch·시스템 글꼴 설치는 하지 않는다.
 암호 PDF는 이번 범위에서 명시적으로 미지원 처리하고 HWP 암호 오류로 오분류하지 않는다.
 
+### 4.1 자원 제한 보완안: 도입 승인, 구현·검증 진행 중
+
+2026-10-15 메인테이너의 “순서대로 진행” 승인에 따라 첫 순서인 자원 제한 보완안을 조사했다.
+첫 조사에서는 dependency source를 변경하지 않았고, 이후 메인테이너가
+**“0.3.78 기반 최소 보안 패치 도입 승인”**으로 별도 이름의 dependency 변경을 승인했다.
+이 승인에 따라 구현·작은 계약 검증을 진행한다. 크기 최적화 제외 결정과 외부 게시·배포,
+단계 전환·최종 회귀의 승인 경계는 유지한다.
+
+조사 대상은 로컬 `pdf_oxide 0.3.78` source와 현재 rhwp frontend다.
+ignored `output/pr-review/issue7911/resource-audit/source-audit.json`에 14개 정적 관측,
+파일별 SHA-256·위치와 Cargo.lock 패키지 식별자를 기록했다.
+이는 **실행 보안 시험이나 upstream 배포 archive 무결성 재검증이 아니다**.
+
+#### 실제 우회 경로와 변경 책임
+
+아래 경로는 모두 crate `src/` 기준이다. rhwp 위치는 별도로 표기한다.
+
+| 생산/소비 경로 | 확인한 현재 동작 | 필요한 계약 |
+| --- | --- | --- |
+| `document.rs:1087` → `open_from_reader:1138` | bytes 복제와 xref/recovery 후 `ParserOptions::default()` 설정 | constructor 진입 전부터 요청별 context 전달 |
+| `document.rs:1615` | `open_with_config`는 Native-only stub | 설정 함수 이름만으로 안전성을 주장하지 않음 |
+| `xref.rs:924`, `objstm.rs:135` → `object.rs:280` | 생성·객체 로드 중 options 없는 decode 사용 | bootstrap, 복구, lazy load도 동일 context 소비 |
+| `decoders/mod.rs:212` → `StreamDecoder::decode` | 출력 Vec 생성 뒤 크기 검사; predictor는 이후 별도 실행 | 모든 filter 중간 출력·predictor를 확장 전에 제한 |
+| `decoders/flate.rs:159`, `brotli.rs:12` | Flate는 자체 개별 cap, Brotli는 무제한 `read_to_end` | 문서 잔여 예산과 filter cap을 명시 전달; 환경변수 금지 |
+| `parser.rs:423`, `:485`; `objstm.rs:202` | 배열/사전 재귀에 depth 인자 없음; 선언 N으로 capacity 예약 | 큰 parser frame 진입·push/insert/reserve 전에 깊이·개수 검사 |
+| `document.rs:19310`, `:23742` | paths는 decode 오류 시 빈 결과, image Do 순회는 `if let Ok`로 오류 생략 | resource failure는 복구·빈 결과로 바꾸지 않고 fatal 유지 |
+| `images.rs:3437` → `to_dynamic_image:477`; rhwp `lowering.rs:254` | handle은 선언 크기를 제공하지만 JPEG 픽셀 decode가 PNG 변환까지 지연 가능 | 실제 codec header·픽셀/색 변환·인코딩 버퍼도 같은 예산 소비 |
+| `document.rs:12636` → rhwp `extract.rs:36` | span Vec·cache clone 생성 뒤 rhwp 카운터 검사 | 추출 push와 cache 보관/clone 전 제한; 폰트/CMap·Form 재귀도 추적 |
+
+일부 decoder만 고치거나 `from_bytes_with_options`만 추가해서는 위 경로가 닫히지 않는다.
+PDF 원본 bytes를 따로 스캔하는 preflight 파서를 복제해 해결했다고 판단하지 않는다.
+
+#### 권고하는 변경 단위
+
+1. **요청별 context:** 가칭 `PdfImportLimits`와 `ImportBudget`을 PDF 생성 전에 만들고
+   constructor/xref/object stream/일반 stream/폰트·이미지/추출 경로에 전달한다.
+   전역·thread-local·환경변수 대신 실제 문서 소유 context를 사용한다. 기존 public API와
+   제한된 새 API의 차이를 명시하고, rhwp는 제한된 경로만 사용한다.
+2. **bounded decode:** Flate/Brotli/LZW/RunLength/ASCII 계열, 다단 filter의 각 중간 출력,
+   predictor의 산술과 버퍼 증가를 같은 한계로 제한한다. 압축률 검사는 보조값이다.
+   출력 한계에 정확히 맞는 정상 입력과 초과 입력을 구별하고, 잘린 prefix를 성공으로 반환하지 않는다.
+   누적량은 재시도·반복 decode의 실제 작업도 계상하고 실패 후 한도를 되돌려 우회하지 못하게 한다.
+3. **컨테이너와 추출:** xref 항목·`/Index`·`/W`·`/N`·`/First`·객체 깊이·Form/페이지/폰트
+   참조 순환, content operator·graphics stack·span/path/image 누적량을 확장 전에 확인한다.
+   `checked_*`와 실패 가능한 reserve를 사용한다. 토큰/사전/배열과 cache clone도 포함한다.
+4. **이미지:** 선언값뿐 아니라 JPEG 등 실제 codec header를 픽셀 할당 전에 검사한다.
+   색 공간·bit depth·행 pitch·mask/palette·CMYK→RGB·PNG 변환의 복수 버퍼를 포함한다.
+   bounded API를 적용할 수 없는 codec은 이번 제한된 경로에서 명시적으로 거부한다.
+   이미지 핸들 개수 검사만으로 선행 decode 안전성을 주장하지 않는다.
+5. **fatal 오류:** 예산 초과/취소를 별도 typed error와 요청별 fatal 상태로 보존한다.
+   기존 lenient recovery·`ok()`·빈 결과 반환이 이를 삼킬 수 없도록 전파하고 public 작업 종료 시
+   fatal 상태를 확인한다. rhwp는 `PDF_RESOURCE_LIMIT` 등 안정적 코드로 매핑한다.
+   한 쪽 실패 시 builder 전체를 버리며 다음 문서에는 새 context를 만든다.
+6. **검증·고지:** 변경 diff·원 upstream 버전/출처·NOTICE·상표 구분·후속 보안 수정 추적을 남긴다.
+   해당 경로 밖의 쓰기·변환 기능 삭제나 크기 최적화는 하지 않는다.
+
+#### 초기 정책 제안과 한계
+
+기존 입력/페이지/표/선언 픽셀 상한은 유지한다. 아래 수치는 추가 승인 후 검증할 초기 정책이지
+모든 정상 PDF 처리나 브라우저 총 메모리의 안전한 상한이라는 보장이 아니다.
+
+| 추가 예산 | 초기 제안 | 선행 검사/측정 |
+| --- | --- | --- |
+| decoded 출력 | stream/filter 단계당 32 MiB, 문서 누적 256 MiB | 출력 append와 predictor/복구 재시도마다 실제 소비량 계상 |
+| 객체/컬렉션 | 객체 50,000개, 배열·사전·xref 항목 합계 100,000개 | 선언 크기의 reserve/insert 전, xref bootstrap 포함 |
+| 깊이 | 구문 중첩 16, 참조 탐색 32, Form 중첩 16 | 큰 frame 진입 전; 순환 검사는 깊이와 별도 |
+| 이미지 작업량 | 이미지당 decoded 64 MiB, 문서 누적 128 MiB | 실제 header 및 변환 버퍼 계상; 기존 픽셀 상한도 병행 |
+| content 작업량 | 문서 operator 250,000개, graphics stack 128 | token/operator 생성 중; 기존 span/path 한계도 병행 |
+| CPU/취소 | 결정적 작업량 카운터와 상위 Worker deadline | 동기 WASM 실행 중 cancel 메시지가 처리된다고 가정하지 않음 |
+
+원본 전체 12쪽/7·8쪽과 정상 대조군의 실측 소비량으로 정책을 검토한다. 변경이 필요하면 일반적인
+처리 요구와 근거를 기록하며 특정 문서 ID로 예산을 완화하지 않는다. 합산 decode bytes는 전체
+RSS/heap과 다르다. codec 내부 scratch·동시 버퍼·allocator 여유분까지 전부 입증한 것으로
+표시하지 않으며, 미확인 경로가 있으면 배포 게이트를 유지한다.
+Worker 종료·재생성은 시간 초과/치명적 실패의 운영 복구이고 선행 할당 제한의 대체가 아니다.
+
+초기 구현의 정상 PDF 검증에서 content 수치 operand가 컨테이너 객체 quota를 소진하는
+계상 오류를 확인했다. 객체 50,000개 한도는 유지하고 content operand를 별도 영역으로 분리했다.
+operator당 operand 64개, 내부 배열/사전의 중첩·컬렉션·문자열 제한을 병행한다.
+자원 초과의 최초 정적 사유를 fatal 상태에 보존하고 다음 문서는 독립 context로 시작한다.
+실제 적용값·검사 수·실물 PDF 결과는 2단계 진행 기록을 정본으로 삼는다.
+
+#### 승인된 dependency 선택과 배포 경계
+
+현재 공개 API만으로 필요한 제한을 주입할 수 없다. **0.3.78을 기준으로 하는 보안 전용 patch**를
+권고했고 메인테이너가 승인했다. 공식 registry source나 Cargo 캐시를 직접 수정하지 않는다.
+비교한 선택지는 다음과 같으며 두 번째 경로를 채택했다.
+
+- upstream에 변경을 제안하고 지원 API가 포함된 공식 버전으로 전환한다. 외부 게시와
+  `=0.3.78` 버전 변경은 각각 별도 승인 대상이며 즉시 가능한 해법으로 가정하지 않는다.
+- **0.3.78 유지 권고안:** 원본을 보존한 별도 내부 이름의 dependency에서 최소 보안 diff만
+  관리한다. 수정판을 공식 PDFOxide라고 표시하지 않고 라이선스/NOTICE와 변경 이력을 유지한다.
+  이는 크기 축소용 fork가 아니라 배포 안전성 보완이다. 도입 승인을 받아 적용 중이다.
+
+단순 workspace `[patch.crates-io]`는 라이브러리 소비자에게 자동 전파되지 않는다.
+내부 dependency를 택하면 배포 모델도 함께 확정한다. Native/WASM repository build뿐 아니라
+`cargo package`와 packaged 소비자가 동일한 보안 코드를 쓰는지 확인한다. 별도 crate 게시가
+필요하면 이름·버전·배포 권한을 승인받으며, 게시하지 않은 dependency를 정상 배포 가능하다고
+표시하지 않는다. 현재 backend는 `publish = false`로 외부 게시를 차단한다.
+
+초기 연결에서 root의 명시적 workspace member `.` 때문에 vendor 제외가 무시되는 현상을
+작은 독립 manifest로 재현했다. 이 중복 항목만 제거하고 implicit root·기존 default-members를
+유지했다. metadata의 실제 member 집합이 기존 10개와 같고 backend는 제외됨을 확인했다.
+임시로 유입된 vendor 개발용 lock 항목은 이 분리 후 Cargo가 정리했다. 실제 제품의
+기본 비활성 정책을 vendor workspace의 default feature로 우회하지 않는다.
+
+#### 작은 계약과 종료 조건
+
+- 작은 주입 예산의 한도-1/한도/한도+1, 압축률이 낮아도 누적량이 초과하는 여러 stream,
+  다단 filter 중간 출력·predictor, xref bootstrap·object stream의 제한 전달을 검사한다.
+- Flate/Brotli/LZW/RunLength와 이미지 header/선언 불일치·CMYK/PNG 변환·mask,
+  거대한 선언값/overflow·깊이/순환·과다 operator/cache 경계를 검사한다.
+  위험한 입력의 수정 전 관측은 메인 프로세스가 아닌 제한된 자식 프로세스에서 작은 상한으로 수행한다.
+- recovery가 제한 오류를 삼키지 않는지 실제 parser→rhwp import 경로로 확인한다.
+  동일 프로세스/Worker에서 실패 뒤 정상 입력, 다른 문서 간 예산 독립성을 검사한다.
+- 최종 count만 비교하지 않고 append/예약 전의 거부 및 bounded reader/codec 호출을 검사한다.
+  수정 전 FAIL / 수정 후 PASS와 정상 대조군을 구분한다. 14개 정적 관측을 실행 검사로 대신하지 않는다.
+- 제품 검사는 `tests/cases/`와 정식 suite 수집 정책을 따른다. Native/WASM feature-on/off
+  빌드·작은 계약 뒤 실물 전쪽 시각과 기존 포맷 비교를 수행한다. 긴 전체 회귀 승인은 별도다.
+- 소스 경로 감사와 실행 증거가 부족하면 `parser_allocation_bounds_proven=false`를 유지한다.
+  이후 2단계 보고·commit·승인 전에 통과/미검증을 명시하며, 이 보완안 작성만으로 단계 완료나
+  CLI/WASM 제품 연결 착수를 선언하지 않는다.
+
+구현 적용 범위와 아직 적용하지 않은 제안값·검증 결과는
+[2단계 진행 기록](../working/task_m100_7911_stage2.md)에 구분한다.
+
+2026-10-15 후속 진행 승인에 따라 CMap source/scan/확장과 CID metric 확장,
+요청별 lazy cache/clone, page content 결합·반환 복사의 예산 적용을 보완한다.
+내부 backend는 shared target의 비해시 산출물 충돌을 피하도록 Rust 의존성용 `rlib`만 생성한다.
+원본 기능 소스·고지는 보존하며 독립 C ABI package 배포나 크기 최적화는 범위에 추가하지 않는다.
+적용 수치·수정 전 실패·최신 source 재검증·남은 경계는 위 진행 기록 3.5를 따른다.
+
 ## 5. 검증과 증거
 
 정본은 [local validation 4.3](../manual/pr_review/local_validation.md#43-변경-범위별-기본-검증),
@@ -193,8 +345,8 @@ Cargo는 `/Users/edwardkim/mygithub/rhwp/target/pr-review`를 공용으로 순�
 
 | 단계 | 산출물 | 다음 단계 조건 |
 | --- | --- | --- |
-| 1 (현재) | 호출 경로 조사, 이 구현계획, stage1 보고·commit | 메인테이너 구현계획 승인 |
-| 2 | POC 이력 보존, optional frontend·공통 builder·단위/여백·자원 게이트 | focused 결과·stage2 보고·commit·단계 승인 |
+| 1 (완료) | 호출 경로 조사, 이 구현계획, stage1 보고·commit | 메인테이너 구현계획 승인 완료 |
+| 2 (진행 중) | POC 이력 보존, optional frontend·공통 builder·단위/여백·자원 게이트 | focused 결과·stage2 보고·commit·단계 승인 |
 | 3 | CLI/WASM 직접 연결·진단·도움말, fresh 제품 경로 실행 | focused/시각 결과·stage3 보고·commit·전체 회귀 승인 |
 | 4 | 전체 회귀·비용·한컴 Print·최종 보고 | 메인테이너 최종 보고 승인 후 push/PR 생성 별도 승인 |
 
