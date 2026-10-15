@@ -14,6 +14,7 @@
 use crate::decoders::{CcittParams, StreamDecoder};
 use crate::error::{Error, Result};
 use crate::extractors::ccitt_bilevel::{append_transition_row, transitions_to_bytes};
+use crate::import_limits::ImportBudget;
 
 /// CCITTFaxDecode stream filter (pass-through).
 ///
@@ -46,6 +47,82 @@ pub struct CcittDecoded {
     pub recovered_partial: bool,
 }
 
+/// Decode a finite image without unmetered fax fallback or white substitution.
+/// The caller supplies positive Rows from the validated image geometry.
+pub fn decode_with_budget(
+    data: &[u8],
+    params: &CcittParams,
+    budget: &ImportBudget,
+) -> Result<CcittDecoded> {
+    budget.check()?;
+    let width = u16::try_from(params.columns)
+        .ok()
+        .filter(|&width| width != 0)
+        .ok_or_else(|| Error::Unsupported("limited CCITT requires 1..65535 columns".into()))?;
+    let rows = params
+        .rows
+        .filter(|&rows| rows != 0)
+        .ok_or_else(|| Error::Unsupported("limited CCITT requires finite image rows".into()))?;
+    let bytes_per_row = (width as usize).div_ceil(8);
+    bytes_per_row
+        .checked_mul(rows as usize)
+        .filter(|&bytes| bytes <= budget.limits.stream_bytes)
+        .ok_or_else(|| budget.reject("CCITT packed output bytes"))?;
+    if data.len() > budget.limits.input_bytes || data.len().checked_mul(8).is_none() {
+        return Err(budget.reject("CCITT input bytes"));
+    }
+    let mut reader = BitReader::new(data);
+    let mut reference = transition_buffer(width, Some(budget))?;
+    let mut current = transition_buffer(width, Some(budget))?;
+    let mut output = budget.output();
+    let mut byte_align = params.encoded_byte_align;
+    for row in 0..rows {
+        if byte_align && row != 0 {
+            byte_align_skip(&mut reader, &mut byte_align);
+        }
+        let one_d = if params.is_group_4() {
+            false
+        } else {
+            if skip_eols(&mut reader) >= 6 {
+                return Err(Error::Decode("CCITT ended before image height".into()));
+            }
+            if params.k > 0 {
+                let tag = reader
+                    .peek(1)
+                    .ok_or_else(|| Error::Decode("truncated CCITT row tag".into()))?;
+                reader.consume(1);
+                tag == 1
+            } else {
+                true
+            }
+        };
+        if reader.eod() {
+            return Err(Error::Decode("truncated CCITT image".into()));
+        }
+        current.clear();
+        let status = if one_d {
+            decode_row_g3_1d(&mut reader, width, &mut current, Some(budget))
+        } else {
+            decode_row_g4(&mut reader, &reference, width, &mut current, Some(budget))
+        };
+        budget.check()?;
+        if !matches!(status, RowStatus::Ok) {
+            return Err(Error::Decode("CCITT row requires unsupported recovery".into()));
+        }
+        budget.charge_codec_allocation(bytes_per_row)?;
+        let packed = transitions_to_bytes(&current, width as usize)
+            .map_err(|_| budget.reject("CCITT row allocation"))?;
+        output.append(&packed)?;
+        std::mem::swap(&mut reference, &mut current);
+    }
+    budget.check()?;
+    Ok(CcittDecoded {
+        data: output.finish(),
+        rows_decoded: rows as usize,
+        recovered_partial: false,
+    })
+}
+
 /// Decode a CCITT codestream to packed bilevel bytes, dispatching on `/K`:
 /// Group 4 (T.6, `K < 0`) here, Group 3 (T.4, `K >= 0`) in [`decode_g3`].
 ///
@@ -64,8 +141,8 @@ pub fn decode(data: &[u8], params: &CcittParams) -> Result<CcittDecoded> {
 
     let bytes_per_row = (width as usize).div_ceil(8);
     let mut reader = BitReader::new(data);
-    let mut reference = transition_buffer(width)?; // imaginary all-white line above row 0
-    let mut current = transition_buffer(width)?;
+    let mut reference = transition_buffer(width, None)?; // imaginary all-white line above row 0
+    let mut current = transition_buffer(width, None)?;
     let mut out = packed_output_buffer(bytes_per_row, params.rows)?;
     let mut decoded_rows = 0usize;
     let mut byte_align = params.encoded_byte_align;
@@ -95,7 +172,7 @@ pub fn decode(data: &[u8], params: &CcittParams) -> Result<CcittDecoded> {
         }
 
         current.clear();
-        match decode_row_g4(&mut reader, &reference, width, &mut current) {
+        match decode_row_g4(&mut reader, &reference, width, &mut current, None) {
             RowStatus::EndOfBlock => break, // clean EOFB
             RowStatus::AllocationFailed => {
                 return Err(Error::Decode(
@@ -154,8 +231,8 @@ fn decode_g3(data: &[u8], params: &CcittParams) -> Result<CcittDecoded> {
     let two_dimensional = params.k > 0;
     let bytes_per_row = (width as usize).div_ceil(8);
     let mut reader = BitReader::new(data);
-    let mut reference = transition_buffer(width)?; // imaginary all-white line above row 0
-    let mut current = transition_buffer(width)?;
+    let mut reference = transition_buffer(width, None)?; // imaginary all-white line above row 0
+    let mut current = transition_buffer(width, None)?;
     let mut out = packed_output_buffer(bytes_per_row, params.rows)?;
     let mut decoded_rows = 0usize;
     let mut byte_align = params.encoded_byte_align;
@@ -199,9 +276,9 @@ fn decode_g3(data: &[u8], params: &CcittParams) -> Result<CcittDecoded> {
 
         current.clear();
         let status = if one_d {
-            decode_row_g3_1d(&mut reader, width, &mut current)
+            decode_row_g3_1d(&mut reader, width, &mut current, None)
         } else {
-            decode_row_g4(&mut reader, &reference, width, &mut current)
+            decode_row_g4(&mut reader, &reference, width, &mut current, None)
         };
         match status {
             RowStatus::EndOfBlock => break,
@@ -266,11 +343,17 @@ fn packed_output_buffer(bytes_per_row: usize, rows: Option<u32>) -> Result<Vec<u
     Ok(output)
 }
 
-fn transition_buffer(width: u16) -> Result<Vec<u16>> {
+fn transition_buffer(width: u16, budget: Option<&ImportBudget>) -> Result<Vec<u16>> {
     let capacity = width as usize;
+    if let Some(budget) = budget {
+        budget.charge_codec_allocation(capacity * std::mem::size_of::<u16>())?;
+    }
     let mut transitions = Vec::new();
     transitions.try_reserve_exact(capacity).map_err(|_| {
-        Error::Decode(format!("Unable to allocate {capacity} CCITT row transitions"))
+        budget.map_or_else(
+            || Error::Decode(format!("Unable to allocate {capacity} CCITT row transitions")),
+            |budget| budget.reject("CCITT transition allocation"),
+        )
     })?;
     Ok(transitions)
 }
@@ -279,7 +362,12 @@ fn transition_buffer(width: u16) -> Result<Vec<u16>> {
 /// from the left edge, each a make-up+terminating MH code. Pushes color-flip
 /// columns (first run white) into `current`, matching the G4 row contract so the
 /// shared `transitions_to_bytes` packs it identically.
-fn decode_row_g3_1d(reader: &mut BitReader, width: u16, current: &mut Vec<u16>) -> RowStatus {
+fn decode_row_g3_1d(
+    reader: &mut BitReader,
+    width: u16,
+    current: &mut Vec<u16>,
+    budget: Option<&ImportBudget>,
+) -> RowStatus {
     let mut a0: u16 = 0;
     let mut white = true;
     let mut any = false;
@@ -288,17 +376,26 @@ fn decode_row_g3_1d(reader: &mut BitReader, width: u16, current: &mut Vec<u16>) 
             Some(v) => v,
             // The run tables can't read an EOL/EOFB or fill: a clean line ends
             // here if we already placed a run, otherwise the row is undecodable.
-            None => return if any { RowStatus::Ok } else { RowStatus::Error },
+            None => {
+                return if any && budget.is_none() {
+                    RowStatus::Ok
+                } else {
+                    RowStatus::Error
+                }
+            },
         };
         let a1 = match a0.checked_add(run) {
             Some(v) => v,
             None => return RowStatus::Error,
         };
         any = true;
+        if budget.is_some() && a1 > width {
+            return RowStatus::Error;
+        }
         if a1 >= width {
             break; // final run reaches the right edge; no trailing flip to push
         }
-        if !try_push_transition(current, a1) {
+        if !try_push_transition(current, a1, budget) {
             return RowStatus::AllocationFailed;
         }
         a0 = a1;
@@ -535,7 +632,36 @@ enum RowStatus {
     AllocationFailed,
 }
 
-fn try_push_transition(transitions: &mut Vec<u16>, position: u16) -> bool {
+fn try_push_transition(
+    transitions: &mut Vec<u16>,
+    position: u16,
+    budget: Option<&ImportBudget>,
+) -> bool {
+    if let Some(budget) = budget {
+        if transitions.len() == transitions.capacity() {
+            let capacity = transitions.capacity().max(1).checked_mul(2);
+            let Some((capacity, bytes)) = capacity.and_then(|capacity| {
+                capacity
+                    .checked_mul(std::mem::size_of::<u16>())
+                    .map(|bytes| (capacity, bytes))
+            }) else {
+                budget.reject("CCITT transition capacity");
+                return false;
+            };
+            if budget.charge_codec_allocation(bytes).is_err() {
+                return false;
+            }
+            if transitions
+                .try_reserve_exact(capacity - transitions.len())
+                .is_err()
+            {
+                budget.reject("CCITT transition allocation");
+                return false;
+            }
+        }
+        transitions.push(position);
+        return true;
+    }
     if transitions.try_reserve(1).is_err() {
         return false;
     }
@@ -551,6 +677,7 @@ fn decode_row_g4(
     reference: &[u16],
     width: u16,
     current: &mut Vec<u16>,
+    budget: Option<&ImportBudget>,
 ) -> RowStatus {
     let mut pos = 0usize; // cursor over reference edges
     let mut a0: u16 = 0;
@@ -577,10 +704,13 @@ fn decode_row_g4(
                 let b1 = next_color(reference, &mut pos, a0, !black, start_of_row).unwrap_or(width);
                 let a1i = b1 as i32 + delta as i32;
                 if a1i < 0 || a1i > width as i32 {
+                    if budget.is_some() {
+                        return RowStatus::Error;
+                    }
                     break; // malformed → end the line, keep what we have
                 }
                 let a1 = a1i as u16;
-                if a1 < width && !try_push_transition(current, a1) {
+                if a1 < width && !try_push_transition(current, a1, budget) {
                     return RowStatus::AllocationFailed;
                 }
                 black = !black;
@@ -606,13 +736,16 @@ fn decode_row_g4(
                     Some(v) => v,
                     None => return RowStatus::Error,
                 };
-                if a1 < width && !try_push_transition(current, a1) {
+                if budget.is_some() && a2 > width {
+                    return RowStatus::Error;
+                }
+                if a1 < width && !try_push_transition(current, a1, budget) {
                     return RowStatus::AllocationFailed;
                 }
                 if a2 >= width {
                     break;
                 }
-                if !try_push_transition(current, a2) {
+                if !try_push_transition(current, a2, budget) {
                     return RowStatus::AllocationFailed;
                 }
                 a0 = a2;

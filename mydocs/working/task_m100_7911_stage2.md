@@ -819,6 +819,119 @@ publish와 별도 crate 배포 준비 완료를 의미하지 않는다. 외부 �
 CCITT/이미지·문자 생성/폰트·postprocess의 나머지 선행 할당 감사가 끝나지 않아
 `parser_allocation_bounds_proven=false`, 2단계 진행 중 및 Open PR 보류를 유지한다.
 
+### 3.12 CCITT DeviceGray 제한 경로 보완 (2026-10-15)
+
+메인테이너의 다음 절차 진행 지시에 따라 2단계 잔여 이미지 할당 경로를 조사했다.
+시작 head는 `769ff849d158f2457748856c0f3d51a236e1c7ee`, 시작 worktree는 clean이었다.
+새 dependency·버전·feature는 추가하지 않았다. 공용 target에서 `-j 1`, `--locked --offline`,
+자기 Cargo의 디스크 감시를 유지하고 임의 캐시 정리를 하지 않았다.
+
+#### 원인과 수정 전 반례
+
+`lowering::prepare_images` → `PdfImage::to_png_bytes_with_budget` → `encode_png`의 Raw
+경로가 `to_dynamic_image`를 호출해 예산 없는 CCITT decoder/`fax` fallback/흰 대체로 이어졌다.
+이때 별도 `/Rows`가 packed output 예약·패딩 크기를 결정해 작은 `/Height`의 픽셀 검사로는
+할당량을 제한하지 못했다. 또한 압축 byte 수가 회색 픽셀 수와 같으면 PNG 직접 쓰기 shortcut이
+CCITT decode 자체를 생략했다. 1x1의 `[0x80]`은 실제 흰 V(0) 행인데 회색 128로 출력됐다.
+
+32,768-row 선언과 1-byte codestream 등 작은 입력만으로 기존 50개 PASS/새 4개 FAIL을
+확인했다 (`ccitt-before-contracts.log`). OOM/거대한 실제 할당 공격을 실행하지 않았다.
+네 반례는 행 수 불일치, private 전이 버퍼의 한도 우회, 압축/픽셀 길이 동일 shortcut,
+디코딩 불가 데이터를 흰 이미지 성공으로 반환하는 경우다.
+
+#### 생산·소비 경계와 지원 범위
+
+- 제한 문서의 `extract_image_from_xobject_at`는 CCITT filter의 위치에 맞는 DecodeParms를
+  선택하고 outer/entry 참조를 해석한다. 정수→u32 변환을 검사하여 음수·절단된 큰 정수로
+  바뀌지 않게 한다. 직접 dictionary는 다시 clone하지 않는다.
+- `Rows` 부재/0은 이미 검증한 이미지 높이로 유한화한다. 명시한 Columns/양수 Rows가
+  이미지 geometry와 다르면 제한 경로가 거부한다. 이는 모든 유효 PDF를 수용하는 정책이
+  아니다. EndOfBlock에 따라 Rows를 무시하는 입력도 존재하므로 그 조합의 완전 지원을
+  주장하지 않는다. 실제 크기를 임의 clamp하거나 일부 행만 복원했다고 표시하지 않는다.
+- PNG 쓰기에서 CCITT DeviceGray는 압축 크기와 관계없이 bounded decoder를 사용한다.
+  `decode_ccitt_with_budget`만 공개 재노출하고 CCITT 내부 모듈 전체는 공개하지 않는다.
+- 기존 Group 3/4 행 해석기를 재사용한다. 제한된 호출의 전이 버퍼 초기/성장·packed row
+  scratch·grayscale은 예약 전에 개별 codec/문서 누적 예산을 소비한다. packed 출력은
+  알려진 전체 크기를 검사하고 기존 bounded writer를 사용한다. 압축 입력은 출력 한도가
+  아니라 입력 예산을 적용한다. 기본 입력 16 MiB/개별 codec 32 MiB/출력 32 MiB/
+  누적 decoded 작업량 256 MiB를 유지한다. 이 수치는 총 heap/RSS 상한이 아니다.
+- 내부 u16 폭을 절단하지 않으며 제한 경로의 65,536 이상 폭은 명시적 미지원 오류다.
+  모든 요구 행을 읽을 수 없으면 부분/흰 대체 성공 대신 오류를 반환하고 예산 없는 fax
+  fallback을 호출하지 않는다. 비제한 API는 기존 fallback/부분 복구를 보존한다.
+- decoder/PNG의 자원 실패는 같은 budget에 sticky하게 남는다. frontend는 lowering 뒤
+  budget을 다시 확인해 `PDF_RESOURCE_LIMIT`로 전파한다. 일반 decode 실패와 resource
+  실패를 구별하고 실패한 builder를 다음 문서에 설치하지 않는다.
+
+#### 현재 검증 결과
+
+초기 수정 후 반례 포함 54개가 PASS였다. 확장 검사 첫 실행은 내부 모듈 접근과
+BinDataBytes 직접 비교의 컴파일 오류였고, 새 제한 API 재노출/기존 `load()` 사용으로 고쳤다.
+그다음 59 PASS/1 FAIL은 입력 크기에 출력 cap을 잘못 적용한 구현 오류였으며,
+입력 예산으로 정정했다. 최종 자원 계약 **60개 PASS**다 (`ccitt-final-contracts.log`).
+
+- Group 4/Group 3 1-D/혼합, byte alignment 두 값, polarity 두 값의 12개 조합을 검사했다.
+  T.4/T.6의 독립 bit code가 나타내는 `[255,255,231]` packed 행과 grayscale sample을
+  비교하며 정상 이미지의 PNG는 기존 비제한 API와 byte-identical이다.
+- 압축 입력·packed 출력·개별 scratch·누적 작업량의 cap-1/cap/cap+1, 같은 요청 반복,
+  실패 후 sticky 거부/새 요청 복구를 검사한다. 압축 입력 7 B/출력 3 B를 구별한다.
+- zero-run 반복의 작은 스트림으로 전이 Vec의 초기 크기 이후 성장도 같은 quota가
+  제어하는지 확인했다. 잘린 Group 3/4 prefix를 부분 이미지 성공으로 바꾸지 않는다.
+- 제품 frontend에서 Rows/Columns 음수·u32 범위 밖·geometry 불일치를 거부하고 정상
+  간접 DecodeParms 및 ASCIIHex→CCITT chain의 index와 `/Decode [1 0]`을 보존한다.
+- root/backend의 Native/WASM **library** Clippy 네 구성이 통과했다. 전체 workspace/
+  all-targets lint 통과로 표시하지 않는다. suite/source-side unit tier 정책도 통과했다.
+
+실행 전 source/lock 1,811개 hash는 `resource-audit/ccitt-source-snapshot.json`에 보존했다.
+frontend/여백 **5개 PASS**도 확인했다 (`ccitt-frontend-margin-contracts.log`).
+이번 codec pixel 계약은 합성 입력의 decode 계약이며 실물 페이지의 조판 golden이 아니다.
+
+fresh WASM release는 421.1초, 공식 wasm-bindgen 0.2.127 web 후처리는 1.36초였다.
+`ccitt-wasm-runtime/smoke.mjs`를 Node에서 실행해 다음을 확인했다.
+
+- CCITT 오류 6개를 `PDF_PARSE_FAILED` 또는 `PDF_LOWERING_FAILED`로 거부한 뒤 정상 입력을 처리했다.
+- Group 3/4·alignment·polarity의 12개 조합은 기존 설치된 독립 `pngjs` decoder로 PNG의
+  RGBA 24개 픽셀을 T.4/T.6 독립 기대값과 비교했다. ASCIIHex→CCITT chain의 HWPX도 동일했다.
+- 압축 길이=픽셀 수인 1x1의 실제 PNG가 회색 128이 아니라 흰 sample 255임을 확인했다.
+- 기존 Brotli 정상/손상·자원/CMap/page/Form 경계·비활성 codec 오류·실물 12쪽/7·8쪽도 실행했다.
+
+이는 **fresh web binding의 Node 진단**이다. Native 계약 65개를 WASM에서 그대로 실행했다는
+뜻이 아니며 제품 공개 API·브라우저 Worker/Studio·시각 검증이나 총 메모리 상한의 증거도 아니다.
+
+| fresh WASM artifact | bytes / SHA-256 |
+| --- | --- |
+| raw probe WASM | 22,778,589 / `4e8afbc963f50ab6532685b83cd33a266b1f5d0db243872194d2cd74ef13111b` |
+| web 후처리 WASM | 20,905,746 / `a1189ee5405899bf7252722afa4297d58a230d80ec56f1c4c3785e0e7ada432d` |
+| JS glue | 457,493 / `b7feac4608455aebf697d64d365e0700b372877a3df26843f66d4859c0fa1443` |
+
+같은 source의 Native 전체/7쪽/8쪽 import는 약 3.90/0.48/0.48초였다.
+HWPX는 1,607,950/15,175/15,777 B이며 세 결과가 직전 정상 source 및 새 WASM과
+byte-identical이다. 7·8쪽 각각 표 5개/nested 4개를 보존했다. 결과·비교는
+`ccitt-real-pdf/{summary,before-comparison}.json`,
+`ccitt-wasm-runtime/{summary,native-comparison}.json`에 보존했다.
+바이트 보존을 한컴/원본과의 시각 일치나 전체 회귀 통과로 승격하지 않는다.
+
+현재 source를 로컬 package로 만들고 `ccitt-package-validation/`에 archive/unpacked source를
+보존했다. 407 files, 압축 약 6.5 MiB이며 archive SHA-256은
+`e0b819ce5e468a09d13d57e031122dc81b78ee171b72d861570ed0cdc1c329f7`이다.
+source·고지 등 387개와 원본 license/notice 6개의 일치를 확인했다.
+아카이브만 소비하는 독립 Native 실행에서 Brotli/CCITT의 한도·sticky 실패·새 예산의
+정상 복구가 통과했다. 독립 WASM 소비자의 `--locked --offline` 컴파일도 10.4초에 통과했다
+(`ccitt-package-consumer-{native,wasm}.log`). Native 실행과 WASM 컴파일을 구별한다.
+이는 registry의 root package 소비자 해석/별도 crate 배포 모델 완료와 구별한다.
+외부 publish·push·PR 생성은 하지 않았다.
+
+최종 source/lock 1,811개가 실행 전 snapshot과 같았다
+(`resource-audit/ccitt-final-source-integrity.json`). 이번 batch에서 캐시는 삭제하지 않았다.
+root workspace fmt, 변경 backend 세 파일의 원래 설정 fmt와 diff check도 통과했다.
+
+#### 미입증 범위
+
+이 보완은 **CCITT DeviceGray 경로**다. 저장소에서 발견한 실물 CCITT 입력
+`pdf/hwpx/[2027] 온새미로 1 본교재.pdf`(46쪽)의 3쪽 CCITT는 Indexed 색 공간이므로
+이 경로의 실물 시각 통과 증거로 쓰지 않는다. Indexed CCITT/다른 색 공간·mask/palette와
+나머지 image 경로 감사는 유지한다. 글자 생성/폰트·postprocess와 Worker 종료도 미완료다.
+`parser_allocation_bounds_proven=false`, 2단계 진행 중과 Open PR 보류를 유지한다.
+
 ## 4. 미완료와 다음 게이트
 
 - 기존 format detect/`ParsedDocument`/Core 생성 경로, CLI 명령과 WASM 공개 import API는
@@ -835,7 +948,8 @@ CCITT/이미지·문자 생성/폰트·postprocess의 나머지 선행 할당 �
 - 3.7의 디스크 대기는 공간 확보 알림으로 해소했다. 탐색 보완의 계약·lint·Native 실물 결과는
   3.8을 따른다. 나머지 2단계 자원 게이트와 단계 승인 절차는 유지한다.
 - 후속 캐시·원본 이미지 복사 보완의 기존 결과는 3.9, Brotli 보완의 현재 source 집중 계약은
-  3.11을 따른다. CCITT decode 및 나머지 선행 할당 감사는 계속 미완료다.
+  3.11을 따른다. CCITT DeviceGray 제한 경로의 보완은 3.12이며, 다른 이미지 경로와
+  나머지 선행 할당 감사는 계속 미완료다.
 - default/feature-on 전체 Rust lint 묶음, workspace all-targets, nextest 전체 회귀,
   제품 Studio용 공식 fresh web wrapper/Worker·제품 번들 크기·전쪽 비교는 최종 게이트에서 남아 있다.
 - 현재 기록은 2단계 중간 checkpoint다. 커밋·PR 요청과 미완료 상태의 처리 확인은 3.6에 기록했다.

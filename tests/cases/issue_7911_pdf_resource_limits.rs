@@ -1482,3 +1482,384 @@ fn brotli_multiple_output_chunks_preserve_bytes_and_reject_truncated_prefixes() 
         expected
     );
 }
+
+fn ccitt_image(
+    width: u32,
+    height: u32,
+    rows: Option<u32>,
+    bytes: &[u8],
+) -> pdf_oxide::extractors::images::PdfImage {
+    use pdf_oxide::extractors::images::{ColorSpace, ImageData, PdfImage, PixelFormat};
+    PdfImage::with_ccitt_params(
+        width,
+        height,
+        ColorSpace::DeviceGray,
+        1,
+        ImageData::Raw {
+            pixels: bytes.to_vec(),
+            format: PixelFormat::Grayscale,
+        },
+        pdf_oxide::decoders::CcittParams {
+            k: -1,
+            columns: width,
+            rows,
+            ..Default::default()
+        },
+    )
+}
+
+#[test]
+fn ccitt_rows_cannot_allocate_beyond_the_image_geometry() {
+    let image = ccitt_image(8, 1, Some(32768), &[0x80]);
+    assert!(image.to_png_bytes_with_budget(&budget(512, 4096)).is_err());
+}
+
+#[test]
+fn ccitt_private_transition_storage_obeys_the_codec_budget() {
+    let shared = ImportBudget::new(PdfImportLimits {
+        codec_allocation_bytes: 1,
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(matches!(
+        ccitt_image(8, 1, Some(1), &[0x80]).to_png_bytes_with_budget(&shared),
+        Err(Error::ImportResourceLimit(_))
+    ));
+    assert!(shared.check().is_err());
+}
+
+#[test]
+fn ccitt_compressed_length_cannot_impersonate_uncompressed_gray_pixels() {
+    // T.6 vertical(0) against the imaginary white reference produces a white row.
+    let png = ccitt_image(1, 1, Some(1), &[0x80])
+        .to_png_bytes_with_budget(&budget(4096, 8192))
+        .unwrap();
+    let gray = image::load_from_memory(&png).unwrap().to_luma8();
+    assert_eq!(gray.as_raw(), &[255]);
+}
+
+#[test]
+fn ccitt_limited_import_does_not_turn_undecodable_data_into_blank_success() {
+    assert!(ccitt_image(8, 1, Some(1), &[0])
+        .to_png_bytes_with_budget(&budget(4096, 8192))
+        .is_err());
+}
+
+fn ccitt_bits(bits: &str) -> Vec<u8> {
+    bits.as_bytes()
+        .chunks(8)
+        .map(|chunk| {
+            chunk.iter().enumerate().fold(0u8, |byte, (index, bit)| {
+                byte | (u8::from(*bit == b'1') << (7 - index))
+            })
+        })
+        .collect()
+}
+
+fn ccitt_rows(k: i64, aligned: bool) -> Vec<u8> {
+    // T.4: white0=00110101, black8=000101, black3=10, white2=0111.
+    let black = "00110101000101";
+    let notch = "0011010110011110";
+    let mut bits = String::new();
+    for (row, runs) in [black, black, notch].into_iter().enumerate() {
+        if aligned {
+            while !bits.len().is_multiple_of(8) {
+                bits.push('0');
+            }
+        }
+        if k < 0 {
+            bits.push_str(if row < 2 {
+                "00100110101000101"
+            } else {
+                "0010011010110001011110"
+            });
+        } else if k == 0 {
+            bits.push_str(runs);
+        } else {
+            bits.push_str("000000000001");
+            if row == 1 {
+                bits.push_str("011");
+            }
+            // tag 0, two V(0) modes copy black row
+            else {
+                bits.push('1');
+                bits.push_str(runs);
+            }
+        }
+    }
+    ccitt_bits(&bits)
+}
+
+#[test]
+fn ccitt_normal_group3_group4_alignment_and_polarity_preserve_pixels() {
+    for k in [-1, 0, 1] {
+        for aligned in [false, true] {
+            let data = ccitt_rows(k, aligned);
+            for inverted in [false, true] {
+                let params = pdf_oxide::decoders::CcittParams {
+                    k,
+                    columns: 8,
+                    rows: Some(3),
+                    encoded_byte_align: aligned,
+                    black_is_1: inverted,
+                    ..Default::default()
+                };
+                let decoded = pdf_oxide::decoders::decode_ccitt_with_budget(
+                    &data,
+                    &params,
+                    &budget(4096, 8192),
+                )
+                .unwrap();
+                assert_eq!(decoded.data, [255, 255, 231], "k={k}, aligned={aligned}");
+                assert_eq!(decoded.rows_decoded, 3);
+                assert!(!decoded.recovered_partial);
+                let mut image = ccitt_image(8, 3, Some(3), &data);
+                image.set_ccitt_params(params);
+                let png = image.to_png_bytes_with_budget(&budget(4096, 8192)).unwrap();
+                assert_eq!(png, image.to_png_bytes().unwrap());
+                let actual = image::load_from_memory(&png).unwrap().to_luma8();
+                let expected: Vec<u8> = [255u8, 255, 231]
+                    .into_iter()
+                    .flat_map(|byte| {
+                        (0..8).map(move |column| {
+                            if ((byte >> (7 - column)) & 1 != 0) ^ inverted {
+                                0
+                            } else {
+                                255
+                            }
+                        })
+                    })
+                    .collect();
+                assert_eq!(actual.as_raw(), &expected);
+            }
+        }
+    }
+}
+
+#[test]
+fn ccitt_packed_and_private_allocation_boundaries_are_checked_before_reserve() {
+    let params = pdf_oxide::decoders::CcittParams {
+        k: -1,
+        columns: 8,
+        rows: Some(3),
+        ..Default::default()
+    };
+    let data = ccitt_rows(-1, false);
+    for cap in [data.len() - 1, data.len(), data.len() + 1] {
+        let shared = ImportBudget::new(PdfImportLimits {
+            input_bytes: cap,
+            ..Default::default()
+        })
+        .unwrap();
+        let result = pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared);
+        if cap < data.len() {
+            assert!(matches!(
+                result,
+                Err(Error::ImportResourceLimit("CCITT input bytes"))
+            ));
+            assert_eq!(shared.decoded_bytes(), 0);
+        } else {
+            assert_eq!(result.unwrap().data, [255, 255, 231]);
+        }
+    }
+    for cap in [2, 3, 4] {
+        let shared = budget(cap, 4096);
+        let result = pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared);
+        if cap == 2 {
+            assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
+            assert_eq!(shared.decoded_bytes(), 0);
+            assert_eq!(shared.codec_allocated_bytes(), 0);
+        } else {
+            assert_eq!(result.unwrap().data, [255, 255, 231]);
+        }
+    }
+    // Two width=8 u16 transition buffers, three temporary packed rows and 3 output bytes.
+    let total = 2 * 8 * 2 + 3 + 3;
+    for cap in [total * 2 - 1, total * 2, total * 2 + 1] {
+        let shared = budget(3, cap);
+        assert_eq!(
+            pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared)
+                .unwrap()
+                .data,
+            [255, 255, 231]
+        );
+        let result = pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared);
+        if cap < total * 2 {
+            assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
+            assert!(matches!(
+                pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared),
+                Err(Error::ImportResourceLimit(_))
+            ));
+        } else {
+            assert_eq!(result.unwrap().data, [255, 255, 231]);
+        }
+    }
+    for cap in [total - 1, total, total + 1] {
+        let shared = budget(3, cap);
+        let result = pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared);
+        if cap < total {
+            assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
+            assert!(shared.check().is_err());
+        } else {
+            assert_eq!(result.unwrap().data, [255, 255, 231]);
+            assert_eq!(shared.decoded_bytes(), total);
+        }
+    }
+    for cap in [15, 16, 17] {
+        let shared = ImportBudget::new(PdfImportLimits {
+            codec_allocation_bytes: cap,
+            ..Default::default()
+        })
+        .unwrap();
+        let result = pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared);
+        if cap == 15 {
+            assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
+            assert_eq!(shared.codec_allocated_bytes(), 0);
+        } else {
+            assert_eq!(result.unwrap().data, [255, 255, 231]);
+        }
+    }
+}
+
+#[test]
+fn ccitt_transition_growth_cannot_bypass_the_private_allocation_budget() {
+    let data = ccitt_bits(&format!(
+        "{}001100110000110111",
+        "001001101010000110111".repeat(20)
+    ));
+    let params = pdf_oxide::decoders::CcittParams {
+        k: -1,
+        columns: 8,
+        rows: Some(1),
+        ..Default::default()
+    };
+    for cap in [31, 32, 63, 64, 127, 128] {
+        let shared = ImportBudget::new(PdfImportLimits {
+            codec_allocation_bytes: cap,
+            ..Default::default()
+        })
+        .unwrap();
+        let result = pdf_oxide::decoders::decode_ccitt_with_budget(&data, &params, &shared);
+        if cap < 128 {
+            assert!(
+                matches!(result, Err(Error::ImportResourceLimit(_))),
+                "cap={cap}"
+            );
+            assert!(shared.check().is_err());
+        } else {
+            assert_eq!(result.unwrap().data, [0]);
+        }
+    }
+}
+
+#[test]
+fn ccitt_unknown_rows_use_image_height_and_wide_columns_do_not_wrap() {
+    let data = ccitt_rows(-1, false);
+    for rows in [None, Some(0)] {
+        let png = ccitt_image(8, 3, rows, &data)
+            .to_png_bytes_with_budget(&budget(4096, 8192))
+            .unwrap();
+        let gray = image::load_from_memory(&png).unwrap().to_luma8();
+        assert_eq!(
+            gray.as_raw().iter().filter(|&&pixel| pixel == 255).count(),
+            2
+        );
+    }
+    assert!(matches!(
+        ccitt_image(65536, 1, Some(1), &[0x80])
+            .to_png_bytes_with_budget(&ImportBudget::new(Default::default()).unwrap()),
+        Err(Error::Unsupported(_))
+    ));
+    for k in [-1, 0, 1] {
+        let params = pdf_oxide::decoders::CcittParams {
+            k,
+            columns: 8,
+            rows: Some(3),
+            ..Default::default()
+        };
+        let data = ccitt_rows(k, false);
+        for end in 0..data.len() {
+            let shared = budget(4096, 8192);
+            assert!(
+                matches!(
+                    pdf_oxide::decoders::decode_ccitt_with_budget(&data[..end], &params, &shared),
+                    Err(Error::Decode(_))
+                ),
+                "k={k}, prefix={end}"
+            );
+        }
+    }
+}
+
+fn ccitt_pdf(data: &[u8], decode_parms: &str, filter: &str, polarity: &str) -> Vec<u8> {
+    let mut parts = objects(b"/Im Do", "", "");
+    parts[2] = b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im 6 0 R >> >> /Contents 4 0 R >>".to_vec();
+    let mut image = format!("<< /Subtype /Image /Width 8 /Height 3 /BitsPerComponent 1 /ColorSpace /DeviceGray /Filter {filter} /DecodeParms {decode_parms} {polarity} /Length {} >>\nstream\n", data.len()).into_bytes();
+    image.extend_from_slice(data);
+    image.extend_from_slice(b"\nendstream");
+    parts.push(image);
+    parts.push(b"<< /K -1 /Columns 8 /Rows 3 >>".to_vec());
+    object_file(&parts, "")
+}
+
+#[test]
+fn ccitt_product_parameters_are_checked_before_narrowing_and_recover_per_document() {
+    use rhwp::parser::pdf::{parse_pdf_with_options, PdfImportOptions};
+    let data = ccitt_rows(-1, false);
+    for parameters in [
+        "<< /K -1 /Columns 8 /Rows -1 >>",
+        "<< /K -1 /Columns 8 /Rows 4294967299 >>",
+        "<< /K -1 /Columns 4294967304 /Rows 3 >>",
+        "<< /K -1 /Columns 8 /Rows 32768 >>",
+    ] {
+        let result = parse_pdf_with_options(
+            &ccitt_pdf(&data, parameters, "/CCITTFaxDecode", ""),
+            &PdfImportOptions::default(),
+        );
+        assert_eq!(
+            result.err().unwrap().code,
+            "PDF_PARSE_FAILED",
+            "{parameters}"
+        );
+    }
+    let normal = parse_pdf_with_options(
+        &ccitt_pdf(&data, "7 0 R", "/CCITTFaxDecode", ""),
+        &PdfImportOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(normal.document.bin_data_content.len(), 1);
+    assert!(!normal.metadata.parser_allocation_bounds_proven);
+}
+
+#[test]
+fn ccitt_filter_parameters_keep_chain_index_and_decode_polarity() {
+    use rhwp::parser::pdf::{parse_pdf_with_options, PdfImportOptions};
+    let data = ccitt_rows(-1, false);
+    let encoded = data
+        .iter()
+        .map(|byte| format!("{byte:02X}"))
+        .collect::<String>();
+    for polarity in ["", "/Decode [1 0]"] {
+        let direct = parse_pdf_with_options(
+            &ccitt_pdf(&data, "7 0 R", "/CCITTFaxDecode", polarity),
+            &PdfImportOptions::default(),
+        )
+        .unwrap();
+        let chained = parse_pdf_with_options(
+            &ccitt_pdf(
+                encoded.as_bytes(),
+                "[null 7 0 R]",
+                "[/ASCIIHexDecode /CCITTFaxDecode]",
+                polarity,
+            ),
+            &PdfImportOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(direct.document.bin_data_content.len(), 1);
+        assert_eq!(chained.document.bin_data_content.len(), 1);
+        assert_eq!(
+            direct.document.bin_data_content[0].data.load(),
+            chained.document.bin_data_content[0].data.load()
+        );
+    }
+}

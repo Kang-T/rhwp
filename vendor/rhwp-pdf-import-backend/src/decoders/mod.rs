@@ -31,7 +31,7 @@ mod runlength;
 pub use ascii85::Ascii85Decoder;
 pub use ascii_hex::AsciiHexDecoder;
 pub use brotli::BrotliDecoder;
-pub use ccitt::CcittFaxDecoder;
+pub use ccitt::{decode_with_budget as decode_ccitt_with_budget, CcittDecoded, CcittFaxDecoder};
 pub use dct::DctDecoder;
 pub use flate::FlateDecoder;
 pub use jbig2::Jbig2Decoder;

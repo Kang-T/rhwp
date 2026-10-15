@@ -87,6 +87,20 @@ rhwp 내부 보안 패치 dependency이며, 원 저작권·라이선스·NOTICE�
 
 ### 남은 검증
 
+후속 CCITT DeviceGray 제한 경로는 기존 Group 3/4 행 해석기를 재사용하면서 전이 Vec의
+초기/성장·packed row·grayscale 예약에 요청 예산을 적용한다. 압축/픽셀 길이가 같은
+경우에도 압축을 해석한다. 알려진 이미지 높이의 모든 행을 읽어야 성공이며 예산 없는
+fax fallback/흰 대체/부분 복구를 호출하지 않는다. 비제한 API의 기존 복구는 보존한다.
+DecodeParms filter index와 참조, checked 정수 변환을 적용한다. 제한 경로는
+Columns/양수 Rows와 이미지 geometry의 일치를 요구하며 폭 65,535 초과를 지원하지 않는다.
+Rows 부재/0은 검증한 이미지 높이를 사용한다. 모든 유효 CCITT PDF의 수용을 뜻하지 않는다.
+작은 반례 4개는 수정 전 FAIL, 보완 후 Native 자원 계약 60개/frontend·여백 5개와
+Native/WASM의 root/backend library Clippy가 PASS다. 새 release/web WASM의 Node 실행도
+CCITT 오류 6개를 거부하고 정상 Group 3/4의 12개 조합 및 1x1 사례를 독립 PNG 디코더로
+픽셀 대조했다. Indexed CCITT/색 공간·mask/palette, 제품 공개 API·Worker·시각 검증과
+전체 이미지/메모리 안전성 완료로 표시하지 않는다. 현재 아카이브의 독립 소비자 결과는
+2단계 기록에서 구분한다.
+
 후속 Brotli 보완은 `brotli-decompressor =6.0.1`의 custom allocator/stream API로
 private scratch를 할당 전 계상한다. 별도 개별 할당 32 MiB와 문서 누적 작업 예산을
 같이 적용한다. 초기 상태 할당 실패 확인·표준 window·부분 출력 실패 처리를 추가했다.
@@ -100,7 +114,7 @@ root/backend Native·WASM library Clippy가 통과했다. 빈 입력의 scratch�
 정상/빈 Brotli 내용은 비압축 내용과 HWPX가 동일했고 실물 12쪽/7·8쪽 변환도 이전 정상
 결과와 일치했다. 이는 직접 Rust frontend의 진단 probe다. Native 55개 계약의 WASM 실행,
 공개 제품 API·Studio·Worker·시각 검증이나 총 메모리 상한 입증으로 표시하지 않는다.
-현재 source의 packaged consumer 검증과 별도 crate 배포 준비는 별도 진행한다.
+현재 source의 packaged consumer 검증과 별도 crate 배포 준비 완료는 구분한다.
 
 이 변경은 크기 최적화가 아니며 일반 PDF 쓰기/변환 기능을 삭제하지 않는다.
 decoded/copy/구조 작업 예산은 총 RSS/heap 상한이 아니다. CMap source 1 MiB,

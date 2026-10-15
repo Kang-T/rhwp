@@ -428,8 +428,14 @@ impl PdfImage {
             ImageData::Raw { pixels, format } => {
                 let expected_gray = (self.width * self.height) as usize;
                 let expected_rgb = expected_gray * 3;
+                let ccitt_budget = budget.filter(|_| {
+                    self.bits_per_component == 1
+                        && self.color_space == ColorSpace::DeviceGray
+                        && self.ccitt_params.is_some()
+                });
 
-                if *format == PixelFormat::Grayscale
+                if ccitt_budget.is_none()
+                    && *format == PixelFormat::Grayscale
                     && matches!(self.color_space, ColorSpace::DeviceGray | ColorSpace::CalGray)
                     && pixels.len() == expected_gray
                 {
@@ -439,12 +445,19 @@ impl PdfImage {
                     encoder
                         .write_image(pixels, self.width, self.height, image::ColorType::L8.into())
                         .map_err(|e| Error::Encode(format!("Failed to encode PNG: {}", e)))?;
-                } else if *format == PixelFormat::RGB && pixels.len() == expected_rgb {
+                } else if ccitt_budget.is_none()
+                    && *format == PixelFormat::RGB
+                    && pixels.len() == expected_rgb
+                {
                     encoder
                         .write_image(pixels, self.width, self.height, image::ColorType::Rgb8.into())
                         .map_err(|e| Error::Encode(format!("Failed to encode PNG: {}", e)))?;
                 } else {
-                    let dynamic_image = self.to_dynamic_image()?;
+                    let dynamic_image = if let Some(budget) = ccitt_budget {
+                        self.decode_ccitt_with_budget(budget)?
+                    } else {
+                        self.to_dynamic_image()?
+                    };
                     let rgb = dynamic_image.to_rgb8();
                     // `ImageBuffer::from_raw` accepts a buffer at least as long
                     // as the image needs, so a mis-declared depth can leave the
@@ -490,6 +503,48 @@ impl PdfImage {
         }
 
         Ok(())
+    }
+
+    fn decode_ccitt_with_budget(
+        &self,
+        budget: &crate::import_limits::ImportBudget,
+    ) -> Result<image::DynamicImage> {
+        let (ImageData::Raw { pixels, .. }, Some(params)) = (&self.data, &self.ccitt_params) else {
+            unreachable!()
+        };
+        let mut params = params.clone();
+        if params.rows.is_none_or(|rows| rows == 0) {
+            params.rows = Some(self.height);
+        }
+        if params.columns != self.width || params.rows != Some(self.height) {
+            return Err(Error::Image("CCITT dimensions differ from image geometry".into()));
+        }
+        let mut decoded = crate::decoders::ccitt::decode_with_budget(pixels, &params, budget)?.data;
+        if params.black_is_1 {
+            for byte in &mut decoded {
+                *byte = !*byte;
+            }
+        }
+        let count = (self.width as usize)
+            .checked_mul(self.height as usize)
+            .ok_or_else(|| budget.reject("CCITT grayscale bytes"))?;
+        budget.charge_codec_allocation(count)?;
+        let mut gray = Vec::new();
+        gray.try_reserve_exact(count)
+            .map_err(|_| budget.reject("CCITT grayscale allocation"))?;
+        let stride = (self.width as usize).div_ceil(8);
+        for row in decoded.chunks_exact(stride) {
+            for column in 0..self.width as usize {
+                gray.push(if (row[column / 8] >> (7 - column % 8)) & 1 == 0 {
+                    255
+                } else {
+                    0
+                });
+            }
+        }
+        image::GrayImage::from_raw(self.width, self.height, gray)
+            .map(image::DynamicImage::ImageLuma8)
+            .ok_or_else(|| Error::Image("invalid bounded CCITT pixel buffer".into()))
     }
 
     fn decode_jpeg_with_budget(
@@ -1568,13 +1623,20 @@ pub fn extract_image_from_xobject_at(
         // bounds and defaulted to white: the page rendered nearly blank at
         // coverage 0.00988, where the ink derivable from the file is 0.07980
         // and all four reference renderers report 0.08004-0.08297.
-        let decode_parms = dict.get("DecodeParms").and_then(|o| match o {
-            Object::Reference(_) => doc.and_then(|d| d.resolve_object(o).ok()),
-            other => Some(other.clone()),
-        });
-        if let Some(mut ccitt_params) =
+        let params = if let Some(doc) = doc.filter(|doc| doc.import_budget().is_some()) {
+            let index = filter_names
+                .iter()
+                .position(|name| name.eq_ignore_ascii_case("CCITTFaxDecode"))
+                .unwrap();
+            Some(limited_ccitt_parameters(doc, dict.get("DecodeParms"), index, width, height)?)
+        } else {
+            let decode_parms = dict.get("DecodeParms").and_then(|o| match o {
+                Object::Reference(_) => doc.and_then(|d| d.resolve_object(o).ok()),
+                other => Some(other.clone()),
+            });
             crate::object::extract_ccitt_params_with_width(decode_parms.as_ref(), Some(width))
-        {
+        };
+        if let Some(mut ccitt_params) = params {
             if ccitt_params.rows.is_none() {
                 ccitt_params.rows = Some(height);
             }
@@ -1594,6 +1656,65 @@ pub fn extract_image_from_xobject_at(
     }
 
     Ok(image)
+}
+
+fn limited_ccitt_parameters(
+    doc: &crate::document::PdfDocument,
+    object: Option<&crate::object::Object>,
+    filter_index: usize,
+    width: u32,
+    height: u32,
+) -> Result<crate::decoders::CcittParams> {
+    use crate::object::Object;
+    let resolved = match object {
+        Some(object @ Object::Reference(_)) => Some(doc.resolve_object(object)?),
+        _ => None,
+    };
+    let object = resolved.as_ref().or(object);
+    let object = match object {
+        Some(Object::Array(array)) => array.get(filter_index),
+        _ => object,
+    };
+    let resolved_entry = match object {
+        Some(object @ Object::Reference(_)) => Some(doc.resolve_object(object)?),
+        _ => None,
+    };
+    let dict = match resolved_entry.as_ref().or(object) {
+        None | Some(Object::Null) => None,
+        Some(Object::Dictionary(dict)) => Some(dict),
+        _ => return Err(Error::Image("invalid CCITT DecodeParms".into())),
+    };
+    let integer = |key: &str, default: i64| -> Result<i64> {
+        match dict.and_then(|dict| dict.get(key)) {
+            None => Ok(default),
+            Some(Object::Integer(value)) => Ok(*value),
+            _ => Err(Error::Image(format!("invalid CCITT {key}"))),
+        }
+    };
+    let boolean = |key: &str, default: bool| -> Result<bool> {
+        match dict.and_then(|dict| dict.get(key)) {
+            None => Ok(default),
+            Some(Object::Boolean(value)) => Ok(*value),
+            _ => Err(Error::Image(format!("invalid CCITT {key}"))),
+        }
+    };
+    let columns = u32::try_from(integer("Columns", i64::from(width))?)
+        .map_err(|_| Error::Image("invalid CCITT Columns".into()))?;
+    let rows = u32::try_from(integer("Rows", 0)?)
+        .map_err(|_| Error::Image("invalid CCITT Rows".into()))?;
+    let rows = if rows == 0 { height } else { rows };
+    if columns != width || rows != height {
+        return Err(Error::Image("CCITT dimensions differ from image geometry".into()));
+    }
+    Ok(crate::decoders::CcittParams {
+        k: integer("K", 0)?,
+        columns,
+        rows: Some(rows),
+        black_is_1: boolean("BlackIs1", false)?,
+        end_of_line: boolean("EndOfLine", false)?,
+        encoded_byte_align: boolean("EncodedByteAlign", false)?,
+        end_of_block: boolean("EndOfBlock", true)?,
+    })
 }
 
 /// Extract and parse an `ICCBased` colour-space's profile stream.
