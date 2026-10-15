@@ -33,6 +33,62 @@ fn load() -> DocumentCore {
     DocumentCore::from_bytes(&std::fs::read(&p).expect("표본 읽기")).expect("문서 로드")
 }
 
+/// 독립 Print 2쪽은 Native99.99751%·fresh WASM100%인 완료 페이지다.
+/// PDF 선분 원점(72pt→96dpi)으로 끝 조각·사진 행·후속 본문의 위치를 보호한다.
+/// 기존 저장 높이 합·가운데 정렬 관계 검사는 함께 유지한다.
+#[test]
+fn qualified_last_fragment_and_following_body_keep_print_positions() {
+    let core = load();
+    assert_eq!(core.page_count(), 2);
+    let cells = body_table_cells(&core, 1);
+    let tail = cell(&cells, 4, 1).bbox;
+    let photo = cell(&cells, 5, 0).bbox;
+    for (name, actual, print) in [
+        ("끝 조각 위", tail.y, 115.23332),
+        ("끝 조각 아래", tail.y + tail.height, 195.46663),
+        ("사진 행 위", photo.y, 195.46663),
+        ("사진 행 아래", photo.y + photo.height, 424.01603),
+        ("표 왼쪽", photo.x, 77.39867),
+        ("표 오른쪽", tail.x + tail.width, 719.45337),
+    ] {
+        assert!(
+            (actual - print).abs() <= 2.0,
+            "{name}: Print {print}, 실제 {actual}"
+        );
+    }
+    assert!(
+        (tail.y + tail.height - photo.y).abs() <= 0.05,
+        "끝 조각 뒤 사진 행 소속"
+    );
+    fn following(node: &RenderNode, out: &mut Vec<(usize, f64, f64)>) {
+        if let RenderNodeType::TextRun(run) = &node.node_type {
+            if run.text.trim() == "끝." {
+                let (_, baseline) = run
+                    .style
+                    .script_draw_metrics(run.style.font_size, node.bbox.y + run.baseline);
+                out.push((
+                    run.para_index.expect("후속 문단 소속"),
+                    node.bbox.x,
+                    baseline,
+                ));
+            }
+        }
+        for child in &node.children {
+            following(child, out);
+        }
+    }
+    let tree = core.build_page_render_tree(1).unwrap();
+    let mut body = Vec::new();
+    following(&tree.root, &mut body);
+    assert_eq!(body.len(), 1, "끝 문단은 마지막 쪽에 한 번만 있다");
+    let (pi, x, baseline) = body[0];
+    assert_eq!(pi, 7, "표 뒤 원본 문단 소속");
+    // run은 선행 공백을 별도 run으로 분리한다. PDF에서도 가시 글자 '끝' 원점을 쓴다.
+    assert!((x - 82.83510335).abs() <= 2.0);
+    assert!((baseline - 462.8542).abs() <= 2.0);
+    assert!(baseline > photo.y + photo.height, "표 종료 뒤 본문 순서");
+}
+
 struct Cell {
     row: u16,
     col: u16,

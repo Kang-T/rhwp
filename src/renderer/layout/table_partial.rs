@@ -2954,10 +2954,14 @@ impl LayoutEngine {
                     }
                     let wrap_anchor = stored_square_picture_wrap_anchor_for_para(cell, cp_idx);
                     // 측정과 같은 첫 저장 띠를 column-top 경로에서 한 번 소비한다.
+                    // 단 설정·책갈피처럼 배치 상자가 없는 메타데이터는 그 소비를 막지 않는다.
                     // 별도 저장 원점이 이미 띠를 품는 스냅·선형 셀은 기존 경로를 쓴다.
                     let allow_first_stored_lead = cp_idx == 0
                         && start_line == 0
-                        && para.controls.is_empty()
+                        && para
+                            .controls
+                            .iter()
+                            .all(crate::renderer::composer::control_is_width_neutral_marker)
                         && single_column_flow.is_none()
                         && !preserve_linear_single_cell_vpos
                         && crate::renderer::cell_paragraph_spacing::paragraph_before(
