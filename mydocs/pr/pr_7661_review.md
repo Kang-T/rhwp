@@ -152,3 +152,29 @@ ignored `output/pr-review/pr7661-20261015/`에 메타데이터·focused-results�
 작업지시자는 기존 6쪽 위치 차이도 이번 범위에서 보정하도록 승인했다. 같은 편집 HWPX와 독립 한컴 2020 Print의 14쪽 전량을 대조한 결과, 첫 표(문단 97) 뒤부터 약 5px 차이가 누적 없이 유지된다. 입력은 실제 HWP를 public API로 편집·저장한 것이며 임의 LineSeg 수정본이 아니다. 해당 표의 저장 줄 높이 10,377HU는 표 10,095HU와 위·아래 바깥여백 141HU씩을 포함한다. 다음 문단의 저장 시작 11,129HU는 이 높이와 후행 간격 752HU의 합이다. 표 호스트의 이전 쪽 저장 원점 67,373HU를 그대로 더하면 이 닫힌 새 쪽 좌표계를 인식하지 못하고 간격을 절반으로 줄인다.
 
 추적 경로는 `composer의 저장 줄·후속 원점 → float_placement::stored_tac_line_successor_advance → typeset/controls/tac_reconcile::measure의 점유 상한 → layout::tac_next_line_full_spacing의 실제 후행 흐름`이다. 저장 원점 리셋의 판정은 온전한 단일 TAC 줄 상자와 다음 원점의 정확한 닫힘으로 설명해야 한다. 개체와 다른 줄이 섞인 문단·dirty/계산 LineSeg·닫히지 않는 후속 좌표에 이 판정을 확장하지 않는다. 절대 px 보정이나 문서별 예외는 추가하지 않는다. 구현 뒤 같은 원본 전쪽과 정상 대조군을 다시 확인한다.
+
+## 메인터너 보정 2: 배경 소비와 실제 글줄
+
+로컬 제품 head `801fc9a9d`에 다음을 구현했다. 이는 API·UI 보정 1 이후 별도 Rust 변경이므로 이전 lint/WASM 결과로 검증을 대신하지 않는다.
+
+- `style_resolver → layout/fill_background::border_fill_background_nodes → Rectangle/Image → SVG/Canvas/Native Skia`로 채우기 종류·이미지 효과를 공통 소비한다. Native의 Rectangle·PageBackground 그라데이션 shader도 실제 색상 stop을 소비한다. 선형 그라데이션 중심 0/50/100%의 독립 Print 대조군으로 양쪽 램프를 확인했으며 SVG·Canvas·Native가 같은 stop 생산 함수를 사용한다.
+- 문단 배경의 단위는 문단 전체가 아닌 **실제 물리 글줄**이다. 85개 명시적 줄바꿈을 가진 단일 문단의 3쪽 Print에서 줄마다 재시작함을 확인했다. 일반/셀 문단은 실제 줄 전진·줄 상자에서 밴드를 생산한다. NO_LS의 InlineFlowPlan 경로는 측정·fit에서 확정한 `rows`와 `end`를 사용한다. 저장 TAC 계획의 조기 반환도 수용한 pen/end를 같은 수집기에 전달한다. 기존 혼합 인라인 표 fallback의 별도 줄 구성은 재작성하지 않았으며 이 경로의 일반화된 배경 지원을 검증 완료로 주장하지 않는다.
+- 수집 뒤 float 앵커가 옮겨지면 해당 노드 ID의 **최종 원점**으로 밴드를 이동한 뒤 paint한다. 최종 원점은 한 번 만든 ID map으로 조회하며 줄마다 전체 노드를 재탐색하지 않는다. 가로 조각은 기존 저장 물리 줄 판정으로 소유 줄을 공유한다. 테두리 연결과 채우기의 줄/문단 소유는 분리한다. 양쪽 문단의 연결 속성·서로 다른 채우기·없음·셀 배경 위 문단 배경을 독립 Print와 대조한다.
+- 글자 채우기도 원래 단색 전용이던 일반 TextRun 경로에서 전체 Fill을 소비한다. 글자 배경·테두리는 선행 공백까지 원래 run 상자를 사용하고 글리프 배치는 바꾸지 않는다. 글자 배경만 지정한 별도 Print로 문단 배경과 다른 계약임을 확인했다.
+- 6쪽의 좌표계 전환은 `composer::stored_tac_successor_delta_hu`를 측정·배치가 공통 소비한다. 단일 저장 TAC 상자·원점 리셋·정확한 후속 닫힘을 확인하며 계산/dirty 줄·다른 개체가 섞인 호스트는 확장하지 않는다. Native 선행 검증에서 6쪽 73.76408→98.80061%, 같은 입력 14쪽 모두 90% 이상, 다른 쪽 점수 하락 0쪽이다. 기존 WASM 기준은 71.38766%로 Native와 구분한다.
+
+정식 회귀 추가 전 Native/fresh Docker WASM 전쪽 TSV·직접 판독을 진행 중이다. 선행 Native 관측은 글자 크기 변경 그림 92.67522%, 그라데이션 93.26290%, 긴 문단 전쪽 최저 99.96178%, 텍스트·두 TAC의 같은 줄/명시적 개행·공백 줄 98.79320%, 표만 있는 문단 99.63766%다. 선행 결과는 최종 head 전쪽 결과와 구분한다.
+
+사용자 제공 `page-image.pdf`는 같은 요청 입력에 대응하는 한컴 2020 11.0.0.9166 Print 1쪽이며 SHA-256 `fb025238855f343f7ae46ffb4efd9d3b4fe52334961252c0a5a8f45b3e197862`다. 자동 변환의 매크로 거절과 수동 정상 출력은 구분한다. 오래된 MCP job 재조회에서 TTL 만료가 확인된 일부 대조군은 만료 전에 다운로드한 로컬 PDF를 보존한다. 재조회 상태를 새 변환 실패로 세지 않으며 PDF 해시·Creator·원문 생성 명령·대응 출력으로 출처를 기록한다.
+
+글꼴은 실제 존재하는 Windows Fonts 및 한컴 TTF/All·TTF/Hwp를 공급한다. 휴먼명조 HMKMM.TTF는 Hwp 디렉터리에 있다. Native는 실제 font program의 한글 이름·weight를 연결한 로컬 fontconfig를 사용하고, WASM은 같은 font program들을 명시적으로 로드한다. fontconfig를 Chrome 프로세스에도 적용한 실패한 실험은 최종 WASM 검증에서 제외한다. 이 환경 변경 전 캡처를 같은 조건의 최종 기준으로 재사용하지 않는다.
+
+## 직접 판독 보완: 1쪽 글상자 그림 채우기의 저장 모드 손실
+
+작업지시자는 그라데이션은 통과로 판정했지만 issue7235 1쪽 글상자 그림의 반복 출력을 지적했다. 이어 저장 시 손상을 의심했고 `/mnt/e/tmp/issue7235.hwpx`에서 배치를 ‘크기에 맞게’로 바꾸면 정상임을 확인했다. 해당 수정본의 글상자는 `imgBrush mode="TOTAL"`이다. 이 사실을 새 renderer 결함으로 단정하지 않고 원본 입력과 저장 XML을 다시 대조했다.
+
+원본 HWP `156086935_none_image_fill.hwp`의 글상자 및 두 BorderFill 그림은 공통 IR에서 `ImageFillMode::None`(HWP5 값 15)이다. 동일 원본을 한컴 2020 MCP로 편집 없이 HWPX로 저장하면 세 곳 모두 `ZOOM`이다(job `7ffa0e23-ead2-4c24-ab3d-24781317c731`, 출력 376,518 bytes). 반면 기존 rhwp API 편집 저장본은 세 곳 모두 `TILE`이고 재열기 IR도 `TileAll`이다. 따라서 동일한 저장본을 Native/WASM으로 그릴 때의 차이를 조사한 선행 결과만으로 렌더러를 원인으로 판정할 수 없다. **이번 반복 현상의 직접 원인은 HWP→HWPX 직렬화 시 모드 붕괴**다. 한컴으로 원본을 저장한 `ZOOM`과 사용자가 의도적으로 변경한 `TOTAL`은 구분한다.
+
+값의 경로는 HWP `parser/doc_info::parse_fill`의 15→None → 원본 Shape/BorderFill IR → `serializer/hwpx/shape::write_fill_brush`의 미처리 enum을 TILE로 바꾸는 fallback → HWPX header/section parser의 TileAll → 실제 paint다. header의 BorderFill도 같은 writer를 사용한다. 해당 writer에서 `None`을 `ZOOM`으로 출력하도록 보정한다. 이미 정상인 `Zoom`, 실제 반복 모드 `TileAll`과 채우기 없음 `FillType::None`의 의미는 유지한다. renderer 원점·크기·clip을 덮어쓰지 않는다.
+
+증거는 ignored `output/pr-review/pr7661-20261015/image-fill-roundtrip/`의 원본/저장 IR 진단, 한컴 무편집 HWPX와 사용자 수정본이다. 앞선 C10 26문서 전쪽 자동 점수가 통과해도 이 직접 판독 결함을 면제하지 않는다. 저장본의 독립 PDF도 이미 잘못된 TILE을 소비했으므로 그 PDF와의 높은 점수는 저장 보존의 정답 근거가 아니다. 보정 뒤 새 저장본과 원본/한컴 정상 저장본을 대조하고 영향 페이지를 다시 확인한다. 기존 UI/API 검사와 원래 입력을 덮어쓰지 않으며 새 산출물 경로를 사용한다.
