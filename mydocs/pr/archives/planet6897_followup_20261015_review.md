@@ -5,6 +5,10 @@
 **메인터너 보정 후 수용 가능 — 명시한 통합 범위의 로컬 검증 완료.**
 검증 code head `39a634e547621c32ae6f9ba8c1694d35c827078b`, 기준 `463c48cc228170b576c832591b76826116e86a49`. [통합 PR #7923](https://github.com/edwardkim/rhwp/pull/7923)의 code candidate `cbc5815631d6c221dc6ec6e0f03565859cb1c346`에서 전체 CI·정책 체크 성공과 CLEAN을 확인했다. 문서 trailing head 체크와 실제 merge·후속 처리가 남아 있다. 사용자의 사전 승인으로 개별 archive review와 오늘할일을 이번 코드 PR에 함께 포함한다. 별도 기록 PR을 만들지 않는다.
 
+## #7926 추가 정책 보정
+
+사용자가 [fast-pass 판정 버그 #7926](https://github.com/edwardkim/rhwp/issues/7926) 등록·개선을 요청했다. 고정된 workflow 실행 SHA와 가변 연결 PR head를 구별하도록 helper를 보완했고, 새5회귀 수정 전 FAIL/후 PASS 및 Node354·Python186PASS와 실제 API 재생 통과를 확인했다. [단계 기록](../../working/task_m100_7926_stage1.md)을 따른다. 앞서 기록한 `cbc581563` CI는 이 추가 수정 전 결과다. 새 정책 수정 head의 전체 CI 성공을 다시 확인하기 전에는 병합하지 않는다. renderer/Rust/폰트 바이트는 그대로여서 시각·로컬 Rust 검증을 반복하지 않았다.
+
 ## 통합 범위와 원 PR별 판정
 
 | 원 PR | source SHA | 개별 review |
