@@ -6153,50 +6153,14 @@ impl LayoutEngine {
         cell_h: f64,
         bin_data_content: &[BinDataContent],
     ) {
-        let fill_color = border_style.and_then(|bs| bs.fill_color);
-        let pattern = border_style.and_then(|bs| bs.pattern);
-        let gradient = border_style.and_then(|bs| bs.gradient.clone());
-        if fill_color.is_some() || gradient.is_some() || pattern.is_some() {
-            let rect_id = tree.next_id();
-            let rect_node = RenderNode::new(
-                rect_id,
-                RenderNodeType::Rectangle(RectangleNode::new(
-                    0.0,
-                    ShapeStyle {
-                        fill_color,
-                        pattern,
-                        stroke_color: None,
-                        stroke_width: 0.0,
-                        ..Default::default()
-                    },
-                    gradient,
-                )),
+        cell_node
+            .children
+            .extend(Self::border_fill_background_nodes(
+                tree,
+                border_style,
                 BoundingBox::new(cell_x, cell_y, cell_w, cell_h),
-            );
-            cell_node.children.push(rect_node);
-        }
-        // [Task #429] image fill 처리 — zone 처리와 동일 패턴
-        if let Some(img_fill) = border_style.and_then(|bs| bs.image_fill.as_ref()) {
-            if let Some(img_bytes) = find_bin_data_bytes(bin_data_content, img_fill.bin_data_id) {
-                let img_id = tree.next_id();
-                // [#6895] `ImageNode` 는 **화면 순서**를 담고 `ResolvedImageFill` 은 이진
-                // 순서를 담는다. 종전엔 그대로 옮겨 담아 칸 배경 그림의 밝기·명암이
-                // 반대로 그려졌다(그림 채움 `hp:pic` 축과 달리 이 축은 맞바꿈이 필요하다).
-                let (img_bright, img_contrast) = img_fill.display_brightness_contrast();
-                let img_node = RenderNode::new(
-                    img_id,
-                    RenderNodeType::Image(ImageNode {
-                        fill_mode: Some(img_fill.fill_mode),
-                        brightness: img_bright,
-                        contrast: img_contrast,
-                        effect: img_fill.effect,
-                        ..ImageNode::new(img_fill.bin_data_id, Some(img_bytes))
-                    }),
-                    BoundingBox::new(cell_x, cell_y, cell_w, cell_h),
-                );
-                cell_node.children.push(img_node);
-            }
-        }
+                bin_data_content,
+            ));
     }
 
     /// 표 수평 위치 결정.
@@ -6810,6 +6774,7 @@ impl LayoutEngine {
     ) {
         // 문단 테두리는 현재 셀 안에서만 연결한다. 중첩 셀도 별도 큐를 사용해
         // 부모 셀/본문 문단의 외곽선 병합에 섞이지 않는다.
+        let paragraph_background_index = cell_node.children.len();
         let parent_border_ranges = std::mem::take(&mut *self.para_border_ranges.borrow_mut());
         let parent_border_scope = self.collect_cell_para_borders.replace(true);
         let parent_border_override = self.border_box_override.replace(None);
@@ -9712,7 +9677,15 @@ impl LayoutEngine {
                 }
             }
         }
-        self.render_para_border_groups(tree, composed_paras, cell_node, styles, &inner_area);
+        self.render_para_border_groups(
+            tree,
+            composed_paras,
+            cell_node,
+            styles,
+            &inner_area,
+            bin_data_content,
+            paragraph_background_index,
+        );
         *self.para_border_ranges.borrow_mut() = parent_border_ranges;
         self.collect_cell_para_borders.set(parent_border_scope);
         self.border_box_override.set(parent_border_override);
