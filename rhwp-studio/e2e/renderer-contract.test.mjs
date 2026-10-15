@@ -1264,13 +1264,13 @@ function runExecutableTextSpecialReplay() {
   renderer.currentShowParagraphMarks = true;
   renderer.currentShowControlCodes = true;
   const incompleteOldHangulAlias = { typeface: { face: 'old-hangul-incomplete' }, fontManager: null };
-  renderer.bundledTypefaceAliases.set('source han serif k old hangul', [incompleteOldHangulAlias]);
+  renderer.bundledTypefaceAliases.set('rhwp old hangul', [incompleteOldHangulAlias]);
   const rejectedOldHangulAlias = renderer.findPreparedTypeface('RHWP Old Hangul');
   const oldHangulAlias = {
     typeface: { face: 'old-hangul-alias' },
     fontManager: { family: 'old-hangul-manager' },
   };
-  renderer.bundledTypefaceAliases.set('source han serif k old hangul', [oldHangulAlias]);
+  renderer.bundledTypefaceAliases.set('rhwp old hangul', [oldHangulAlias]);
   const resolvedOldHangulAlias = renderer.findPreparedTypeface('RHWP Old Hangul');
 
   renderer.renderOp(canvas, {

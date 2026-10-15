@@ -37,6 +37,11 @@
 
 ## 빌드 산출물 재사용
 
+- **대용량 PDF 보관**: **50 MB(50,000,000바이트) 이상 PDF는 로컬에만 보관하고 PR에 포함하지 않는다.**
+  로컬 파일의 정확한 경로를 `.git/info/exclude`에 등록하고, 출처·바이트 수·SHA-256·전체 쪽수·
+  생성/검증 명령과 전쪽 Native/fresh WASM TSV·대표 PNG를 기록한다. 입력 커밋 확인의
+  [대용량 PDF 로컬 보관](mydocs/manual/pr_review/intake_and_review.md#28-검증-입력-커밋-확인)
+  항목을 적용하며 검증 범위와 시각 gate는 유지한다.
 - 모든 OS에서 Cargo 빌드 잡 수는 **논리 CPU 수 − 2, 최소 1개**를 시작값으로 권장하며,
   메모리·동시 작업·실제 빌드 성능에 맞게 `CARGO_BUILD_JOBS`를 조절할 수 있다. Linux `nproc`,
   macOS `hw.logicalcpu`, Windows `ProcessorCount`의
