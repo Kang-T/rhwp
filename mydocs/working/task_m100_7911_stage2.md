@@ -584,6 +584,117 @@ root fmt check, vendor 변경 Rust 3개 파일의 원래 설정 fmt check, diff 
 이번 탐색 source의 로컬 package 소비자 재검증은 아직 하지 않았으며 3.5의 이전 package 결과를
 그대로 적용하지 않는다. 게시된 rhwp 소비자의 의존성 배포 모델도 아직 종료 조건으로 남아 있다.
 
+### 3.9 캐시 반환·이미지 원본 복사 보완 (2026-10-15)
+
+메인테이너의 “남은 작업 진행” 승인으로 자원 감사를 이어갔다. 시작 head는
+`f3bb52c0631cbce13b4a007422bef6b4c40102da`, 작업 트리는 clean이었다.
+현재 `origin/devel` 대비 ahead 14/behind 19를 확인했으며 이번 보완 중 fetch·merge·rebase는
+수행하지 않았다. 기존 계획의 고정 base와 최종 PR 시 최신 devel 기준을 구별한다.
+
+#### 원인과 보완
+
+- `extract_spans`의 cache hit와 `cached_page_chars`는 이미 실패한 요청에도 데이터를
+  반환할 수 있었다. 진입/생성 후 fatal 검사를 추가했다.
+- span cache 삽입과 반환 복사, 공개 `extract_chars`의 복사는 요청의 decoded 예산에 잡히지
+  않았다. flat struct 배열과 소유하는 text/font-name/glyph-width/origin 배열의 요청 bytes를
+  checked arithmetic으로 합산해 **복사 전에** 개별 32 MiB·누적 256 MiB 제한을 적용했다.
+  이는 요청한 payload 작업량이며 allocator overhead·live heap·RSS 측정이나 모든
+  postprocessing/문자 생성 버퍼의 선행 할당 입증은 아니다.
+- path·image-handle·기존 materialized image의 Form stream 소비는 cache 반환과 삽입 시
+  payload Vec을 복제했다. 공통 `cached_form_stream`에서 decoded Vec의 소유권을 Arc로
+  옮겨 세 소비자가 공유하도록 바꿨다. 기존 50 MiB cache 정책과 legacy 동작은 유지했다.
+  materialized **이미지 자체**의 cache clone을 감사 완료했다는 뜻은 아니다.
+- `PdfImageHandle::raw_compressed_bytes`의 inline/XObject 복사를 요청 budget에 연결했다.
+  raw 반환과 decode 진입/성공 반환에도 fatal 검사를 적용했다. 공개 함수 서명이나
+  `PdfImportLimits` 필드, 기본 feature·의존성 버전·렌더 배치는 바꾸지 않았다.
+
+#### 작은 계약과 정상 대조군
+
+`tests/cases/issue_7911_pdf_resource_limits.rs`에 6개 계약을 추가했다.
+첫 4개는 보완 전 source에서 기존 39개 PASS/신규 4개 FAIL로 결함을 재현했다
+(`logs/cache-before-contracts.log`). fatal cache 반환은 성공으로 나왔고 span/char/raw 복사의
+decoded 증가량은 모두 0이었다. 보완 후 이 4개를 포함한 43개가 통과했다
+(`cache-after-contracts.log`).
+
+추가 계약은 개별 복사의 한도 직전/동일/초과, Form payload를 여러 추출 모드에서 세 번씩
+재사용하는 대조군이다. 초기 대조군의 비공개 field 접근은 공개 getter로 정정했다.
+동일 좌표의 선을 두 번 그린 입력은 정상 dedup에 걸렸고, 2x1 이미지는 기존 materialized
+API의 8x8 미만 제외 정책에 걸렸다. 입력을 서로 떨어진 두 Form/8x8 이미지로 정정해
+legacy·limited 양쪽에서 선 2개/handle 2개/materialized image 2개와 원본 pixel payload가
+보존됨을 확인했다. 기대값이나 기존 제품 정책을 낮추어 통과시키지 않았다.
+앞 실패 로그도 `cache-final-contracts*.log`에 남겨 source 결함과 테스트 API/입력 오류를 구별한다.
+
+최종 `cache-final-workspace-resource-contracts.log`는 **45/45** PASS다.
+`cache-frontend-contracts.log`의 기존 frontend **4/4**, `cache-margin-contract.log`의
+명시적 여백 왕복 **1/1**을 합쳐 **50개 계약**이 통과했다. 새 합성 자원 계약이며
+한컴 조판 golden/시각 완료 증거가 아니다. Native probe 후 비해시 root rlib를 현재 workspace
+graph로 다시 만들도록 `src/lib.rs`의 내용 변경 없이 mtime만 갱신한 뒤 최종 검사했다.
+별도 target·cache 삭제·source/lockfile 우회는 하지 않았다.
+
+| 확인 | 결과/증적 (`output/pr-review/issue7911/` 아래) |
+| --- | --- |
+| root feature-on Native/WASM lib Clippy | `logs/cache-native-clippy.log`, `cache-wasm-clippy.log`: PASS |
+| backend no-default-features Native/WASM lib Clippy | `logs/cache-backend-native-clippy.log`, `cache-backend-wasm-clippy.log`: PASS |
+| root fmt | `logs/cache-fmt.log`: PASS |
+| integration 정책 | `logs/cache-integration-policy.log`: 1,467 sources/6,287 static attrs/48 targets PASS; 고정 base `a5e88ad6` |
+| source unit 정책 | `logs/cache-unit-policy.log`: 4,103 tests/296 modules PASS |
+| Native 실물 전체/선택 | `logs/cache-native-real.log`, `cache-real-pdf/summary.json`: 3건 모두 `ok=true` |
+| Native 보완 전후 | `cache-real-pdf/before-comparison.json`: HWPX 3건 byte-identical |
+
+실물은 기존 `pdf/issue5875/nested_table_text_caption-2020.pdf`다.
+전체 12개 section/표 13개, 선택 7·8쪽 각각 표 5개/중첩 4개를 유지했다.
+Native debug 전체 약 4.602초·선택 약 0.518/0.513초였다. 7개 쪽의 semantic 보류와
+`parser_allocation_bounds_proven=false`는 유지한다. 해시 동일은 이 표본의 저장 결과가
+유지된 증거이며 한컴 Print·확대 판독이나 모든 문서의 무회귀 증거는 아니다.
+
+fresh WASM은 `logs/cache-wasm-release.log`에서 release 빌드 약 413.3초로 완료했다.
+같은 공식 `wasm-bindgen 0.2.127`로 `cache-wasm-runtime/pkg/`의 새 web binding을 만들고
+Node에서 실제 실행했다(`cache-wasm-bindgen.log`, `cache-wasm-runtime.log`).
+이전 진단 bundle과 root `pkg/`·Studio public bundle은 덮어쓰지 않았다.
+
+- 기존 오류 5건에 비활성 JBIG2/JPX 이미지 2건을 추가했다. 전자는 기존 안정 code,
+  후자는 현재 frontend의 `PDF_PARSE_FAILED`로 거부했다. unsupported stub 경로의 실제
+  오류 반환을 확인했으며 두 codec의 pixel decode가 지원된다는 뜻은 아니다.
+- 같은 instance에서 오류 7건 뒤 정상 문서, 페이지 깊이 32/Form 깊이 16,
+  비ASCII CMap과 실물 전체/선택을 처리했다. 실물 전체 약 0.372초·선택 약 0.031/0.029초,
+  12개 section/표 13개 및 선택 쪽 각각 표 5개를 확인했다.
+- `cache-wasm-runtime/native-comparison.json`은 최신 Native와 실물 HWPX 3건의
+  byte-identical 및 raw WASM 22,685,898 bytes/후처리 20,817,886 bytes/JS 457,493 bytes의
+  SHA-256을 보존한다. 선형 메모리 관측 용량은 실물 뒤 22,347,776 bytes였다.
+- Rust 자원 계약 45개는 Native 테스트 실행이다. 위 Node 검사는 frontend의 실제 WASM
+  진단 실행이며, 45개 계약 자체의 WASM 실행·제품 공개 import API·Studio UI·browser
+  Worker 격리/취소·live heap/RSS 입증·시각 검증으로 승격하지 않는다.
+
+#### 실제 의존 graph와 남은 경로
+
+`cache-native-feature-tree.log`, `cache-wasm-feature-tree.log`의 backend features는
+양쪽 모두 빈 집합이다. 따라서 현재 graph의 JBIG2/JPEG 2000은 각각 `rendering`/
+`jpeg2000` cfg의 decoder가 아니라 명시적 unsupported stub이다. qcms/lcms2의 ICC
+engine도 비활성이다. 이 사실을 활성 codec 내부 할당 미입증과 혼동하지 않는다.
+feature를 추가하는 소비자의 조합에는 이 결론을 그대로 적용할 수 없다. ICC profile bytes,
+palette/색 변환 fallback 자체의 처리는 별도다.
+
+`decoders/bounded.rs`의 Brotli는 출력 read/append를 제한하지만 `brotli-decompressor 6.0.1`
+내부 allocator를 제한하지 않는다. 해당 version의 custom allocator API와 실패 반환 경로는
+읽었으나 안전한 교체·모든 할당 실패 처리 계약을 구현/검증하지 않았다.
+CCITT는 `to_png_bytes_with_budget`에서 legacy `to_dynamic_image`를 거쳐 in-house/fax
+decoder를 사용한다. 이미지 width/height와 별개인 `DecodeParms` Columns/Rows, recovery/
+padding·fallback 작업량까지 선행/누적 제한을 증명하지 못했다. 단순한 fallible reserve는
+요청 예산 제한과 다르다. embedded font/대체 encoding·추출 char 생성·나머지 cache와 참조
+helper, 이미지당 64 MiB/문서 128 MiB 작업 정책·Worker 격리도 종료 조건으로 남긴다.
+
+`resource-audit/cache-source-snapshot.json`에 root·내부 crate·backend source/고지·설정·
+관련 계약 1,816개 hash를 고정했다. `cache-final-source-integrity.json`에서 결과 기록용
+`RHWP_PATCHES.md` 이외 1,815개가 그대로이며 예상 밖 변경 0개임을 확인했다.
+`cache-upstream-integrity.json`은 원본 archive의 401개 파일 누락 0개와 원본 대비 변경
+23개를 구별하며 라이선스·고지 6개의 byte-identical 보존을 확인한다. 새 registry 다운로드나
+현재 source의 package 소비자 검증으로 표시하지 않는다.
+vendor 수정 Rust의 원래 설정 fmt check, diff check와 변경 문서 2개의 링크 검사가 통과했다.
+문서 검사 첫 명령의 존재하지 않는 `--files` 인자는 실제 positional 경로로 정정해 재실행했다
+(`logs/cache-doc-links-corrected.log`).
+이번 결과만으로 2단계 완료, 제품 CLI/WASM 공개 연결, 전체 lint/회귀/시각 검증,
+최신 source의 packaged consumer·외부 의존 배포 모델이나 Open PR 준비 완료를 선언하지 않는다.
+
 ## 4. 미완료와 다음 게이트
 
 - 기존 format detect/`ParsedDocument`/Core 생성 경로, CLI 명령과 WASM 공개 import API는
@@ -599,6 +710,8 @@ root fmt check, vendor 변경 Rust 3개 파일의 원래 설정 fmt check, diff 
   모든 선행/누적 할당 경로를 입증한 것은 아니며 자원 안전성 게이트는 여전히 열려 있다.
 - 3.7의 디스크 대기는 공간 확보 알림으로 해소했다. 탐색 보완의 계약·lint·Native 실물 결과는
   3.8을 따른다. 나머지 2단계 자원 게이트와 단계 승인 절차는 유지한다.
+- 후속 캐시·원본 이미지 복사 보완의 50개 계약과 codec 활성 여부 확인은 3.9를 따른다.
+  Brotli scratch/CCITT decode 및 나머지 선행 할당 감사는 계속 미완료다.
 - default/feature-on 전체 Rust lint 묶음, workspace all-targets, nextest 전체 회귀,
   제품 Studio용 공식 fresh web wrapper/Worker·제품 번들 크기·전쪽 비교는 최종 게이트에서 남아 있다.
 - 현재 기록은 2단계 중간 checkpoint다. 커밋·PR 요청과 미완료 상태의 처리 확인은 3.6에 기록했다.

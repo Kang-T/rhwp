@@ -12766,19 +12766,41 @@ impl PdfDocument {
     /// # }
     /// ```
     pub fn extract_spans(&self, page_index: usize) -> Result<Vec<crate::layout::TextSpan>> {
+        self.check_import_budget()?;
         // Serve repeat per-page extractions from cache (the converters reach
         // here twice per page; see `page_spans_cache`).
         if let Some(cached) = self.page_spans_cache.lock_or_recover().get(&page_index) {
-            return Ok((**cached).clone());
+            return self.copy_import_spans(cached);
         }
         let spans = self.extract_spans_raw(page_index)?;
         self.check_import_budget()?;
         let spans = self.postprocess_spans(page_index, spans)?;
         self.check_import_budget()?;
+        let cached = self.copy_import_spans(&spans)?;
         self.page_spans_cache
             .lock_or_recover()
-            .insert(page_index, std::sync::Arc::new(spans.clone()));
+            .insert(page_index, std::sync::Arc::new(cached));
         Ok(spans)
+    }
+
+    fn copy_import_spans(
+        &self,
+        spans: &[crate::layout::TextSpan],
+    ) -> Result<Vec<crate::layout::TextSpan>> {
+        if let Some(budget) = &self.import_budget {
+            let bytes = spans
+                .iter()
+                .try_fold(std::mem::size_of_val(spans), |bytes, span| {
+                    bytes
+                        .checked_add(span.text.len())?
+                        .checked_add(span.font_name.len())?
+                        .checked_add(std::mem::size_of_val(span.char_widths.as_slice()))?
+                        .checked_add(std::mem::size_of_val(span.char_x_offsets.as_slice()))
+                })
+                .ok_or_else(|| budget.reject("cache copy bytes"))?;
+            budget.charge_cache_copy(bytes)?;
+        }
+        Ok(spans.to_vec())
     }
 
     /// Get (building and caching if needed) the lightweight search index for
@@ -18322,7 +18344,17 @@ impl PdfDocument {
     /// Character extraction is typically 30-50% faster than span extraction
     /// because it skips the text grouping and merging logic.
     pub fn extract_chars(&self, page_index: usize) -> Result<Vec<crate::layout::TextChar>> {
-        Ok((*self.cached_page_chars(page_index)?).clone())
+        let chars = self.cached_page_chars(page_index)?;
+        if let Some(budget) = &self.import_budget {
+            let bytes = chars
+                .iter()
+                .try_fold(std::mem::size_of_val(chars.as_slice()), |bytes, character| {
+                    bytes.checked_add(character.font_name.len())
+                })
+                .ok_or_else(|| budget.reject("cache copy bytes"))?;
+            budget.charge_cache_copy(bytes)?;
+        }
+        Ok((*chars).clone())
     }
 
     /// Shared, cached character sequence for a page — identical to what
@@ -18333,6 +18365,7 @@ impl PdfDocument {
         &self,
         page_index: usize,
     ) -> Result<std::sync::Arc<Vec<crate::layout::TextChar>>> {
+        self.check_import_budget()?;
         if let Some(cached) = self.page_chars_cache.lock_or_recover().get(&page_index) {
             return Ok(std::sync::Arc::clone(cached));
         }
@@ -18341,6 +18374,7 @@ impl PdfDocument {
             HashSet::new(),
             HashSet::new(),
         )?);
+        self.check_import_budget()?;
         self.page_chars_cache
             .lock_or_recover()
             .insert(page_index, std::sync::Arc::clone(&chars));
@@ -19287,6 +19321,32 @@ impl PdfDocument {
         }
     }
 
+    /// Share decoded Form payloads; cache hits and insertion must not clone the buffer.
+    fn cached_form_stream(
+        &self,
+        xobject: &Object,
+        reference: crate::object::ObjectRef,
+    ) -> Result<std::sync::Arc<Vec<u8>>> {
+        self.check_import_budget()?;
+        if let Some(data) = self.xobject_stream_cache.lock_or_recover().get(&reference) {
+            return Ok(std::sync::Arc::clone(data));
+        }
+        let data = std::sync::Arc::new(self.decode_stream_with_encryption(xobject, reference)?);
+        self.check_import_budget()?;
+        const MAX_STREAM_CACHE_BYTES: usize = 50 * 1024 * 1024;
+        let mut cache = self.xobject_stream_cache.lock_or_recover();
+        let current = self.xobject_stream_cache_bytes.load(Ordering::Relaxed);
+        if let Some(next) = current
+            .checked_add(data.len())
+            .filter(|&n| n <= MAX_STREAM_CACHE_BYTES)
+        {
+            cache.insert(reference, std::sync::Arc::clone(&data));
+            self.xobject_stream_cache_bytes
+                .store(next, Ordering::Relaxed);
+        }
+        Ok(data)
+    }
+
     fn append_page_content(&self, combined: &mut Vec<u8>, decoded: &[u8]) -> Result<()> {
         if let Some(budget) = &self.import_budget {
             budget.append_bytes(combined, decoded)?;
@@ -20036,34 +20096,12 @@ impl PdfDocument {
             budget.form_depth(depth)?;
         }
 
-        // Decode stream — reuse document-level cache shared with text extraction.
-        let cached_stream = {
-            self.xobject_stream_cache
-                .lock_or_recover()
-                .get(&xobject_ref)
-                .cloned()
-        };
-        let stream_data = if let Some(cached) = cached_stream {
-            cached.as_ref().clone()
-        } else {
-            match self.decode_stream_with_encryption(&xobject, xobject_ref) {
-                Ok(data) => {
-                    const MAX_STREAM_CACHE_BYTES: usize = 50 * 1024 * 1024;
-                    let current = self.xobject_stream_cache_bytes.load(Ordering::Relaxed);
-                    if current + data.len() <= MAX_STREAM_CACHE_BYTES {
-                        self.xobject_stream_cache_bytes
-                            .store(current + data.len(), Ordering::Relaxed);
-                        self.xobject_stream_cache
-                            .lock_or_recover()
-                            .insert(xobject_ref, std::sync::Arc::new(data.clone()));
-                    }
-                    data
-                },
-                Err(e) => {
-                    extractor.pop_xobject_failed();
-                    return Err(e);
-                },
-            }
+        let stream_data = match self.cached_form_stream(&xobject, xobject_ref) {
+            Ok(data) => data,
+            Err(e) => {
+                extractor.pop_xobject_failed();
+                return Err(e);
+            },
         };
 
         let operators =
@@ -24193,34 +24231,14 @@ impl PdfDocument {
             crate::content::Matrix::identity()
         };
 
-        // Decode the Form stream (respecting the 50 MiB document-level cache).
-        let cached_stream = self
-            .xobject_stream_cache
-            .lock_or_recover()
-            .get(&xobject_ref)
-            .cloned();
-        let stream_data = if let Some(cached) = cached_stream {
-            cached.as_ref().clone()
-        } else {
-            match self.decode_stream_with_encryption(xobject, xobject_ref) {
-                Ok(data) => {
-                    const MAX_STREAM_CACHE_BYTES: usize = 50 * 1024 * 1024;
-                    let current_bytes = self.xobject_stream_cache_bytes.load(Ordering::Relaxed);
-                    if current_bytes + data.len() <= MAX_STREAM_CACHE_BYTES {
-                        self.xobject_stream_cache_bytes
-                            .store(current_bytes + data.len(), Ordering::Relaxed);
-                        self.xobject_stream_cache
-                            .lock_or_recover()
-                            .insert(xobject_ref, std::sync::Arc::new(data.clone()));
-                    }
-                    data
-                },
-                Err(e) => {
-                    log::warn!("Failed to decode Form XObject stream: {}, skipping", e);
-                    xobject_stack.pop();
-                    return Ok(Vec::new());
-                },
-            }
+        let stream_data = match self.cached_form_stream(xobject, xobject_ref) {
+            Ok(data) => data,
+            Err(e) => {
+                log::warn!("Failed to decode Form XObject stream: {}, skipping", e);
+                xobject_stack.pop();
+                self.check_import_budget()?;
+                return Ok(Vec::new());
+            },
         };
 
         // Parse with the fast images-only parser (same as the materialised path).
@@ -24681,34 +24699,14 @@ impl PdfDocument {
             crate::content::Matrix::identity()
         };
 
-        // Decode form stream — check cache first to avoid repeated decompression
-        let cached_stream = self
-            .xobject_stream_cache
-            .lock_or_recover()
-            .get(&xobject_ref)
-            .cloned();
-        let stream_data = if let Some(cached) = cached_stream {
-            cached.as_ref().clone()
-        } else {
-            match self.decode_stream_with_encryption(xobject, xobject_ref) {
-                Ok(data) => {
-                    const MAX_STREAM_CACHE_BYTES: usize = 50 * 1024 * 1024;
-                    let current_bytes = self.xobject_stream_cache_bytes.load(Ordering::Relaxed);
-                    if current_bytes + data.len() <= MAX_STREAM_CACHE_BYTES {
-                        self.xobject_stream_cache_bytes
-                            .store(current_bytes + data.len(), Ordering::Relaxed);
-                        self.xobject_stream_cache
-                            .lock_or_recover()
-                            .insert(xobject_ref, std::sync::Arc::new(data.clone()));
-                    }
-                    data
-                },
-                Err(e) => {
-                    log::warn!("Failed to decode Form XObject stream: {}, skipping", e);
-                    xobject_stack.pop();
-                    return Ok(Vec::new());
-                },
-            }
+        let stream_data = match self.cached_form_stream(xobject, xobject_ref) {
+            Ok(data) => data,
+            Err(e) => {
+                log::warn!("Failed to decode Form XObject stream: {}, skipping", e);
+                xobject_stack.pop();
+                self.check_import_budget()?;
+                return Ok(Vec::new());
+            },
         };
 
         // Parse operators using fast image-only path (skips text operators)

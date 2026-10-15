@@ -263,6 +263,16 @@ impl ImportBudget {
         self.charge(&self.decoded, amount, self.limits.decoded_bytes, "document decoded bytes")
     }
 
+    /// Charge the requested flat and owned payload bytes before a cache copy.
+    /// Allocator overhead and process-wide live memory are not measured here.
+    pub(crate) fn charge_cache_copy(&self, amount: usize) -> Result<()> {
+        self.check()?;
+        if amount > self.limits.stream_bytes {
+            return Err(self.reject("cache copy bytes"));
+        }
+        self.charge_decoded(amount)
+    }
+
     pub(crate) fn charge_object(&self) -> Result<()> {
         self.charge(&self.objects, 1, self.limits.objects, "parsed object count")
     }

@@ -66,6 +66,27 @@ rhwp 내부 보안 패치 dependency이며, 원 저작권·라이선스·NOTICE�
 
 ## 제한과 남은 게이트
 
+### 후속 캐시 보완
+
+- span/character cache hit의 fatal 확인, span 보관·반환과 character 반환의 소유 payload
+  복사 전 checked 크기 계상을 추가했다. 한 복사의 요청 payload 32 MiB와 문서 누적 decoded
+  256 MiB에 포함하며 allocator overhead나 전체 heap 측정값으로 표시하지 않는다.
+- Form stream은 path·image handle·legacy materialized image 소비자 간 Arc로 공유하여
+  cache hit/삽입 때 decoded Vec을 복제하지 않는다. 기존 50 MiB 보관 정책은 유지한다.
+- inline/XObject image handle의 raw compressed copy와 decode 진입/반환은 같은 요청 budget을
+  확인한다. legacy 무제한 API의 함수 서명과 기본 동작은 유지했다.
+- 수정 전 신규 4개 실패를 확인했고, 개별 복사 경계와 Form 반복 소비 대조군까지 포함한
+  자원 계약 45개 및 기존 frontend/여백 5개가 통과했다. Native 실물 HWPX 3건도 동일했다.
+  Native/WASM root·backend library Clippy가 통과했다. 전체 cache/codec/Worker 종료 증거가 아니다.
+- 현재 rhwp Native/WASM feature tree에서 이 backend의 활성 feature는 없다.
+  JBIG2/JPEG 2000은 unsupported stub이고 qcms/lcms2는 연결되지 않는다.
+  추가 feature를 켠 소비자에게 이 감사 범위를 일반화하지 않는다.
+- 최신 source의 fresh web WASM 진단 실행에서도 실물 HWPX 3건이 Native와 동일했고,
+  비활성 JBIG2/JPX 오류를 포함한 실패 뒤 정상 입력을 처리했다. 제품 공개 API·browser
+  Worker·시각 검증이나 자원 계약 45개의 WASM 실행 결과로 표시하지 않는다.
+
+### 남은 검증
+
 이 변경은 크기 최적화가 아니며 일반 PDF 쓰기/변환 기능을 삭제하지 않는다.
 decoded/copy/구조 작업 예산은 총 RSS/heap 상한이 아니다. CMap source 1 MiB,
 요청 CMap scan 작업량 64 MiB/매핑 100,000개, CID metric 확장 100,000개를 적용한다.

@@ -1047,3 +1047,275 @@ fn traversal_zero_policy_values_cannot_disable_protection() {
         ));
     }
 }
+
+fn cached_text_file() -> Vec<u8> {
+    object_file(
+        &objects(b"BT /F1 12 Tf 20 100 Td (CACHE) Tj ET", "", ""),
+        "",
+    )
+}
+
+#[test]
+fn cached_text_cannot_revive_a_failed_request() {
+    for mode in ["spans", "chars"] {
+        let doc =
+            PdfDocument::from_bytes_with_limits(cached_text_file(), PdfImportLimits::default())
+                .unwrap();
+        if mode == "spans" {
+            assert!(!doc.extract_spans(0).unwrap().is_empty());
+        } else {
+            assert!(!doc.extract_chars(0).unwrap().is_empty());
+        }
+        doc.import_budget().unwrap().reject("test cache failure");
+        let result = if mode == "spans" {
+            doc.extract_spans(0).map(|_| ())
+        } else {
+            doc.extract_chars(0).map(|_| ())
+        };
+        assert!(
+            matches!(
+                result,
+                Err(Error::ImportResourceLimit("test cache failure"))
+            ),
+            "{mode}: {result:?}"
+        );
+    }
+}
+
+#[test]
+fn cached_span_copies_charge_flat_and_owned_payload_before_return() {
+    let doc = PdfDocument::from_bytes_with_limits(cached_text_file(), PdfImportLimits::default())
+        .unwrap();
+    let spans = doc.extract_spans(0).unwrap();
+    let payload = std::mem::size_of_val(spans.as_slice())
+        + spans
+            .iter()
+            .map(|span| {
+                span.text.len()
+                    + span.font_name.len()
+                    + std::mem::size_of_val(span.char_widths.as_slice())
+                    + std::mem::size_of_val(span.char_x_offsets.as_slice())
+            })
+            .sum::<usize>();
+    let used = doc.import_budget().unwrap().decoded_bytes();
+    let copied = doc.extract_spans(0).unwrap();
+    assert_eq!(
+        copied.iter().map(|s| &s.text).collect::<Vec<_>>(),
+        spans.iter().map(|s| &s.text).collect::<Vec<_>>()
+    );
+    assert_eq!(doc.import_budget().unwrap().decoded_bytes() - used, payload);
+
+    for cap in [used + payload - 1, used + payload, used + payload + 1] {
+        let limited = PdfDocument::from_bytes_with_limits(
+            cached_text_file(),
+            PdfImportLimits {
+                decoded_bytes: cap,
+                ..PdfImportLimits::default()
+            },
+        )
+        .unwrap();
+        limited.extract_spans(0).unwrap();
+        let result = limited.extract_spans(0);
+        if cap < used + payload {
+            assert!(matches!(
+                result,
+                Err(Error::ImportResourceLimit("document decoded bytes"))
+            ));
+            assert_eq!(limited.import_budget().unwrap().decoded_bytes(), used);
+            assert!(limited.extract_spans(0).is_err());
+        } else {
+            assert_eq!(result.unwrap().len(), spans.len());
+        }
+    }
+}
+
+#[test]
+fn cached_character_copies_charge_owned_font_names_before_return() {
+    let doc = PdfDocument::from_bytes_with_limits(cached_text_file(), PdfImportLimits::default())
+        .unwrap();
+    let chars = doc.extract_chars(0).unwrap();
+    let payload = std::mem::size_of_val(chars.as_slice())
+        + chars
+            .iter()
+            .map(|character| character.font_name.len())
+            .sum::<usize>();
+    let used = doc.import_budget().unwrap().decoded_bytes();
+    assert_eq!(
+        doc.extract_chars(0)
+            .unwrap()
+            .iter()
+            .map(|c| c.char)
+            .collect::<String>(),
+        "CACHE"
+    );
+    assert_eq!(doc.import_budget().unwrap().decoded_bytes() - used, payload);
+    for cap in [used + payload - 1, used + payload, used + payload + 1] {
+        let limited = PdfDocument::from_bytes_with_limits(
+            cached_text_file(),
+            PdfImportLimits {
+                decoded_bytes: cap,
+                ..PdfImportLimits::default()
+            },
+        )
+        .unwrap();
+        limited.extract_chars(0).unwrap();
+        let result = limited.extract_chars(0);
+        if cap < used + payload {
+            assert!(matches!(
+                result,
+                Err(Error::ImportResourceLimit("document decoded bytes"))
+            ));
+            assert_eq!(limited.import_budget().unwrap().decoded_bytes(), used);
+        } else {
+            assert_eq!(result.unwrap().len(), chars.len());
+        }
+    }
+}
+
+fn raw_image_file(inline: bool) -> Vec<u8> {
+    let mut parts = if inline {
+        objects(b"BI /W 2 /H 1 /BPC 8 /CS /RGB ID ABCDEF EI", "", "")
+    } else {
+        objects(b"/Im Do", "", "")
+    };
+    if !inline {
+        parts[2] = b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Im 6 0 R >> >> /Contents 4 0 R >>".to_vec();
+        parts.push(b"<< /Type /XObject /Subtype /Image /Width 2 /Height 1 /BitsPerComponent 8 /ColorSpace /DeviceRGB /Length 6 >>\nstream\nABCDEF\nendstream".to_vec());
+    }
+    object_file(&parts, "")
+}
+
+#[test]
+fn image_raw_copy_is_bounded_and_sticky_for_inline_and_xobjects() {
+    for inline in [false, true] {
+        let doc =
+            PdfDocument::from_bytes_with_limits(raw_image_file(inline), PdfImportLimits::default())
+                .unwrap();
+        let handles = doc.page_image_handles(0).unwrap();
+        assert_eq!(handles.len(), 1);
+        let used = doc.import_budget().unwrap().decoded_bytes();
+        assert_eq!(handles[0].raw_compressed_bytes().unwrap(), b"ABCDEF");
+        assert_eq!(doc.import_budget().unwrap().decoded_bytes() - used, 6);
+        doc.import_budget()
+            .unwrap()
+            .reject("test raw image failure");
+        assert!(matches!(
+            handles[0].raw_compressed_bytes(),
+            Err(Error::ImportResourceLimit("test raw image failure"))
+        ));
+        assert!(matches!(
+            handles[0].decode(),
+            Err(Error::ImportResourceLimit("test raw image failure"))
+        ));
+        for cap in [used + 5, used + 6, used + 7] {
+            let limited = PdfDocument::from_bytes_with_limits(
+                raw_image_file(inline),
+                PdfImportLimits {
+                    decoded_bytes: cap,
+                    ..PdfImportLimits::default()
+                },
+            )
+            .unwrap();
+            let handles = limited.page_image_handles(0).unwrap();
+            let result = handles[0].raw_compressed_bytes();
+            if cap < used + 6 {
+                assert!(matches!(
+                    result,
+                    Err(Error::ImportResourceLimit("document decoded bytes"))
+                ));
+                assert!(handles[0].raw_compressed_bytes().is_err());
+            } else {
+                assert_eq!(result.unwrap(), b"ABCDEF");
+            }
+        }
+    }
+}
+
+#[test]
+fn text_copy_buffer_limit_applies_before_cache_insertion_or_return() {
+    let doc = PdfDocument::from_bytes_with_limits(cached_text_file(), PdfImportLimits::default())
+        .unwrap();
+    let spans = doc.extract_spans(0).unwrap();
+    let chars = doc.extract_chars(0).unwrap();
+    let span_bytes = std::mem::size_of_val(spans.as_slice())
+        + spans
+            .iter()
+            .map(|span| {
+                span.text.len()
+                    + span.font_name.len()
+                    + std::mem::size_of_val(span.char_widths.as_slice())
+                    + std::mem::size_of_val(span.char_x_offsets.as_slice())
+            })
+            .sum::<usize>();
+    let char_bytes = std::mem::size_of_val(chars.as_slice())
+        + chars
+            .iter()
+            .map(|character| character.font_name.len())
+            .sum::<usize>();
+    for (mode, bytes) in [("spans", span_bytes), ("chars", char_bytes)] {
+        for cap in [bytes - 1, bytes, bytes + 1] {
+            let limited = PdfDocument::from_bytes_with_limits(
+                cached_text_file(),
+                PdfImportLimits {
+                    stream_bytes: cap,
+                    ..PdfImportLimits::default()
+                },
+            )
+            .unwrap();
+            let result = if mode == "spans" {
+                limited.extract_spans(0).map(|_| ())
+            } else {
+                limited.extract_chars(0).map(|_| ())
+            };
+            if cap < bytes {
+                assert!(
+                    matches!(result, Err(Error::ImportResourceLimit("cache copy bytes"))),
+                    "{mode}: {result:?}"
+                );
+                assert!(limited.extract_spans(0).is_err());
+                assert!(limited.extract_chars(0).is_err());
+            } else {
+                result.unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn shared_form_stream_preserves_paths_and_image_handles_across_modes() {
+    let mut parts = objects(b"/Fm Do q 1 0 0 1 20 0 cm /Fm Do Q", "", "");
+    parts[2] = b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /XObject << /Fm 6 0 R >> >> /Contents 4 0 R >>".to_vec();
+    let content = b"0 0 m 10 10 l S q 2 0 0 1 0 0 cm /Im Do Q";
+    let mut form = format!("<< /Type /XObject /Subtype /Form /BBox [0 0 200 200] /Resources << /XObject << /Im 7 0 R >> >> /Length {} >>\nstream\n", content.len()).into_bytes();
+    form.extend(content);
+    form.extend(b"\nendstream");
+    parts.push(form);
+    // The legacy materialized API deliberately filters images smaller than 8x8.
+    let pixels = vec![65; 8 * 8 * 3];
+    let mut image = format!("<< /Type /XObject /Subtype /Image /Width 8 /Height 8 /BitsPerComponent 8 /ColorSpace /DeviceRGB /Length {} >>\nstream\n", pixels.len()).into_bytes();
+    image.extend(&pixels);
+    image.extend(b"\nendstream");
+    parts.push(image);
+    let bytes = object_file(&parts, "");
+    for limited in [false, true] {
+        let doc = if limited {
+            PdfDocument::from_bytes_with_limits(bytes.clone(), PdfImportLimits::default()).unwrap()
+        } else {
+            PdfDocument::from_bytes(bytes.clone()).unwrap()
+        };
+        for _ in 0..3 {
+            assert_eq!(doc.extract_paths(0).unwrap().len(), 2);
+            let handles = doc.page_image_handles(0).unwrap();
+            assert_eq!(handles.len(), 2);
+            for handle in handles {
+                assert_eq!(handle.raw_compressed_bytes().unwrap(), pixels);
+                let decoded = handle.decode().unwrap();
+                assert_eq!(decoded.width(), 8);
+                assert_eq!(decoded.height(), 8);
+            }
+            assert_eq!(doc.extract_images(0).unwrap().len(), 2);
+            assert!(doc.extract_spans(0).unwrap().is_empty());
+        }
+        doc.check_import_budget().unwrap();
+    }
+}

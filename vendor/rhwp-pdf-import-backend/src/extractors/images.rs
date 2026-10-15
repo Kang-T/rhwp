@@ -3563,6 +3563,8 @@ impl<'doc> PdfImageHandle<'doc> {
     pub fn decode(&self) -> Result<PdfImage> {
         use crate::extractors::extract_image_from_xobject;
 
+        self.doc.check_import_budget()?;
+
         let xobject_for_extract;
         let (obj, obj_ref) = match &self.source {
             PdfImageSource::XObject(obj_ref) => {
@@ -3582,6 +3584,7 @@ impl<'doc> PdfImageHandle<'doc> {
             Some(&self.color_space_resources)
         };
         let mut image = extract_image_from_xobject(Some(self.doc), obj, obj_ref, cs_map)?;
+        self.doc.check_import_budget()?;
 
         // Use pre-computed bbox and rotation from Phase 1 — no need to call
         // back into document.rs helpers here.
@@ -3604,17 +3607,22 @@ impl<'doc> PdfImageHandle<'doc> {
     /// Takes `&self` so it can be combined with [`decode`](Self::decode) on the
     /// same handle (inspect → raw → decode) without re-enumerating the page.
     pub fn raw_compressed_bytes(&self) -> Result<Vec<u8>> {
+        self.doc.check_import_budget()?;
+        let copy = |bytes: &[u8]| match self.doc.import_budget() {
+            Some(budget) => budget.copy_bytes(bytes),
+            None => Ok(bytes.to_vec()),
+        };
         match &self.source {
             PdfImageSource::XObject(obj_ref) => {
                 let obj = self.doc.load_object(*obj_ref)?;
                 match obj {
-                    crate::object::Object::Stream { data, .. } => Ok(data.to_vec()),
+                    crate::object::Object::Stream { data, .. } => copy(&data),
                     _ => Err(crate::error::Error::Image("XObject is not a stream".to_string())),
                 }
             },
             PdfImageSource::Inline {
                 compressed_bytes, ..
-            } => Ok(compressed_bytes.to_vec()),
+            } => copy(compressed_bytes),
         }
     }
 
