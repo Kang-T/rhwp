@@ -10,6 +10,7 @@ use std::io::{Cursor, Read, Write};
 use rhwp::document_core::DocumentCore;
 use rhwp::model::control::Control;
 use rhwp::model::paragraph::Paragraph;
+use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
 
 /// 본문 자동 번호 컨트롤. 문단 글에는 자리표 공백 한 글자로 들어간다.
 const AUTO_NUMBER: &str = concat!(
@@ -35,6 +36,17 @@ fn content(p: &Paragraph) -> Content {
             })
         });
     (p.text.clone(), controls.collect())
+}
+
+fn page_field_owners(node: &RenderNode, para: usize, owners: &mut Vec<Option<usize>>) {
+    if let RenderNodeType::TextRun(run) = &node.node_type {
+        if run.para_index == Some(para) && run.display_text.as_deref() == Some("1") {
+            owners.push(run.char_start);
+        }
+    }
+    for child in &node.children {
+        page_field_owners(child, para, owners);
+    }
 }
 
 /// HWPX 로 저장한 본문 XML 을 고쳐 다시 연다.
@@ -65,12 +77,54 @@ fn rewrite_section(core: &DocumentCore, edit: impl Fn(&str) -> String) -> Docume
 
 /// 본문 문단 `para` 가 `want` 인지 편집 중 문서와, HWP·HWPX 로 저장했다 다시 연 문서에서 본다.
 fn check(broken: &mut Vec<String>, label: &str, core: &DocumentCore, para: usize, want: &Content) {
-    let hwp = DocumentCore::from_bytes(&core.export_hwp_native().unwrap()).unwrap();
+    // HWPX 출처는 Studio의 exportHwp와 같은 어댑터 스냅숏 경로로 저장한다.
+    // 내부 직렬화 직접 호출은 HWPX→HWP 포맷 정규화를 수행하지 않는다.
+    let hwp = DocumentCore::from_bytes(&core.export_hwp_with_adapter_snapshot().unwrap()).unwrap();
     let hwpx = DocumentCore::from_bytes(&core.export_hwpx_native().unwrap()).unwrap();
     for (state, doc) in [("편집 중", core), ("HWP 저장", &hwp), ("HWPX 저장", &hwpx)] {
         let got = content(&doc.document().sections[0].paragraphs[para]);
         if &got != want {
             broken.push(format!("{label} → {state}: {got:?}"));
+        }
+        // 모델 컨트롤 보존만으로 최종 paint의 번호 표시를 보장할 수 없다.
+        // 독립 한컴 Print는 앞[참조번호][자동번호]뒤 / 1첫 문단을 표시한다.
+        let svg = doc
+            .render_page_svg_native(0)
+            .unwrap_or_else(|error| panic!("{label} → {state}: {error}"));
+        let mut rest = svg.as_str();
+        let mut visible = String::new();
+        while let Some(start) = rest.find("<text ") {
+            rest = &rest[start..];
+            let end = rest.find('>').unwrap();
+            let close = rest.find("</text>").unwrap();
+            visible.extend(
+                rest[end + 1..close]
+                    .chars()
+                    .filter(|ch| !ch.is_whitespace()),
+            );
+            rest = &rest[close + 7..];
+        }
+        let expected = match label {
+            "각주" | "미주" => "앞1)1뒤",
+            "그림" => "앞1뒤",
+            _ => "1첫문단",
+        };
+        if !visible.contains(expected) {
+            broken.push(format!(
+                "{label} → {state}: 실제 paint {visible:?}에 {expected:?} 없음"
+            ));
+        }
+        let mut owners = Vec::new();
+        page_field_owners(
+            &doc.build_page_render_tree(0).unwrap().root,
+            para,
+            &mut owners,
+        );
+        let expected_owner = want.1.iter().find(|(kind, _)| *kind == "번호").unwrap().1;
+        if owners != [Some(expected_owner)] {
+            broken.push(format!(
+                "{label} → {state}: 표시 필드의 모델 소속 {owners:?}, 원본 자리표 {expected_owner}"
+            ));
         }
     }
 }

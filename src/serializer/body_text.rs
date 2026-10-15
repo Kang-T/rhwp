@@ -390,7 +390,7 @@ fn serialize_paragraph_with_msb(
     //
     // 범위 판정도 축을 올린 값으로 한다 — `actual_char_count` 는 이 파일에 실제로 실린
     // 글자 수라 언제나 HWP5 축이다.
-    let line_segs_in_range = if para.stored_text_partition_is_dirty() {
+    let line_segs_in_range = if !super::line_cache::can_serialize_line_partition(para) {
         // Text/style mutation retained the old rows only as an edit-reflow
         // template. They are not a serializable partition of the new text.
         &source_line_segs[..0]

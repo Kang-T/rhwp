@@ -259,13 +259,18 @@ impl TypesetEngine {
             // [Task #702] 쪽나누기 + 새 ColumnDef = 새 페이지에서 col 정의 적용.
             // 단 수·종류가 같아도 단 너비·방향·구분선이 바뀐 정의는 새 쪽부터 그 배치를 쓴다.
             let new_page_columns = new_col_def_opt.as_ref().and_then(|cd| {
-                let layout = PageLayoutInfo::from_page_def(page_def, cd, self.dpi);
+                let layout = PageLayoutInfo::from_page_def_for_page(
+                    page_def,
+                    cd,
+                    self.dpi,
+                    st.pages.len() as u32,
+                );
                 (has_diff_col_def || !same_zone_columns(&layout, &st.layout))
                     .then_some((cd, layout))
             });
             if let Some((cd, new_layout)) = new_page_columns {
                 st.enter_column_definition(cd.column_count.max(1));
-                st.install_zone_layout(new_layout, cd.column_type);
+                st.install_page_start_layout(new_layout, cd.column_type);
                 // [Task #853] 새 페이지 첫 zone: 디자인 spacing /2 (위쪽 절반)만 추가.
                 // (이전 zone 은 이전 페이지에 있었으므로 아래쪽 절반은 더하지 않음.)
                 let new_ds = column_def_design_spacing_px(cd, self.dpi);

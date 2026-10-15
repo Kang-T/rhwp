@@ -105,6 +105,33 @@ fn right_to_left_columns_start_on_the_right_of_the_new_page() {
         first > second,
         "오른쪽부터 채우는 단이면 둘째 쪽의 첫 단({first}px)이 둘째 단({second}px)보다 오른쪽이다"
     );
+    for (page, right_to_left) in [(0, false), (1, true)] {
+        let info: serde_json::Value =
+            serde_json::from_str(&doc.get_page_info_native(page).unwrap()).unwrap();
+        let columns = info["columns"].as_array().unwrap();
+        assert_eq!(columns.len(), 2);
+        let first_x = columns[0]["x"].as_f64().unwrap();
+        let second_x = columns[1]["x"].as_f64().unwrap();
+        assert_eq!(
+            first_x > second_x,
+            right_to_left,
+            "{page}쪽 편집용 단 순서가 원본 방향과 달라짐: {columns:?}"
+        );
+    }
+}
+
+#[test]
+fn mirror_columns_use_the_new_page_parity() {
+    let doc = reopen_with_new_page_columns(
+        r#"<hp:colPr id="" type="NEWSPAPER" layout="MIRROR" colCount="2" sameSz="1" sameGap="1134"/>"#,
+    );
+    assert!(
+        text_x(&doc, 1, 1) > text_x(&doc, 1, 2),
+        "맞쪽 방향의 둘째 물리 쪽은 오른쪽 단부터 채워야 한다"
+    );
+    let info: serde_json::Value =
+        serde_json::from_str(&doc.get_page_info_native(1).unwrap()).unwrap();
+    assert!(info["columns"][0]["x"].as_f64().unwrap() > info["columns"][1]["x"].as_f64().unwrap());
 }
 
 #[test]
@@ -133,7 +160,49 @@ fn column_widths_change_on_the_new_page() {
     assert_eq!(widths.len(), 2, "둘째 쪽의 두 단: {widths:?}");
     let ratio = widths[0] / widths[1];
     assert!(
-        (ratio - 8000.0 / 24000.0).abs() < 0.01,
-        "둘째 쪽의 단 너비 비가 새 단 정의(8000:24000)와 같아야 한다: {widths:?}"
+        (ratio - 1.0 / 3.0).abs() < 0.01,
+        "둘째 쪽의 단 너비 비가 새 단 정의(1:3)와 같아야 한다: {widths:?}"
     );
+
+    // 눈금자·편집기는 render tree 대신 getPageInfo의 단 정보를 소비한다.
+    // 새 쪽의 첫 영역에서는 두 소비자 모두 같은 새 단 정의를 읽어야 한다.
+    for (page, expected_ratio) in [(0, 1.0), (1, 1.0 / 3.0)] {
+        let info: serde_json::Value =
+            serde_json::from_str(&doc.get_page_info_native(page).unwrap()).unwrap();
+        let columns = info["columns"].as_array().unwrap();
+        assert_eq!(columns.len(), 2, "{page}쪽의 편집용 단 정보");
+        let ratio = columns[0]["width"].as_f64().unwrap() / columns[1]["width"].as_f64().unwrap();
+        assert!(
+            (ratio - expected_ratio).abs() < 0.01,
+            "{page}쪽 getPageInfo 단 너비 비가 원본 정의와 달라짐: {columns:?}"
+        );
+    }
+}
+
+#[test]
+fn hancom_saved_unequal_columns_fill_the_body_in_both_formats() {
+    for format in ["hwp", "hwpx"] {
+        let path = format!(
+            "{}/tests/fixtures/semanticist21_20261015/pr7673-width-hancom.{format}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let doc = HwpDocument::from_bytes(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(doc.page_count(), 2, "한컴 재저장본의 쪽수");
+        let mut columns = pick(&doc, 1, |node| match node.node_type {
+            RenderNodeType::Column(index) => Some((index, node.bbox)),
+            _ => None,
+        });
+        columns.sort_by_key(|(index, _)| *index);
+        assert_eq!(columns.len(), 2);
+        let info: serde_json::Value =
+            serde_json::from_str(&doc.get_page_info_native(1).unwrap()).unwrap();
+        let body_right = info["bodyRight"].as_f64().unwrap();
+        let right = columns[1].1.x + columns[1].1.width;
+        // 한컴이 저장한 width 8000, gap 768, width 24000은 합계 32768인 비례값이다.
+        // 두 단과 간격은 본문 폭을 채운다. 0.1은 JSON API의 소수 첫째 자리 반올림 오차다.
+        assert!(
+            (right - body_right).abs() < 0.1,
+            "{format} 단 영역이 본문 가로 범위를 채우지 못함: 끝={right}, 본문 끝={body_right}"
+        );
+    }
 }

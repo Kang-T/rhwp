@@ -116,3 +116,32 @@ fn cell_tab_keeps_width_after_reopen() {
         .expect("셀 입력");
     assert_runs_survive_reopen("표 셀", &doc);
 }
+
+#[test]
+fn unresolved_tab_does_not_publish_a_stored_line_cache() {
+    let mut doc = blank();
+    doc.insert_text_native(0, 0, 0, "\tA").unwrap();
+    doc.apply_para_format_native(
+        0,
+        0,
+        r#"{"tabStops":[{"position":30000,"type":0,"fill":0}]}"#,
+    )
+    .unwrap();
+
+    // 독립 한컴 Print에서 저장 줄과 미계산 탭 폭 0을 함께 실으면 A가 본문 왼쪽에
+    // 남았다. 줄 캐시만 생략한 HWP/HWPX 대조군은 지정한 150pt 탭을 재계산했다.
+    // 메모리의 줄 구성은 유지하되, 소비자가 재계산해야 하는 상태를 파일에 전달한다.
+    let mut stale = Vec::new();
+    for (format, bytes) in [
+        (Format::Hwp, doc.export_hwp().unwrap()),
+        (Format::Hwpx, doc.export_hwpx().unwrap()),
+    ] {
+        let saved = rhwp::parser::parse_document(&bytes).unwrap();
+        let para = &saved.sections[0].paragraphs[0];
+        assert_eq!(para.text, "\tA", "{format:?} 탭과 뒤 글자 보존");
+        if !para.line_segs.is_empty() {
+            stale.push(format);
+        }
+    }
+    assert!(stale.is_empty(), "미계산 탭의 줄 캐시가 저장됨: {stale:?}");
+}
