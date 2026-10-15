@@ -229,7 +229,25 @@ test('ClipboardEvent 잘라내기는 이번 복사가 성공한 뒤에만 문서
       assert.equal(f.state.document, '삭제한 문서');
       assert.equal(f.state.selected, false);
       assert.deepEqual(f.calls.slice(f.calls.indexOf('write:text/html') + 1),
-        ['exit-object', 'clear-object', 'selection-event', 'history', 'delete-object']);
+        ['exit-object', 'clear-object', 'history', 'delete-object', 'selection-event']);
+    });
+
+    await t.test('개체: 선택 해제 알림으로 문서가 교체되기 전에 원래 대상의 snapshot 삭제를 마친다', () => {
+      const f = fixture(keyboard, copy, 'object');
+      const deletedIn: string[] = [];
+      const remove = f.handler.wasm.deleteShapeControl;
+      f.handler.wasm.deleteShapeControl = (...args: unknown[]) => {
+        deletedIn.push(f.state.document);
+        return remove(...args);
+      };
+      const emit = f.handler.eventBus.emit;
+      f.handler.eventBus.emit = (...args: unknown[]) => {
+        emit(...args);
+        f.state.document = '교체된 문서';
+      };
+      f.cut();
+      assert.deepEqual(deletedIn, ['원래 문서'], '삭제 snapshot은 복사한 원래 문서를 대상으로 실행한다');
+      assert.equal(f.state.document, '교체된 문서', '선택 해제 observer가 연 새 문서를 삭제하지 않는다');
     });
 
     for (const failure of ['ok-false', 'throw', 'null-clipboard', 'plain-write', 'html-write'] as const) {

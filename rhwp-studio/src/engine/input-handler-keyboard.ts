@@ -1946,11 +1946,12 @@ export function onCut(this: any, e: ClipboardEvent): void {
       if (!this.onCopy(e)) return;
       this.cursor.moveOutOfSelectedPicture();
       this.pictureObjectRenderer?.clear();
-      this.eventBus.emit('picture-object-selection-changed', false);
       this.executeOperation({ kind: 'snapshot', operationType: 'cutObject', operation: (wasm: WasmBridge) => {
         deleteSelectedObject(wasm, ref);
         return this.cursor.getPosition();
       }});
+      // 알림 수신자가 문서를 교체할 수 있으므로 복사한 문서의 삭제를 먼저 끝낸다.
+      this.eventBus.emit('picture-object-selection-changed', false);
     }
     return;
   }
