@@ -120,9 +120,15 @@ fn inline_plan_keeps_one_background_per_owned_line_including_blank_line() {
         contains(fill, line);
     }
     assert!(
-        text(lines[4]).chars().all(char::is_whitespace),
+        !text(lines[4]).is_empty() && text(lines[4]).chars().all(char::is_whitespace),
         "middle line owns real spaces"
     );
+    assert!(
+        rect(lines[4]).3 > rect(lines[4]).1,
+        "blank line occupies height"
+    );
+    assert!(rect(lines[3]).3 <= rect(lines[4]).1 + 0.2);
+    assert!(rect(lines[4]).3 <= rect(lines[5]).1 + 0.2);
     for pi in [1, 2] {
         let tables: Vec<_> = children(col)
             .iter()
@@ -160,12 +166,20 @@ fn connected_borders_do_not_merge_fill_ownership_or_copy_fill_to_none() {
 fn continuation_preserves_all_lines_and_restarts_background_each_line() {
     let mut contents = Vec::new();
     let mut count = 0;
+    let mut tail_pages = Vec::new();
     for page in 0..3 {
         let root = tree("continued-paragraph", page);
         let col = column(&root);
         let fills = bands(col);
         let lines = source_lines(col, 1);
         assert_eq!(fills.len(), lines.len());
+        let tail = source_lines(col, 2);
+        if let Some(next) = tail.first() {
+            assert_eq!(tail.len(), 1);
+            assert_eq!(text(next).trim(), "After the continued paragraph.");
+            assert!(rect(lines.last().expect("continued lines")).3 <= rect(next).1 + 0.2);
+            tail_pages.push(page);
+        }
         for (fill, line) in fills.iter().zip(lines) {
             contains(fill, line);
             contents.push(text(line));
@@ -175,6 +189,11 @@ fn continuation_preserves_all_lines_and_restarts_background_each_line() {
     assert_eq!(
         count, 85,
         "independent Print contains all 85 input lines across three pages"
+    );
+    assert_eq!(
+        tail_pages,
+        [2],
+        "following paragraph survives once after the last line"
     );
     for (i, line) in contents.iter().enumerate() {
         assert_eq!(line.trim(), format!("Continuation line {:03}.", i + 1));
