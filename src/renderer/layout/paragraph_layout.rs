@@ -3125,7 +3125,7 @@ impl LayoutEngine {
             if let (Some(first), Some(last)) =
                 (paragraph_fill_bands.first(), paragraph_fill_bands.last())
             {
-                let (left, width) = self.border_box_override.get().unwrap_or_else(|| {
+                let (left, width) = self.border_box_override.get().unwrap_or({
                     if style.border_ignore_margin {
                         (
                             col_area.x + style.margin_left,
