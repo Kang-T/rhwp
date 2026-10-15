@@ -79,6 +79,8 @@ pub struct PdfImportLimits {
     pub input_bytes: usize,
     /// Maximum size of any individual decoded output buffer.
     pub stream_bytes: usize,
+    /// Maximum requested bytes in one private codec scratch allocation.
+    pub codec_allocation_bytes: usize,
     /// Cumulative decoded/copy/predictor bytes, including failed attempts.
     pub decoded_bytes: usize,
     /// Maximum number of filters in one pipeline.
@@ -122,6 +124,7 @@ impl Default for PdfImportLimits {
         Self {
             input_bytes: 16 * 1024 * 1024,
             stream_bytes: 32 * 1024 * 1024,
+            codec_allocation_bytes: 32 * 1024 * 1024,
             decoded_bytes: 256 * 1024 * 1024,
             filters: 8,
             nesting: 16,
@@ -150,6 +153,7 @@ pub struct ImportBudget {
     /// Immutable request policy.
     pub limits: PdfImportLimits,
     decoded: AtomicUsize,
+    codec_allocated: AtomicUsize,
     objects: AtomicUsize,
     entries: AtomicUsize,
     operators: AtomicUsize,
@@ -171,6 +175,7 @@ impl ImportBudget {
         if [
             limits.input_bytes,
             limits.stream_bytes,
+            limits.codec_allocation_bytes,
             limits.decoded_bytes,
             limits.filters,
             limits.nesting,
@@ -197,6 +202,7 @@ impl ImportBudget {
         Ok(Self {
             limits,
             decoded: AtomicUsize::new(0),
+            codec_allocated: AtomicUsize::new(0),
             objects: AtomicUsize::new(0),
             entries: AtomicUsize::new(0),
             operators: AtomicUsize::new(0),
@@ -256,6 +262,21 @@ impl ImportBudget {
     /// Successfully charged decoded/copy bytes so far, including failed attempts.
     pub fn decoded_bytes(&self) -> usize {
         self.decoded.load(Ordering::Relaxed)
+    }
+
+    /// Requested private codec bytes charged before allocation, including freed buffers.
+    pub fn codec_allocated_bytes(&self) -> usize {
+        self.codec_allocated.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn charge_codec_allocation(&self, amount: usize) -> Result<()> {
+        self.check()?;
+        if amount > self.limits.codec_allocation_bytes {
+            return Err(self.reject("codec allocation bytes"));
+        }
+        self.charge_decoded(amount)?;
+        self.codec_allocated.fetch_add(amount, Ordering::Relaxed);
+        Ok(())
     }
 
     /// Charge before allocating or extending an output buffer.

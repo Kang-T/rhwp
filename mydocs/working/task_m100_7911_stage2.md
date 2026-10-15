@@ -695,6 +695,130 @@ vendor 수정 Rust의 원래 설정 fmt check, diff check와 변경 문서 2개�
 이번 결과만으로 2단계 완료, 제품 CLI/WASM 공개 연결, 전체 lint/회귀/시각 검증,
 최신 source의 packaged consumer·외부 의존 배포 모델이나 Open PR 준비 완료를 선언하지 않는다.
 
+### 3.10 Brotli private scratch 보완과 디스크 중단 이력 (2026-10-15)
+
+메인테이너가 PR Open까지 후속 진행을 지시했고, 별도 확인에
+**별도 crate 배포 준비 포함**을 승인했다. 실제 `cargo publish`/외부 게시 승인은 아니며
+backend `publish=false`와 안전성/시각/단계 승인 게이트를 유지한다.
+
+시작 head는 `36dbafc0b78b07e444c8a1e71514bcb7ce5ad730`이며 시작 worktree는 clean이었다.
+기존 자원 계약 45개에 작은 Brotli 반례 2개를 추가해 보완 전 **45 PASS/2 FAIL**을 확인했다
+(`output/pr-review/issue7911/logs/brotli-before-contracts.log`).
+Node `zlib.brotliCompressSync`로 확인한 `[59]`는 decoded 출력이 비어 있는데도 내부 Huffman
+할당이 필요하다. 128-byte 출력의 동일 Brotli fixture도 출력 예산만으로 성공했다.
+이전 카운터가 private decoder 할당을 계상하지 않는 반례이며 큰 입력/OOM 시험은 아니다.
+
+첫 보완 시점의 미커밋 변경은 다음과 같다. 후속 재실행은 3.11에 구분한다.
+
+- 직접 `brotli-decompressor =6.0.1` 제약을 추가하고 감사한 allocator API를 사용한다.
+  기존 Brotli 9 legacy decoder는 보존한다. 별도 package 소비자가 다른 decoder version을
+  선택할 수 있었던 문제를 구별하고 root/standalone lock에 같은 제약을 반영했다.
+- private 할당은 요소 수×크기를 checked 계산해 `codec_allocation_bytes`(기본 32 MiB)와
+  기존 누적 decoded 작업 예산을 **할당 전에** 소비한다. 메모리를 해제해도 작업량은 반환하지 않는다.
+  fallible reserve 실패는 요청 fatal로 기록한다. 초기 Huffman table 실패도 decoder 실행 전에 확인한다.
+- 고정 4 KiB 출력 chunk와 기존 bounded writer를 사용하고, 표준 window의 strict 상태로
+  시작한다. decoder 내부 실패 뒤 부분 출력 성공을 반환하지 않는다.
+- 기존 출력 한도 127/128/129 계약은 유지하면서 새로 계상하는 private scratch를 누적량에
+  포함하도록 검사했다. scratch 개별/누적 한도 경계와 부분 할당 실패 반복 계약 2개도 추가했다.
+  자원 계약은 현재 49개이나 **보완 후 실제 PASS를 확인한 상태가 아니다**.
+
+`brotli-after-contracts.log`에서 새 backend 컴파일 이후 root library metadata 기록 중
+`No space left on device (os error 28)`로 중단됐다. 종료 코드 101은 컴파일 산출물 기록 실패이며
+새 계약 실행 실패/성공으로 해석하지 않는다. 확인한 여유는 약 **125 MiB**였다.
+작업 소유 Cargo/rustc 프로세스가 남지 않았음을 확인했고, 캐시/기존 산출물을 삭제하지 않았다.
+추가 공간 확보 또는 이번 작업의 캐시 식별·정리안 확인을 메인테이너에게 요청했다.
+
+root update가 함께 변경한 tempfile/getrandom 항목과 standalone update의 무관한 optional
+dependency churn은 이 batch에서 제거했다. 남긴 것은 직접 decoder 의존 추가와 standalone
+6.0.0→6.0.1/checksum 변경이다. 이 좁힌 lockfile의 `--locked` 재검증도 공간 확보 뒤 수행한다.
+직전 3.9의 50개 계약/fresh WASM 결과는 `36dbafc0b` source의 증거이며 새 Brotli 변경의
+통과 증거로 재사용하지 않는다.
+
+공간 확보 후 순서는 새 allocator 계약/정상 Brotli 대조군 → CCITT/이미지/폰트·참조 잔여 감사 →
+동일 source Native/WASM 재검증·package 소비자 준비다. 이후 2단계 승인, 제품 CLI/WASM 직접
+연결, 전쪽 시각·기존 형식 비교와 승인된 전체 검증을 마쳐야 Open PR을 만든다.
+필수 게이트를 생략하거나 미완료 상태를 Draft로 바꾸어 우회하지 않는다.
+
+### 3.11 디스크 재개와 Brotli 계약 재검증 (2026-10-15)
+
+첫 공간 확보 후 약 1.9 GiB로 재시도했으나 `brotli-resume-contracts.log`의
+`rhwp-agent`/CLI 링크와 suite query cache 기록에서 다시 ENOSPC가 발생했다.
+이는 테스트 실행 결과가 아니다. 두 번째 공간 확보 알림 직후 여유는 약 2.6 GiB였다.
+메인테이너가 이어서 **정리안의 증분 캐시 9개 삭제**를 명시 승인했다.
+
+`resource-audit/cache-cleanup-proposal.json`의 정확한 9개 경로에 대해
+실행 중 Cargo/rustc 부재, incremental 직계 하위 realpath, 컴파일 metadata의 #7911
+전용 소스 경로를 다시 확인했다. 승인된 오래된 증분 캐시만 삭제했고 source·실행파일·
+WASM·검증 증적·최신 캐시·공유 target 자체는 보존했다. 삭제 전 allocated 합계는
+10.1318 GiB이며 직후 가용 공간은 약 9.8 GiB였다. APFS의 실제 가용 공간과 `du`
+합계를 동일시하지 않는다. 경로별 재확인/실행 내역은
+`resource-audit/cache-cleanup-execution.json`에 보존했다.
+
+재개 후 Cargo는 공용 target에서 `-j 1`, `--locked --offline`로 순차 실행했고
+디스크 512 MiB 미만이면 자신의 Cargo에 SIGINT를 보내는 감시를 적용했다.
+첫 실행은 **48 PASS/1 FAIL**이었다 (`brotli-resume2-contracts.log`).
+실패는 빈 `[59]`의 scratch가 초기 Huffman table 하나뿐이라는 테스트 가정 오류였다.
+감사한 6.0.1의 `state.rs:530`은 1080개, `decode.rs:3312/3318`은 각각 그 세 배의
+Huffman entry를 할당한다. repr(C) entry는 4 bytes라 최대 개별 요청은 12,960 B,
+누적은 30,240 B다. 구현 결과에서 기대값을 역산하지 않고 이 독립적인 의존성 소스에
+근거해 개별/누적 cap-1/cap/cap+1 검사를 정정했다. 제품 한도를 올리지 않았다.
+
+추가 정상 대조군은 Node zlib로 독립 압축한 12,288-byte 반복 패턴이다.
+3개 이상 출력 chunk, 기존 legacy decoder와 bytes 일치, 출력 cap-1/cap/cap+1,
+모든 잘린 prefix의 오류, 여러 개별 할당 cap에서의 fatal/정상 결과와 새 요청 복구를 검사했다.
+
+| 현재 source의 집중 검증 | 결과 / 로그 |
+| --- | --- |
+| 자원 계약 50개 | PASS, `brotli-final-contracts.log` |
+| PDF frontend 계약 4개 | PASS, `brotli-frontend-contracts.log` |
+| 부재/명시적 0 여백 왕복 계약 1개 | PASS, `brotli-margin-contract.log` |
+| root Native/WASM library Clippy | PASS, `brotli-{native,wasm}-lib-clippy.log` |
+| backend 독립 Native/WASM library Clippy | PASS, `brotli-backend-{native,wasm}-lib-clippy.log`; 좁힌 standalone lock 포함 |
+| Native/WASM feature tree | `brotli-decompressor 6.0.1`의 std 구성, unsafe/FFI 비활성 |
+| suite 수집/source unit tier 정책 | PASS, `brotli-{suite,unit-tier}-policy.log` |
+
+제품/backend Clippy는 **library 범위**다. workspace/all-targets/full regression gate를
+통과했다고 쓰지 않는다. 이 단계에서 native 55개 계약을 WASM에서도 실행했다고 표시하지 않는다.
+현재 source 1,811개 파일 hash는 `resource-audit/brotli-source-snapshot.json`에 보존했다.
+fresh WASM release는 6분 48.8초, 공식 wasm-bindgen 0.2.127 web 후처리는 1.35초였다.
+`brotli-wasm-runtime/smoke.mjs`는 13,643 B content를 독립 압축한 PDF에 대해
+잘린 입력 4개를 `PDF_PARSE_FAILED`로 거부한 뒤 정상 변환을 수행했다.
+압축/비압축 content 및 빈 Brotli/빈 비압축 content의 HWPX가 각각 byte-identical이었다.
+기존 오류 7개와 page/Form 깊이 정상 경계·비ASCII CMap·실물 12쪽/7·8쪽 변환도 통과했다.
+이는 fresh web binding의 **Node 진단**이지 제품 공개 API·브라우저 Worker·시각 검증이 아니다.
+
+같은 source의 Native 실물 전체/7쪽/8쪽 import는 각각 약 3.81/0.61/0.51초였고,
+HWPX는 1,607,950/15,175/15,777 B였다. 세 결과 모두 직전 정상 source 및 이번 fresh
+WASM과 byte-identical이다. 7·8쪽 각각 표 5개/nested 4개를 보존한다.
+해시 비교는 변환 결과 보존의 증거일 뿐 원본 PDF/한컴과의 조판 일치 증거가 아니다.
+이전 POC/시각 결과를 현재 source 검증으로 승격하지 않는다.
+
+| fresh WASM artifact | bytes / SHA-256 |
+| --- | --- |
+| raw probe WASM | 22,766,345 / `b5ceb36624ca4a0e0e095bb13dee39aeb5941f4cf7a7c52f8bdc4098d6ee24b1` |
+| web 후처리 WASM | 20,894,104 / `ee97af5f79853141e3c7285485feaa347a9e114225e405be8b9723dca3c66cd6` |
+| JS glue | 457,493 / `b7feac4608455aebf697d64d365e0700b372877a3df26843f66d4859c0fa1443` |
+
+실물 실행은 `brotli-real-pdf/summary.json`, 비교는 `before-comparison.json`,
+fresh WASM 실행/대조는 `brotli-wasm-runtime/{summary,native-comparison}.json`에 보존했다.
+관측한 WASM linear memory capacity는 live heap/RSS 상한으로 해석하지 않는다.
+
+현재 backend를 로컬 `cargo package --allow-dirty --no-verify --locked --offline`로 만들었다.
+407 files / 압축 약 6.5 MiB이며 별도 `brotli-package-validation/`에 archive와 unpacked source를
+보존했다. archive SHA-256은 `d00cdc043ea6cf901c584d58242a2108a0899ac07e8bc86f32815e048029fb58`다.
+source와 고지 등 387개 파일이 일치했고 원본 라이선스/고지 6개도 일치했다.
+이 아카이브만 소비하는 독립 Native 실행에서 private 한도·sticky 실패·새 요청의 빈/정상
+Brotli 변환을 확인했다. 이는 `--no-verify` 또는 `--list`만 실행한 결과와 구별한다.
+독립 소비자의 `--locked --offline` WASM 컴파일도 9.9초에 통과했다
+(`brotli-package-consumer-{native,wasm}.log`). 이는 registry의 root rhwp 소비자 해석·실제
+publish와 별도 crate 배포 준비 완료를 의미하지 않는다. 외부 게시·배포는 하지 않았다.
+
+최종 source/lock 1,811개는 실행 전 snapshot과 동일했다
+(`resource-audit/brotli-final-source-integrity.json`). root workspace fmt, 변경 backend Rust
+두 파일의 원래 설정 fmt, diff check가 통과했다. 이번 기록은 Brotli 보완의 중간 checkpoint다.
+CCITT/이미지·문자 생성/폰트·postprocess의 나머지 선행 할당 감사가 끝나지 않아
+`parser_allocation_bounds_proven=false`, 2단계 진행 중 및 Open PR 보류를 유지한다.
+
 ## 4. 미완료와 다음 게이트
 
 - 기존 format detect/`ParsedDocument`/Core 생성 경로, CLI 명령과 WASM 공개 import API는
@@ -710,8 +834,8 @@ vendor 수정 Rust의 원래 설정 fmt check, diff check와 변경 문서 2개�
   모든 선행/누적 할당 경로를 입증한 것은 아니며 자원 안전성 게이트는 여전히 열려 있다.
 - 3.7의 디스크 대기는 공간 확보 알림으로 해소했다. 탐색 보완의 계약·lint·Native 실물 결과는
   3.8을 따른다. 나머지 2단계 자원 게이트와 단계 승인 절차는 유지한다.
-- 후속 캐시·원본 이미지 복사 보완의 50개 계약과 codec 활성 여부 확인은 3.9를 따른다.
-  Brotli scratch/CCITT decode 및 나머지 선행 할당 감사는 계속 미완료다.
+- 후속 캐시·원본 이미지 복사 보완의 기존 결과는 3.9, Brotli 보완의 현재 source 집중 계약은
+  3.11을 따른다. CCITT decode 및 나머지 선행 할당 감사는 계속 미완료다.
 - default/feature-on 전체 Rust lint 묶음, workspace all-targets, nextest 전체 회귀,
   제품 Studio용 공식 fresh web wrapper/Worker·제품 번들 크기·전쪽 비교는 최종 게이트에서 남아 있다.
 - 현재 기록은 2단계 중간 checkpoint다. 커밋·PR 요청과 미완료 상태의 처리 확인은 3.6에 기록했다.

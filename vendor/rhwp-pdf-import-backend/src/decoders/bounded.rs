@@ -1,6 +1,7 @@
 use super::{normalize_filter_name, DecodeParams};
 use crate::error::{Error, Result};
 use crate::import_limits::ImportBudget;
+use brotli_decompressor as brotli_codec;
 use std::borrow::Cow;
 
 pub(super) fn decode(
@@ -31,7 +32,7 @@ pub(super) fn decode(
                     budget.read(flate2::read::DeflateDecoder::new(current.as_ref()))?
                 },
             },
-            "BrotliDecode" => budget.read(brotli::Decompressor::new(current.as_ref(), 4096))?,
+            "BrotliDecode" => decode_brotli(&current, budget)?,
             "LZWDecode" => {
                 let mut output = budget.output();
                 let result = weezl::decode::Decoder::new(weezl::BitOrder::Msb, 8)
@@ -89,6 +90,88 @@ pub(super) fn decode(
     }
     budget.check()?;
     Ok(current.into_owned())
+}
+
+#[derive(Default)]
+struct CodecMemory<T>(Vec<T>);
+
+impl<T> brotli_codec::SliceWrapper<T> for CodecMemory<T> {
+    fn slice(&self) -> &[T] {
+        &self.0
+    }
+}
+
+impl<T> brotli_codec::SliceWrapperMut<T> for CodecMemory<T> {
+    fn slice_mut(&mut self) -> &mut [T] {
+        &mut self.0
+    }
+}
+
+struct CodecAllocator<'a>(&'a ImportBudget);
+
+impl<T: Clone + Default> brotli_codec::Allocator<T> for CodecAllocator<'_> {
+    type AllocatedMemory = CodecMemory<T>;
+
+    fn alloc_cell(&mut self, count: usize) -> Self::AllocatedMemory {
+        let Some(bytes) = count.checked_mul(std::mem::size_of::<T>()) else {
+            self.0.reject("codec allocation bytes");
+            return CodecMemory::default();
+        };
+        if self.0.charge_codec_allocation(bytes).is_err() {
+            return CodecMemory::default();
+        }
+        let mut memory = Vec::new();
+        if memory.try_reserve_exact(count).is_err() {
+            self.0.reject("codec allocation");
+            return CodecMemory::default();
+        }
+        memory.resize(count, T::default());
+        CodecMemory(memory)
+    }
+
+    fn free_cell(&mut self, memory: Self::AllocatedMemory) {
+        drop(memory);
+    }
+}
+
+fn decode_brotli(data: &[u8], budget: &ImportBudget) -> Result<Vec<u8>> {
+    // The stream API permits checking constructor allocation failure before the
+    // decoder can index its initial Huffman table. All subsequent production
+    // allocations in decompressor 6.0.1 return an allocation error on empty memory.
+    let mut state = brotli_codec::BrotliState::new_strict(
+        CodecAllocator(budget),
+        CodecAllocator(budget),
+        CodecAllocator(budget),
+    );
+    budget.check()?;
+    let mut input_offset = 0;
+    let mut available_in = data.len();
+    let mut total_out = 0;
+    let mut output = budget.output();
+    loop {
+        let before = input_offset;
+        let mut chunk = [0u8; 4096];
+        let mut output_offset = 0;
+        let mut available_out = chunk.len();
+        let result = brotli_codec::BrotliDecompressStream(
+            &mut available_in,
+            &mut input_offset,
+            data,
+            &mut available_out,
+            &mut output_offset,
+            &mut chunk,
+            &mut total_out,
+            &mut state,
+        );
+        budget.check()?;
+        output.append(&chunk[..output_offset])?;
+        match result {
+            brotli_codec::BrotliResult::ResultSuccess => return Ok(output.finish()),
+            brotli_codec::BrotliResult::NeedsMoreOutput
+                if input_offset != before || output_offset != 0 => {},
+            _ => return Err(Error::Decode("invalid or truncated bounded Brotli stream".into())),
+        }
+    }
 }
 
 fn run_length(data: &[u8], budget: &ImportBudget) -> Result<Vec<u8>> {

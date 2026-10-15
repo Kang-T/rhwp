@@ -99,6 +99,10 @@ rhwp 프로젝트가 사용하는 서드파티 라이브러리 및 리소스의 
 `office_oxide =0.1.9`를 모두 `default-features = false`로 사용한다.
 `office_oxide` 직접 버전 제약은 `pdf_oxide 0.3.78`과의 컴파일 호환성을 위한 것이며,
 rhwp가 Office 입력 형식 지원을 추가했다는 뜻은 아니다.
+내부 backend는 Brotli private scratch를 요청별로 제한하기 위해
+`brotli-decompressor =6.0.1`도 직접 사용한다. 해당 crate의 라이선스 표기는
+`BSD-3-Clause/MIT`이며 기존 `brotli 9.0.0`의 `BSD-3-Clause AND MIT`와 구별한다.
+감사한 Native/WASM 구성에서는 `std`만 활성화하고 `unsafe`/FFI feature는 활성화하지 않는다.
 
 내부 backend는 메인테이너의 별도 승인에 따라 `pdf_oxide 0.3.78`을 보존한 보안 패치다.
 크기 최적화용 소스 추출은 하지 않는다. 수정판을 공식 PDFOxide release로 표시하지 않으며,

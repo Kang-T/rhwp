@@ -87,6 +87,21 @@ rhwp 내부 보안 패치 dependency이며, 원 저작권·라이선스·NOTICE�
 
 ### 남은 검증
 
+후속 Brotli 보완은 `brotli-decompressor =6.0.1`의 custom allocator/stream API로
+private scratch를 할당 전 계상한다. 별도 개별 할당 32 MiB와 문서 누적 작업 예산을
+같이 적용한다. 초기 상태 할당 실패 확인·표준 window·부분 출력 실패 처리를 추가했다.
+수정 전 작은 반례 2개는 FAIL이었다. 두 차례 ENOSPC 중단 뒤 승인된 캐시 9개만 정리했고,
+현재 source에서 Native 자원 계약 50개/frontend 4개/여백 왕복 1개와
+root/backend Native·WASM library Clippy가 통과했다. 빈 입력의 scratch는 의존성 소스에
+따라 초기 table과 블록 table 두 개를 모두 포함하도록 검사 가정을 정정했다.
+추가 다중 chunk·전체 잘린 prefix·부분 할당 실패 경계도 통과했다.
+
+새 release/web WASM의 Node 실행에서 손상 Brotli 4개를 거부한 뒤 정상 변환을 수행했다.
+정상/빈 Brotli 내용은 비압축 내용과 HWPX가 동일했고 실물 12쪽/7·8쪽 변환도 이전 정상
+결과와 일치했다. 이는 직접 Rust frontend의 진단 probe다. Native 55개 계약의 WASM 실행,
+공개 제품 API·Studio·Worker·시각 검증이나 총 메모리 상한 입증으로 표시하지 않는다.
+현재 source의 packaged consumer 검증과 별도 crate 배포 준비는 별도 진행한다.
+
 이 변경은 크기 최적화가 아니며 일반 PDF 쓰기/변환 기능을 삭제하지 않는다.
 decoded/copy/구조 작업 예산은 총 RSS/heap 상한이 아니다. CMap source 1 MiB,
 요청 CMap scan 작업량 64 MiB/매핑 100,000개, CID metric 확장 100,000개를 적용한다.

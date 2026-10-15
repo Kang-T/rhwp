@@ -282,6 +282,13 @@ operator당 operand 64개, 내부 배열/사전의 중첩·컬렉션·문자열 
 임시로 유입된 vendor 개발용 lock 항목은 이 분리 후 Cargo가 정리했다. 실제 제품의
 기본 비활성 정책을 vendor workspace의 default feature로 우회하지 않는다.
 
+2026-10-15 메인테이너가 PR Open까지 후속 진행과 **별도 crate 배포 준비 포함**을 승인했다.
+내부 backend의 별도 package 이름·0.3.78 기반 version·저작권/NOTICE를 유지하고,
+package 내용과 의존성의 정확한 version, 압축 해제한 소비자의 Native/WASM 빌드 및
+root package의 의존 해석을 검증한다. 검증 전 `publish=false`는 유지한다.
+이 승인은 외부 게시 승인이 아니며 `cargo publish`/registry 업로드는 검증 완료 뒤 별도 승인받는다.
+namespace/게시 권한과 실제 배포 경로가 확인되지 않은 상태를 배포 가능으로 표시하지 않는다.
+
 #### 작은 계약과 종료 조건
 
 - 작은 주입 예산의 한도-1/한도/한도+1, 압축률이 낮아도 누적량이 초과하는 여러 stream,

@@ -105,13 +105,14 @@ fn brotli_output_is_bounded_before_vec_extension() {
     // Independently encoded by Node zlib.brotliCompressSync(Buffer.alloc(128, 65)).
     let compressed = [27, 127, 0, 248, 37, 130, 34, 177, 64, 32, 3];
     for cap in [127, 128, 129] {
-        let budget = budget(cap, 1024);
+        let budget = budget(cap, 512 * 1024);
         let result = decode(&compressed, &["BrotliDecode"], &budget);
         if cap == 127 {
             assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
-            assert_eq!(budget.decoded_bytes(), 0);
+            assert_eq!(budget.decoded_bytes(), budget.codec_allocated_bytes());
         } else {
             assert_eq!(result.unwrap(), vec![65; 128]);
+            assert_eq!(budget.decoded_bytes(), budget.codec_allocated_bytes() + 128);
         }
     }
 }
@@ -1318,4 +1319,166 @@ fn shared_form_stream_preserves_paths_and_image_handles_across_modes() {
         }
         doc.check_import_budget().unwrap();
     }
+}
+
+#[test]
+fn brotli_empty_output_does_not_bypass_decoder_scratch_budget() {
+    // Node zlib.brotliCompressSync(Buffer.alloc(0)): no decoded output bytes.
+    let shared = budget(4096, 1);
+    assert!(matches!(
+        decode(&[59], &["BrotliDecode"], &shared),
+        Err(Error::ImportResourceLimit(_))
+    ));
+    assert!(shared.check().is_err());
+}
+
+#[test]
+fn brotli_small_output_also_requires_preallocated_decoder_work() {
+    let compressed = [27, 127, 0, 248, 37, 130, 34, 177, 64, 32, 3];
+    let shared = budget(128, 128);
+    assert!(matches!(
+        decode(&compressed, &["BrotliDecode"], &shared),
+        Err(Error::ImportResourceLimit(_))
+    ));
+    assert!(shared.check().is_err());
+}
+
+#[test]
+fn brotli_scratch_allocation_and_cumulative_boundaries_are_preallocation_checks() {
+    // 6.0.1 state.rs:530 allocates 1080 repr(C) {u16, u8} entries;
+    // decode.rs:3312/3318 each allocate three times that, even for empty output.
+    let initial = 1080 * 4;
+    let largest = initial * 3;
+    let total = initial * 7;
+    for cap in [
+        initial - 1,
+        initial,
+        initial + 1,
+        largest - 1,
+        largest,
+        largest + 1,
+    ] {
+        let shared = ImportBudget::new(PdfImportLimits {
+            codec_allocation_bytes: cap,
+            ..PdfImportLimits::default()
+        })
+        .unwrap();
+        let result = decode(&[59], &["BrotliDecode"], &shared);
+        if cap < largest {
+            assert!(matches!(
+                result,
+                Err(Error::ImportResourceLimit("codec allocation bytes"))
+            ));
+            assert_eq!(
+                shared.codec_allocated_bytes(),
+                if cap < initial { 0 } else { initial }
+            );
+        } else {
+            assert!(result.unwrap().is_empty());
+            assert_eq!(shared.codec_allocated_bytes(), total);
+        }
+    }
+    for cap in [total - 1, total, total + 1] {
+        let shared = budget(4096, cap);
+        let result = decode(&[59], &["BrotliDecode"], &shared);
+        if cap < total {
+            assert!(matches!(
+                result,
+                Err(Error::ImportResourceLimit("document decoded bytes"))
+            ));
+            assert_eq!(shared.codec_allocated_bytes(), initial * 4);
+        } else {
+            assert!(result.unwrap().is_empty());
+            assert_eq!(shared.codec_allocated_bytes(), total);
+        }
+    }
+    assert!(ImportBudget::new(PdfImportLimits {
+        codec_allocation_bytes: 0,
+        ..PdfImportLimits::default()
+    })
+    .is_err());
+}
+
+#[test]
+fn brotli_partial_scratch_allocation_failures_are_fatal_without_panics() {
+    let compressed = [27, 127, 0, 248, 37, 130, 34, 177, 64, 32, 3];
+    let successful = budget(128, 512 * 1024);
+    assert_eq!(
+        decode(&compressed, &["BrotliDecode"], &successful).unwrap(),
+        vec![65; 128]
+    );
+    let scratch = successful.codec_allocated_bytes();
+    assert!(scratch > 1080 * 4);
+    for cap in (1..=scratch + 128)
+        .step_by(257)
+        .chain([scratch + 127, scratch + 128, scratch + 129])
+    {
+        let shared = budget(128, cap);
+        let result = decode(&compressed, &["BrotliDecode"], &shared);
+        if cap < scratch + 128 {
+            assert!(
+                matches!(result, Err(Error::ImportResourceLimit(_))),
+                "cap {cap}: {result:?}"
+            );
+            assert!(decode(&[59], &["BrotliDecode"], &shared).is_err());
+        } else {
+            assert_eq!(result.unwrap(), vec![65; 128]);
+        }
+    }
+}
+
+#[test]
+fn brotli_multiple_output_chunks_preserve_bytes_and_reject_truncated_prefixes() {
+    // Node zlib: quality=4, lgwin=14, 12288 bytes of (index % 67 + 32).
+    let compressed = [
+        225, 248, 127, 1, 32, 3, 243, 76, 117, 148, 206, 184, 49, 176, 19, 119, 2, 0, 128, 16, 140,
+        160, 24, 78, 144, 20, 205, 176, 28, 47, 136, 146, 172, 168, 154, 110, 152, 150, 237, 184,
+        158, 31, 132, 81, 156, 164, 89, 94, 148, 85, 221, 180, 93, 63, 140, 211, 188, 172, 219,
+        126, 156, 215, 253, 188, 222, 159, 239, 239, 15, 128, 16, 140, 160, 6,
+    ];
+    let expected: Vec<u8> = (0..12288).map(|index| (index % 67 + 32) as u8).collect();
+    assert_eq!(
+        pdf_oxide::decoders::decode_stream(&compressed, &["BrotliDecode".into()]).unwrap(),
+        expected
+    );
+    for cap in [expected.len() - 1, expected.len(), expected.len() + 1] {
+        let shared = budget(cap, 1024 * 1024);
+        let result = decode(&compressed, &["BrotliDecode"], &shared);
+        if cap < expected.len() {
+            assert!(matches!(result, Err(Error::ImportResourceLimit(_))));
+        } else {
+            assert_eq!(result.unwrap(), expected);
+        }
+    }
+    for end in 0..compressed.len() {
+        let shared = budget(expected.len(), 1024 * 1024);
+        assert!(
+            matches!(
+                decode(&compressed[..end], &["BrotliDecode"], &shared),
+                Err(Error::Decode(_))
+            ),
+            "prefix {end}"
+        );
+    }
+    for allocation_cap in [4320, 12959, 12960, 16384, 32768, 65536] {
+        let shared = ImportBudget::new(PdfImportLimits {
+            codec_allocation_bytes: allocation_cap,
+            ..PdfImportLimits::default()
+        })
+        .unwrap();
+        match decode(&compressed, &["BrotliDecode"], &shared) {
+            Ok(bytes) => assert_eq!(bytes, expected),
+            Err(Error::ImportResourceLimit(_)) => assert!(shared.check().is_err()),
+            result => panic!("allocation cap {allocation_cap}: {result:?}"),
+        }
+    }
+    assert_eq!(
+        decode(
+            &compressed,
+            &["BrotliDecode"],
+            &budget(expected.len(), 1024 * 1024)
+        )
+        .unwrap(),
+        expected
+    );
 }
