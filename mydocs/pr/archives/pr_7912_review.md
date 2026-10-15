@@ -34,8 +34,12 @@
 
 ## 원격 통합과 후속 처리
 
-1. PR 직전 upstream/devel/head를 다시 확인하고 변경됐으면 현재 작업을 보존해 리베이스·영향 검증한다.
-2. 원본 저장소 임시 head branch → devel 통합 PR 한 건에 이 archive review·오늘할일·PNG를 포함한다. 본문에 실제 Markdown 이미지와 전쪽 TSV 원문을 기록한다.
+1. PR 직전 upstream/devel `2efefc6a1`이 그대로임을 확인해 리베이스를 생략했다.
+2. 원본 저장소의 임시 head branch로 통합 PR #7935를 생성했고 archive review·오늘할일·PNG 및 본문의 실제 이미지·전쪽 TSV124개를 함께 반영했다.
 3. 정확한 최신 head required checks 및 mergeability 통과 뒤 merge한다.
 4. merge SHA에서 asset 존재를 확인하고 원 PR에 한국어 존댓말로 credit·메인터너 보정·실제 검증·merge SHA 고정 PNG를 게시, API로 본문을 재조회한다. 원 contributor PR은 통합 PR을 명시해 supersede close한다.
 5. post_merge.md 순서대로 devel 동기화와 이번 작업의 branch/출력/임시 자료 정리를 수행한다. contributor fork branch와 공유 target은 보존한다.
+
+## 통합 code candidate CI
+
+통합 [PR #7935](https://github.com/edwardkim/rhwp/pull/7935)의 code candidate head `2ead4954547804215c9c4f4e2c145700467ddbb5`에서 [CI](https://github.com/edwardkim/rhwp/actions/runs/38799924267) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38799924232) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38799924058) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38799924281) · [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38799924242) 및 정책 status 성공을 확인했다. 실패·대기 없음. 검증한 제품 code는 `20d93fe1d4226acab640b66875964d09c7d6d59b`이며 그 뒤 제품/테스트/Studio 변경은 없다. 이 CI 기록만 추가하는 문서 후행 head의 required checks와 mergeability는 별도로 확인한 뒤 merge한다.

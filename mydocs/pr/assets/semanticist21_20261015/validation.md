@@ -91,3 +91,7 @@ cargo test --locked --release --target-dir /home/tsjang/rhwp/target/pr-review --
 ## 원격 경계
 
 이 문서는 로컬 검증 결과다. 통합 PR의 정확한 최신 head CI·mergeability를 확인한 뒤에만 merge한다. 원 PR7건의 원 author 및 체리픽 출처를 보존하고, merge SHA에서 추적 asset을 확인해 contributor comment·supersede close·devel sync·post_merge 정리를 이어간다. 별도 기록 PR은 만들지 않는다.
+
+## 통합 code candidate CI 확인
+
+통합 [PR #7935](https://github.com/edwardkim/rhwp/pull/7935)의 code candidate head `2ead4954547804215c9c4f4e2c145700467ddbb5`에서 [CI](https://github.com/edwardkim/rhwp/actions/runs/38799924267) · [CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38799924232) · [Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38799924058) · [Adapter inter-diff](https://github.com/edwardkim/rhwp/actions/runs/38799924281) · [Proptest roundtrip](https://github.com/edwardkim/rhwp/actions/runs/38799924242) 및 정책 status 성공을 확인했다. 실패·대기 없음. 검증한 제품 code는 `20d93fe1d4226acab640b66875964d09c7d6d59b`이며 그 뒤 제품/테스트/Studio 변경은 없다. 이 CI 기록만 추가하는 문서 후행 head의 required checks와 mergeability는 별도로 확인한 뒤 merge한다.
