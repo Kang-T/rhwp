@@ -3,7 +3,7 @@
 ## 최종 판정
 
 **메인터너 보정 후 수용 가능 — 아래 통합 적용 범위의 로컬 검증 완료.**
-검토 대상은 원 head `63c609474c768fe57542a15ebcb963f2c56f11c2`를 누적·보정한 통합 code `39a634e547621c32ae6f9ba8c1694d35c827078b`다. 원 PR의 모든 첨부·golden이나 문서 전체 피델리티를 자동 수용한 판정은 아니다. 통합 PR 최신 head의 required checks·mergeability 확인이 병합 전 조건이다.
+검토 대상은 원 head `63c609474c768fe57542a15ebcb963f2c56f11c2`를 누적·보정한 통합 code `39a634e547621c32ae6f9ba8c1694d35c827078b`다. 원 PR의 모든 첨부·golden이나 문서 전체 피델리티를 자동 수용한 판정은 아니다. [통합 PR #7923](https://github.com/edwardkim/rhwp/pull/7923)의 code candidate `cbc5815631d6c221dc6ec6e0f03565859cb1c346`에서 전체 CI·정책 체크 성공과 CLEAN을 확인했다. 문서 trailing head의 최신 체크·mergeability 확인이 병합 전 조건이다.
 
 ## 접수 정보
 

@@ -3,7 +3,7 @@
 ## 최종 판정
 
 **메인터너 보정 후 수용 가능 — 명시한 통합 범위의 로컬 검증 완료.**
-검증 code head `39a634e547621c32ae6f9ba8c1694d35c827078b`, 기준 `463c48cc228170b576c832591b76826116e86a49`. 통합 PR의 정확한 제출 head CI·mergeability 확인이 남아 있다. 사용자의 사전 승인으로 개별 archive review와 오늘할일을 이번 코드 PR에 함께 포함한다. 별도 기록 PR을 만들지 않는다.
+검증 code head `39a634e547621c32ae6f9ba8c1694d35c827078b`, 기준 `463c48cc228170b576c832591b76826116e86a49`. [통합 PR #7923](https://github.com/edwardkim/rhwp/pull/7923)의 code candidate `cbc5815631d6c221dc6ec6e0f03565859cb1c346`에서 전체 CI·정책 체크 성공과 CLEAN을 확인했다. 문서 trailing head 체크와 실제 merge·후속 처리가 남아 있다. 사용자의 사전 승인으로 개별 archive review와 오늘할일을 이번 코드 PR에 함께 포함한다. 별도 기록 PR을 만들지 않는다.
 
 ## 통합 범위와 원 PR별 판정
 
@@ -53,6 +53,14 @@
 - [#7922 끝 탭](../assets/issue7922/trailing-tab-regressions-20261015/README.md): 실패3함수, 입력/PDF·원문1파일. 정상 겹침·중간 탭 대조는 유지했다. 과거95.92922%와 현재98% px 완료 범위를 혼동하지 않는다.
 - 두 이슈에 원본·PDF SHA, 이전/새 경로와 복원 조건을 보존했다. 활성 render 원장8행을 원문 보존 후 분리하고 정상 parser/serializer/API는 새 경로에서55개 검사로 확인했다. 이관은 새 base90% 미달 입증이나 제품 결함 해결로 기록하지 않는다.
 - #7445 표 누락 #7863·#7864·#7922를 보완했다. 현재 연결93개이며7개 여유다. 이슈는 미해결 상태를 유지한다.
+
+## PR #7923 exact-head CI
+
+- code candidate `cbc5815631d6c221dc6ec6e0f03565859cb1c346`의 [CI](https://github.com/edwardkim/rhwp/actions/runs/38734213321)·[CodeQL](https://github.com/edwardkim/rhwp/actions/runs/38734213350)·[Render Diff](https://github.com/edwardkim/rhwp/actions/runs/38734213214)·[Adapter](https://github.com/edwardkim/rhwp/actions/runs/38734213427)·[Proptest](https://github.com/edwardkim/rhwp/actions/runs/38734213384) 및 CI Impact Policy 성공. 실패·대기 없음, MERGEABLE/CLEAN을 재조회했다.
+- 네 Rust archive worker와 Build & Test 성공. 집계 로그에서 `archive_total=10162 shard_total=10162`를 확인했다. 이는 CI archive 분할 검증 수이며 로컬 최초10,362실행/집중55재검증과 구별한다.
+- 제출 후 실패했던 옛한글 alias mock2곳을 현재 family 이름으로 보정했다. 기대 assert를 유지했고 로컬12단계 및 원격 Render Diff 전체가 통과했다. 제품/Rust/폰트 바이트 변경이 없어 완료한21문서181쪽 시각 증적을 재사용했다.
+- 사용자 요청으로 sample10 원본91.68MiB PDF를 현재 head·최종 diff에서 제외했다. 50MiB 이상 PDF는 로컬 보관·PR 제외로 기여/검토 지침을 통일했고 현재 추가/변경 PDF47개 중 미달 없이 전부 상한 미만이다. 기존에 push한 이력은 재작성하지 않았다.
+- 개별18개 review·[PR #7923 self-review](pr_7923_review.md)·오늘할일을 같은 PR의 문서-only trailing commit으로 반영한다. 해당 새 head의 실제 fast-pass·required checks 성공 후 merge한다.
 
 ## CI·Merge 후 처리
 
