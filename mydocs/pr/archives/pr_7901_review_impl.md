@@ -37,8 +37,11 @@ node --test rhwp-studio/tests/clipboard-cut-safety.test.ts \
 `clipboard-event-observer-before-20261015.log`, `frontend-focused-after-20261015.log`에 있다.
 조판 수치·저장 모델·Rust 코드에는 영향이 없는 Studio 이벤트 순서 보정이다.
 
-## 남은 통합 게이트
+## 통합 검증 연결
 
-전체 Studio 타입/단위 검사·production build·실제 브라우저, 다른 체리픽 변경의 Rust·fresh WASM·
-독립 Print 검증, 통합 PR 최신 head CI와 merge는 아직 완료하지 않았다.
-최종 수용 범위와 원격 결과는 같은 통합 PR의 개별 `pr_7901_review.md`에 기록한다.
+Studio 타입 검사·전체2010개 단위 검사·production build와 실제 topmost Cut/clipboard 우선순위
+브라우저 검증을 완료했다. TypeScript는 보정 뒤 그대로이며 새 Rust/WASM의 공개 저장 API도
+실제 초기 WASM 응답 SHA를 확인한 브라우저에서 재검증했다.
+전체 Rust·fresh WASM·Print 및 최신 통합 head CI의 단계별 결과는
+[개별 review](pr_7901_review.md)와 [공통 검증 기록](../assets/semanticist21_20261015/validation.md)에 연결한다.
+로컬 검증과 원격 CI·merge 완료를 같은 상태로 표기하지 않는다.

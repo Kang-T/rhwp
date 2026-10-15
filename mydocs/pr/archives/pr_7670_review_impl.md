@@ -23,5 +23,8 @@
 - raw 로그: ignored `output/pr-review/semanticist21-20261015/logs/`의
   `studio-full-unit-20261015.log`, `tab-dialog-harness-compat-after-20261015.log`.
 
-전체 Studio 재실행과 실제 브라우저·Print·통합 Rust/WASM·최신 head CI는 후속 게이트다.
-최종 판정은 같은 통합 PR의 개별 `pr_7670_review.md`에 연결한다.
+전체 Studio 재실행2010/2010PASS 및 실제150pt/default50pt 대화상자·HWP/HWPX 저장 재열기를
+확인했다. 캐시 보정 후 새 WASM의 초기 실제 응답 SHA를 확인한 브라우저에서도 같은 UI 계약을
+재실행했고, 출력 HWP/HWPX가 미계산 탭의 재생성 캐시를 싣지 않는 것까지 대조했다.
+최종 Print·Rust/WASM·원격 상태는 [개별 review](pr_7670_review.md)와
+[공통 검증 기록](../assets/semanticist21_20261015/validation.md)에 연결한다.

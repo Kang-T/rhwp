@@ -10,13 +10,15 @@
 
 ## 생산물과 공급 조건
 
+검증 code는 `20d93fe1d4226acab640b66875964d09c7d6d59b`다. 원본 저장 캐시 보존 보정 후 Native와 fresh WASM 전쪽 PNG88개를 재생성했고 이전 직접 판독 캡처와 모두 픽셀 단위로 동일했다. 기존 전체 확대 판독에 더해 새 대표 시트 및 실제 Studio backend5개 시트를 직접 대조했다. 과거 캡처를 새 producer 출력으로 대체하지 않았다.
+
 Native는 명시적 `cargo build --locked --profile release-test --features native-skia --bin rhwp --target-dir target/pr-review` 뒤 동결한 CLI의 `export-png`다. WASM은 저장소 루트의 `scripts/wasm-pack-locked.sh --target web --out-dir pkg --no-opt`로 새로 빌드했다. Docker가 없는 호스트의 문서화된 fallback이며 최적화 Docker 검증으로 표기하지 않는다. Cargo jobs8, WASM release codegen-units16, 고정 공용 target/pr-review를 사용했다.
 
 WASM PNG는 `scripts/export-wasm-png-for-sweep.mjs`의 실제 Print Canvas2D 출력이다. SVG 파일을 생성해 PNG로 바꾼 결과로 표시하지 않는다. 기준/후보 모두96dpi·compat2022·print profile·전체 글꼴 공급을 적용했다. 시스템에 설치된 원본 폰트 파일을 참조하는 symlink만 로컬 검증에 사용했다. 폰트 바이너리 복사·family 위장·PR 배포는 하지 않는다.
 
-- Native CLI SHA-256: `d45b82cac6e6a8c2383134d635159191529858bb827bffede17b91a17d1f914a`.
+- Native CLI SHA-256: `37d6d09029cc64a465e16c78af6bc64916af581ae30a5f3fabf9237c91db78a0`.
 - fresh WASM `rhwp.js` SHA-256: `f377c6be818c64ffd20752e29271000ff5053ea8c7c984f65abb8fe74f17eddd`; Studio public JS/WASM과 일치 확인.
-- fresh WASM `rhwp_bg.wasm` SHA-256: `416575f64fefbe502cd82b61f22ba08a33c00dda45f55f4869259d73807d2331`; Studio public JS/WASM과 일치 확인.
+- fresh WASM `rhwp_bg.wasm` SHA-256: `4907d462d9bace404d5f0b11a3d8b7d1115612ed5bde92db4cbd018f0b938e62`; Studio public JS/WASM과 일치 확인.
 
 ## 입력 생성과 독립 기준
 
@@ -144,7 +146,3 @@ node scripts/run-rust-test.mjs semanticist21_qualified_print_positions -- --carg
 ```
 
 공개 입력·독립 PDF와 위 해시를 먼저 확인한다. 원래 글꼴이 없는 환경의 fallback 통과를 실제 글꼴 공급과 동등한 시각 근거로 사용하지 않는다. 폰트 미설치는 px assertion을 자동 skip하거나 느슨하게 만드는 사유가 아니다. 원시 레이아웃/단위 검사는 같은 독립 기대값을 유지한다.
-
-## 실제 제품 backend 소비 확인
-
-[실제 Studio Canvas2D·CanvasKit·SVG 실행과 독립 Print 대조](studio-backends/README.md)를 추가했다.5개 입력9쪽씩 실제 제품 호출 경로를 확인했으며, 전쪽 Print gate와 편집용 안내선이 포함된 UI 캡처의 점수를 구분한다.
