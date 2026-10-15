@@ -8394,29 +8394,17 @@ impl LayoutEngine {
                     (x, full_width)
                 };
 
-                // 글자 배경 사각형 (텍스트 앞에 삽입)
-                if run_border_fill_id > 0 {
-                    let bf_idx = (run_border_fill_id as usize).saturating_sub(1);
-                    if let Some(bs) = styles.border_styles.get(bf_idx) {
-                        if let Some(fill_color) = bs.fill_color {
-                            let rect_id = tree.next_id();
-                            let rect_node = RenderNode::new(
-                                rect_id,
-                                RenderNodeType::Rectangle(RectangleNode::new(
-                                    0.0,
-                                    ShapeStyle {
-                                        fill_color: Some(fill_color),
-                                        stroke_color: None,
-                                        stroke_width: 0.0,
-                                        ..Default::default()
-                                    },
-                                    None,
-                                )),
-                                BoundingBox::new(run_x, y, run_w, line_height),
-                            );
-                            line_node.children.push(rect_node);
-                        }
-                    }
+                // 글자 배경도 이 줄의 실제 run 상자를 소비한다. 글자 크기나 줄이
+                // 달라져도 종류를 단색으로 축소하지 않고 원래 BorderFill을 그린다.
+                if let Some(bf_idx) = run_border_fill_id.checked_sub(1) {
+                    line_node
+                        .children
+                        .extend(Self::border_fill_background_nodes(
+                            tree,
+                            styles.border_styles.get(usize::from(bf_idx)),
+                            BoundingBox::new(run_x, y, run_w, line_height),
+                            bin_data_content.unwrap_or_default(),
+                        ));
                 }
 
                 // 형광펜 배경 사각형 (RangeTag type=2)
