@@ -1091,17 +1091,17 @@ impl SkiaLayerRenderer {
                                 bbox.width as f32,
                                 bbox.height as f32,
                             );
-                            if let Some(color) = background
-                                .gradient
-                                .as_ref()
-                                .and_then(|gradient| gradient.colors.first().copied())
-                                .or(background.background_color)
-                            {
-                                let mut paint = Paint::default();
-                                paint.set_anti_alias(true);
-                                paint.set_style(paint::Style::Fill);
-                                paint.set_color(colorref_to_skia(color, 1.0));
-                                canvas.draw_rect(rect, &paint);
+                            let gradient_fill = background.gradient.as_ref().and_then(|gradient| {
+                                super::fill::gradient_paint(gradient, bbox, 1.0)
+                            });
+                            if let Some(fill) = gradient_fill {
+                                canvas.draw_rect(rect, &fill);
+                            } else if let Some(color) = background.background_color {
+                                let mut fill = Paint::default();
+                                fill.set_anti_alias(true);
+                                fill.set_style(paint::Style::Fill);
+                                fill.set_color(colorref_to_skia(color, 1.0));
+                                canvas.draw_rect(rect, &fill);
                             }
                             if let Some(image) = &background.image {
                                 // 일반 RealPic 쪽 배경의 밝기·대비는 색조 조정일 뿐
@@ -1332,16 +1332,8 @@ impl SkiaLayerRenderer {
                             if let Some(fill) = rect
                                 .gradient
                                 .as_ref()
-                                .and_then(|gradient| gradient.colors.first().copied())
-                                .map(|color| {
-                                    let mut paint = Paint::default();
-                                    paint.set_anti_alias(true);
-                                    paint.set_style(paint::Style::Fill);
-                                    paint.set_color(colorref_to_skia(
-                                        color,
-                                        rect.style.opacity as f32,
-                                    ));
-                                    paint
+                                .and_then(|gradient| {
+                                    super::fill::gradient_paint(gradient, bbox, rect.style.opacity)
                                 })
                                 .or_else(|| make_fill_paint(&rect.style))
                             {

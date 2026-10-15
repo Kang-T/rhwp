@@ -3644,6 +3644,7 @@ pub struct LayoutEngine {
 
 mod anchor_box_flow;
 mod border_rendering;
+mod fill_background;
 mod fixed_textbox_flow;
 mod note_reference;
 mod paragraph_layout;
@@ -7356,6 +7357,8 @@ impl LayoutEngine {
         col_node: &mut RenderNode,
         styles: &ResolvedStyleSet,
         col_area: &LayoutRect,
+        bin_data_content: &[BinDataContent],
+        background_index: usize,
     ) {
         let ranges = self.para_border_ranges.borrow();
         if !ranges.is_empty() {
@@ -7386,20 +7389,35 @@ impl LayoutEngine {
             };
             // 그룹 튜플: (bf_id, x, y_start, w, y_end, top_inset, bottom_inset,
             //              is_partial_start, is_partial_end, first_para_idx, last_para_idx)
-            let mut groups: Vec<(u16, f64, f64, f64, f64, f64, f64, bool, bool, usize, usize)> =
-                Vec::new();
-            for &(
-                bf_id,
-                x,
-                y_start,
-                w,
-                y_end,
-                top_inset,
-                bottom_inset,
-                is_partial_start,
-                is_partial_end,
-                para_idx,
-            ) in ranges.iter()
+            let mut groups: Vec<(
+                u16,
+                f64,
+                f64,
+                f64,
+                f64,
+                f64,
+                f64,
+                bool,
+                bool,
+                usize,
+                usize,
+                Vec<usize>,
+            )> = Vec::new();
+            for (
+                range_index,
+                &(
+                    bf_id,
+                    x,
+                    y_start,
+                    w,
+                    y_end,
+                    top_inset,
+                    bottom_inset,
+                    is_partial_start,
+                    is_partial_end,
+                    para_idx,
+                ),
+            ) in ranges.iter().enumerate()
             {
                 if let Some(last) = groups.last_mut() {
                     // bf_id 가 동일하면 기존 동작과 호환 (1차 병합).
@@ -7412,7 +7430,7 @@ impl LayoutEngine {
                         last_sig.is_some() && last_sig == cur_sig
                     };
                     if same_visual
-                        && (last.10 == para_idx || connects(last.10))
+                        && (last.10 == para_idx || (connects(last.10) && connects(para_idx)))
                         && (y_start - last.4) < 30.0
                     {
                         last.4 = y_end;
@@ -7420,6 +7438,7 @@ impl LayoutEngine {
                         // 그룹의 partial_end 는 마지막 range 의 값으로 갱신.
                         // partial_start 는 첫 range 값(last.7)을 유지.
                         last.8 = is_partial_end;
+                        last.11.push(range_index);
                         last.10 = para_idx; // last_para_idx 갱신
                                             // Task #463: 첫 항목이 PartialParagraph (좁은 geometry, 예: pi=50
                                             // 우측 단 시작) 이고 후속 항목이 넓은 geometry 일 때, 박스가 좁게
@@ -7446,6 +7465,7 @@ impl LayoutEngine {
                     is_partial_end,
                     para_idx,
                     para_idx,
+                    vec![range_index],
                 ));
             }
 
@@ -7474,14 +7494,14 @@ impl LayoutEngine {
                         .unwrap_or(0)
                 };
 
-                if !g.7 && first_pi > 0 && connects(first_pi - 1) {
+                if !g.7 && first_pi > 0 && connects(first_pi - 1) && connects(first_pi) {
                     let prev_sig = stroke_sig(para_bf(first_pi - 1));
                     if prev_sig.is_some() && prev_sig == group_sig {
                         g.7 = true;
                     }
                 }
 
-                if !g.8 && connects(last_pi) {
+                if !g.8 && connects(last_pi) && connects(last_pi + 1) {
                     let next_sig = stroke_sig(para_bf(last_pi + 1));
                     if next_sig.is_some() && next_sig == group_sig {
                         g.8 = true;
@@ -7505,6 +7525,8 @@ impl LayoutEngine {
             }
             groups.retain(|g| g.4 > g.2);
 
+            let mut border_nodes = Vec::new();
+            let mut background_nodes = Vec::new();
             let groups_len = groups.len();
             for (
                 gi,
@@ -7520,6 +7542,7 @@ impl LayoutEngine {
                     is_partial_end,
                     first_para_idx,
                     _,
+                    range_indices,
                 ),
             ) in groups.clone().into_iter().enumerate()
             {
@@ -7532,7 +7555,6 @@ impl LayoutEngine {
                 let next_touches = gi + 1 < groups_len && (groups[gi + 1].2 - y_end) < 4.0;
                 let idx = (bf_id as usize).saturating_sub(1);
                 let border_style = styles.border_styles.get(idx);
-                let fill_color = border_style.and_then(|bs| bs.fill_color);
                 let borders = border_style.map(|bs| bs.borders);
                 let stroke_width = borders
                     .map(|borders| {
@@ -7581,7 +7603,6 @@ impl LayoutEngine {
                         RenderNodeType::Rectangle(super::render_tree::RectangleNode::new(
                             0.0,
                             super::ShapeStyle {
-                                fill_color,
                                 stroke_color: Some(stroke_border.color),
                                 stroke_width: super::layout::border_rendering::border_width_to_px(
                                     stroke_border.width,
@@ -7592,27 +7613,9 @@ impl LayoutEngine {
                         )),
                         super::render_tree::BoundingBox::new(x, rect_y, w, rect_h),
                     );
-                    col_node.children.insert(0, rect_node);
+                    border_nodes.push(rect_node);
                 } else {
-                    // wrap 케이스: fill 만 Rectangle 로, stroke 는 면별 LineNode 로 분해.
-                    if fill_color.is_some() {
-                        let rect_id = tree.next_id();
-                        let rect_node = RenderNode::new(
-                            rect_id,
-                            RenderNodeType::Rectangle(super::render_tree::RectangleNode::new(
-                                0.0,
-                                super::ShapeStyle {
-                                    fill_color,
-                                    stroke_color: None,
-                                    stroke_width: 0.0,
-                                    ..Default::default()
-                                },
-                                None,
-                            )),
-                            super::render_tree::BoundingBox::new(x, rect_y, w, rect_h),
-                        );
-                        col_node.children.insert(0, rect_node);
-                    }
+                    // 이어받는 외곽선은 필요한 면만 그린다. 채우기는 아래 문단별 paint가 소유한다.
                     let mut push_border_line =
                         |border: &BorderLine, x1: f64, y1: f64, x2: f64, y2: f64| {
                             if !para_border_is_visible(border) {
@@ -7622,7 +7625,7 @@ impl LayoutEngine {
                                 tree, border, x1, y1, x2, y2,
                             );
                             for node in nodes {
-                                col_node.children.insert(0, node);
+                                border_nodes.push(node);
                             }
                         };
                     let x_left = x;
@@ -7640,7 +7643,43 @@ impl LayoutEngine {
                         }
                     }
                 }
+                // 테두리 연결은 채우기 소유를 합치지 않는다. 같은 그라데이션도 각
+                // 문단에서 재시작하며, 다음 문단의 그림/없음은 원래 정의를 소비한다.
+                // 줄 상자·이어받기 원점은 수집된 실제 범위를 그대로 사용한다.
+                for range_index in range_indices {
+                    let range = ranges[range_index];
+                    let style = range
+                        .0
+                        .checked_sub(1)
+                        .and_then(|index| styles.border_styles.get(usize::from(index)));
+                    let top = if range.9 == first_para_idx {
+                        rect_y
+                    } else {
+                        range.2.max(col_top)
+                    };
+                    let bottom = range.4.min(col_bot)
+                        + if range.9 == groups[gi].10 {
+                            effective_bot_pad
+                        } else {
+                            0.0
+                        };
+                    if bottom <= top {
+                        continue;
+                    }
+                    let nodes = Self::border_fill_background_nodes(
+                        tree,
+                        style,
+                        BoundingBox::new(range.1, top, range.3, bottom - top),
+                        bin_data_content,
+                    );
+                    // 본문 글자보다 뒤, 셀 자체의 배경보다 앞에 놓는다.
+                    background_nodes.extend(nodes);
+                }
             }
+            background_nodes.extend(border_nodes);
+            col_node
+                .children
+                .splice(background_index..background_index, background_nodes);
         }
     }
 
@@ -10448,7 +10487,15 @@ impl LayoutEngine {
         );
 
         // 문단 테두리/배경 연속 그룹 병합 렌더링 — #2120 추출
-        self.render_para_border_groups(tree, composed, &mut col_node, styles, col_area);
+        self.render_para_border_groups(
+            tree,
+            composed,
+            &mut col_node,
+            styles,
+            col_area,
+            bin_data_content,
+            0,
+        );
 
         (col_node, y_offset)
     }
