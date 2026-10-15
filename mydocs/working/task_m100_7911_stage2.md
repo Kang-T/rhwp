@@ -932,6 +932,30 @@ root workspace fmt, 변경 backend 세 파일의 원래 설정 fmt와 diff check
 나머지 image 경로 감사는 유지한다. 글자 생성/폰트·postprocess와 Worker 종료도 미완료다.
 `parser_allocation_bounds_proven=false`, 2단계 진행 중과 Open PR 보류를 유지한다.
 
+### 3.13 명시 승인에 따른 WIP Draft PR 생성 (2026-10-15)
+
+메인테이너가 "draft 로 pr 을 open 합니다"라고 지시하여, 이전의 남은 작업 완료 후
+Open PR 방침을 WIP 공유에 한해 변경했다. `gh` CLI로 같은 head branch의 기존 PR이
+없음과 #7911의 OPEN 상태를 확인했다. 원본 저장소 remote는 `origin`이며 다른 remote를
+추가하거나 기존 이름을 변경하지 않았다.
+
+코드 head `43863fb753018d6b044cc73e42fa6549af8e2bc9`를
+`origin/task_m100_7911`에 일반 push한 뒤 `gh pr create --draft --base devel`로
+[Draft PR #7913](https://github.com/edwardkim/rhwp/pull/7913)을 생성했다.
+생성 직후 API 재조회에서 `state=OPEN`, `isDraft=true`, `baseRefName=devel`,
+`headRefName=task_m100_7911`과 동일 코드 SHA 및 한국어 본문 보존을 확인했다.
+원격 devel의 조회 SHA는 `463c48cc228170b576c832591b76826116e86a49`다.
+
+PR 본문은 현재 65개 집중 계약 및 library lint/fresh WASM probe의 검증 범위와
+제품 CLI/WASM 연결·할당 감사·전체 lint/회귀·전쪽 시각 검증 등의 미완료를 구분한다.
+전체 branch diff에는 보존한 upstream 소스의 trailing whitespace 6곳이 남아 있음을
+명시했다. 기존 upstream 파일을 일괄 포맷하거나 산출물을 추가 커밋하지 않았다.
+
+이는 명시 승인된 WIP 공유이며 자원 안전성·PR 준비 완료·정식 review·Ready 전환·merge·
+외부 crate 게시·#7911 종료의 승인이 아니다. 생성 직후 CI는 진행 중이며 성공으로
+판정하지 않았다. 이 기록은 작업 문서일 뿐 CI 성공 뒤 작성하는 정식 PR review나
+오늘할일 trailing 기록을 대신하지 않는다. 아래 미완료 게이트는 그대로 유지한다.
+
 ## 4. 미완료와 다음 게이트
 
 - 기존 format detect/`ParsedDocument`/Core 생성 경로, CLI 명령과 WASM 공개 import API는
