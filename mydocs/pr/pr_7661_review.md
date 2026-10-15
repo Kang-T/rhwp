@@ -180,3 +180,17 @@ ignored `output/pr-review/pr7661-20261015/`에 메타데이터·focused-results�
 증거는 ignored `output/pr-review/pr7661-20261015/image-fill-roundtrip/`의 원본/저장 IR 진단, 한컴 무편집 HWPX와 사용자 수정본이다. 앞선 C10 26문서 전쪽 자동 점수가 통과해도 이 직접 판독 결함을 면제하지 않는다. 저장본의 독립 PDF도 이미 잘못된 TILE을 소비했으므로 그 PDF와의 높은 점수는 저장 보존의 정답 근거가 아니다. 보정 뒤 새 저장본과 원본/한컴 정상 저장본을 대조하고 영향 페이지를 다시 확인한다. 기존 UI/API 검사와 원래 입력을 덮어쓰지 않으며 새 산출물 경로를 사용한다.
 
 역방향도 독립 한컴 저장으로 확인했다. 한컴의 ZOOM HWPX를 HWP로 저장하면 글상자와 두 셀 모두 HWP5 값 15(None)이며(job `b83a3e1e-fd41-41ce-bedc-af930f825030`), 사용자 수정 TOTAL 글상자를 HWP로 저장하면 값 5(FitToSize)다(job `0f57a22c-9faa-43c7-adb6-a0add151fd67`). 기존 HWP writer도 Zoom→5, Total→0으로 기록하므로 그대로 두면 다시 저장할 때 의미가 손상된다. HWP header/shape의 중복 표를 공통 함수로 합쳐 `Zoom/None→15`, `Total/FitToSize→5`를 함께 보존하고, HWPX의 FitToSize도 공식 `TOTAL`로 출력한다. 별도의 렌더링 동작은 변경하지 않는다. 교차 저장 의미를 확정하는 동안 첫 C11 Docker 빌드는 완료 전에 중단했으며 성공 증거로 세지 않는다. 최종 제품 코드가 정해진 뒤의 빌드로 새 산출물을 만든다.
+
+### 보정 저장본의 재검증과 사용자 판정
+
+작업지시자는 기존 Docker WASM에 보정 저장본만 다시 연 Studio 탭에서 **1쪽 글상자 그림 시각 판정 통과**를 회신했다. 앞서 그라데이션의 통과 판정도 유지한다. 같은 렌더러에서 저장본 교체만으로 반복이 해소되므로 저장 계층의 원인 판정을 뒷받침한다.
+
+제품 source `bbd477b1f`의 Native와 fresh Docker WASM 저장본은 issue7235에서 **바이트까지 동일**하다(SHA-256 `cd8226dcc0706f30b8580928a986e659c4a0e2caf597b725ddcffeb5298a5e5f`). 선행 `07397acc5` Native 저장본도 같은 바이트다. 같은 저장본의 한컴 2020 독립 Print 14쪽(job `6d4f07e3-5043-4081-b6a7-9a6b2bd17589`)을 다시 확보했다. Native 전쪽 최저 95.22496%/1쪽 99.33702%, 새 Docker WASM 전쪽 최저 95.54386%/1쪽 98.62085%이며 14쪽 모두 측정됐다. Native PNG는 동일한 저장 바이트와 동일한 paint 코드인 선행 C11 실행을 재사용하고 실행 source를 구분한다. fresh WASM의 같은 1쪽을 Print와 확대 판독해 반복·누락·큰 로고 잘림이 해소됐음을 확인했다. 자료는 `image-fill-roundtrip/{c11-native,c12-wasm}/issue7235-corrected-save/`의 TSV/PNG와 `fresh-wasm-first-page-review.png`다.
+
+최종 Docker 빌드는 성공(9m15s)했으며 WASM SHA-256은 `a41d6cb8e504bdb269420321a06d49ba8b93b035e554076ad6b38c447bc858b8`다. 루트 pkg·Studio public·cache/SW 우회한 브라우저 응답의 해시가 같다. 새 탭 `http://localhost:7801/?review=pr7661-c12-save-contract&lang=ko`에서 실제 새 WASM으로 원본 5개의 API 편집 후 HWP/HWPX와 HWPX→HWP 저장을 실행했다. issue7235의 3곳은 HWPX ZOOM, HWP 및 HWPX→HWP는 모두 None(15)이다. 나머지 mel/school/newyear/page-image의 새 API 편집 HWPX는 이전에 Print 검증한 파일과 바이트까지 동일하므로 기존 대응 PDF를 그대로 재사용한다. `image-fill-roundtrip/{c12-wasm-verification,c12-save-mode-results,unchanged-other-api-inputs}.json`에 기록했다. API·UI 구현을 바꾸지 않은 중복 UI 16시나리오 재실행은 하지 않았다.
+
+정식 `issue_7661_image_fill_save_modes` 두 검사를 같은 compiled harness에서 CLI만 교체해 실행했다. 수정 전 C10 CLI는 두 검사 모두 의미 손실 assertion으로 FAIL(exit101), C12 CLI는 두 검사 모두 PASS(exit0)다. 글상자·BorderFill의 2회 HWP↔HWPX 저장 및 실제 TileAll/Total의 구분을 보호한다. 처음 untracked 신규 source를 준비하기 전 실행이 0건으로 끝난 결과는 검증 통과로 세지 않았고 stage 뒤 suite를 다시 준비해 실제 2건 PASS를 확인했다.
+
+기존 26문서 96쪽 C10 Native/fresh WASM은 전쪽 90% 이상·base 대비 0.01%p 이상 하락 0쪽이다. 해당 paint 구현은 이후 저장 모드 보정에서 바꾸지 않았다. 다만 API issue7235 저장 입력의 TILE 손실은 높은 점수와 무관하게 위에서 별도로 고쳤으며, 잘못된 저장본의 독립 Print 통과를 보존 계약의 증거로 쓰지 않는다. 정식 배경 회귀의 입력 4개와 대응 Print는 `tests/fixtures/issue7661_backgrounds/`에 보존하고 source 소유/내용/포함/레이어 검사로 추가한다. 기존 #7235의 절대 px 핀도 고유 source 그림 치수→소유 render node→실제 SVG viewport/정렬 관계로 교체한다. 다른 문서의 검사는 확장하지 않는다.
+
+Native Skia의 선행 lib 실패 1건은 실제 gradient를 첫 색상 단색 fallback으로 검사하던 기대값이었다. 사용자 그라데이션 판정과 독립 중심 0/50/100 Print를 근거로 상·하 원본 색 stop의 우세/변화 관계를 검사하도록 고친다. 기존 임계값만 완화하지 않으며 pattern/ellipse/path/line 검사는 유지한다. 이 source-side test 변경은 unit-tier base check와 최종 Native Skia lib 검사 대상으로 남긴다.
