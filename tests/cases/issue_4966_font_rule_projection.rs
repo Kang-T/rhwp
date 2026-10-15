@@ -145,7 +145,7 @@ fn sealed_v1_semantics_change_only_by_recorded_replacement() {
 
     assert_eq!(v1_rules.len(), 830);
     assert_eq!(v2["summary"]["activeRuleCount"], 833);
-    assert_eq!(v2["summary"]["retiredRuleCount"], 2);
+    assert_eq!(v2["summary"]["retiredRuleCount"], 4);
 
     let mut expected_semantics: BTreeMap<_, _> = v1_rules
         .iter()
@@ -158,13 +158,21 @@ fn sealed_v1_semantics_change_only_by_recorded_replacement() {
         })
         .collect();
     // v1 봉인은 변경하지 않는다. 독립적으로 기록된 교체와 추가만 활성 의미에 반영한다.
-    let changes: [serde_json::Value; 2] = [
+    let changes: [serde_json::Value; 4] = [
         serde_json::from_str(include_str!(
             "../../assets/font-rules/changes/issue-7023-batangche-serif-supply.json"
         ))
         .unwrap(),
         serde_json::from_str(include_str!(
             "../../assets/font-rules/changes/issue-6936-new-gulim-face-identity.json"
+        ))
+        .unwrap(),
+        serde_json::from_str(include_str!(
+            "../../assets/font-rules/changes/issue-4969-oldhangul-license-webfont.json"
+        ))
+        .unwrap(),
+        serde_json::from_str(include_str!(
+            "../../assets/font-rules/changes/issue-4969-oldhangul-license-canvaskit.json"
         ))
         .unwrap(),
     ];

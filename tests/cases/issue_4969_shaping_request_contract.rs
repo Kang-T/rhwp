@@ -580,7 +580,9 @@ fn issue_4969_q4_a_exact_vertical_metrics_and_origins_are_deterministic() {
             .as_ref()
             .expect("Source Han vertical identity")
             .settings_sha256,
-        "e41dd5fc7b332e7367802c508cc7b07cb193bd92903731b3fe4637071ac3de6f"
+        // RHWP Old Hangul 재명명은 name/CFF 메타데이터와 원본 바이트 식별자를 바꾼다.
+        // 위 glyph ID·advance·offset 기대값은 유지한다.
+        "03fb00135725a74da6d939f59080129069046576874d86cccd36538eb8985b0a"
     );
 }
 
