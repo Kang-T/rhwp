@@ -9,7 +9,7 @@ last_verified: 2026-10-15
 
 ## 최종 판정
 
-**머지 보류 — API와 Studio 배경 보존 보정은 검증했으나, 문단 배경의 기존 렌더링 누락까지 수정하는 승인 범위를 진행 중이다.** 원 PR head를 직접 merge 대상으로 삼지 않는다. 원격 push·승인·merge·댓글은 수행하지 않았다. 아래 초기 검토와 후속 메인터너 보정을 구분한다.
+**메인터너 보정 후 수용 가능 — 로컬 보정·전쪽 시각·전체 회귀 검증 완료, 원격 반영 승인 및 새 head CI 대기.** 원 contributor head를 그대로 승인하지 않는다. 작업지시자는 그라데이션과 issue7235 1쪽 글상자 그림의 시각 판정을 통과로 회신했다. 원격 push·본문 갱신·merge는 수행하지 않았다. 아래 초기 보류와 단계별 선행 결과는 당시 기록이며 최종 결과는 마지막 절을 따른다.
 
 ## 접수 정보와 기존 맥락
 
@@ -194,3 +194,34 @@ ignored `output/pr-review/pr7661-20261015/`에 메타데이터·focused-results�
 기존 26문서 96쪽 C10 Native/fresh WASM은 전쪽 90% 이상·base 대비 0.01%p 이상 하락 0쪽이다. 해당 paint 구현은 이후 저장 모드 보정에서 바꾸지 않았다. 다만 API issue7235 저장 입력의 TILE 손실은 높은 점수와 무관하게 위에서 별도로 고쳤으며, 잘못된 저장본의 독립 Print 통과를 보존 계약의 증거로 쓰지 않는다. 정식 배경 회귀의 입력 4개와 대응 Print는 `tests/fixtures/issue7661_backgrounds/`에 보존하고 source 소유/내용/포함/레이어 검사로 추가한다. 기존 #7235의 절대 px 핀도 고유 source 그림 치수→소유 render node→실제 SVG viewport/정렬 관계로 교체한다. 다른 문서의 검사는 확장하지 않는다.
 
 Native Skia의 선행 lib 실패 1건은 실제 gradient를 첫 색상 단색 fallback으로 검사하던 기대값이었다. 사용자 그라데이션 판정과 독립 중심 0/50/100 Print를 근거로 상·하 원본 색 stop의 우세/변화 관계를 검사하도록 고친다. 기존 임계값만 완화하지 않으며 pattern/ellipse/path/line 검사는 유지한다. 이 source-side test 변경은 unit-tier base check와 최종 Native Skia lib 검사 대상으로 남긴다.
+
+
+## 최종 제출 검증: 저장 보정·배경·후속 흐름
+
+최종 제품 source는 `e167bf07ac0c84760a14de86ead849fe5beb3f4c`, 고정 base는 `a5e88ad682c805e1d845502ddc9521b94ea8eccd`다. 이후 `9e662936c`는 기존 배경 회귀의 빈 줄·후속 문단 assertion만 보강했으며 제품 source·입력·기준 PDF는 바꾸지 않았다. 같은 Native/WASM 산출물을 재사용하며 제품 재빌드나 전쪽 캡처를 반복하지 않는다.
+
+| 최종 검증 | 관측과 증거 |
+| --- | --- |
+| Native / fresh Docker WASM | 각각 26문서·96쪽 전량. 최저 92.29460% / 90.98799%. 90% 미만·누락·쪽수 불일치·같은 입력/PDF의 base 대비 0.01%p 이상 하락 모두 0. |
+| issue7235 API 편집본 | 14쪽 전량. 1쪽 Native 99.33702% / WASM 98.62085%, 6쪽 98.80061% / 98.84667%. 반복 그림 해소와 표 뒤 간격·뒤 문단을 직접 판독했다. |
+| 저장·재열기 | 최종 실제 Docker WASM에서 원본 5개를 API 편집 후 HWP/HWPX 및 HWPX→HWP로 저장했다. 최종 HWPX 5개는 커밋된 검증 입력과 바이트가 같다. issue7235의 3곳은 HWPX ZOOM / HWP None(15)을 유지한다. |
+| 전체 기본 Rust | `cargo nextest run --locked --cargo-profile release-test --target-dir target/pr-review --tests --no-fail-fast`: 10,304 PASS / 0 FAIL / 45 skip. 마지막 PDF JSON 검사는 완료됐으며 취소·재실행하지 않았다. |
+| Native Skia | `cargo test --locked --profile release-test --target-dir target/pr-review --features native-skia --lib`: rhwp 3,859 PASS / 0 FAIL / 12 ignore. placeholder 2 PASS, direct PDF 4 PASS. |
+| 배경 정식 회귀 | 최종 assertion 5건을 같은 compiled harness에서 CLI만 교체: 고정 base 5 FAIL(exit101) → 최종 제품 5 PASS(exit0). 실제 공백 줄의 양수 높이·앞뒤 순서, 85줄의 완전한 보존과 마지막 뒤 문단 1회 표시를 포함한다. |
+| 저장 모드 정식 회귀 | 동일 harness의 수정 전 C10 CLI 2 FAIL → 모드 보정 CLI 2 PASS. 실제 반복 모드와 크기 맞춤을 구분하고 두 번의 왕복 저장을 검사한다. |
+| 최종 lint·정책 | assertion 보강 뒤 fmt/check, native·WASM lib·workspace all-targets의 세 Clippy, workspace build, 고정 base manifest 및 unit-tier check 전부 PASS. 별도 native-skia feature Clippy도 PASS. |
+| Studio UI | 제품 UI source가 같은 보정 1의 30건·전체 Node 1,870 PASS/2 skip·TypeScript·실제 브라우저 16건을 재사용했다. 새 실행으로 표시하지 않는다. 바뀐 저장 계층은 위 최종 WASM API 실행으로 별도 확인했다. |
+
+Native CLI SHA-256은 `49ac6d308e7665ff0ac2bc1d9d700ac04c10bed5b72f30d35dc486a087ae7542`, 최종 Docker WASM은 `2fa9ffcd57ced1f90112de79867fb7048ac7bf8c8500be7032c03b9d4d91d817`다. 루트 pkg·Studio public 및 브라우저 직접 응답의 해시를 대조하고 캐시/SW를 우회한 새 탭 `http://localhost:7801/?review=pr7661-final-save-contract&lang=ko`에서 실제 API와 14쪽 로드를 확인했다. 대표 PNG도 이 최종 산출물로 생성했다.
+
+전쪽 명령은 ignored `output/pr-review/pr7661-20261015/run-background-visuals.py`에 보존했다. `RHWP_BG_COMMITTED_INPUTS=1`로 `verification-inputs.json`의 21쌍과 기존 공개 원본/PDF 5쌍을 고정하고 `RHWP_BG_CLI`·`RHWP_BG_PKG`에 위 최종 바이너리를 전달해 Native/fresh WASM을 각각 실행했다. 각 문서의 TSV·입력/PDF hash·쪽수·비교 환경은 `background-render/final-{native,wasm}/<key>/`에 있다. 집계 `background-final-strict-gates.json`은 26개 키·96쪽·누락·하락·같은 입력/PDF 대응을 검사했다. 실루엣 전용 실행의 `not_evaluated`를 자동 PR 승인으로 바꾸지 않고, 전쪽 TSV 조건과 직접 판독·사용자 판정을 별도로 확인했다.
+
+입력과 독립 Print는 `tests/fixtures/issue7661_backgrounds/verification-inputs.json`에 재현 가능한 저장소 경로·SHA로 보존했다. 신규 21쌍의 42파일은 실행본과 Git blob이 같다. 정상 원본에 편집 속성을 연결한 수동 대조군은 실제 생성 방식을 표시했으며 한컴 생성 원본으로 부르지 않는다. `format-oracles/`의 네 파일은 독립 한컴의 ZOOM↔15, TOTAL↔5 **저장 enum 근거**이며 별도 픽셀 baseline이나 추가 전쪽 통과 문서로 세지 않는다.
+
+같은 페이지·배율의 직접 판독은 1쪽 로고의 반복·잘림 해소, 6쪽의 세 사례 표와 뒤 문단 간격, 줄별 그라데이션의 재시작, 명시적 개행/너비가 충분한 두 TAC의 소속·실제 공백 줄, 이어지는 문단을 확인했다. 기존 일부 글꼴 굵기 차이는 남으며 완전한 픽셀 동등성을 주장하지 않는다. Native 비선형 그라데이션의 모든 종류와 기존 혼합 인라인 표 fallback의 일반화된 배경 배치는 미검증이며 이번 수용 범위에 포함하지 않는다.
+
+기존 #7235 검사 중 수정한 두 함수는 같은 문서의 고유 원본 그림 치수→소유 render node→SVG viewport·비율 관계로 고정 px 영역을 교체했다. 원본 치수의 계약과 그림 누락/중복 검사는 유지한다. 다른 문서의 검사는 바꾸지 않았다. Native gradient 검사도 독립 Print와 원본 stop의 상하 색상 관계로 교정했으며 기존 단색 fallback 기대를 허용치 완화로 유지하지 않았다.
+
+증거 위치(모두 ignored 실행 자료): `logs/final-{nextest,skia-lib,skia-placeholder,skia-direct-pdf}.log`, `logs/submission-final-lint-sequence.log`, `logs/final-clippy-native-skia-feature.log`, `logs/final-boundary-{before,after}-formal.log`, `background-probe/final-formal-before-after.json`, `image-fill-roundtrip/{final-wasm-verification,final-saved-inputs-match,formal-before-after}.json`, `final-review-assets/manifest.json`. 공개 대표 review/overlay는 [assets/pr7661](assets/pr7661)에 16개 PNG로 보존한다. TSV·중간 JSON·로그·생성 suite·로컬 환경 파일은 커밋하지 않는다.
+
+원격 #7661은 재조회 시 여전히 원 head `f1da6189670357b4a2394c73d7106137ab4b38c4`, OPEN, maintainer 수정 가능이다. 최신 base와 local 통합 충돌 없음. 원 기여 commit을 보존하는 보정본 push·한국어 본문 갱신·새 head Full CI/CodeQL 실행 승인을 받은 뒤 원격 반영한다. 원 head의 기존 CI를 보정본의 CI로 대신하지 않는다.
