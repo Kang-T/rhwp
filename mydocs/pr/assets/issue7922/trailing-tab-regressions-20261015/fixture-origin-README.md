@@ -12,7 +12,7 @@
   [시각·fixture 증적](../../mydocs/manual/pr_review/visual_fixture_evidence.md) §3.5.1
   에 따라 `hwp2024Convert` MCP 의 `engine: 2020`). 초판은 `2024` 로 적었다 —
   PR #6801 지적.
-- **기준 PDF: `pdf/1192000-202100017-policy-research-report-2020.pdf`** — `engine: 2020`
+- **기준 PDF: `mydocs/pr/assets/issue7922/trailing-tab-regressions-20261015/1192000-202100017-policy-research-report-2020.pdf`** — `engine: 2020`
   으로 직접 산출해 저장했다(62,122 bytes).
   ⭐ **rhwp 와 완전히 일치한다** — 1쪽, 공백·점 제거 글자 수 **574**, 5-gram 차이 **0**.
 - ⚠ 다만 **이 축은 출력 불변**이라 기준 PDF 대조가 판정을 주지 않는다 — 1쪽 SVG 는

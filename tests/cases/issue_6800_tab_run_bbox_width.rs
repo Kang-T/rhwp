@@ -55,7 +55,7 @@ use rhwp::renderer::render_tree::{RenderNode, RenderNodeType};
 
 // 선행 공백 분리 후 단일 런을 가정한3검사는 사용자 지정으로 #7922에 이관했다.
 // 공유 원본·PDF와 아래 정상 대조 검사는 보존한다.
-const SAMPLE: &str = "samples/issue6800/1192000-202100017-policy-research-report.hwp";
+const SAMPLE: &str = "mydocs/pr/assets/issue7922/trailing-tab-regressions-20261015/1192000-202100017-policy-research-report.hwp";
 
 /// 정식 fixture는 `MANIFEST.json`의 SHA-256로 고정된다. fixture 부재는 회귀 시험의
 /// 성공 조건이 아니므로 읽기 실패를 즉시 드러낸다.

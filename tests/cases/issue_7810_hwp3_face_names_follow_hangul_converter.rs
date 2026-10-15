@@ -21,7 +21,7 @@ const PAIRS: [(&str, &str); 8] = [
     ("samples/hwp3-sample5.hwp", "samples/hwp3-sample5-hwpx.hwpx"),
     (
         "samples/hwp3-sample10.hwp",
-        "samples/hwp3-sample10-hwpx.hwpx",
+        "mydocs/pr/assets/issue7774/sql-sample10-regressions-20261015/hwp3-sample10-hwpx.hwpx",
     ),
     (
         "samples/hwp3-sample11.hwp",
