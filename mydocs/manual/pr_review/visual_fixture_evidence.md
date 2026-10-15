@@ -94,18 +94,18 @@ PR 또는 관련 issue 본문·comment에 첨부된 HWP/HWPX/PDF/PNG와 외부�
 내려받아 samples/issueN 또는 samples/prN 아래에 안정적인 이름으로 보존한다. 원본 첨부를 output에만
 두거나 기준 PDF라는 이유만으로 pdf에만 두지 않는다.
 
-**50 MB(50,000,000바이트) 이상 PDF는 로컬에만 보관하고 PR에 포함하지 않는다.** MCP·수동 Print·첨부본과
+**50 MiB(52,428,800바이트) 이상 PDF는 로컬에만 보관하고 PR에 포함하지 않는다.** MCP·수동 Print·첨부본과
 저장 경로에 관계없이 적용하며 Git blob·LFS·PR 첨부로 업로드하지 않는다. 크기 제한을 피하려고 전쪽 PDF를
 여러 파일로 나누어 추가하지 않는다. 기존에 원격으로 올라간 이력의 삭제·재작성은 별도 작업으로 판단한다.
 
-대용량 PDF는 로컬 `pdf/`의 안정적인 경로에 보관하고 `.git/info/exclude`에 해당 파일의 정확한 경로를
-등록해 재추적을 막는다. PR/review에는 원문 경로·SHA-256, PDF 출처·로컬 보존 경로·바이트 수·SHA-256·
+대용량 PDF는 저장소 밖의 안정적인 로컬 경로(예: `~/rhwp-local-pdf/`)에 보관한다. 저장소 안에 둘 경우
+`.git/info/exclude`에 해당 파일의 정확한 경로를 등록해 재추적을 막는다. PR/review에는 원문 경로·SHA-256, PDF 출처·로컬 보존 경로·바이트 수·SHA-256·
 전체 쪽수, Print 생성 명령/engine과 전쪽 Native/fresh WASM TSV·대표 PNG를 기록한다. 이 PDF에는
 [입력 커밋 확인](intake_and_review.md#28-검증-입력-커밋-확인)의 대용량 PDF 로컬 보관 항목을 적용하며,
 크기 때문에 커밋에서 제외한 것을 검증 누락으로 판정하지 않는다. 실제 PDF를 확보하지 못했거나 동일성·
 전쪽 검증·직접 판독이 빠진 경우는 계속 미검증이다.
 
-HWP/HWPX 및 50 MB 미만 PDF는 **검증에 사용한 파일을 검토 대상 commit에 포함**하고
+HWP/HWPX 및 50 MiB 미만 PDF는 **검증에 사용한 파일을 검토 대상 commit에 포함**하고
 [공통 입력 확인](intake_and_review.md#28-검증-입력-커밋-확인)에서 실제 실행 파일과 commit의 동일성을 점검한다.
 `korea_downloads` 등 다운로드 폴더는 원본 탐색·수집 경로이며 최종 재현 경로가 아니다.
 이미 추적 중인 같은 내용의 원본·기준 PDF는 기존 경로를 사용하고 사본을 다시 추가하지 않는다.
@@ -186,8 +186,8 @@ PR review 기준 PDF 파일명은 engine bucket 기준으로 끝낸다. `hancom-
 
 - 새 MCP 기준 PDF를 산출한 경우에는 output에만 두지 않고 2020 bucket은 `pdf/{원본 stem}-2020.pdf`, 2024 bucket은
   `pdf/{원본 stem}-2024.pdf`에 저장한다.
-- 50 MB 미만 MCP 산출 PDF는 `pdf/**`에 일반 Git blob으로 commit 가능한 장기 증적이다.
-  **50 MB 이상은 위 로컬 보관 규칙을 적용하고 커밋·push·PR 첨부에서 제외한다.** 보존 방식 합의를
+- 50 MiB 미만 MCP 산출 PDF는 `pdf/**`에 일반 Git blob으로 commit 가능한 장기 증적이다.
+  **50 MiB 이상은 위 로컬 보관 규칙을 적용하고 커밋·push·PR 첨부에서 제외한다.** 보존 방식 합의를
   기다리며 검증을 중단하거나 대용량 PDF 커밋 예외를 기본 절차로 요청하지 않는다.
 - 서버 URL, IP, 인증 token, .env.local 내용은 GitHub issue·PR·review 문서·로그에 기록하지 않는다.
 - 원격 service는 rhwp maintainer, collaborator 또는 MCP 관리자가 별도로 인증한 사용자만 사용한다.

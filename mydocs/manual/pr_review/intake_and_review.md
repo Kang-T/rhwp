@@ -187,8 +187,8 @@ DPI/좌표계와 Native/fresh WASM 증거를 함께 대조한다.
 ## 2.8 검증 입력 커밋 확인
 
 이 항목도 역할·작성자와 관계없이 모든 정식 PR review에 적용한다. 직접 검증에 사용한 HWP/HWPX와
-50 MB 미만 기준·비교 PDF는 **수용 판정 전에 검토 대상 commit에 포함**되어야 한다.
-**50 MB(50,000,000바이트) 이상 PDF는 로컬에만 보관하고 PR에서 제외**하며 아래 별도 확인을 적용한다.
+50 MiB 미만 기준·비교 PDF는 **수용 판정 전에 검토 대상 commit에 포함**되어야 한다.
+**50 MiB(52,428,800바이트) 이상 PDF는 로컬에만 보관하고 PR에서 제외**하며 아래 별도 확인을 적용한다.
 그 외 파일은 `korea_downloads` 같은 개인 다운로드 경로, `/tmp`, output, GitHub 첨부 URL에만 있으면
 저장소에 보존된 입력으로 세지 않는다.
 테스트 통과·파일 존재·`git add`만으로 커밋 포함을 확인했다고 쓰지 않는다.
@@ -202,7 +202,7 @@ DPI/좌표계와 Native/fresh WASM 증거를 함께 대조한다.
 4. 검토 대상 commit의 파일 내용과 실행한 파일을 대조한다. 각 입력의 저장소 경로, 출처·역할,
    SHA-256, 확인한 commit SHA를 review Markdown 또는 정식 fixture manifest에 남긴다.
    Git LFS 대상이면 pointer의 존재만 확인하지 않고 실제 object의 확보와 내용 해시까지 확인한다.
-5. 50 MB 이상 PDF는 commit 포함 검사에서 제외한다. [대용량 PDF 보존](visual_fixture_evidence.md#원본-fixture와-기준-pdf-보존)에
+5. 50 MiB 이상 PDF는 commit 포함 검사에서 제외한다. [대용량 PDF 보존](visual_fixture_evidence.md#원본-fixture와-기준-pdf-보존)에
    따라 실제 로컬 파일의 경로·바이트 수·SHA-256·출처·전체 쪽수와 생성/검증 명령을 기록하고,
    전쪽 Native/fresh WASM TSV 및 대표 PNG를 연결한다. 파일을 확보해 같은 SHA로 검증했고 PR에서
    제외했으면 `충족 — 대용량 PDF 로컬 보관`으로 기록한다. 크기만으로 검증 자체를 생략하지 않는다.
