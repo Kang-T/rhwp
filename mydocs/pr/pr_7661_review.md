@@ -146,3 +146,9 @@ ignored `output/pr-review/pr7661-20261015/`에 메타데이터·focused-results�
 값 추적: `resolve_border_style`의 `gradient/image_fill` 생산(`style_resolver.rs`) → `paragraph_layout.rs`의 실제 줄 상자·spacing·border inset 범위 수집 → `layout.rs::render_para_border_groups`의 연속 테두리 그룹과 최종 상자 → 현재 `fill_color`만 소비하는 Rectangle. 일반 본문 호출은 `layout.rs`, 셀 문단 호출은 `layout/table_layout.rs`에 있다. 셀 자체 배경은 이미 `render_cell_background`에서 같은 종류와 이미지 효과를 소비하므로 이를 공통 paint 결과로 재사용한다. 채우기 종류가 달라도 stroke가 같다는 이유로 첫 문단의 Fill을 뒤 문단에 복사하지 않으며, 채우기를 나누기 위해 연결된 테두리에 새 가로선을 만들지 않는다.
 
 구현 전 반례는 연결 테두리 내 서로 다른 채우기/채우기 없음, 같은 채우기 연속 문단, 본문/셀 문단, 분할된 문단 조각이다. 실제 저장 속성과 독립 Print의 관측으로 기대를 정하고 영향 영역을 먼저 비교한다. 새 정식 배치 회귀는 Native/fresh WASM 90%와 직접 판독 이후에 추가하며 absolute px/전체 SVG 해시를 핀하지 않는다. 현재 대화상자/API 검증을 새 renderer 검증의 대용으로 삼지 않는다.
+
+## 추가 승인: API 대조 문서 6쪽의 저장 좌표계 전환
+
+작업지시자는 기존 6쪽 위치 차이도 이번 범위에서 보정하도록 승인했다. 같은 편집 HWPX와 독립 한컴 2020 Print의 14쪽 전량을 대조한 결과, 첫 표(문단 97) 뒤부터 약 5px 차이가 누적 없이 유지된다. 입력은 실제 HWP를 public API로 편집·저장한 것이며 임의 LineSeg 수정본이 아니다. 해당 표의 저장 줄 높이 10,377HU는 표 10,095HU와 위·아래 바깥여백 141HU씩을 포함한다. 다음 문단의 저장 시작 11,129HU는 이 높이와 후행 간격 752HU의 합이다. 표 호스트의 이전 쪽 저장 원점 67,373HU를 그대로 더하면 이 닫힌 새 쪽 좌표계를 인식하지 못하고 간격을 절반으로 줄인다.
+
+추적 경로는 `composer의 저장 줄·후속 원점 → float_placement::stored_tac_line_successor_advance → typeset/controls/tac_reconcile::measure의 점유 상한 → layout::tac_next_line_full_spacing의 실제 후행 흐름`이다. 저장 원점 리셋의 판정은 온전한 단일 TAC 줄 상자와 다음 원점의 정확한 닫힘으로 설명해야 한다. 개체와 다른 줄이 섞인 문단·dirty/계산 LineSeg·닫히지 않는 후속 좌표에 이 판정을 확장하지 않는다. 절대 px 보정이나 문서별 예외는 추가하지 않는다. 구현 뒤 같은 원본 전쪽과 정상 대조군을 다시 확인한다.
