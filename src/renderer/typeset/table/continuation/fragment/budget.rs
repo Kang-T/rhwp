@@ -558,6 +558,8 @@ impl TypesetEngine {
                 };
             // 쪽 중간의 첫 조각은 기존 fit 예산을 유지한다. 반복 프레임 하단은
             // 그 첫 수용 상자의 종료 인증에도 쓰되, 내용 컷의 예산으로 바꾸지 않는다.
+            let source_bottom =
+                source_bottom - input.start.stored_fragment_body_bottom_inset.unwrap_or(0.0);
             let fit_bottom =
                 if is_continuation || body_filling_source_frame || single_cell_page_fragment {
                     source_bottom
@@ -1614,7 +1616,7 @@ impl TypesetEngine {
         // 첫 수용 상자가 본문을 닫은 원본은 뒤 조각도 같은 바깥 프레임 안에서
         // 컷을 선택한다. 실제 종료의 빈 띠는 스캔 뒤 원본 소유 컷에서 확인한다.
         let avail_for_rows = if is_continuation
-            && input.start.stored_fragment_closes_body
+            && input.start.stored_fragment_body_bottom_inset.is_some()
             && st.current_height <= 0.5
             && st.current_zone_y_offset == 0.0
             && std::ptr::eq(row_geometry_table, table)

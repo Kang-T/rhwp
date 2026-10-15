@@ -2404,7 +2404,7 @@ fn stored_text_paragraphs_share_vpos_frame(
 
 /// 원본 셀의 변경되지 않은 글줄 사이에서 확인한 물리 프레임 되감김.
 /// 빈 문단도 저장 줄 상자를 소유하며 실제 프레임을 닫을 수 있다.
-/// 양수 문단 원점 재시작만으로는 물리 경계를 확정하지 않는다.
+/// 양수 원점은 원본 간격과 공유 셀 좌표계의 인증을 함께 소비한다.
 fn stored_plain_text_paragraph_frame_reset(
     previous: &crate::model::paragraph::Paragraph,
     next: &crate::model::paragraph::Paragraph,
@@ -2430,9 +2430,6 @@ fn stored_plain_text_paragraph_frame_reset(
                     && before.vertical_pos > 0
                     && after.vertical_pos >= 0
                     && after.vertical_pos < before.vertical_pos
-                    && (after.vertical_pos == 0
-                        || after.is_first_line_of_page()
-                        || after.is_first_line_of_column())
                     && styles
                         .para_styles
                         .get(next.para_shape_id as usize)
@@ -14726,44 +14723,41 @@ impl LayoutEngine {
             let declared_two_line_frame = pi == 1
                 && cell.paragraphs.len() == 2
                 && self.stored_two_line_row_cut_frame(table, usize::from(cell.row), styles);
-            let reset_before = declared_two_line_frame
-                || if pi > 0 && cell_has_local_vpos_origin {
-                    // [#7095] 저장 LINE_SEG 가 없는 표 host 문단(p18: 3×3 표)은 비교할 줄이 없다.
-                    // 그 앞에서 줄을 가진 가장 가까운 문단의 끝과 비교해야 표 뒤의 되감김을 본다.
-                    let prev_seg = cell.paragraphs[..pi]
+            // 같은 인증을 강제 컷과 저장 프레임 플래그가 소비한다.
+            // 양수 문단 앞 간격도 원본 셀의 공유 좌표계가 입증한 재시작을 소유한다.
+            let source_text_frame_reset = native_text_frame_cell
+                && pi > 0
+                && cell.paragraphs.get(pi - 1).is_some_and(|previous| {
+                    stored_plain_text_paragraph_frame_reset(previous, p, styles, self.dpi)
+                });
+            // 되감김 기하와 강제 컷의 인증은 다른 상태다. 원본 첫 조각의
+            // 높이를 대조하는 소비자는 양수·동일 원점의 기하도 보존해야 한다.
+            let paragraph_origin_rewind = (pi > 0 && cell_has_local_vpos_origin)
+                .then(|| {
+                    cell.paragraphs[..pi]
                         .iter()
                         .rev()
-                        .find_map(|para| para.line_segs.last());
-                    match (prev_seg, p.line_segs.first()) {
-                        (Some(prev_seg), Some(cur_seg))
-                            if !line_seg_is_synthetic(prev_seg)
-                                && !line_seg_is_synthetic(cur_seg) =>
-                        {
-                            let prev_end =
-                                prev_seg.vertical_pos.saturating_add(prev_seg.line_height);
-                            cur_seg.vertical_pos >= 0
-                            && prev_end > 0
-                            && cur_seg.vertical_pos < prev_end
-                            // 양수 문단 원점의 감소는 국소 좌표 재시작일 수 있다.
-                            // 강제 컷은 그리기와 같은 원본 프레임 인증을 사용한다.
-                            && (cur_seg.vertical_pos == 0
-                                || is_stored_frame_rewind(prev_seg, cur_seg, pi, 0)
-                                || self.stored_deferred_picture_frame_before(
-                                    cell, table, pi, p,
-                                ))
-                            // [#5585] 앞 줄 **바닥**보다 앞서는 것만으로는 리셋이 아니다.
-                            // 줄 전진량이 줄 높이보다 작은 문단(겹치는 줄 상자)에서는 평범한
-                            // 한 걸음도 이 조건을 만족한다 — 148738070 실측: p2 vpos 9800
-                            // lh 1400(끝 11200) → p3 vpos 10640. 840 전진인데 리셋으로 잡힌다.
-                            // 진짜 되감김은 앞 줄의 **시작**보다 뒤로 간다(p5 45290 → p6 0).
-                            && (!cell_uses_overlapping_line_boxes
-                                || cur_seg.vertical_pos < prev_seg.vertical_pos)
-                        }
-                        _ => false,
-                    }
-                } else {
-                    false
-                };
+                        .find_map(|para| para.line_segs.last())
+                        .zip(p.line_segs.first())
+                })
+                .flatten()
+                .filter(|(previous, current)| {
+                    let end = previous.vertical_pos.saturating_add(previous.line_height);
+                    !line_seg_is_synthetic(previous)
+                        && !line_seg_is_synthetic(current)
+                        && current.vertical_pos >= 0
+                        && end > 0
+                        && current.vertical_pos < end
+                        && (!cell_uses_overlapping_line_boxes
+                            || current.vertical_pos < previous.vertical_pos)
+                });
+            let reset_before = declared_two_line_frame
+                || source_text_frame_reset
+                || paragraph_origin_rewind.is_some_and(|(previous, current)| {
+                    current.vertical_pos == 0
+                        || is_stored_frame_rewind(previous, current, pi, 0)
+                        || self.stored_deferred_picture_frame_before(cell, table, pi, p)
+                });
             // #2430 p14의 비선형 부모 셀에는 한컴이 무시하는 빈 Enter가 있고,
             // 그 단일 lineseg도 다음 저장 좌표 0으로 rewind한다. 이를 프레임
             // 경계로 올리면 39쪽 정본이 38쪽으로 줄어든다. 실제 빈 문단은
@@ -14791,11 +14785,6 @@ impl LayoutEngine {
             } else {
                 false
             };
-            let source_text_frame_reset = native_text_frame_cell
-                && pi > 0
-                && cell.paragraphs.get(pi - 1).is_some_and(|previous| {
-                    stored_plain_text_paragraph_frame_reset(previous, p, styles, self.dpi)
-                });
             let stored_frame_break_before_para = declared_two_line_frame
                 || source_text_frame_reset
                 || if pi > 0 && cell_has_local_vpos_origin {
@@ -16296,8 +16285,9 @@ impl LayoutEngine {
                     // 이 플래그는 absorb_tail_before_stored_frame_break 의 흡수
                     // 목표로만 쓰인다.
                     stored_frame_break_before: stored_frame_break_before_para,
-                    // [#7095] 글줄 분기와 같이 가시-텍스트 게이트 **전**의 되감김 사실을 나른다.
-                    page_frame_reset_before: hard_break_before,
+                    // 원본 기하는 첫 조각 인증에 전달한다. 가시 내용의 강제 컷은
+                    // 위 별도 인증을 사용하므로 빈 문단이 임의의 쪽을 만들지 않는다.
+                    page_frame_reset_before: hard_break_before || paragraph_origin_rewind.is_some(),
                     vpos_gap_before: vpos_gap_before && !collapse_empty_rowbreak_spacer,
                     para_idx: pi,
                     vis_start: 0,
@@ -16432,8 +16422,9 @@ impl LayoutEngine {
                         // hard_break_before 는 #1488 그대로 가시 문단 한정이라
                         // 빈 문단 리셋이 쪽을 강제 분할하지는 않는다.
                         stored_frame_break_before: stored_frame_break_before(li),
-                        // [#6923] 가시-텍스트 게이트 **전**의 되감김 사실.
-                        page_frame_reset_before: hard_break_before,
+                        // 첫 줄 원점의 되감김도 원본 조각 인증까지 보존한다.
+                        page_frame_reset_before: hard_break_before
+                            || (li == 0 && paragraph_origin_rewind.is_some()),
                         vpos_gap_before: vpos_gap_before && !collapse_empty_rowbreak_spacer,
                         para_idx: pi,
                         vis_start: if collapse_empty_rowbreak_spacer {

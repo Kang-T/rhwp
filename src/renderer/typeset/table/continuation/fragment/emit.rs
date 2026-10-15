@@ -1373,24 +1373,40 @@ impl TypesetEngine {
             continuation.finish(row_count, true);
             return TableContinuationIteration::Complete;
         }
-        let source_frame_closes_body = !is_continuation
+        // 인증한 첫 상자의 실제 하단이 소유한 inset을 뒤 조각까지 전달한다.
+        // 기본 본문 끝과 Native 저장 프레임의 기존 inset을 각각 확인하며,
+        // 단순히 원본 표라는 이유로 뒤 내용 예산을 줄이지 않는다.
+        let source_frame_body_bottom_inset = (!is_continuation
             && stored_complete_extent.is_some()
             && table.caption.is_none()
-            && st.current_zone_y_offset == 0.0
-            && fragment_placement.is_some_and(|placement| {
-                budget.source_frame_bottom.is_some_and(|source_bottom| {
-                    let bottom = placement.table_top + partial_height;
-                    (bottom - source_bottom).abs()
-                        <= hwpunit_to_px(2, self.dpi)
-                            + f64::EPSILON * source_bottom.abs().max(1.0) * 4.0
-                })
+            && st.current_zone_y_offset == 0.0)
+            .then_some(fragment_placement)
+            .flatten()
+            .zip(budget.source_frame_bottom)
+            .and_then(|(placement, source_bottom)| {
+                let bottom = placement.table_top + partial_height;
+                let inset = source_bottom - bottom;
+                let tolerance =
+                    hwpunit_to_px(2, self.dpi) + f64::EPSILON * source_bottom.abs().max(1.0) * 4.0;
+                if inset.abs() <= tolerance {
+                    Some(0.0)
+                } else {
+                    let native_inset = hwpunit_to_px(
+                        crate::renderer::float_placement::SINGLE_CELL_PAGE_FRAGMENT_BOTTOM_INSET_HU,
+                        self.dpi,
+                    );
+                    (st.profile.hwp5_stored_pagination_layout()
+                        && table.row_count > 1
+                        && (inset - native_inset).abs() <= tolerance)
+                        .then_some(inset)
+                }
             });
         commit_fragment(st, caption_extra + partial_height, false);
         if !is_continuation && stored_complete_extent.is_some() {
             // 내용 컷과 독립적으로 인증한 첫 조각 상자가 실제 지면을 차지했다.
             // 다음 조각의 여백은 같은 커서 사실을 예산·배치가 함께 소비한다.
             continuation.stored_fragment_outer_frame = true;
-            continuation.stored_fragment_closes_body = source_frame_closes_body;
+            continuation.stored_fragment_body_bottom_inset = source_frame_body_bottom_inset;
         }
         // 큰 RowBreak 표가 기존 각주를 이미 가진 쪽에서 시작할 때에는 첫 조각의
         // 셀 각주를 같은 영역에 섞지 않는다. 그 쪽의 기존 각주(표 25의

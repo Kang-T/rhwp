@@ -28,7 +28,7 @@ struct FragmentStart {
     start_cut_is_block: bool,
     start_row_height_override: Option<f64>,
     stored_fragment_outer_frame: bool,
-    stored_fragment_closes_body: bool,
+    stored_fragment_body_bottom_inset: Option<f64>,
     start_cut: Vec<usize>,
     /// [#7531] 이 조각에서 쪽을 넘어온 걸침 칸의 끝 행 높이에서 덜 양 `(행, px)`.
     straddle_row_relief: Vec<(usize, f64)>,
@@ -227,7 +227,7 @@ impl TypesetEngine {
             start_cut_is_block: continuation.start_cut_is_block,
             start_row_height_override: continuation.start_row_height_override,
             stored_fragment_outer_frame: continuation.stored_fragment_outer_frame,
-            stored_fragment_closes_body: continuation.stored_fragment_closes_body,
+            stored_fragment_body_bottom_inset: continuation.stored_fragment_body_bottom_inset,
             start_cut,
         };
         let fragment_measurement = physical_rows.as_ref().map(|rows| {
