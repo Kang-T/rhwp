@@ -3,6 +3,25 @@
 use super::*;
 use crate::renderer::style_resolver::ResolvedBorderStyle;
 
+/// 실제 줄 전진에서 생산한 배경 밴드. anchor는 후속 배치 이동까지 따라간다.
+#[derive(Clone, Debug)]
+pub(super) struct ParagraphFillBand {
+    pub line_index: Option<usize>,
+    pub anchor: Option<(NodeId, f64)>,
+    pub top: f64,
+    pub bottom: f64,
+}
+
+/// 저장 줄의 가로 조각은 같은 물리 줄의 채우기를 공유한다.
+pub(super) fn paragraph_fill_line_index(para: Option<&Paragraph>, mut index: usize) -> usize {
+    while para.is_some_and(|para| {
+        crate::renderer::height_measurer::stored_seg_is_row_fragment(para, index)
+    }) {
+        index -= 1;
+    }
+    index
+}
+
 impl LayoutEngine {
     pub(super) fn border_fill_background_nodes(
         tree: &mut PageLayoutContext,
