@@ -9,7 +9,7 @@
 - 크기: 90112바이트
 - 저장 제품: `hancom-office-2018`, `10.0.0.10376`
 - 기준 엔진: **`2020`** (저장 제품이 `hancom-office-2018` 이므로
-  [시각·fixture 증적](../../mydocs/manual/pr_review/visual_fixture_evidence.md) §3.5.1
+  [시각·fixture 증적](../../../../manual/pr_review/visual_fixture_evidence.md) §3.5.1
   에 따라 `hwp2024Convert` MCP 의 `engine: 2020`). 초판은 `2024` 로 적었다 —
   PR #6801 지적.
 - **기준 PDF: `mydocs/pr/assets/issue7922/trailing-tab-regressions-20261015/1192000-202100017-policy-research-report-2020.pdf`** — `engine: 2020`
