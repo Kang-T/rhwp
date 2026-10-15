@@ -6,10 +6,12 @@ from fontTools import subset
 from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[1]
+CJK = "평점입찰가격배한도최저해당추정의상0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz =+-×%()"
 CASES = [
-    ("NotoSansKR-ExtraLight.ttf", "RHWPEquationCJKLight.ttf", "Noto Sans KR",
+    ("NotoSansKR-Regular.ttf", "RHWPEquationCJKRegular.ttf", "Haansoft Batang", CJK),
+    ("NotoSansKR-ExtraLight.ttf", "RHWPEquationCJKLight.ttf", "Haansoft Batang",
      "평점입찰가격배한도최저해당추정의상0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz =+-×%()"),
-    ("NotoSansKR-Regular.ttf", "RHWPEquationLatinOnly.ttf", "Batang",
+    ("NotoSansKR-Regular.ttf", "RHWPEquationLatinOnly.ttf", "Haansoft Batang",
      "".join(chr(c) for c in range(32, 127))),
 ]
 
