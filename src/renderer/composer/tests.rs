@@ -2524,3 +2524,65 @@ fn default_tabs_use_the_physical_row_origin() {
         "탭 격자는 줄 내부 0이 아니라 물리 행의 시작 좌표에서 이어진다"
     );
 }
+
+/// 관계형 — 세로 정렬별 재조판 기준선과 글꼴 기준 기준선의 관계를 검사한다.
+///
+/// 한컴은 문단 세로 정렬(HWP 5.0 표 44)이 위·가운데·아래이면 LINE_SEG 기준선 거리 자리에
+/// 그 정렬점을 저장한다 — 글자 높이의 0, 절반(내림), 전체. 공개 표본 1,205개의 저장 줄
+/// 55,800여 개가 개체 유무와 관계없이 이 규칙을 따른다(`lineseg_agreement` 도구 측정).
+/// 재조판은 같은 줄 상자를 만들고 기준선만 이 정렬점으로 발행해야 저장값과 같아진다.
+#[test]
+fn reflowed_rows_publish_the_paragraph_vertical_alignment_point() {
+    let reflow = |alignment: u8| {
+        let styles = ResolvedStyleSet {
+            char_styles: vec![crate::renderer::style_resolver::ResolvedCharStyle {
+                font_size: 13.0,
+                ..Default::default()
+            }],
+            para_styles: vec![crate::renderer::style_resolver::ResolvedParaStyle {
+                vertical_alignment: alignment,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let mut para = Paragraph {
+            text: "가나다".into(),
+            char_count: 4,
+            char_offsets: (0..3).collect(),
+            char_shapes: vec![CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 0,
+            }],
+            ..Default::default()
+        };
+        let paragraph_box =
+            ParagraphBox::content_for_style(400.0, styles.para_styles.first(), 96.0);
+        reflow_line_segs(&mut para, paragraph_box, &styles, 96.0);
+        para.line_segs
+    };
+    let font_basis = reflow(0);
+    let [base] = font_basis.as_slice() else {
+        panic!("한 줄이어야 한다: {font_basis:?}");
+    };
+    assert!(
+        base.text_height > 0 && base.text_height % 2 == 1,
+        "홀수 높이로 내림을 함께 본다: {base:?}"
+    );
+    assert_eq!(
+        base.baseline_distance,
+        (base.text_height as f64 * 0.85).round() as i32
+    );
+    for (alignment, expected) in [(1u8, 0), (2, base.text_height / 2), (3, base.text_height)] {
+        let rows = reflow(alignment);
+        let [row] = rows.as_slice() else {
+            panic!("세로 정렬 {alignment}: 한 줄이어야 한다: {rows:?}");
+        };
+        assert_eq!(row.baseline_distance, expected, "세로 정렬 {alignment}");
+        let mut same_box = row.clone();
+        same_box.baseline_distance = base.baseline_distance;
+        assert_eq!(
+            &same_box, base,
+            "세로 정렬 {alignment}: 기준선 밖의 줄 상자는 같다"
+        );
+    }
+}
