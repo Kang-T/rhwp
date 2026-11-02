@@ -523,6 +523,10 @@ name = "edit_sweep"
 path = "tools/diagnostics/edit_sweep.rs"
 
 [[example]]
+name = "lineseg_agreement"
+path = "tools/diagnostics/lineseg_agreement.rs"
+
+[[example]]
 name = "hwpx_dump_empty"
 path = "tools/diagnostics/hwpx_dump_empty.rs"
 
