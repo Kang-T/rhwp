@@ -2481,6 +2481,16 @@ export class WasmBridge {
    * 셀 문단의 컨트롤이 된다(가로 기준 단, 세로 기준 문단). offset 은 그 기준의 HU(음수 허용).
    * 반환 controlIdx 는 셀 문단 안 번호 — 속성은 setCellPicturePropertiesByPath 로 바꾼다.
    */
+  /** 띄운 그림을 다른 문단·셀 문단으로 옮겨 붙인다 (다른 쪽으로 끌어 놓기). 셀 경로 `[]` 는 본문. */
+  relocateFloatingPicture(srcSec: number, srcPara: number, srcCellPathJson: string, srcControl: number,
+                          dstSec: number, dstPara: number, dstCharOffset: number, dstCellPathJson: string,
+                          horzOffset: number, vertOffset: number): { ok: boolean; sec: number; paraIdx: number; controlIdx: number } {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return JSON.parse((this.doc as any).relocateFloatingPicture(
+      srcSec, srcPara, srcCellPathJson, srcControl, dstSec, dstPara, dstCharOffset, dstCellPathJson,
+      horzOffset, vertOffset));
+  }
+
   insertPictureInCell(sec: number, paraIdx: number, charOffset: number,
                       cellPathJson: string,
                       imageData: Uint8Array, width: number, height: number,

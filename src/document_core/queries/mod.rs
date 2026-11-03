@@ -28,12 +28,12 @@ pub mod changed_pages;
 /// 날짜·금액·수량을 주소와 함께 뽑는 추출 코어 — `grep` 과 같은 페이지 인덱스를 쓴다.
 pub mod extract_data;
 pub mod grep;
-/// 저장 LINE_SEG 와 편집 재조판 결과의 일치도 측정 (`lineseg_agreement` 진단 도구).
-pub mod lineseg_agreement;
 /// [#3787 S3] 은닉 텍스트 판정 — 흰 글씨/0pt/쪽 밖 텍스트를 읽기 전용으로 보고한다.
 pub mod hidden_text;
 /// [#3787 S2] 프롬프트 주입 신호 탐지 — 읽기 전용, 문서 무변경.
 pub mod injection_scan;
+/// 저장 LINE_SEG 와 편집 재조판 결과의 일치도 측정 (`lineseg_agreement` 진단 도구).
+pub mod lineseg_agreement;
 /// 개요 번호 전용 탐색 메타데이터. 문단 모양의 Outline만 대상으로 한다.
 pub mod navigation;
 /// [#3719 §6-11] 공개 전 개인정보 탐지 — 읽기 전용 판정(마스킹은 CLI 의 치환 경로).

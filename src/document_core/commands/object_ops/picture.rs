@@ -1565,6 +1565,136 @@ impl DocumentCore {
         )
     }
 
+    /// 띄운 그림(글자처럼 취급 아님)을 다른 문단·셀 문단으로 옮겨 붙이고 위치를 새로 정한다.
+    ///
+    /// 개체를 끌어 다른 쪽에 놓으면 한컴은 개체의 조판 부호(앵커)를 놓은 자리의 문단으로
+    /// 옮긴다. 앵커가 원래 쪽에 남으면 개체는 원래 쪽 기준으로 그려져 쪽 밖으로 잘린다.
+    /// 그림 데이터(BinData)는 그대로 두고 컨트롤만 옮긴다. 셀 경로가 비면 본문 문단이다.
+    /// 오프셋은 그림의 기존 위치 기준(가로·세로)에 대한 HWPUNIT 값이다.
+    #[allow(clippy::too_many_arguments)]
+    pub fn relocate_floating_picture_native(
+        &mut self,
+        src_section: usize,
+        src_para: usize,
+        src_cell_path: &[(usize, usize, usize)],
+        src_control: usize,
+        dst_section: usize,
+        dst_para: usize,
+        dst_char_offset: usize,
+        dst_cell_path: &[(usize, usize, usize)],
+        horz_offset: i32,
+        vert_offset: i32,
+    ) -> Result<String, HwpError> {
+        if dst_section >= self.document.sections.len() {
+            return Err(HwpError::RenderError(format!(
+                "구역 인덱스 {} 범위 초과",
+                dst_section
+            )));
+        }
+        // 옮기기 전에 도착 문단이 있는지 확인해, 실패하면 문서를 바꾸지 않는다.
+        Self::resolve_cell_paragraph_mut(
+            &mut self.document.sections[dst_section],
+            dst_para,
+            dst_cell_path,
+        )?;
+        let picture = {
+            let section = self.document.sections.get_mut(src_section).ok_or_else(|| {
+                HwpError::RenderError(format!("구역 인덱스 {} 범위 초과", src_section))
+            })?;
+            let para = Self::resolve_cell_paragraph_mut(section, src_para, src_cell_path)?;
+            match para.controls.get(src_control) {
+                Some(Control::Picture(pic)) if !pic.common.treat_as_char => {}
+                Some(Control::Picture(_)) => {
+                    return Err(HwpError::RenderError(
+                        "글자처럼 취급하는 그림은 옮겨 붙일 수 없습니다".to_string(),
+                    ))
+                }
+                _ => {
+                    return Err(HwpError::RenderError(
+                        "지정된 컨트롤이 그림이 아닙니다".to_string(),
+                    ))
+                }
+            }
+            let removed = para.remove_control(src_control);
+            Self::reflow_paragraph_line_segs_after_control_delete(para, &self.styles, self.dpi);
+            section.raw_stream = None;
+            removed
+        };
+        if src_cell_path.is_empty() {
+            if let Some(active) = self.active_field.as_mut() {
+                if active.section_idx == src_section
+                    && active.para_idx == src_para
+                    && active.cell_path.is_none()
+                    && active.control_idx > src_control
+                {
+                    active.control_idx -= 1;
+                }
+            }
+        }
+        let dst_path = if dst_section == src_section && dst_para == src_para {
+            Self::path_after_control_removal(src_cell_path, src_control, dst_cell_path)
+        } else {
+            dst_cell_path.to_vec()
+        };
+        let mut picture = picture;
+        if let Control::Picture(pic) = &mut picture {
+            pic.common.horizontal_offset = horz_offset as u32;
+            pic.common.vertical_offset = vert_offset as u32;
+        }
+        let new_ctrl_idx = {
+            let section = &mut self.document.sections[dst_section];
+            section.raw_stream = None;
+            let target = Self::resolve_cell_paragraph_mut(section, dst_para, &dst_path)?;
+            let new_ctrl_idx = Self::control_insert_index(target, dst_char_offset);
+            target.align_ctrl_data_records();
+            target.controls.insert(new_ctrl_idx, picture);
+            target.ctrl_data_records.insert(new_ctrl_idx, None);
+            target.shift_for_inline_control_insert(new_ctrl_idx, dst_char_offset);
+            target.control_mask |= 0x00000800;
+            new_ctrl_idx
+        };
+        if let Some(&(table_idx, _, _)) = src_cell_path.first() {
+            self.mark_cell_control_dirty(src_section, src_para, table_idx);
+        }
+        if let Some(&(table_idx, _, _)) = dst_path.first() {
+            self.mark_cell_control_dirty(dst_section, dst_para, table_idx);
+        }
+        for section_idx in [src_section, dst_section] {
+            self.mark_section_dirty(section_idx);
+            self.recompose_section(section_idx);
+        }
+        self.paginate_if_needed();
+        self.invalidate_page_tree_cache();
+        self.event_log.push(DocumentEvent::PictureDeleted {
+            section: src_section,
+            para: src_para,
+            ctrl: src_control,
+        });
+        self.event_log.push(DocumentEvent::PictureInserted {
+            section: dst_section,
+            para: dst_para,
+        });
+        Ok(crate::document_core::helpers::json_ok_with(&format!(
+            "\"sec\":{},\"paraIdx\":{},\"controlIdx\":{}",
+            dst_section, dst_para, new_ctrl_idx
+        )))
+    }
+
+    /// 같은 본문 문단 아래에서 `src_path` 문단의 `removed` 번 컨트롤이 빠진 뒤의 `dst_path`.
+    /// 도착 경로가 그 문단의 뒤쪽 컨트롤(표)을 거치면 번호가 하나 당겨진다.
+    fn path_after_control_removal(
+        src_path: &[(usize, usize, usize)],
+        removed: usize,
+        dst_path: &[(usize, usize, usize)],
+    ) -> Vec<(usize, usize, usize)> {
+        let mut path = dst_path.to_vec();
+        let depth = src_path.len();
+        if path.len() > depth && path[..depth] == *src_path && path[depth].0 > removed {
+            path[depth].0 -= 1;
+        }
+        path
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn insert_picture_native_anchored(
         &mut self,
@@ -2184,6 +2314,146 @@ mod issue_1151_cell_picture_insert_tests {
         let saved = core.export_hwp_native().expect("export hwp");
         let reopened = DocumentCore::from_bytes(&saved).expect("reopen");
         check(&reopened.document, "저장 후 다시 열기");
+    }
+
+    #[test]
+    fn relocation_shifts_destination_path_past_the_removed_control() {
+        let shift = DocumentCore::path_after_control_removal;
+        // 본문 문단의 0번 그림이 빠지면 같은 문단 2번 표는 1번이 된다.
+        assert_eq!(shift(&[], 0, &[(2, 0, 0)]), vec![(1, 0, 0)]);
+        // 앞쪽 표나 다른 칸 문단의 경로는 그대로다.
+        assert_eq!(shift(&[], 3, &[(2, 0, 0)]), vec![(2, 0, 0)]);
+        assert_eq!(
+            shift(&[(0, 1, 0)], 0, &[(0, 2, 0), (1, 0, 0)]),
+            vec![(0, 2, 0), (1, 0, 0)]
+        );
+        // 칸 문단의 그림이 빠지면 그 칸 문단 안 표를 거치는 중첩 경로만 당겨진다.
+        assert_eq!(
+            shift(&[(0, 1, 0)], 0, &[(0, 1, 0), (1, 0, 0)]),
+            vec![(0, 1, 0), (0, 0, 0)]
+        );
+        assert_eq!(shift(&[], 0, &[]), Vec::<(usize, usize, usize)>::new());
+    }
+
+    #[test]
+    fn floating_picture_relocates_between_body_and_cell_paragraphs() {
+        // 다른 쪽으로 끌어 놓은 그림은 앵커 문단이 바뀐다. 표를 가진 문단의 그림을 그 표의
+        // 셀로 옮겼다가 다시 본문으로 되돌리고, 저장 후에도 자리·오프셋이 남는지 본다.
+        let mut core = make_test_core();
+        let table_res = core.create_table_native(0, 0, 0, 1, 1).expect("1x1 표");
+        let para = parse_idx(&table_res, "paraIdx");
+        core.insert_picture_native(
+            0,
+            para,
+            0,
+            &[],
+            &minimal_png(),
+            4000,
+            2000,
+            1,
+            1,
+            "png",
+            "서명",
+            Some(100),
+            Some(200),
+        )
+        .expect("본문 그림");
+        let index_of = |doc: &Document, pick: fn(&Control) -> bool| {
+            doc.sections[0].paragraphs[para]
+                .controls
+                .iter()
+                .position(pick)
+        };
+        let is_pic: fn(&Control) -> bool = |c| matches!(c, Control::Picture(_));
+        let is_table: fn(&Control) -> bool = |c| matches!(c, Control::Table(_));
+        let pic_idx = index_of(&core.document, is_pic).expect("본문 그림 위치");
+        let table_idx = index_of(&core.document, is_table).expect("표 위치");
+
+        let res = core
+            .relocate_floating_picture_native(
+                0,
+                para,
+                &[],
+                pic_idx,
+                0,
+                para,
+                0,
+                &[(table_idx, 0, 0)],
+                1200,
+                -300,
+            )
+            .expect("셀로 옮기기");
+        let cell_ctrl = parse_idx(&res, "controlIdx");
+        let cell_pics = |doc: &Document| -> Vec<(i32, i32)> {
+            let table_idx = doc.sections[0].paragraphs[para]
+                .controls
+                .iter()
+                .position(|c| matches!(c, Control::Table(_)))
+                .unwrap();
+            let Control::Table(t) = &doc.sections[0].paragraphs[para].controls[table_idx] else {
+                unreachable!()
+            };
+            t.cells[0].paragraphs[0]
+                .controls
+                .iter()
+                .filter_map(|c| match c {
+                    Control::Picture(p) => Some((
+                        p.common.horizontal_offset as i32,
+                        p.common.vertical_offset as i32,
+                    )),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(
+            index_of(&core.document, is_pic),
+            None,
+            "본문 문단에서 빠져야 한다"
+        );
+        assert_eq!(cell_pics(&core.document), vec![(1200, -300)]);
+        assert!(
+            core.document.bin_data_content.len() >= 1,
+            "그림 데이터는 그대로 남는다"
+        );
+
+        let table_idx = index_of(&core.document, is_table).unwrap();
+        core.relocate_floating_picture_native(
+            0,
+            para,
+            &[(table_idx, 0, 0)],
+            cell_ctrl,
+            0,
+            para,
+            0,
+            &[],
+            700,
+            900,
+        )
+        .expect("본문으로 되돌리기");
+        assert!(cell_pics(&core.document).is_empty(), "셀에서 빠져야 한다");
+        let check = |doc: &Document, label: &str| {
+            let pics: Vec<_> = doc.sections[0]
+                .paragraphs
+                .iter()
+                .flat_map(|p| p.controls.iter())
+                .filter_map(|c| match c {
+                    Control::Picture(p) => Some((
+                        p.common.horizontal_offset as i32,
+                        p.common.vertical_offset as i32,
+                    )),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(pics, vec![(700, 900)], "{label}");
+        };
+        check(&core.document, "옮긴 직후");
+        let reopened =
+            DocumentCore::from_bytes(&core.export_hwp_native().expect("저장")).expect("다시 열기");
+        check(&reopened.document, "저장 후 다시 열기");
+
+        let err = core.relocate_floating_picture_native(0, para, &[], 99, 0, para, 0, &[], 0, 0);
+        assert!(err.is_err(), "없는 컨트롤은 거절하고 문서를 바꾸지 않는다");
+        check(&core.document, "거절 뒤");
     }
 
     #[test]
