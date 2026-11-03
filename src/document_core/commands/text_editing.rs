@@ -3014,7 +3014,15 @@ impl DocumentCore {
         // Keep the style-derived origin as well as the width. The render frame
         // already consumes this box; passing only its width here published
         // column_start=0 after an edit despite a nonzero paragraph margin.
-        let paragraph_box = ParagraphBox::content_for_style(available_width, para_style, self.dpi);
+        let line_wrap = self.document.sections[section_idx]
+            .paragraphs
+            .get(parent_para_idx)
+            .and_then(|para| para.controls.get(control_idx))
+            .map_or(0, |control| {
+                Self::cell_line_wrap_for_control(control, cell_idx)
+            });
+        let paragraph_box = ParagraphBox::content_for_style(available_width, para_style, self.dpi)
+            .with_cell_line_wrap(line_wrap);
 
         // 가변 참조로 리플로우 실행
         match self.document.sections[section_idx].paragraphs[parent_para_idx]
@@ -3297,6 +3305,14 @@ impl DocumentCore {
             .collect()
     }
 
+    /// 표 셀의 줄바꿈 방식(`lineWrap`). 캡션·글상자·그림 캡션은 자동 줄바꿈(0)이다.
+    pub(crate) fn cell_line_wrap_for_control(control: &Control, cell_idx: usize) -> u8 {
+        match control {
+            Control::Table(table) => table.cells.get(cell_idx).map_or(0, |cell| cell.line_wrap),
+            _ => 0,
+        }
+    }
+
     pub(crate) fn cell_metrics_for_control(
         control: &Control,
         cell_idx: usize,
@@ -3339,6 +3355,18 @@ impl DocumentCore {
         parent_para_idx: usize,
         path: &[(usize, usize, usize)],
     ) -> Option<CellReflowMetrics> {
+        let (control, cell_idx) =
+            self.resolve_innermost_cell_control(section_idx, parent_para_idx, path)?;
+        Self::cell_metrics_for_control(control, cell_idx)
+    }
+
+    /// path 의 최내곽 셀을 가진 컨트롤과 그 셀 번호.
+    fn resolve_innermost_cell_control(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> Option<(&Control, usize)> {
         let mut para = self
             .document
             .sections
@@ -3348,7 +3376,7 @@ impl DocumentCore {
         for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
             let control = para.controls.get(ctrl_idx)?;
             if i + 1 == path.len() {
-                return Self::cell_metrics_for_control(control, cell_idx);
+                return Some((control, cell_idx));
             }
             para = match control {
                 Control::Table(t) => t.cells.get(cell_idx)?.paragraphs.get(cell_para_idx)?,
@@ -3387,6 +3415,11 @@ impl DocumentCore {
         let pad_left_px = hwpunit_to_px(pad_left as i32, dpi);
         let pad_right_px = hwpunit_to_px(pad_right as i32, dpi);
         let available_width = (cell_width_px - pad_left_px - pad_right_px).max(0.0);
+        let line_wrap = self
+            .resolve_innermost_cell_control(section_idx, parent_para_idx, path)
+            .map_or(0, |(control, cell_idx)| {
+                Self::cell_line_wrap_for_control(control, cell_idx)
+            });
 
         let Ok(paras) = self.get_cell_paragraphs_mut_by_path(section_idx, parent_para_idx, path)
         else {
@@ -3396,7 +3429,8 @@ impl DocumentCore {
             return;
         };
         let para_style = styles.para_styles.get(cell_para.para_shape_id as usize);
-        let paragraph_box = ParagraphBox::content_for_style(available_width, para_style, dpi);
+        let paragraph_box = ParagraphBox::content_for_style(available_width, para_style, dpi)
+            .with_cell_line_wrap(line_wrap);
         // 셀 내용 상자 — 열이 없으므로 미스냅.
         reflow_line_segs(cell_para, paragraph_box, &styles, dpi);
     }

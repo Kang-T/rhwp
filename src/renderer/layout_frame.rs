@@ -82,8 +82,10 @@ fn snap_base_left(edge: i32, pitch: i32) -> i32 {
 pub struct ParagraphBox {
     horizontal: Range<i32>,
     origin_is_derivable: bool,
+    /// 상자 폭에서 줄을 자동으로 나누는가. 칸의 "한 줄로 입력"(`lineWrap=SQUEEZE`)이면 거짓.
+    auto_wrap: bool,
 }
-crate::storage::clone_fields!(ParagraphBox, {horizontal, origin_is_derivable});
+crate::storage::clone_fields!(ParagraphBox, {horizontal, origin_is_derivable, auto_wrap});
 
 impl ParagraphBox {
     /// A column-relative box: `[margin_left, column_width - margin_right]`, the
@@ -92,6 +94,7 @@ impl ParagraphBox {
         Self {
             horizontal,
             origin_is_derivable: true,
+            auto_wrap: true,
         }
     }
 
@@ -216,6 +219,36 @@ impl ParagraphBox {
         Self {
             horizontal,
             origin_is_derivable: true,
+            auto_wrap: true,
+        }
+    }
+
+    /// 칸의 줄바꿈 방식을 상자에 싣는다.
+    ///
+    /// 칸 속성 "한 줄로 입력"(HWP5 LIST_HEADER `lineWrap=SQUEEZE`)은 글자가 넘쳐도 줄을
+    /// 나누지 않고 자간을 줄여 한 줄에 담는다. 렌더러는 이미 이 칸의 넘친 줄을 자간으로
+    /// 흡수하지만(`shrunk_cell_horizontal_padding`), 편집 재조판은 상자 폭에서 줄을 나눠
+    /// 행이 높아지고 쪽이 늘었다. 공개 표본 1,205개를 다시 재면 칸 문단 5,192개가 이
+    /// 차이로만 한컴 저장 조판과 어긋났다(바꾼 뒤 새로 어긋난 문단 0개).
+    pub(crate) fn with_cell_line_wrap(self, line_wrap: u8) -> Self {
+        Self {
+            auto_wrap: line_wrap != crate::model::table::CELL_LINE_WRAP_SQUEEZE,
+            ..self
+        }
+    }
+
+    pub(crate) fn auto_wraps(&self) -> bool {
+        self.auto_wrap
+    }
+
+    /// 같은 원점에서 줄을 나누지 않을 만큼 넓힌 상자. 명시적 줄 나눔만 줄을 만든다.
+    pub(crate) fn unbounded(&self) -> Self {
+        const UNBOUNDED_WIDTH_HWP: i32 = 10_000_000;
+        Self {
+            horizontal: self.horizontal.start
+                ..self.horizontal.start.saturating_add(UNBOUNDED_WIDTH_HWP),
+            origin_is_derivable: self.origin_is_derivable,
+            auto_wrap: true,
         }
     }
 

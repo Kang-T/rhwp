@@ -219,6 +219,9 @@ fn visit_cells(
             let metrics: Vec<_> = (0..table.cells.len())
                 .map(|cell_idx| DocumentCore::cell_metrics_for_control(control, cell_idx))
                 .collect();
+            let line_wraps: Vec<u8> = (0..table.cells.len())
+                .map(|cell_idx| DocumentCore::cell_line_wrap_for_control(control, cell_idx))
+                .collect();
             let Control::Table(table) = control else {
                 continue;
             };
@@ -228,7 +231,8 @@ fn visit_cells(
                 };
                 for (cell_para_idx, cell_para) in cell.paragraphs.iter_mut().enumerate() {
                     let path = format!("{prefix}{ctrl_idx}.{cell_idx}.{cell_para_idx}");
-                    let paragraph_box = cell_box(metric, cell_para, styles, dpi);
+                    let paragraph_box = cell_box(metric, cell_para, styles, dpi)
+                        .with_cell_line_wrap(line_wraps[cell_idx]);
                     f(path.clone(), depth, cell_para, paragraph_box);
                     visit_cells(
                         std::slice::from_mut(cell_para),

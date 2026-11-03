@@ -964,7 +964,8 @@ impl DocumentCore {
                                                 .para_styles
                                                 .get(cell_para.para_shape_id as usize),
                                             dpi,
-                                        ),
+                                        )
+                                        .with_cell_line_wrap(cell.line_wrap),
                                         styles,
                                         dpi,
                                     );
@@ -1973,7 +1974,8 @@ impl DocumentCore {
                                 inner_width,
                                 styles.para_styles.get(child_para.para_shape_id as usize),
                                 dpi,
-                            ),
+                            )
+                            .with_cell_line_wrap(cell.line_wrap),
                             styles,
                             dpi,
                         );
@@ -2317,7 +2319,8 @@ impl DocumentCore {
                                                 .para_styles
                                                 .get(cell_para.para_shape_id as usize),
                                             dpi,
-                                        ),
+                                        )
+                                        .with_cell_line_wrap(cell.line_wrap),
                                         &styles,
                                         dpi,
                                     );

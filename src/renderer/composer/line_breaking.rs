@@ -5706,6 +5706,25 @@ fn try_reflow_line_segs_impl<S: Storage>(
     if !paragraph_box.is_usable() {
         return Ok(false);
     }
+    // "한 줄로 입력" 칸: 넓힌 상자로 줄을 정하고, 발행 폭은 실제 상자 폭으로 되돌린다.
+    // 한컴 저장 조판의 `segment_width` 는 이 칸에서도 칸 안쪽 폭이다.
+    if !paragraph_box.auto_wraps() {
+        let published_width = paragraph_box.width_hwp();
+        let preserved = try_reflow_line_segs_impl(
+            para,
+            paragraph_box.unbounded(),
+            styles,
+            dpi,
+            preserve_prefix_for_edit,
+            split_stale_cell_reflow,
+            object_line_font_basis,
+            storage,
+        )?;
+        for line in &mut para.line_segs {
+            line.segment_width = published_width;
+        }
+        return Ok(preserved);
+    }
     // [#4677] 줄을 다시 계산하면 이전에 붙여 둔 조판 전용 보강 줄은 사라진다 — 표식을
     // 남겨 두면 실제 줄을 저장에서 잘라 내게 된다.
     para.layout_only_fill_lines = 0;
