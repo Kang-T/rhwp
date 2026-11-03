@@ -35,3 +35,10 @@ test('function locals are isolated and global values follow lexical scope', () =
   input.source = 'var total=1;function increment(){total+=2;}'+input.source;
   assert.equal(evaluateFormAction(input).updates[0].text, '3');
 });
+
+test('a button without its Click handler does nothing, like Hancom, and skips global statements', () => {
+  const input = context('Result.Text="clicked";');
+  input.source = 'Result.Text="global";function OnOther_Click(){Result.Text="other";}';
+  assert.deepEqual(evaluateFormAction(input), { updates: [], commands: [], steps: 0 });
+  assert.equal(input.forms[1].text, 'before');
+});

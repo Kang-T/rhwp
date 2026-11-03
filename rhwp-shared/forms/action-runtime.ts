@@ -270,9 +270,10 @@ export function evaluateFormAction(context: FormActionContext): FormActionPlan {
   };
   const button = forms.findIndex(form => JSON.stringify(form.address) === JSON.stringify(context.button));
   if (button < 0 || !forms[button].enabled) bad(); environment.set('this', { tag: 'form', index: button });
+  // 한컴처럼 Click 처리기가 없는 단추는 아무 일도 하지 않는다 (전역 문장도 실행하지 않는다).
+  const trigger = parser.functions.get(context.trigger); if (!trigger) return { updates: [], commands: [], steps };
   statement(program);
-  const trigger = parser.functions.get(context.trigger); if (!trigger) bad('이 단추의 Click 처리기가 없습니다.');
-  statement(trigger!.body);
+  statement(trigger.body);
   const updates = [...dirty].map(index => { const { name: _name, formType: _type, ...update } = forms[index]; return update; });
   if (JSON.stringify(updates).length > 1_048_576) bad('편집 계획 한도를 초과했습니다.');
   return { updates, commands, steps };
