@@ -39,8 +39,16 @@ fn edited_cell_rows(line_wrap: u8) -> Vec<(u32, i32)> {
         .position(|c| matches!(c, Control::Table(_)))
         .unwrap();
     // 글자 넣기가 편집 재조판을 부른다.
-    core.insert_text_in_cell_native(0, table_para, ctrl, 0, 0, 0, &"가나다라마바사아자차".repeat(12))
-        .expect("칸 글 삽입");
+    core.insert_text_in_cell_native(
+        0,
+        table_para,
+        ctrl,
+        0,
+        0,
+        0,
+        &"가나다라마바사아자차".repeat(12),
+    )
+    .expect("칸 글 삽입");
     let Some(Control::Table(table)) = core.document().sections[0].paragraphs[table_para]
         .controls
         .get(ctrl)
@@ -58,8 +66,15 @@ fn edited_cell_rows(line_wrap: u8) -> Vec<(u32, i32)> {
 fn squeeze_cell_keeps_one_row_with_the_cell_box_width() {
     let wrapped = edited_cell_rows(0);
     let squeezed = edited_cell_rows(CELL_LINE_WRAP_SQUEEZE);
-    assert!(wrapped.len() >= 2, "전제: 보통 칸은 상자 폭에서 줄을 나눈다: {wrapped:?}");
-    assert_eq!(squeezed.len(), 1, "한 줄로 입력 칸은 한 줄이다: {squeezed:?}");
+    assert!(
+        wrapped.len() >= 2,
+        "전제: 보통 칸은 상자 폭에서 줄을 나눈다: {wrapped:?}"
+    );
+    assert_eq!(
+        squeezed.len(),
+        1,
+        "한 줄로 입력 칸은 한 줄이다: {squeezed:?}"
+    );
     assert_eq!(squeezed[0].0, 0);
     assert_eq!(
         squeezed[0].1, wrapped[0].1,
